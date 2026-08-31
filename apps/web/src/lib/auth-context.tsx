@@ -47,13 +47,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const savedToken = localStorage.getItem('vps_token');
     const savedUser = localStorage.getItem('vps_user');
-    if (savedToken && savedUser) {
-      try {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error('Failed to parse saved user', e);
+    if (savedToken) {
+      setToken(savedToken);
+      if (savedUser) {
+        try {
+          setUser(JSON.parse(savedUser));
+        } catch (e) {}
       }
+
+      // Fetch fresh user profile from API (sync avatar_url, role, google_id)
+      fetch('/api/v1/auth/me', {
+        headers: { Authorization: `Bearer ${savedToken}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.user) {
+            setUser(data.user);
+            localStorage.setItem('vps_user', JSON.stringify(data.user));
+          }
+        })
+        .catch(() => {});
     }
     setIsLoading(false);
   }, []);

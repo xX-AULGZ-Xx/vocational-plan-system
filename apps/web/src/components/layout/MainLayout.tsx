@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation';
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const isAuthPage = pathname === '/login';
+  const isAuthPage = pathname === '/login' || pathname === '/setup';
   const isStandalonePage = pathname?.startsWith('/surveys');
 
   if (isAuthPage) {

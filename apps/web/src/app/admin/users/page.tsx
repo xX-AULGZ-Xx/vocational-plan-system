@@ -149,8 +149,10 @@ export default function AdminUsersPage() {
   const [resetSubmitting, setResetSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchUsers();
-    fetchDivisions();
+    if (token) {
+      fetchUsers();
+      fetchDivisions();
+    }
   }, [token]);
 
   const showNotification = (type: 'success' | 'error', text: string) => {
@@ -161,12 +163,17 @@ export default function AdminUsersPage() {
   };
 
   const fetchUsers = async () => {
+    if (!token) return;
     setLoading(true);
     try {
       const res = await fetch('/api/v1/admin/users', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
+      if (res.status === 401) {
+        showNotification('error', 'เซสชันหมดอายุหรือ Token ไม่ถูกต้อง กรุณาล็อกอินใหม่อีกครั้ง');
+        return;
+      }
       if (data.success && data.data) {
         setUsers(data.data);
       } else {
@@ -619,7 +626,19 @@ export default function AdminUsersPage() {
                               <img
                                 src={u.avatar_url}
                                 alt={u.full_name}
+                                referrerPolicy="no-referrer"
+                                crossOrigin="anonymous"
                                 className="w-9 h-9 rounded-full object-cover border border-slate-200 flex-shrink-0"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                  const parent = (e.target as HTMLElement).parentElement;
+                                  if (parent && !parent.querySelector('.table-avatar-fallback')) {
+                                    const fallback = document.createElement('div');
+                                    fallback.className = 'table-avatar-fallback w-9 h-9 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-xs flex-shrink-0';
+                                    fallback.innerText = u.full_name ? u.full_name.charAt(0) : 'U';
+                                    parent.prepend(fallback);
+                                  }
+                                }}
                               />
                             ) : (
                               <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-xs flex-shrink-0">
@@ -738,7 +757,19 @@ export default function AdminUsersPage() {
                           <img
                             src={u.avatar_url}
                             alt={u.full_name}
+                            referrerPolicy="no-referrer"
+                            crossOrigin="anonymous"
                             className="w-10 h-10 rounded-full object-cover border border-slate-200 flex-shrink-0"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                              const parent = (e.target as HTMLElement).parentElement;
+                              if (parent && !parent.querySelector('.mobile-avatar-fallback')) {
+                                const fallback = document.createElement('div');
+                                fallback.className = 'mobile-avatar-fallback w-10 h-10 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-sm flex-shrink-0';
+                                fallback.innerText = u.full_name ? u.full_name.charAt(0) : 'U';
+                                parent.prepend(fallback);
+                              }
+                            }}
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-sm flex-shrink-0">

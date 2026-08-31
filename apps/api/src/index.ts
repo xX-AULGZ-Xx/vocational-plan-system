@@ -15,6 +15,7 @@ import documentRouter from './modules/documents/document.controller';
 import adminRouter from './modules/admin/admin.controller';
 import evaluationRouter from './modules/evaluation/evaluation.controller';
 import notificationsRouter from './modules/notifications/notifications.controller';
+import setupRouter from './modules/setup/setup.controller';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -61,6 +62,7 @@ app.use('/api/v1/divisions', divisionRouter);
 app.use('/api/v1/strategics', strategicRouter);
 app.use('/api/v1/documents', documentRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/setup', setupRouter);
 app.use('/api/v1/notifications', notificationsRouter);
 app.use('/api/v1', evaluationRouter);
 

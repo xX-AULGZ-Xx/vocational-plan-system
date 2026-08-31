@@ -1,0 +1,321 @@
+import { Router, Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
+import path from 'path';
+import fs from 'fs';
+import { prisma, serializeBigInt } from '../../lib/prisma';
+import { Role, SourceType } from '@prisma/client';
+
+const router = Router();
+
+const STORAGE_DIR = path.resolve(process.env.STORAGE_DIR || './storage');
+
+// Helper to check writable directory
+function isDirectoryWritable(dirPath: string): boolean {
+  try {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+    const testFile = path.join(dirPath, `.write_test_${Date.now()}`);
+    fs.writeFileSync(testFile, 'test');
+    fs.unlinkSync(testFile);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// 1. GET /api/v1/setup/status
+// Check if the system has already been setup
+router.get('/status', async (req: Request, res: Response) => {
+  try {
+    const setupSetting = await (prisma as any).systemSetting.findUnique({
+      where: { key: 'is_system_setup' },
+    });
+
+    const isSetup = setupSetting?.value === 'true';
+
+    // Count admin users
+    const adminCount = await prisma.user.count({
+      where: { role: Role.ADMIN },
+    });
+
+    return res.json({
+      success: true,
+      is_setup: isSetup && adminCount > 0,
+      admin_count: adminCount,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการตรวจสอบสถานะระบบ',
+      error: error.message,
+    });
+  }
+});
+
+// 2. GET /api/v1/setup/health
+// Check system requirements, database connection, storage directories
+router.get('/health', async (req: Request, res: Response) => {
+  const checks = {
+    database: false,
+    storage: false,
+    nodeVersion: process.version,
+    environment: process.env.NODE_ENV || 'development',
+    directories: {} as Record<string, boolean>,
+  };
+
+  try {
+    // Check DB
+    await prisma.$queryRaw`SELECT 1`;
+    checks.database = true;
+  } catch (dbErr) {
+    checks.database = false;
+  }
+
+  // Check Storage Dirs
+  const requiredDirs = [
+    STORAGE_DIR,
+    path.join(STORAGE_DIR, 'templates'),
+    path.join(STORAGE_DIR, 'exports'),
+    path.join(STORAGE_DIR, 'logos'),
+    path.join(STORAGE_DIR, 'uploads'),
+  ];
+
+  let allDirsOk = true;
+  for (const dir of requiredDirs) {
+    const isOk = isDirectoryWritable(dir);
+    checks.directories[path.basename(dir) || 'storage'] = isOk;
+    if (!isOk) allDirsOk = false;
+  }
+  checks.storage = allDirsOk;
+
+  return res.json({
+    success: true,
+    all_passed: checks.database && checks.storage,
+    checks,
+  });
+});
+
+// 3. POST /api/v1/setup/install
+// Execute first-time installation and seed default data
+router.post('/install', async (req: Request, res: Response) => {
+  try {
+    // Security check: Check if system is already initialized
+    const existingSetup = await (prisma as any).systemSetting.findUnique({
+      where: { key: 'is_system_setup' },
+    });
+    const adminCount = await prisma.user.count({ where: { role: Role.ADMIN } });
+
+    if (existingSetup?.value === 'true' && adminCount > 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'ระบบได้รับการติดตั้งและตั้งค่าไปแล้ว ไม่อนุญาตให้ดำเนินการซ้ำ',
+      });
+    }
+
+    const {
+      admin_name,
+      admin_username,
+      admin_password,
+      admin_email,
+      college_name,
+      college_name_en,
+      college_address,
+      college_phone,
+      college_email,
+      college_website,
+      director_name,
+      director_position,
+      current_fiscal_year,
+      theme_preset,
+      theme_primary_color,
+      theme_primary_hover,
+      theme_accent_color,
+      theme_font_family,
+      seed_departments = true,
+      seed_budget_categories = true,
+      seed_strategic_plans = true,
+      seed_demo_accounts = false,
+      enable_test_mode = false,
+    } = req.body;
+
+    if (!admin_username || !admin_password || !admin_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'กรุณากรอกข้อมูลผู้ดูแลระบบให้ครบถ้วน (ชื่อ, ชื่อผู้ใช้, รหัสผ่าน)',
+      });
+    }
+
+    // 1. Create or update Super Admin User
+    const passwordHash = await bcrypt.hash(admin_password, 10);
+    const superAdmin = await prisma.user.upsert({
+      where: { username: admin_username },
+      update: {
+        full_name: admin_name,
+        email: admin_email || null,
+        password_hash: passwordHash,
+        role: Role.ADMIN,
+        position: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
+        is_active: true,
+      },
+      create: {
+        username: admin_username,
+        full_name: admin_name,
+        email: admin_email || null,
+        password_hash: passwordHash,
+        role: Role.ADMIN,
+        position: 'ผู้ดูแลระบบสูงสุด (Super Admin)',
+        is_active: true,
+      },
+    });
+
+    // 2. Save System Settings
+    const settingsToSave: Record<string, string> = {
+      is_system_setup: 'true',
+      setup_completed_at: new Date().toISOString(),
+      college_name: college_name || 'วิทยาลัยการอาชีพเชียงราย',
+      college_name_en: college_name_en || 'Chiangrai Industrial And Community Education College',
+      college_address: college_address || '',
+      college_phone: college_phone || '',
+      college_email: college_email || '',
+      college_website: college_website || '',
+      director_name: director_name || '',
+      director_position: director_position || `ผู้อำนวยการ${college_name || 'สถานศึกษา'}`,
+      current_fiscal_year: String(current_fiscal_year || '2569'),
+      theme_preset: theme_preset || 'royal_blue',
+      theme_primary_color: theme_primary_color || '#1e3a8a',
+      theme_primary_hover: theme_primary_hover || '#172554',
+      theme_accent_color: theme_accent_color || '#0d9488',
+      theme_font_family: theme_font_family || 'Prompt',
+      enable_test_mode: enable_test_mode ? 'true' : 'false',
+    };
+
+    for (const [key, value] of Object.entries(settingsToSave)) {
+      await (prisma as any).systemSetting.upsert({
+        where: { key },
+        update: { value: String(value) },
+        create: { key, value: String(value), description: '' },
+      });
+    }
+
+    // 3. Seed Default Divisions & Departments (4 ฝ่ายมาตรฐาน สอศ.)
+    let deptTechId: number | null = null;
+    let deptPlanId: number | null = null;
+
+    if (seed_departments) {
+      const acad = await prisma.division.upsert({
+        where: { code: 'ACAD' },
+        update: {},
+        create: { name: 'ฝ่ายวิชาการ', code: 'ACAD' },
+      });
+
+      const resDiv = await prisma.division.upsert({
+        where: { code: 'RES' },
+        update: {},
+        create: { name: 'ฝ่ายบริหารทรัพยากร', code: 'RES' },
+      });
+
+      const dev = await prisma.division.upsert({
+        where: { code: 'DEV' },
+        update: {},
+        create: { name: 'ฝ่ายพัฒนากิจการนักเรียน นักศึกษา', code: 'DEV' },
+      });
+
+      const strat = await prisma.division.upsert({
+        where: { code: 'STRAT' },
+        update: {},
+        create: { name: 'ฝ่ายแผนงานและความร่วมมือ', code: 'STRAT' },
+      });
+
+      // Sample Departments
+      const d1 = await prisma.department.create({
+        data: { name: 'แผนกวิชาเทคโนโลยีสารสนเทศ', division_id: acad.id },
+      });
+      deptTechId = d1.id;
+
+      await prisma.department.create({
+        data: { name: 'แผนกวิชาการบัญชี', division_id: acad.id },
+      });
+
+      await prisma.department.create({
+        data: { name: 'งานการเงินและบัญชี', division_id: resDiv.id },
+      });
+
+      await prisma.department.create({
+        data: { name: 'งานกิจกรรมนักเรียนนักศึกษา', division_id: dev.id },
+      });
+
+      const d5 = await prisma.department.create({
+        data: { name: 'งานวางแผนและงบประมาณ', division_id: strat.id },
+      });
+      deptPlanId = d5.id;
+    }
+
+    // 4. Seed Budget Categories
+    if (seed_budget_categories) {
+      const defaultCats = [
+        { name: 'ค่าตอบแทน (วิทยากร / คณะกรรมการ)', source_type: SourceType.SUBSIDY },
+        { name: 'ค่าใช้สอย (ค่าอาหารว่าง / ค่าสถานที่ / ค่าจ้างเหมา)', source_type: SourceType.SUBSIDY },
+        { name: 'ค่าวัสดุ (เอกสาร / อุปกรณ์อบรม / วัสดุฝึก)', source_type: SourceType.SUBSIDY },
+      ];
+      for (const cat of defaultCats) {
+        await prisma.budgetCategory.create({ data: cat });
+      }
+    }
+
+    // 5. Seed Strategic Plans
+    if (seed_strategic_plans) {
+      const year = parseInt(current_fiscal_year || '2569');
+      await prisma.strategicPlan.create({
+        data: {
+          fiscal_year: year,
+          title: `แผนปฏิบัติราชการประจำปีงบประมาณ พ.ศ. ${year} ${college_name || 'สถานศึกษา'}`,
+          indicators: {
+            create: [
+              { code: 'STRAT-1.1', description: 'ยุทธศาสตร์ที่ 1: พัฒนาคุณภาพและมาตรฐานการจัดการศึกษาอาชีวศึกษาสู่สากล' },
+              { code: 'STRAT-1.2', description: 'ยุทธศาสตร์ที่ 1 (ตัวชี้วัด): ร้อยละของผู้สำเร็จการศึกษาที่มีงานทำหรือประกอบอาชีพอิสระ' },
+              { code: 'STRAT-2.1', description: 'ยุทธศาสตร์ที่ 2: พัฒนาครูและบุคลากรทางการศึกษาให้มีความเชี่ยวชาญด้านวิชาชีพและเทคโนโลยีดิจิทัล' },
+              { code: 'STRAT-3.1', description: 'ยุทธศาสตร์ที่ 3: ขยายโอกาสทางการศึกษาวิชาชีพและฝึกอบรมทักษะอาชีพแก่ชุมชนท้องถิ่น' },
+              { code: 'STRAT-4.1', description: 'ยุทธศาสตร์ที่ 4: พัฒนาระบบบริหารจัดการด้วยเทคโนโลยีดิจิทัลและหลักธรรมาภิบาล' },
+            ],
+          },
+        },
+      });
+    }
+
+    // 6. Optional: Seed Demo Accounts for Testing
+    if (seed_demo_accounts && deptTechId && deptPlanId) {
+      const defaultDemoPassword = await bcrypt.hash('password123', 10);
+      const demoUsers = [
+        { username: 'teacher1', password_hash: defaultDemoPassword, full_name: 'อาจารย์สมชาย ใจดี', position: 'ครูผู้สอน', role: Role.TEACHER, department_id: deptTechId },
+        { username: 'head_tech', password_hash: defaultDemoPassword, full_name: 'นายประสิทธิ์ วิชาการ', position: 'หัวหน้าแผนกวิชา', role: Role.HEAD_DEPT, department_id: deptTechId },
+        { username: 'deputy_acad', password_hash: defaultDemoPassword, full_name: 'ดร.สมศักดิ์ ภักดี', position: 'รองผู้อำนวยการฝ่ายวิชาการ', role: Role.DEPUTY_DIRECTOR, department_id: deptTechId },
+        { username: 'planning_officer', password_hash: defaultDemoPassword, full_name: 'น.ส.อารีย์ แผนงานดี', position: 'เจ้าหน้าที่งานวางแผนและงบประมาณ', role: Role.PLANNING_OFFICER, department_id: deptPlanId },
+        { username: 'director', password_hash: defaultDemoPassword, full_name: director_name || 'นายชูชาติ วงศ์สว่าง', position: director_position || 'ผู้อำนวยการสถานศึกษา', role: Role.DIRECTOR, department_id: null },
+      ];
+
+      for (const u of demoUsers) {
+        await prisma.user.upsert({
+          where: { username: u.username },
+          update: {},
+          create: u,
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'ติดตั้งและตั้งค่าเริ่มต้นระบบเรียบร้อยแล้ว',
+      user: serializeBigInt(superAdmin),
+    });
+  } catch (error: any) {
+    console.error('Setup install error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการติดตั้งระบบ',
+      error: error.message,
+    });
+  }
+});
+
+export default router;

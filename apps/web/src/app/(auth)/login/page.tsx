@@ -35,7 +35,16 @@ function LoginForm() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    // Check if system needs setup
+    fetch('/api/v1/setup/status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.is_setup === false) {
+          router.push('/setup');
+        }
+      })
+      .catch((e) => {});
+  }, [router]);
 
   const handleLogin = async (u = username, p = password) => {
     if (!u.trim() || !p.trim()) {

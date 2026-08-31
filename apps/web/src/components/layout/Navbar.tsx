@@ -259,7 +259,19 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
                   <img
                     src={user.avatar_url}
                     alt={user.full_name}
+                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
                     className="w-8 h-8 rounded-full object-cover border border-slate-300 shadow-xs flex-shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                      const parent = (e.target as HTMLElement).parentElement;
+                      if (parent && !parent.querySelector('.user-avatar-fallback')) {
+                        const fallback = document.createElement('div');
+                        fallback.className = 'user-avatar-fallback w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-xs flex-shrink-0';
+                        fallback.innerText = user.full_name?.charAt(0) || 'U';
+                        parent.prepend(fallback);
+                      }
+                    }}
                   />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-xs flex-shrink-0">

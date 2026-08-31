@@ -232,6 +232,7 @@ router.post('/login', async (req: Request, res: Response) => {
         full_name: user.full_name,
         position: user.position,
         role: user.role,
+        avatar_url: user.avatar_url,
         department: user.department,
       }),
     });
@@ -386,6 +387,7 @@ router.post('/switch-role', async (req: Request, res: Response) => {
         full_name: user.full_name,
         position: user.position,
         role: user.role,
+        avatar_url: user.avatar_url,
         department: user.department,
       }),
     });
