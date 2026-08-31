@@ -41,6 +41,40 @@ export default function SetupWizardPage() {
     directories: Record<string, boolean>;
   } | null>(null);
 
+  // MySQL Database Connection Config State
+  const [dbConfig, setDbConfig] = useState({
+    host: 'localhost',
+    port: '3306',
+    database: 'vocational_plan_db',
+    user: 'root',
+    password: '',
+  });
+  const [testingDb, setTestingDb] = useState(false);
+  const [dbTestMsg, setDbTestMsg] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleTestDbConnection = async () => {
+    setTestingDb(true);
+    setDbTestMsg(null);
+    try {
+      const res = await fetch('/api/v1/setup/test-db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dbConfig),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDbTestMsg({ success: true, message: data.message });
+        setHealthResult((prev: any) => ({ ...prev, database: true }));
+      } else {
+        setDbTestMsg({ success: false, message: data.message || 'ไม่สามารถเชื่อมต่อ MySQL ได้' });
+      }
+    } catch (err: any) {
+      setDbTestMsg({ success: false, message: `เกิดข้อผิดพลาด: ${err.message}` });
+    } finally {
+      setTestingDb(false);
+    }
+  };
+
   // Form State
   const [formData, setFormData] = useState({
     // Step 2: College & Branding
@@ -298,32 +332,132 @@ export default function SetupWizardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Database Check */}
-                  <div className="p-4 rounded-xl border bg-slate-800/60 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${healthResult?.database ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                        <Database className="w-5 h-5" />
+                  {/* Database Connection Status & Configuration Card */}
+                  <div className="p-4 sm:p-5 rounded-xl border border-slate-800 bg-slate-850 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${healthResult?.database ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                          <Database className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="text-xs sm:text-sm font-bold text-white">การเชื่อมต่อฐานข้อมูล (MySQL Database)</div>
+                          <div className="text-[11px] text-slate-400">ระบุการตั้งค่าและรหัสผ่าน MySQL เพื่อใช้ในระบบ</div>
+                        </div>
                       </div>
                       <div>
-                        <div className="text-xs sm:text-sm font-bold text-white">การเชื่อมต่อฐานข้อมูล (Database Connection)</div>
-                        <div className="text-[11px] text-slate-400">Prisma Client เชื่อมต่อไปยัง MySQL Database</div>
+                        {healthResult?.database ? (
+                          <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-500/30 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> เชื่อมต่อสำเร็จ
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 bg-amber-500/20 text-amber-300 text-xs font-bold rounded-full border border-amber-500/30 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5" /> รอการทดสอบ/เชื่อมต่อ
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div>
-                      {healthResult?.database ? (
-                        <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-500/30 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> ผ่านการตรวจสอบ
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 bg-red-500/20 text-red-300 text-xs font-bold rounded-full border border-red-500/30 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5" /> ไม่สามารถเชื่อมต่อได้
-                        </span>
-                      )}
+
+                    {/* MySQL Connection Inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-300 mb-1">Database Host</label>
+                        <input
+                          type="text"
+                          value={dbConfig.host}
+                          onChange={(e) => setDbConfig((prev) => ({ ...prev, host: e.target.value }))}
+                          placeholder="localhost หรือ host.docker.internal"
+                          className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono outline-none focus:border-blue-500 transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-300 mb-1">Port</label>
+                        <input
+                          type="text"
+                          value={dbConfig.port}
+                          onChange={(e) => setDbConfig((prev) => ({ ...prev, port: e.target.value }))}
+                          placeholder="3306"
+                          className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono outline-none focus:border-blue-500 transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-300 mb-1">Database Name</label>
+                        <input
+                          type="text"
+                          value={dbConfig.database}
+                          onChange={(e) => setDbConfig((prev) => ({ ...prev, database: e.target.value }))}
+                          placeholder="vocational_plan_db"
+                          className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono outline-none focus:border-blue-500 transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-300 mb-1">MySQL Username</label>
+                        <input
+                          type="text"
+                          value={dbConfig.user}
+                          onChange={(e) => setDbConfig((prev) => ({ ...prev, user: e.target.value }))}
+                          placeholder="root หรือ plan_user"
+                          className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono outline-none focus:border-blue-500 transition"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center justify-between">
+                          <span>MySQL Password (รหัสผ่านฐานข้อมูล)</span>
+                          <span className="text-[10px] text-amber-400 font-normal">* รหัสผ่านของ Server MySQL</span>
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="password"
+                            value={dbConfig.password}
+                            onChange={(e) => setDbConfig((prev) => ({ ...prev, password: e.target.value }))}
+                            placeholder="ระบุรหัสผ่าน MySQL Server"
+                            className="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white font-mono outline-none focus:border-blue-500 transition"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleTestDbConnection}
+                            disabled={testingDb}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                          >
+                            {testingDb ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span>กำลังทดสอบ...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Database className="w-3.5 h-3.5" />
+                                <span>ทดสอบการเชื่อมต่อ</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
+
+                    {dbTestMsg && (
+                      <div
+                        className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${
+                          dbTestMsg.success
+                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-red-500/15 text-red-300 border border-red-500/30'
+                        }`}
+                      >
+                        {dbTestMsg.success ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                        )}
+                        <span>{dbTestMsg.message}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Storage Directory Check */}
-                  <div className="p-4 rounded-xl border bg-slate-800/60 flex items-center justify-between">
+                  <div className="p-4 rounded-xl border border-slate-800 bg-slate-850 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${healthResult?.storage ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                         <FolderCheck className="w-5 h-5" />

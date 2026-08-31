@@ -1,4 +1,16 @@
+# ==============================================================================
+# Vocational Planning & Project Management System — Docker Compose Configuration
+# ==============================================================================
+# Mode 1 (Full Stack): รวม MySQL Container ภายใน
+#   $ docker compose up -d --build
+#
+# Mode 2 (External Host MySQL): กรณี Server มี MySQL อยู่แล้ว (เช่น Port 3306)
+#   $ docker compose -f docker-compose.yml -f docker-compose.external-db.yml up -d --build
+# ==============================================================================
+
 services:
+  # 1. MySQL Database Container (สร้างฐานข้อมูลอัตโนมัติ)
+  # *หากเซิร์ฟเวอร์มี MySQL อยู่แล้ว ให้ดูคำแนะนำใน docker-compose.external-db.yml*
   mysql:
     image: mysql:8.0
     container_name: vps-mysql
@@ -13,19 +25,61 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    networks:
+      - vps-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "plan_user", "-pplan_password"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  libreoffice-converter:
-    image: linuxserver/libreoffice:latest
-    container_name: vps-libreoffice
+  # 2. Backend API Service (Node.js Express + Prisma + LibreOffice + Thai Fonts)
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: vps-api
     restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
     environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Asia/Bangkok
+      PORT: 5050
+      DATABASE_URL: "mysql://plan_user:plan_password@mysql:3306/vocational_plan_db"
+      JWT_SECRET: "${JWT_SECRET:-super-secret-jwt-key-chiangrai-vocational-2026}"
+      CORS_ORIGIN: "http://localhost:3005,http://localhost:3000,http://web:3005"
+      STORAGE_DIR: "/app/apps/api/storage"
     ports:
-      - "3008:3000"
+      - "5050:5050"
     volumes:
-      - ./apps/api/storage:/app/storage
+      - app_storage:/app/apps/api/storage
+    networks:
+      - vps-network
+
+  # 3. Frontend Web Service (Next.js 16 Standalone)
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: vps-web
+    restart: always
+    depends_on:
+      - api
+    environment:
+      PORT: 3005
+      INTERNAL_API_URL: "http://api:5050"
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}"
+    ports:
+      - "3005:3005"
+    networks:
+      - vps-network
 
 volumes:
   mysql_data:
+    driver: local
+  app_storage:
+    driver: local
+
+networks:
+  vps-network:
+    driver: bridge

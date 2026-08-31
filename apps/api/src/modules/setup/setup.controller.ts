@@ -93,7 +93,46 @@ router.get('/health', async (req: Request, res: Response) => {
     success: true,
     all_passed: checks.database && checks.storage,
     checks,
+    database_url_configured: Boolean(process.env.DATABASE_URL),
   });
+});
+
+// 2.1 POST /api/v1/setup/test-db
+// Test MySQL connection with provided host, port, user, pass, database
+router.post('/test-db', async (req: Request, res: Response) => {
+  try {
+    const { host, port, user, password, database } = req.body;
+    if (!host || !user || !database) {
+      return res.status(400).json({
+        success: false,
+        message: 'กรุณาระบุ Host, User และ Database ให้ครบถ้วน',
+      });
+    }
+
+    const mysql = require('mysql2/promise');
+    const connection = await mysql.createConnection({
+      host: host.trim(),
+      port: parseInt(port) || 3306,
+      user: user.trim(),
+      password: password || '',
+      database: database.trim(),
+      connectTimeout: 5000,
+    });
+
+    await connection.ping();
+    await connection.end();
+
+    return res.json({
+      success: true,
+      message: 'เชื่อมต่อ MySQL Database สำเร็จ!',
+    });
+  } catch (error: any) {
+    return res.status(400).json({
+      success: false,
+      message: `ไม่สามารถเชื่อมต่อ MySQL ได้: ${error.message}`,
+      error: error.message,
+    });
+  }
 });
 
 // 3. POST /api/v1/setup/install
