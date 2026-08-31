@@ -1,0 +1,1 @@
+const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function main() { const tags = await prisma.templateTag.findMany({ where: { tag_type: 'TABLE_LOOP' } }); console.log(JSON.stringify(tags, null, 2)); } main();

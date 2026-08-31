@@ -1,0 +1,392 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  TEACHER
+  HEAD_DEPT
+  DEPUTY_DIRECTOR
+  PLANNING_OFFICER
+  DIRECTOR
+  ADMIN
+}
+
+enum ProjectStatus {
+  draft
+  submitted
+  dept_approved
+  deputy_approved
+  planning_approved
+  approved
+  rejected
+  in_progress
+  completed
+  cancelled
+}
+
+enum SourceType {
+  GOVERNMENT
+  SUBSIDY
+  REVENUE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
+}
+
+model Division {
+  id          Int          @id @default(autoincrement())
+  name        String       @db.VarChar(100)
+  code        String       @unique @db.VarChar(20)
+  departments Department[]
+
+  @@map("divisions")
+}
+
+model Department {
+  id          Int       @id @default(autoincrement())
+  division_id Int
+  name        String    @db.VarChar(150)
+  division    Division  @relation(fields: [division_id], references: [id], onDelete: Cascade)
+  users       User[]
+  projects    Project[]
+
+  @@map("departments")
+}
+
+model User {
+  id            BigInt            @id @default(autoincrement())
+  department_id Int?
+  username      String            @unique @db.VarChar(50)
+  password_hash String?           @db.VarChar(255)
+  email         String?           @unique @db.VarChar(100)
+  google_id     String?           @unique @db.VarChar(100)
+  avatar_url    String?           @db.VarChar(500)
+  full_name     String            @db.VarChar(150)
+  position      String?           @db.VarChar(100)
+  signature_img String?           @db.VarChar(255)
+  role          Role              @default(TEACHER)
+  is_active     Boolean           @default(true)
+  created_at    DateTime          @default(now())
+  department    Department?       @relation(fields: [department_id], references: [id], onDelete: SetNull)
+  projects      Project[]         @relation("ProjectLeader")
+  approvals     ProjectApproval[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model StrategicPlan {
+  id          Int                  @id @default(autoincrement())
+  fiscal_year Int
+  title       String               @db.VarChar(255)
+  indicators  StrategicIndicator[]
+
+  @@map("strategic_plans")
+}
+
+model StrategicIndicator {
+  id          Int                @id @default(autoincrement())
+  plan_id     Int
+  code        String             @db.VarChar(50)
+  description String             @db.Text
+  plan        StrategicPlan      @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+  alignments  ProjectAlignment[]
+
+  @@map("strategic_indicators")
+}
+
+model Project {
+  id               BigInt              @id @default(autoincrement())
+  project_code     String?             @unique @db.VarChar(50)
+  fiscal_year      Int
+  title            String              @db.VarChar(255)
+  department_id    Int
+  leader_id        BigInt
+  template_id      Int?
+  background       String?             @db.Text
+  objectives       Json?
+  target_groups    Json?
+  expected_results String?             @db.Text
+  dynamic_data     Json?               @default("{}")
+  status           ProjectStatus       @default(draft)
+  total_budget     Decimal             @default(0.00) @db.Decimal(12, 2)
+  actual_spent     Decimal             @default(0.00) @db.Decimal(12, 2)
+  created_at       DateTime            @default(now())
+  updated_at       DateTime            @default(now()) @updatedAt
+
+  department       Department          @relation(fields: [department_id], references: [id])
+  leader           User                @relation("ProjectLeader", fields: [leader_id], references: [id])
+  alignments       ProjectAlignment[]
+  budget_items     ProjectBudgetItem[]
+  timelines        ProjectTimeline[]
+  approvals        ProjectApproval[]
+  documents        ProjectDocument[]
+  evaluation_form  ProjectEvaluationForm?
+
+  @@map("projects")
+}
+
+model ProjectAlignment {
+  id           BigInt             @id @default(autoincrement())
+  project_id   BigInt
+  indicator_id Int
+  project      Project            @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  indicator    StrategicIndicator @relation(fields: [indicator_id], references: [id], onDelete: Cascade)
+
+  @@map("project_alignments")
+}
+
+model BudgetCategory {
+  id          Int                 @id @default(autoincrement())
+  name        String              @db.VarChar(100)
+  source_type SourceType
+  items       ProjectBudgetItem[]
+
+  @@map("budget_categories")
+}
+
+model ProjectBudgetItem {
+  id           BigInt         @id @default(autoincrement())
+  project_id   BigInt
+  category_id  Int
+  description  String         @db.VarChar(255)
+  quantity     Decimal        @db.Decimal(10, 2)
+  unit         String         @db.VarChar(50)
+  unit_price   Decimal        @db.Decimal(10, 2)
+  total_amount Decimal        @db.Decimal(12, 2)
+
+  project      Project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  category     BudgetCategory @relation(fields: [category_id], references: [id])
+
+  @@map("project_budget_items")
+}
+
+model ProjectTimeline {
+  id            BigInt   @id @default(autoincrement())
+  project_id    BigInt
+  activity_name String   @db.VarChar(255)
+  start_date    DateTime @db.Date
+  end_date      DateTime @db.Date
+  location      String?  @db.VarChar(255)
+  is_milestone  Boolean  @default(false)
+
+  project       Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@map("project_timelines")
+}
+
+model ProjectApproval {
+  id          BigInt         @id @default(autoincrement())
+  project_id  BigInt
+  step_order  Int
+  approver_id BigInt
+  status      ApprovalStatus @default(PENDING)
+  comment     String?        @db.Text
+  signed_at   DateTime?      @db.Timestamp(0)
+
+  project     Project        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  approver    User           @relation(fields: [approver_id], references: [id])
+
+  @@map("project_approvals")
+}
+
+model ProjectDocument {
+  id           BigInt   @id @default(autoincrement())
+  project_id   BigInt
+  file_name    String   @db.VarChar(255)
+  file_path    String   @db.VarChar(500)
+  file_type    String   @db.VarChar(50)
+  version      Int      @default(1)
+  is_generated Boolean  @default(true)
+  created_at   DateTime @default(now())
+
+  project      Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@map("project_documents")
+}
+
+enum TemplateType {
+  PROPOSAL
+  FULL_SUMMARY
+  SHORT_SUMMARY
+  NONE
+}
+
+enum TagType {
+  TEXT
+  LONGTEXT
+  DATE
+  BOOLEAN
+  TABLE_LOOP
+  IMAGE
+  CALCULATION
+  DROPDOWN
+  DATERANGE
+  TIMELINE
+  ALIGNMENT_CHECKLIST
+  DIVISION_DROPDOWN
+  DEPARTMENT_DROPDOWN
+}
+
+model DocumentTemplate {
+  id           Int           @id @default(autoincrement())
+  name         String        @db.VarChar(150)
+  description  String?       @db.Text
+  file_name    String        @db.VarChar(255)
+  file_path    String        @db.VarChar(500)
+  file_size    Int           @default(0)
+  default_type TemplateType  @default(NONE)
+  is_active    Boolean       @default(true)
+  version      Int           @default(1)
+  mappings     Json?
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @default(now()) @updatedAt
+
+  tags         TemplateTag[]
+
+  @@map("document_templates")
+}
+
+model TemplateTag {
+  id          Int              @id @default(autoincrement())
+  template_id Int
+  tag_name    String           @db.VarChar(100)
+  tag_type    TagType          @default(TEXT)
+  label       String?          @db.VarChar(150)
+  description String?          @db.Text
+  is_required Boolean          @default(false)
+  sort_order  Int              @default(0)
+  options     Json?
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @default(now()) @updatedAt
+
+  template    DocumentTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@map("template_tags")
+}
+
+model SystemSetting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique @db.VarChar(100)
+  value       String   @db.Text
+  description String?  @db.VarChar(255)
+  updated_at  DateTime @default(now()) @updatedAt
+
+  @@map("system_settings")
+}
+
+enum QuestionType {
+  RATING_5
+  TEXT
+  RADIO
+  CHECKBOX
+}
+
+model ProjectEvaluationForm {
+  id               BigInt                @id @default(autoincrement())
+  project_id       BigInt                @unique
+  title            String                @db.VarChar(255)
+  description      String?               @db.Text
+  theme_config     Json?                 @default("{}")
+  is_active        Boolean               @default(true)
+  target_responses Int                   @default(0)
+  created_at       DateTime              @default(now())
+  updated_at       DateTime              @default(now()) @updatedAt
+
+  project          Project               @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  sections         EvaluationSection[]
+  responses        EvaluationResponse[]
+
+  @@map("project_evaluation_forms")
+}
+
+model EvaluationSection {
+  id          BigInt                @id @default(autoincrement())
+  form_id     BigInt
+  title       String                @db.VarChar(200)
+  description String?               @db.Text
+  order_index Int                   @default(0)
+
+  form        ProjectEvaluationForm @relation(fields: [form_id], references: [id], onDelete: Cascade)
+  questions   EvaluationQuestion[]
+
+  @@map("evaluation_sections")
+}
+
+model EvaluationQuestion {
+  id            BigInt             @id @default(autoincrement())
+  section_id    BigInt
+  question_text String             @db.VarChar(500)
+  question_type QuestionType       @default(RATING_5)
+  options       Json?
+  order_index   Int                @default(0)
+  is_required   Boolean            @default(true)
+
+  section       EvaluationSection  @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  answers       EvaluationAnswer[]
+
+  @@map("evaluation_questions")
+}
+
+model EvaluationResponse {
+  id              BigInt             @id @default(autoincrement())
+  form_id         BigInt
+  respondent_meta Json?
+  submitted_at    DateTime           @default(now())
+
+  form            ProjectEvaluationForm @relation(fields: [form_id], references: [id], onDelete: Cascade)
+  answers         EvaluationAnswer[]
+
+  @@map("evaluation_responses")
+}
+
+model EvaluationAnswer {
+  id          BigInt             @id @default(autoincrement())
+  response_id BigInt
+  question_id BigInt
+  score       Int?
+  text_value  String?            @db.Text
+
+  response    EvaluationResponse @relation(fields: [response_id], references: [id], onDelete: Cascade)
+  question    EvaluationQuestion @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
+  @@map("evaluation_answers")
+}
+
+enum NotificationType {
+  PROJECT_SUBMITTED
+  APPROVAL_REQUIRED
+  PROJECT_APPROVED
+  PROJECT_FINAL_APPROVED
+  PROJECT_REVISION
+  PROJECT_REJECTED
+  SYSTEM_ANNOUNCEMENT
+}
+
+model Notification {
+  id          BigInt           @id @default(autoincrement())
+  user_id     BigInt
+  title       String           @db.VarChar(255)
+  message     String           @db.Text
+  type        NotificationType @default(PROJECT_APPROVED)
+  link_url    String?          @db.VarChar(500)
+  is_read     Boolean          @default(false)
+  read_at     DateTime?        @db.Timestamp(0)
+  created_at  DateTime         @default(now())
+
+  user        User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, is_read])
+  @@map("notifications")
+}
+
+

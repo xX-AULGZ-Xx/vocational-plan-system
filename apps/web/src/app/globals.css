@@ -1,0 +1,209 @@
+@import url('https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@300;400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&family=Chonburi&family=K2D:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.font-prompt { font-family: 'Prompt', var(--font-prompt), sans-serif; }
+.font-sarabun { font-family: 'Sarabun', var(--font-sarabun), 'TH SarabunIT๙', sans-serif; }
+.font-kanit { font-family: 'Kanit', sans-serif; }
+.font-mitr { font-family: 'Mitr', sans-serif; }
+.font-noto-thai { font-family: 'Noto Sans Thai', sans-serif; }
+.font-chakra { font-family: 'Chakra Petch', sans-serif; }
+.font-baijamjuree { font-family: 'Bai Jamjuree', sans-serif; }
+.font-k2d { font-family: 'K2D', sans-serif; }
+.font-chonburi { font-family: 'Chonburi', cursive; }
+
+@font-face {
+  font-family: 'TH SarabunIT๙';
+  src: url('/fonts/TH_SarabunIT9-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TH SarabunIT๙';
+  src: url('/fonts/TH_SarabunIT9-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TH SarabunIT9';
+  src: url('/fonts/TH_SarabunIT9-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TH SarabunIT9';
+  src: url('/fonts/TH_SarabunIT9-Bold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --foreground-rgb: 15, 23, 42;
+  --background-start-rgb: 248, 250, 252;
+  --background-end-rgb: 241, 245, 249;
+
+  /* Global Theme CSS Variables */
+  --color-primary: #1e3a8a;
+  --color-primary-hover: #172554;
+  --color-accent: #0d9488;
+  --font-ui-family: 'Prompt', sans-serif;
+  --app-radius: 10px;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: #f1f5f9;
+  font-family: var(--font-ui-family), var(--font-prompt), sans-serif;
+}
+
+/* Dynamic Theme Helper Classes */
+::selection {
+  background-color: var(--color-primary, #1e3a8a);
+  color: #ffffff;
+}
+
+.bg-theme-primary {
+  background-color: var(--color-primary) !important;
+}
+
+.bg-theme-primary-hover:hover {
+  background-color: var(--color-primary-hover) !important;
+}
+
+.text-theme-primary {
+  color: var(--color-primary) !important;
+}
+
+.border-theme-primary {
+  border-color: var(--color-primary) !important;
+}
+
+.ring-theme-primary:focus {
+  --tw-ring-color: var(--color-primary) !important;
+}
+
+.bg-theme-primary-light {
+  background-color: color-mix(in srgb, var(--color-primary, #1e3a8a) 12%, transparent) !important;
+}
+
+.bg-theme-accent {
+  background-color: var(--color-accent) !important;
+}
+
+.text-theme-accent {
+  color: var(--color-accent) !important;
+}
+
+.border-theme-accent {
+  border-color: var(--color-accent) !important;
+}
+
+.bg-theme-accent-light {
+  background-color: color-mix(in srgb, var(--color-accent, #0d9488) 12%, transparent) !important;
+}
+
+.bg-theme-gradient {
+  background: linear-gradient(135deg, var(--color-primary, #1e3a8a) 0%, color-mix(in srgb, var(--color-primary, #1e3a8a) 70%, #0f172a) 100%) !important;
+}
+
+.rounded-theme {
+  border-radius: var(--app-radius) !important;
+}
+
+/* A4 Document Simulation (210mm x 297mm) */
+.a4-page {
+  width: 210mm;
+  min-height: 297mm;
+  padding-top: 25mm;
+  padding-bottom: 20mm;
+  padding-left: 25mm;
+  padding-right: 15mm;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  color: #000;
+  line-height: 1.0;
+  font-family: 'TH SarabunIT๙', 'TH SarabunIT9', 'TH Sarabun New', 'TH SarabunPSK', Sarabun, sans-serif !important;
+}
+
+.a4-page *, .a4-page p, .a4-page span, .a4-page td, .a4-page th, .a4-page div {
+  font-family: 'TH SarabunIT๙', 'TH SarabunIT9', 'TH Sarabun New', 'TH SarabunPSK', Sarabun, sans-serif !important;
+}
+
+/* Thai Distributed (การกระจายแบบไทย 100%) */
+.thai-distributed,
+.a4-page p.thai-distributed {
+  text-align: justify !important;
+  text-justify: distribute !important;
+  text-align-last: left !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  line-break: strict !important;
+  letter-spacing: 0px !important;
+}
+
+/* docx-preview rendering styling */
+.docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 2rem !important;
+}
+
+.docx-wrapper > section.docx {
+  width: 210mm !important;
+  min-height: 297mm !important;
+  background: white !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #cbd5e1 !important;
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
+  font-family: 'TH SarabunIT๙', 'TH SarabunIT9', 'TH Sarabun New', 'TH SarabunPSK', Sarabun, sans-serif !important;
+}
+
+.docx-wrapper * {
+  font-family: 'TH SarabunIT๙', 'TH SarabunIT9', 'TH Sarabun New', 'TH SarabunPSK', Sarabun, sans-serif !important;
+}
+
+/* SweetAlert2 Dynamic Theme Styling */
+.swal2-popup {
+  border-radius: var(--app-radius, 12px) !important;
+  font-family: var(--font-ui-family, 'Prompt'), sans-serif !important;
+}
+
+.swal2-timer-progress-bar {
+  background: var(--color-primary, #1e3a8a) !important;
+}
+
+.swal2-toast {
+  border-radius: var(--app-radius, 8px) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+}
+
+@media print {
+  body {
+    background: none;
+  }
+  .a4-page, .docx-wrapper > section.docx {
+    box-shadow: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    page-break-after: always !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

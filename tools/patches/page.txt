@@ -1,0 +1,712 @@
+﻿'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
+import A4DocumentPreview, { ProjectFormData } from '@/components/preview/A4DocumentPreview';
+import ProjectSummaryModal from '@/components/reports/ProjectSummaryModal';
+import {
+  ArrowLeft,
+  Printer,
+  ZoomIn,
+  ZoomOut,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  UserCheck,
+  Check,
+  X,
+  RotateCcw,
+  UploadCloud,
+  Download,
+  Trash2,
+  Paperclip,
+  FileText,
+  Sparkles,
+  BookOpen,
+  ChevronDown,
+} from 'lucide-react';
+
+export default function ProjectDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { user, token } = useAuth();
+  const { collegeName } = useSettings();
+  const projectId = params?.id as string;
+
+  const [project, setProject] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [zoom, setZoom] = useState<number>(0.85);
+
+  // Submit project state
+  const [submitting, setSubmitting] = useState(false);
+
+  // Summary Modal state
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showSummaryDropdown, setShowSummaryDropdown] = useState(false);
+
+  // Scanned document upload state
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docUploadMsg, setDocUploadMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Approval action modal state
+  const [actionType, setActionType] = useState<'APPROVE' | 'REVISE' | 'REJECT' | null>(null);
+  const [comment, setComment] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [actionMsg, setActionMsg] = useState('');
+
+  useEffect(() => {
+    fetchProject();
+  }, [projectId, token]);
+
+  const fetchProject = async () => {
+    try {
+      const headers: any = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/v1/projects/${projectId}`, { headers });
+      const data = await res.json();
+      if (data.success) {
+        setProject(data.data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitProject = async () => {
+    if (!project) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/v1/projects/${project.id}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+      setActionMsg('α╕óα╕╖α╣êα╕Öα╣Çα╕¬α╕Öα╕¡α╣éα╕äα╕úα╕çα╕üα╕▓α╕úα╣Çα╕₧α╕╖α╣êα╕¡α╕éα╕¡α╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤α╣Çα╕úα╕╡α╕óα╕Üα╕úα╣ëα╕¡α╕óα╣üα╕Ñα╣ëα╕º');
+      fetchProject();
+    } catch (err: any) {
+      alert(err.message || 'α╣Çα╕üα╕┤α╕öα╕éα╣ëα╕¡α╕£α╕┤α╕öα╕₧α╕Ñα╕▓α╕öα╣âα╕Öα╕üα╕▓α╕úα╕óα╕╖α╣êα╕Öα╣Çα╕¬α╕Öα╕¡α╣éα╕äα╕úα╕çα╕üα╕▓α╕ú');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleApprovalAction = async () => {
+    if (!actionType || !project) return;
+    setIsProcessing(true);
+
+    try {
+      // Find pending approval step id
+      const pendingApproval = project.approvals?.find((a: any) => a.status === 'PENDING');
+      if (!pendingApproval) {
+        throw new Error('α╣äα╕íα╣êα╕₧α╕Üα╕éα╕▒α╣ëα╕Öα╕òα╕¡α╕Öα╕ùα╕╡α╣êα╕úα╕¡α╕üα╕▓α╕úα╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤');
+      }
+
+      const res = await fetch(`/api/v1/approvals/${pendingApproval.id}/action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          action: actionType,
+          comment,
+        }),
+      });
+
+      const resData = await res.json();
+      if (!resData.success) {
+        throw new Error(resData.message || 'α╕öα╕│α╣Çα╕Öα╕┤α╕Öα╕üα╕▓α╕úα╣äα╕íα╣êα╕¬α╕│α╣Çα╕úα╣çα╕ê');
+      }
+
+      setActionMsg(resData.message);
+      setActionType(null);
+      setComment('');
+      fetchProject();
+    } catch (err: any) {
+      alert(err.message || 'α╣Çα╕üα╕┤α╕öα╕éα╣ëα╕¡α╕£α╕┤α╕öα╕₧α╕Ñα╕▓α╕ö');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !project) return;
+
+    setUploadingDoc(true);
+    setDocUploadMsg(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`/api/v1/projects/${project.id}/documents`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDocUploadMsg({ type: 'success', text: `α╕¡α╕▒α╕¢α╣éα╕½α╕Ñα╕öα╣äα╕ƒα╕Ñα╣î "${file.name}" α╣Çα╕úα╕╡α╕óα╕Üα╕úα╣ëα╕¡α╕óα╣üα╕Ñα╣ëα╕º` });
+        fetchProject();
+      } else {
+        setDocUploadMsg({ type: 'error', text: data.message || 'α╕¡α╕▒α╕¢α╣éα╕½α╕Ñα╕öα╣äα╕íα╣êα╕¬α╕│α╣Çα╕úα╣çα╕ê' });
+      }
+    } catch (err: any) {
+      setDocUploadMsg({ type: 'error', text: err.message || 'α╣Çα╕üα╕┤α╕öα╕éα╣ëα╕¡α╕£α╕┤α╕öα╕₧α╕Ñα╕▓α╕öα╣âα╕Öα╕üα╕▓α╕úα╣Çα╕èα╕╖α╣êα╕¡α╕íα╕òα╣êα╕¡' });
+    } finally {
+      setUploadingDoc(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDocDelete = async (docId: string | number) => {
+    if (!confirm('α╕äα╕╕α╕ôα╣üα╕Öα╣êα╣âα╕êα╕½α╕úα╕╖α╕¡α╣äα╕íα╣êα╕ºα╣êα╕▓α╕òα╣ëα╕¡α╕çα╕üα╕▓α╕úα╕Ñα╕Üα╣äα╕ƒα╕Ñα╣îα╣Çα╕¡α╕üα╕¬α╕▓α╕úα╕Öα╕╡α╣ë?')) return;
+    try {
+      const res = await fetch(`/api/v1/projects/${project.id}/documents/${docId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchProject();
+      } else {
+        alert(data.message || 'α╕Ñα╕Üα╣äα╕íα╣êα╕¬α╕│α╣Çα╕úα╣çα╕ê');
+      }
+    } catch (err) {
+      alert('α╣Çα╕üα╕┤α╕öα╕éα╣ëα╕¡α╕£α╕┤α╕öα╕₧α╕Ñα╕▓α╕öα╣âα╕Öα╕üα╕▓α╕úα╕Ñα╕Üα╣äα╕ƒα╕Ñα╣î');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-12 text-center text-slate-500">
+        <div className="animate-spin inline-block w-8 h-8 border-4 border-blue-900 border-t-transparent rounded-full mb-2"></div>
+        <p>α╕üα╕│α╕Ñα╕▒α╕çα╣éα╕½α╕Ñα╕öα╕éα╣ëα╕¡α╕íα╕╣α╕Ñα╣éα╕äα╕úα╕çα╕üα╕▓α╕ú...</p>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="p-12 text-center text-slate-500">
+        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-2" />
+        <p>α╣äα╕íα╣êα╕₧α╕Üα╕éα╣ëα╕¡α╕íα╕╣α╕Ñα╣éα╕äα╕úα╕çα╕üα╕▓α╕úα╕ùα╕╡α╣êα╕úα╕░α╕Üα╕╕</p>
+      </div>
+    );
+  }
+
+  // Convert project to form data structure for A4 preview
+  const previewData: ProjectFormData = {
+    title: project.title,
+    fiscal_year: project.fiscal_year,
+    project_code: project.project_code,
+    template_id: project.template_id,
+    template_name: project.template?.name || '',
+    department_name: project.department?.name,
+    division_name: project.department?.division?.name,
+    leader_name: project.leader?.full_name,
+    leader_position: project.leader?.position,
+    background: project.background,
+    objectives: Array.isArray(project.objectives) ? project.objectives : [],
+    target_quantitative: project.target_groups?.quantitative || '',
+    target_qualitative: project.target_groups?.qualitative || '',
+    expected_results: project.expected_results,
+    timelines: project.timelines || [],
+    budget_items: project.budget_items || [],
+    mappings: project.template?.mappings || {},
+  };
+
+  const pendingApproval = project.approvals?.find((a: any) => a.status === 'PENDING');
+  const canApprove =
+    user &&
+    pendingApproval &&
+    (user.role === 'ADMIN' ||
+      (pendingApproval.step_order === 1 && user.role === 'HEAD_DEPT') ||
+      (pendingApproval.step_order === 2 && user.role === 'DEPUTY_DIRECTOR') ||
+      (pendingApproval.step_order === 3 && user.role === 'PLANNING_OFFICER') ||
+      (pendingApproval.step_order === 4 && user.role === 'DIRECTOR'));
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Top Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 no-print">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-600 transition"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900">{project.title}</h1>
+              {project.project_code && (
+                <span className="px-2.5 py-0.5 rounded font-mono font-bold text-xs bg-blue-100 text-blue-900">
+                  {project.project_code}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500">
+              α╕¬α╕▒α╕çα╕üα╕▒α╕ö: {project.department?.name} ({project.department?.division?.name}) ΓÇó α╕£α╕╣α╣ëα╣Çα╕¬α╕Öα╕¡:{' '}
+              {project.leader?.full_name}
+            </p>
+          </div>
+        </div>
+
+          {/* Approval Actions or Print or Project Summary */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Approved Project: Summary Hub with Options (Booklet & One-Page) */}
+            {project.status === 'approved' && (
+              <div className="relative">
+                <div className="flex items-center">
+                  <button
+                    onClick={() => setShowSummaryModal(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-l-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 hover:brightness-110 text-white shadow-sm transition"
+                    title="α╣Çα╕¢α╕┤α╕öα╕¿α╕╣α╕Öα╕óα╣îα╕¬α╕úα╕╕α╕¢α╕£α╕Ñα╣éα╕äα╕úα╕çα╕üα╕▓α╕ú (α╣Çα╕Ñα╕╖α╕¡α╕üα╕öα╕╣α╣üα╕Üα╕Üα╕úα╕╣α╕¢α╣Çα╕Ñα╣êα╕í α╕½α╕úα╕╖α╕¡ α╕¬α╕úα╕╕α╕¢α╣üα╕£α╣êα╕Öα╣Çα╕öα╕╡α╕óα╕º)"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    <span>α╕¬α╕úα╕╕α╕¢α╣éα╕äα╕úα╕çα╕üα╕▓α╕ú</span>
+                  </button>
+                  <button
+                    onClick={() => setShowSummaryDropdown(!showSummaryDropdown)}
+                    className="px-2 py-2 text-xs font-bold rounded-r-xl bg-blue-950 hover:bg-slate-900 text-white border-l border-blue-800 shadow-sm transition"
+                    title="α╕òα╕▒α╕ºα╣Çα╕Ñα╕╖α╕¡α╕üα╕üα╕▓α╕úα╕¬α╕úα╕╕α╕¢α╣éα╕äα╕úα╕çα╕üα╕▓α╕ú"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Dropdown Options */}
+                {showSummaryDropdown && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 space-y-1">
+                    <p className="px-3 py-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                      α╕úα╕╣α╕¢α╣üα╕Üα╕Üα╕üα╕▓α╕úα╕¬α╕úα╕╕α╕¢α╣éα╕äα╕úα╕çα╕üα╕▓α╕ú
+                    </p>
+
+                    <button
+                      onClick={() => {
+                        setShowSummaryDropdown(false);
+                        setShowSummaryModal(true);
+                      }}
+                      className="w-full flex items-start gap-2.5 p-2.5 rounded-lg text-left hover:bg-blue-50 text-slate-800 transition group"
+                    >
+                      <div className="p-1.5 rounded-md bg-blue-100 text-blue-900 group-hover:bg-blue-900 group-hover:text-white transition mt-0.5">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">α╣æ. α╕¬α╕úα╕╕α╕¢α╣üα╕£α╣êα╕Öα╣Çα╕öα╕╡α╕óα╕º (One-Page)</p>
+                        <p className="text-[10px] text-slate-500">Executive Summary α╕üα╕úα╕░α╕èα╕▒α╕Ü α╣æ α╕½α╕Öα╣ëα╕▓ A4</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowSummaryDropdown(false);
+                        setShowSummaryModal(true);
+                      }}
+                      className="w-full flex items-start gap-2.5 p-2.5 rounded-lg text-left hover:bg-indigo-50 text-slate-800 transition group"
+                    >
+                      <div className="p-1.5 rounded-md bg-indigo-100 text-indigo-900 group-hover:bg-indigo-900 group-hover:text-white transition mt-0.5">
+                        <BookOpen className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">α╣Æ. α╕¬α╕úα╕╕α╕¢α╣üα╕Üα╕Üα╕úα╕╣α╕¢α╣Çα╕Ñα╣êα╕í (Full Booklet)</p>
+                        <p className="text-[10px] text-slate-500">α╕úα╕▓α╕óα╕çα╕▓α╕Öα╕£α╕Ñα╕üα╕▓α╕úα╕öα╕│α╣Çα╕Öα╕┤α╕Öα╕çα╕▓α╕Öα╕ëα╕Üα╕▒α╕Üα╕¬α╕íα╕Üα╕╣α╕úα╕ôα╣îα╕₧α╕úα╣ëα╕¡α╕íα╕½α╕Öα╣ëα╕▓α╕¢α╕ü</p>
+                      </div>
+                    </button>
+
+                    <div className="border-t border-slate-100 pt-1 mt-1">
+                      <a
+                        href={`/api/v1/projects/${project.id}/export-summary-docx`}
+                        download
+                        className="w-full flex items-center gap-2 p-2 rounded-lg text-left hover:bg-slate-100 text-xs font-bold text-blue-900 transition"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>α╕öα╕▓α╕ºα╕Öα╣îα╣éα╕½α╕Ñα╕öα╣äα╕ƒα╕Ñα╣î Word (.docx)</span>
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* If Draft / Rejected: Submit for Approval Button */}
+            {(project.status === 'draft' || project.status === 'rejected') && (
+              <button
+                onClick={handleSubmitProject}
+                disabled={submitting}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-blue-900 hover:bg-blue-800 text-white shadow-sm transition transform active:scale-95"
+                title="α╕óα╕╖α╣êα╕Öα╣Çα╕¬α╕Öα╕¡α╣éα╕äα╕úα╕çα╕üα╕▓α╕úα╣Çα╕éα╣ëα╕▓α╕¬α╕╣α╣êα╕üα╕úα╕░α╕Üα╕ºα╕Öα╕üα╕▓α╕úα╕₧α╕┤α╕êα╕▓α╕úα╕ôα╕▓α╣üα╕Ñα╕░α╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{submitting ? 'α╕üα╕│α╕Ñα╕▒α╕çα╕¬α╣êα╕çα╣éα╕äα╕úα╕çα╕üα╕▓α╕ú...' : 'α╕óα╕╖α╣êα╕Öα╣Çα╕¬α╕Öα╕¡α╕éα╕¡α╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤α╣éα╕äα╕úα╕çα╕üα╕▓α╕ú'}</span>
+              </button>
+            )}
+
+            {/* Approval Action Buttons (for approvers / admin) */}
+            {canApprove && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setActionType('APPROVE');
+                    setComment('α╣Çα╕½α╣çα╕Öα╕èα╕¡α╕Üα╕òα╕▓α╕íα╣Çα╕¬α╕Öα╕¡ α╕¬α╕íα╕äα╕ºα╕úα╕öα╕│α╣Çα╕Öα╕┤α╕Öα╕üα╕▓α╕ú');
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>α╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤α╣Çα╕½α╣çα╕Öα╕èα╕¡α╕Ü</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActionType('REVISE');
+                    setComment('α╕éα╕¡α╣âα╕½α╣ëα╕¢α╕úα╕▒α╕Üα╕¢α╕úα╕╕α╕çα╕úα╕▓α╕óα╕Ñα╕░α╣Çα╕¡α╕╡α╕óα╕öα╣Çα╕₧α╕┤α╣êα╕íα╣Çα╕òα╕┤α╕í');
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-amber-600 hover:bg-amber-500 text-white shadow-sm transition"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>α╕éα╕¡α╣âα╕½α╣ëα╣üα╕üα╣ëα╣äα╕é</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActionType('REJECT');
+                    setComment('α╣äα╕íα╣êα╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤α╣éα╕äα╕úα╕çα╕üα╕▓α╕ú');
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition"
+                >
+                  <X className="w-4 h-4" />
+                  <span>α╣äα╕íα╣êα╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤</span>
+                </button>
+              </div>
+            )}
+
+            {project.status !== 'approved' && (
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg shadow-sm transition"
+              >
+                <Printer className="w-4 h-4 text-slate-500" />
+                <span>α╕₧α╕┤α╕íα╕₧α╣îα╣Çα╕¡α╕üα╕¬α╕▓α╕ú</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {actionMsg && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-xs font-medium">
+            {actionMsg}
+          </div>
+      )}
+
+      {/* 4-Step Approval Tracker Bar */}
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm no-print space-y-3">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          α╕¬α╕▓α╕óα╕üα╕▓α╕úα╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤ 4 α╕éα╕▒α╣ëα╕Öα╕òα╕¡α╕Ö (Approval Chain Workflow)
+        </h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { step: 1, title: 'α╕½α╕▒α╕ºα╕½α╕Öα╣ëα╕▓α╣üα╕£α╕Öα╕ü/α╕çα╕▓α╕Ö', code: 'dept_approved' },
+            { step: 2, title: 'α╕úα╕¡α╕ç α╕£α╕¡. α╕¢α╕úα╕░α╕êα╕│α╕¥α╣êα╕▓α╕ó', code: 'deputy_approved' },
+            { step: 3, title: 'α╕çα╕▓α╕Öα╣üα╕£α╕Öα╕çα╕▓α╕Ö (α╕¡α╕¡α╕üα╕úα╕½α╕▒α╕¬)', code: 'planning_approved' },
+            { step: 4, title: 'α╕£α╕╣α╣ëα╕¡α╕│α╕Öα╕ºα╕óα╕üα╕▓α╕úα╕ºα╕┤α╕ùα╕óα╕▓α╕Ñα╕▒α╕ó', code: 'approved' },
+          ].map((item) => {
+            const stepApproval = project.approvals?.find((a: any) => a.step_order === item.step);
+            const isApproved = stepApproval?.status === 'APPROVED';
+            const isPending = stepApproval?.status === 'PENDING';
+            const isRevise = stepApproval?.status === 'REVISION_REQUESTED';
+            const isReject = stepApproval?.status === 'REJECTED';
+
+            return (
+              <div
+                key={item.step}
+                className={`p-3.5 rounded-xl border transition ${
+                  isApproved
+                    ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                    : isPending
+                    ? 'bg-blue-50/70 border-blue-400 text-blue-950 shadow-sm ring-2 ring-blue-900/10'
+                    : isRevise
+                    ? 'bg-amber-50 border-amber-300 text-amber-950'
+                    : isReject
+                    ? 'bg-rose-50 border-rose-300 text-rose-950'
+                    : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold">α╕éα╕▒α╣ëα╕Öα╕ùα╕╡α╣ê {item.step}</span>
+                  {isApproved && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                  {isPending && <Clock className="w-4 h-4 text-blue-600 animate-pulse" />}
+                  {isRevise && <RotateCcw className="w-4 h-4 text-amber-600" />}
+                  {isReject && <X className="w-4 h-4 text-rose-600" />}
+                </div>
+                <div className="text-xs font-bold">{item.title}</div>
+                <div className="text-[11px] mt-1">
+                  {stepApproval?.approver?.full_name ? (
+                    <span className="font-medium text-slate-700">α╣éα╕öα╕ó: {stepApproval.approver.full_name}</span>
+                  ) : isPending ? (
+                    <span className="text-blue-700 font-semibold">α╕úα╕¡α╕üα╕▓α╕úα╕₧α╕┤α╕êα╕▓α╕úα╕ôα╕▓</span>
+                  ) : (
+                    <span className="text-slate-400">α╕óα╕▒α╕çα╣äα╕íα╣êα╕ûα╕╢α╕çα╕éα╕▒α╣ëα╕Öα╕òα╕¡α╕Ö</span>
+                  )}
+                </div>
+                {stepApproval?.comment && (
+                  <p className="text-[11px] mt-1.5 p-1.5 bg-white/80 rounded border text-slate-700 italic">
+                    "{stepApproval.comment}"
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Scanned Files & Attachments Section */}
+      <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs no-print space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Paperclip className="w-4 h-4 text-blue-900" />
+              <span>α╣äα╕ƒα╕Ñα╣îα╕¬α╣üα╕üα╕Öα╣üα╕Ñα╕░α╣Çα╕¡α╕üα╕¬α╕▓α╕úα╣üα╕Öα╕Ü ({project.documents?.length || 0})</span>
+            </h3>
+            <p className="text-xs text-slate-500">
+              α╕¡α╕▒α╕¢α╣éα╕½α╕Ñα╕öα╣äα╕ƒα╕Ñα╣îα╕Üα╕▒α╕Öα╕ùα╕╢α╕üα╕éα╣ëα╕¡α╕äα╕ºα╕▓α╕íα╕ùα╕╡α╣êα╕Ñα╕çα╕Öα╕▓α╕íα╣üα╕Ñα╣ëα╕º, α╕äα╕│α╕¬α╕▒α╣êα╕çα╣üα╕òα╣êα╕çα╕òα╕▒α╣ëα╕ç, α╕áα╕▓α╕₧α╕üα╕┤α╕êα╕üα╕úα╕úα╕í α╕½α╕úα╕╖α╕¡α╣Çα╕¡α╕üα╕¬α╕▓α╕úα╕êα╕▒α╕öα╕ïα╕╖α╣ëα╕¡α╕êα╕▒α╕öα╕êα╣ëα╕▓α╕ç
+            </p>
+          </div>
+
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleDocUpload}
+              accept=".pdf,.jpg,.jpeg,.png,.docx,.doc"
+              className="hidden"
+              id="detail-doc-upload"
+              disabled={uploadingDoc}
+            />
+            <label
+              htmlFor="detail-doc-upload"
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs transition ${
+                uploadingDoc ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+            >
+              {uploadingDoc ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>α╕üα╕│α╕Ñα╕▒α╕çα╕¡α╕▒α╕¢α╣éα╕½α╕Ñα╕ö...</span>
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="w-4 h-4" />
+                  <span>+ α╕¡α╕▒α╕¢α╣éα╕½α╕Ñα╕öα╣äα╕ƒα╕Ñα╣îα╕¬α╣üα╕üα╕Ö</span>
+                </>
+              )}
+            </label>
+          </div>
+        </div>
+
+        {docUploadMsg && (
+          <div
+            className={`p-2.5 rounded-lg text-xs font-medium ${
+              docUploadMsg.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                : 'bg-rose-50 text-rose-800 border border-rose-200'
+            }`}
+          >
+            {docUploadMsg.text}
+          </div>
+        )}
+
+        {project.documents?.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+            {project.documents.map((doc: any) => (
+              <div
+                key={doc.id}
+                className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between gap-2 text-xs hover:bg-slate-100/80 transition"
+              >
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <FileText className="w-4 h-4 text-blue-900 shrink-0" />
+                  <div className="overflow-hidden">
+                    <p className="font-semibold text-slate-800 truncate" title={doc.file_name}>
+                      {doc.file_name}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      {doc.file_type?.toUpperCase()} ΓÇó {new Date(doc.created_at).toLocaleDateString('th-TH')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <a
+                    href={`/api/v1/projects/documents/${doc.id}/download`}
+                    download
+                    className="p-1.5 text-blue-900 hover:bg-blue-100 rounded transition"
+                    title="α╕öα╕▓α╕ºα╕Öα╣îα╣éα╕½α╕Ñα╕öα╣äα╕ƒα╕Ñα╣î"
+                  >
+                    <Download className="w-4 h-4" />
+                  </a>
+                  <button
+                    onClick={() => handleDocDelete(doc.id)}
+                    className="p-1.5 text-rose-600 hover:bg-rose-100 rounded transition"
+                    title="α╕Ñα╕Üα╣äα╕ƒα╕Ñα╣î"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-4 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg">
+            α╕óα╕▒α╕çα╣äα╕íα╣êα╕íα╕╡α╣äα╕ƒα╕Ñα╣îα╕¬α╣üα╕üα╕Öα╕½α╕úα╕╖α╕¡α╣Çα╕¡α╕üα╕¬α╕▓α╕úα╣üα╕Öα╕Üα╣âα╕Öα╣éα╕äα╕úα╕çα╕üα╕▓α╕úα╕Öα╕╡α╣ë
+          </div>
+        )}
+      </div>
+
+      {/* Document A4 Preview Viewer */}
+      <div className="bg-slate-200/70 p-6 rounded-2xl border border-slate-300 flex flex-col items-center">
+        {/* Zoom controls */}
+        <div className="w-full max-w-4xl flex items-center justify-between mb-4 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-300 text-xs no-print">
+          <div className="font-semibold text-slate-700">α╕₧α╕úα╕╡α╕ºα╕┤α╕ºα╣Çα╕¡α╕üα╕¬α╕▓α╕úα╕Üα╕▒α╕Öα╕ùα╕╢α╕üα╕éα╣ëα╕¡α╕äα╕ºα╕▓α╕íα╕éα╕¡α╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤α╣éα╕äα╕úα╕çα╕üα╕▓α╕ú</div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
+              className="p-1.5 rounded hover:bg-slate-100 text-slate-600"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <span className="w-12 text-center font-mono font-bold text-slate-800">
+              {Math.round(zoom * 100)}%
+            </span>
+            <button
+              onClick={() => setZoom((z) => Math.min(1.2, z + 0.1))}
+              className="p-1.5 rounded hover:bg-slate-100 text-slate-600"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="w-full overflow-x-auto flex justify-center py-2">
+          <A4DocumentPreview data={previewData} zoom={zoom} />
+        </div>
+      </div>
+
+      {/* Action Dialog / Modal */}
+      {actionType && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                {actionType === 'APPROVE' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+                {actionType === 'REVISE' && <RotateCcw className="w-5 h-5 text-amber-600" />}
+                {actionType === 'REJECT' && <X className="w-5 h-5 text-rose-600" />}
+                {actionType === 'APPROVE' && 'α╕óα╕╖α╕Öα╕óα╕▒α╕Öα╕üα╕▓α╕úα╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤ / α╣Çα╕½α╣çα╕Öα╕èα╕¡α╕Üα╣éα╕äα╕úα╕çα╕üα╕▓α╕ú'}
+                {actionType === 'REVISE' && 'α╕¬α╣êα╕çα╕äα╕│α╕éα╕¡α╣üα╕üα╣ëα╣äα╕éα╣éα╕äα╕úα╕çα╕üα╕▓α╕úα╕üα╕Ñα╕▒α╕Üα╣äα╕¢α╕óα╕▒α╕çα╕£α╕╣α╣ëα╣Çα╕¬α╕Öα╕¡'}
+                {actionType === 'REJECT' && 'α╕óα╕╖α╕Öα╕óα╕▒α╕Öα╕üα╕▓α╕úα╕¢α╕Åα╕┤α╣Çα╕¬α╕ÿ / α╣äα╕íα╣êα╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤α╣éα╕äα╕úα╕çα╕üα╕▓α╕ú'}
+              </h3>
+              <button onClick={() => setActionType(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                α╕éα╣ëα╕¡α╕äα╕┤α╕öα╣Çα╕½α╣çα╕Ö / α╕äα╕│α╕¬α╕▒α╣êα╕çα╕üα╕▓α╕úα╕₧α╕┤α╕êα╕▓α╕úα╕ôα╕▓:
+              </label>
+
+              {/* Quick Preset Chips */}
+              <div className="space-y-1 mb-2">
+                <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-500" /> α╕éα╣ëα╕¡α╕äα╕ºα╕▓α╕íα╕íα╕▓α╕òα╕úα╕Éα╕▓α╕Öα╕öα╣êα╕ºα╕Ö (α╕äα╕Ñα╕┤α╕üα╣Çα╕Ñα╕╖α╕¡α╕ü):
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(actionType === 'APPROVE'
+                    ? [
+                        'α╣Çα╕½α╣çα╕Öα╕èα╕¡α╕Üα╕òα╕▓α╕íα╣Çα╕¬α╕Öα╕¡ α╕¬α╕íα╕äα╕ºα╕úα╕öα╕│α╣Çα╕Öα╕┤α╕Öα╕üα╕▓α╕ú',
+                        'α╕¬α╕¡α╕öα╕äα╕Ñα╣ëα╕¡α╕çα╕üα╕▒α╕Üα╕óα╕╕α╕ùα╕ÿα╕¿α╕▓α╕¬α╕òα╕úα╣îα╕¢α╕úα╕░α╕êα╕│α╕¥α╣êα╕▓α╕ó',
+                        'α╕òα╕úα╕ºα╕êα╕¬α╕¡α╕Üα╕çα╕Üα╕¢α╕úα╕░α╕íα╕▓α╕ôα╕ûα╕╣α╕üα╕òα╣ëα╕¡α╕ç α╕¡α╕¡α╕üα╕úα╕½α╕▒α╕¬α╣éα╕äα╕úα╕çα╕üα╕▓α╕úα╣Çα╕úα╕╡α╕óα╕Üα╕úα╣ëα╕¡α╕ó',
+                        'α╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤α╣âα╕½α╣ëα╕öα╕│α╣Çα╕Öα╕┤α╕Öα╣éα╕äα╕úα╕çα╕üα╕▓α╕úα╕òα╕▓α╕íα╕ùα╕╡α╣êα╣Çα╕¬α╕Öα╕¡',
+                      ]
+                    : actionType === 'REVISE'
+                    ? [
+                        'α╕éα╕¡α╣âα╕½α╣ëα╕¢α╕úα╕▒α╕Üα╕¢α╕úα╕╕α╕çα╕úα╕▓α╕óα╕Ñα╕░α╣Çα╕¡α╕╡α╕óα╕öα╕äα╣êα╕▓α╣âα╕èα╣ëα╕êα╣êα╕▓α╕óα╣âα╕Öα╕òα╕▓α╕úα╕▓α╕çα╕çα╕Üα╕¢α╕úα╕░α╕íα╕▓α╕ôα╣Çα╕₧α╕┤α╣êα╕íα╣Çα╕òα╕┤α╕í',
+                        'α╕éα╕¡α╣âα╕½α╣ëα╕úα╕░α╕Üα╕╕α╣Çα╕¢α╣ëα╕▓α╕½α╕íα╕▓α╕óα╣Çα╕èα╕┤α╕çα╕¢α╕úα╕┤α╕íα╕▓α╕ôα╣üα╕Ñα╕░α╕äα╕╕α╕ôα╕áα╕▓α╕₧α╣âα╕½α╣ëα╕èα╕▒α╕öα╣Çα╕êα╕Öα╕óα╕┤α╣êα╕çα╕éα╕╢α╣ëα╕Ö',
+                        'α╕éα╕¡α╣âα╕½α╣ëα╕¢α╕úα╕▒α╕Üα╣üα╕üα╣ëα╕üα╕│α╕½α╕Öα╕öα╕üα╕▓α╕úα╣üα╕Ñα╕░α╕üα╕┤α╕êα╕üα╕úα╕úα╕íα╕òα╕▓α╕íα╕üα╕úα╕░α╕Üα╕ºα╕Öα╕üα╕▓α╕ú PDCA',
+                      ]
+                    : [
+                        'α╣äα╕íα╣êα╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤ α╣Çα╕Öα╕╖α╣êα╕¡α╕çα╕êα╕▓α╕üα╕çα╕Üα╕¢α╕úα╕░α╕íα╕▓α╕ôα╣äα╕íα╣êα╣Çα╕₧α╕╡α╕óα╕çα╕₧α╕¡',
+                        'α╣äα╕íα╣êα╕¡α╕Öα╕╕α╕íα╕▒α╕òα╕┤ α╣Çα╕Öα╕╖α╣êα╕¡α╕çα╕êα╕▓α╕üα╕üα╕┤α╕êα╕üα╕úα╕úα╕íα╣äα╕íα╣êα╕¬α╕¡α╕öα╕äα╕Ñα╣ëα╕¡α╕çα╕üα╕▒α╕Üα╕óα╕╕α╕ùα╕ÿα╕¿α╕▓α╕¬α╕òα╕úα╣îα╕½α╕Ñα╕▒α╕ü',
+                      ]
+                  ).map((text, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setComment(text)}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition text-left ${
+                        comment === text
+                          ? 'bg-blue-900 text-white border-blue-900 font-semibold shadow-2xs'
+                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      {text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <textarea
+                rows={3}
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="α╕úα╕░α╕Üα╕╕α╕éα╣ëα╕¡α╕äα╕┤α╕öα╣Çα╕½α╣çα╕Ö α╣Çα╕èα╣êα╕Ö α╣Çα╕½α╣çα╕Öα╕äα╕ºα╕úα╕öα╕│α╣Çα╕Öα╕┤α╕Öα╕üα╕▓α╕úα╕òα╕▓α╕íα╣Çα╕¬α╕Öα╕¡..."
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 font-sans leading-relaxed"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                onClick={() => setActionType(null)}
+                disabled={isProcessing}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+              >
+                α╕óα╕üα╣Çα╕Ñα╕┤α╕ü
+              </button>
+              <button
+                onClick={handleApprovalAction}
+                disabled={isProcessing}
+                className={`px-5 py-2 text-xs font-bold text-white rounded-xl shadow-xs transition ${
+                  actionType === 'APPROVE'
+                    ? 'bg-emerald-600 hover:bg-emerald-500'
+                    : actionType === 'REVISE'
+                    ? 'bg-amber-600 hover:bg-amber-500'
+                    : 'bg-rose-600 hover:bg-rose-500'
+                }`}
+              >
+                {isProcessing ? 'α╕üα╕│α╕Ñα╕▒α╕çα╕¢α╕úα╕░α╕íα╕ºα╕Ñα╕£α╕Ñ...' : 'α╕óα╕╖α╕Öα╕óα╕▒α╕Öα╕öα╕│α╣Çα╕Öα╕┤α╕Öα╕üα╕▓α╕ú'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project Summary Hub Modal (Booklet & One-Page) */}
+      <ProjectSummaryModal
+        isOpen={showSummaryModal}
+        onClose={() => setShowSummaryModal(false)}
+        project={project}
+      />
+    </div>
+  );
+}
+

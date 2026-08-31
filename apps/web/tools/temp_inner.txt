@@ -1,0 +1,139 @@
+                  <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
+                    <Tag className="w-5 h-5 mr-2 text-indigo-500" />
+                    Tag Manager: {selectedTemplate.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">ตั้งค่าตัวแปร (Tags) สำหรับใช้สร้างฟอร์มกรอกข้อมูลอัตโนมัติ</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={handleRescanTags}
+                    disabled={extracting}
+                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${extracting ? 'animate-spin' : ''}`} />
+                    สแกนแท็กใหม่
+                  </button>
+                  <button
+                    onClick={() => setSelectedTemplate(null)}
+                    className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                  >
+                    <span className="sr-only">Close</span>
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                {tags.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <p>ไม่พบตัวแปรในระบบ กรุณากดสแกนแท็กใหม่</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {tags.map((tag, index) => (
+                      <div key={tag.id || index} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-start gap-4">
+                        <div className="flex flex-col items-center justify-center space-y-1 pt-1">
+                          <button
+                            onClick={() => moveTag(index, 'up')}
+                            disabled={index === 0}
+                            className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-30"
+                          >
+                            <ArrowUp className="w-4 h-4" />
+                          </button>
+                          <span className="text-xs text-gray-400 font-medium">{index + 1}</span>
+                          <button
+                            onClick={() => moveTag(index, 'down')}
+                            disabled={index === tags.length - 1}
+                            className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-30"
+                          >
+                            <ArrowDown className="w-4 h-4" />
+                          </button>
+                        </div>
+                        
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="lg:col-span-1">
+                            <label className="block text-xs font-medium text-gray-500 mb-1">Tag ในเอกสาร</label>
+                            <div className="px-3 py-2 bg-gray-100 rounded text-sm font-mono text-gray-700 truncate">
+                              {tag.tag_name}
+                            </div>
+                          </div>
+                          
+                          <div className="lg:col-span-1">
+                            <label className="block text-xs font-medium text-gray-500 mb-1">ชื่อฟิลด์ที่แสดงผล (Label)</label>
+                            <input
+                              type="text"
+                              value={tag.label || ''}
+                              onChange={(e) => {
+                                const newTags = [...tags];
+                                newTags[index].label = e.target.value;
+                                setTags(newTags);
+                              }}
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                            />
+                          </div>
+
+                          <div className="lg:col-span-1">
+                            <label className="block text-xs font-medium text-gray-500 mb-1">ประเภท Tag</label>
+                            <select
+                              value={tag.tag_type}
+                              onChange={(e) => {
+                                const newTags = [...tags];
+                                newTags[index].tag_type = e.target.value;
+                                setTags(newTags);
+                              }}
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                            >
+                              <option value="TEXT">ข้อความสั้น (Text)</option>
+                              <option value="LONGTEXT">ข้อความยาว (Textarea)</option>
+                              <option value="DATE">วันที่ (Date)</option>
+                              <option value="BOOLEAN">Checkbox (True/False)</option>
+                              <option value="IMAGE">รูปภาพ (Image)</option>
+                              <option value="TABLE_LOOP">ตาราง/ทำซ้ำ (Table/Loop)</option>
+                              <option value="CALCULATION">การคำนวน (Calculation)</option>
+                            </select>
+                          </div>
+
+                          <div className="lg:col-span-1 flex items-center pt-5">
+                            <label className="flex items-center space-x-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={tag.is_required || false}
+                                onChange={(e) => {
+                                  const newTags = [...tags];
+                                  newTags[index].is_required = e.target.checked;
+                                  setTags(newTags);
+                                }}
+                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span className="text-sm text-gray-700">จำเป็นต้องกรอก (Required)</span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="bg-white px-4 py-4 border-t border-gray-200 sm:px-6 flex justify-between items-center flex-shrink-0">
+                <div className="text-sm text-gray-500">
+                  ลากจัดเรียงโดยใช้ลูกศรขึ้น/ลง เพื่อกำหนดลำดับในหน้าฟอร์ม
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setSelectedTemplate(null)}
+                    className="inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:text-sm"
+                  >
+                    ปิด
+                  </button>
+                  <button
+                    onClick={handleSaveTags}
+                    disabled={savingTags || tags.length === 0}
+                    className="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:text-sm disabled:opacity-50"
+                  >
+                    {savingTags ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า Tag'}
+                  </button>
+                </div>
+              </div>

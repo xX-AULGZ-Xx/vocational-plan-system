@@ -1,0 +1,31 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: vps-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: vocational_plan_db
+      MYSQL_USER: plan_user
+      MYSQL_PASSWORD: plan_password
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  libreoffice-converter:
+    image: linuxserver/libreoffice:latest
+    container_name: vps-libreoffice
+    restart: always
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Bangkok
+    ports:
+      - "3008:3000"
+    volumes:
+      - ./apps/api/storage:/app/storage
+
+volumes:
+  mysql_data:

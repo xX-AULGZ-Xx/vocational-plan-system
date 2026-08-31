@@ -1,0 +1,35 @@
+{
+  "name": "vocational-plan-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ระบบบริหารจัดการงานแผนงานและโครงการ (วก.เชียงราย)",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --filter \"./apps/*\" build",
+    "db:migrate": "pnpm --filter api prisma migrate dev",
+    "db:generate": "pnpm --filter api prisma generate",
+    "db:seed": "pnpm --filter api prisma db seed",
+    "db:studio": "pnpm --filter api prisma studio",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "keywords": [
+    "vocational",
+    "project-management",
+    "thai-sarabun",
+    "workflow"
+  ],
+  "author": "Chiang Rai Vocational College",
+  "license": "ISC",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

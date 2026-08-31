@@ -1,0 +1,116 @@
+const fs = require('fs');
+const file = 'apps/api/src/modules/projects/project.controller.ts';
+let code = fs.readFileSync(file, 'utf8');
+
+const startPut = code.indexOf("router.put('/:id',");
+const endPut = code.indexOf("// POST /api/v1/projects/:id/submit");
+
+const newPut = \outer.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const projectId = BigInt(id);
+
+    const existingProject = await prisma.project.findUnique({
+      where: { id: projectId },
+    });
+
+    if (!existingProject) {
+      return res.status(404).json({ success: false, message: '??????????????????' });
+    }
+
+    // Permission check: only leader or admin can edit
+    if (existingProject.leader_id !== BigInt(req.user!.id) && req.user!.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: '?????????????????????????????' });
+    }
+
+    const {
+      title,
+      fiscal_year,
+      department_id,
+      template_id,
+      background,
+      objectives,
+      target_groups,
+      expected_results,
+      status,
+      dynamic_data,
+      alignments = [],
+      timelines = [],
+      budget_items = [],
+    } = req.body;
+
+    const totalBudget = budget_items.reduce((sum: number, item: any) => {
+      const q = parseFloat(item.quantity) || 0;
+      const p = parseFloat(item.unit_price) || 0;
+      return sum + q * p;
+    }, 0);
+
+    // Wrap in transaction to prevent partial updates
+    const updatedProject = await prisma.\\(async (tx) => {
+      // Delete existing relations to replace
+      await tx.projectAlignment.deleteMany({ where: { project_id: projectId } });
+      await tx.projectTimeline.deleteMany({ where: { project_id: projectId } });
+      await tx.projectBudgetItem.deleteMany({ where: { project_id: projectId } });
+
+      return await tx.project.update({
+        where: { id: projectId },
+        data: {
+          title,
+          fiscal_year: parseInt(fiscal_year) || existingProject.fiscal_year,
+          department_id: department_id ? parseInt(department_id) : existingProject.department_id,
+          template_id: template_id !== undefined ? (template_id ? parseInt(template_id) : null) : existingProject.template_id,
+          background,
+          objectives,
+          target_groups,
+          expected_results,
+          status: status ? (status as ProjectStatus) : existingProject.status,
+          dynamic_data: dynamic_data ? JSON.stringify(dynamic_data) : existingProject.dynamic_data,
+          total_budget: totalBudget,
+          alignments: {
+            create: alignments.map((indicatorId: number) => ({
+              indicator_id: indicatorId,
+            })),
+          },
+          timelines: {
+            create: timelines.map((t: any) => ({
+              activity_name: t.activity_name,
+              start_date: new Date(t.start_date),
+              end_date: new Date(t.end_date),
+              location: t.location || '',
+              is_milestone: Boolean(t.is_milestone),
+            })),
+          },
+          budget_items: {
+            create: budget_items.map((b: any) => {
+              const q = parseFloat(b.quantity) || 0;
+              const p = parseFloat(b.unit_price) || 0;
+              return {
+                category_id: parseInt(b.category_id),
+                description: b.description,
+                quantity: q,
+                unit: b.unit,
+                unit_price: p,
+                total_amount: q * p,
+              };
+            }),
+          },
+        },
+      });
+    });
+
+    return res.json({
+      success: true,
+      message: '?????????????????????????',
+      data: serializeBigInt(updatedProject),
+    });
+  } catch (error: any) {
+    console.error('Update project error:', error);
+    return res.status(500).json({ success: false, message: '?????????????????????????', error: error.message });
+  }
+});
+
+\;
+
+code = code.slice(0, startPut) + newPut + code.slice(endPut);
+fs.writeFileSync(file, code);
+console.log('Fixed PUT block');

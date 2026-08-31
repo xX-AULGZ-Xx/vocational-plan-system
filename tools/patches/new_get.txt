@@ -1,0 +1,109 @@
+
+router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const project = await prisma.project.findUnique({
+      where: { id: BigInt(id) },
+      include: {
+        department: {
+          include: {
+            division: true,
+          },
+        },
+        leader: {
+          select: {
+            id: true,
+            username: true,
+            full_name: true,
+            position: true,
+            signature_img: true,
+          },
+        },
+        alignments: {
+          include: {
+            indicator: {
+              include: {
+                plan: true,
+              },
+            },
+          },
+        },
+        budget_items: {
+          include: {
+            category: true,
+          },
+        },
+        timelines: {
+          orderBy: { start_date: 'asc' },
+        },
+        approvals: {
+          include: {
+            approver: {
+              select: {
+                id: true,
+                full_name: true,
+                role: true,
+                position: true,
+                signature_img: true,
+              },
+            },
+          },
+          orderBy: { step_order: 'asc' },
+        },
+        documents: {
+          orderBy: { created_at: 'desc' },
+        },
+      },
+    });
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: '??????????????????' });
+    }
+
+    let templateInfo = null;
+    let tpl = null;
+    
+    if (project.template_id) {
+      tpl = await (prisma as any).documentTemplate.findUnique({
+        where: { id: project.template_id },
+        include: { tags: { orderBy: { sort_order: 'asc' } } },
+      });
+    }
+    
+    if (!tpl) {
+      tpl = await (prisma as any).documentTemplate.findFirst({
+        where: { default_type: 'PROPOSAL', is_active: true },
+        include: { tags: { orderBy: { sort_order: 'asc' } } },
+      });
+    }
+
+    if (tpl) {
+      let parsedMappings = tpl.mappings;
+      if (typeof parsedMappings === 'string') {
+        try {
+          parsedMappings = JSON.parse(parsedMappings);
+        } catch {
+          parsedMappings = {};
+        }
+      }
+      templateInfo = {
+        id: tpl.id,
+        name: tpl.name,
+        file_name: tpl.file_name,
+        mappings: parsedMappings || {},
+        tags: tpl.tags || [],
+      };
+    }
+
+    return res.json({
+      success: true,
+      data: serializeBigInt({
+        ...project,
+        template: templateInfo,
+      }),
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: '???????????????????????????????????', error: error.message });
+  }
+});
+
