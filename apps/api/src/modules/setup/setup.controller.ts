@@ -257,29 +257,7 @@ router.post('/install', async (req: Request, res: Response) => {
       }
     }
 
-    // 2. Auto-create database schema tables if needed
-    try {
-      // Test if table exists first before running heavy CLI push
-      await (dbClient as any).systemSetting.findFirst();
-    } catch (tableCheckErr) {
-      // If table doesn't exist, run prisma db push
-      try {
-        const { execSync } = require('child_process');
-        const schemaPath = fs.existsSync('/app/apps/api/prisma/schema.prisma')
-          ? '/app/apps/api/prisma/schema.prisma'
-          : path.resolve(process.cwd(), 'prisma/schema.prisma');
-
-        execSync(`npx prisma db push --schema="${schemaPath}" --skip-generate --accept-data-loss`, {
-          env: { ...process.env, DATABASE_URL: calculatedDbUrl },
-          stdio: 'pipe',
-          timeout: 45000,
-        });
-      } catch (pushErr: any) {
-        console.warn('Prisma db push warning:', pushErr.stdout?.toString() || pushErr.message);
-      }
-    }
-
-    // 3. Security check: Check if system is already initialized
+    // 2. Security check: Check if system is already initialized
     let isAlreadySetup = false;
     try {
       const existingSetup = await (dbClient as any).systemSetting.findUnique({
