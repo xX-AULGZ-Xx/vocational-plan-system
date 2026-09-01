@@ -357,31 +357,45 @@ router.post('/install', async (req: Request, res: Response) => {
         create: { name: 'ฝ่ายแผนงานและความร่วมมือ', code: 'STRAT' },
       });
 
-      // Sample Departments
-      const d1 = await dbClient.department.create({
-        data: { name: 'แผนกวิชาเทคโนโลยีสารสนเทศ', division_id: acad.id },
+      // Sample Departments (Idempotent upsert)
+      const existingD1 = await dbClient.department.findFirst({
+        where: { name: 'แผนกวิชาเทคโนโลยีสารสนเทศ', division_id: acad.id },
       });
-      deptTechId = d1.id;
+      if (existingD1) {
+        deptTechId = existingD1.id;
+      } else {
+        const d1 = await dbClient.department.create({
+          data: { name: 'แผนกวิชาเทคโนโลยีสารสนเทศ', division_id: acad.id },
+        });
+        deptTechId = d1.id;
+      }
 
-      await dbClient.department.create({
-        data: { name: 'แผนกวิชาการบัญชี', division_id: acad.id },
-      });
+      const otherDepts = [
+        { name: 'แผนกวิชาการบัญชี', division_id: acad.id },
+        { name: 'งานการเงินและบัญชี', division_id: resDiv.id },
+        { name: 'งานกิจกรรมนักเรียนนักศึกษา', division_id: dev.id },
+      ];
+      for (const d of otherDepts) {
+        const exists = await dbClient.department.findFirst({ where: { name: d.name, division_id: d.division_id } });
+        if (!exists) {
+          await dbClient.department.create({ data: d });
+        }
+      }
 
-      await dbClient.department.create({
-        data: { name: 'งานการเงินและบัญชี', division_id: resDiv.id },
+      const existingPlan = await dbClient.department.findFirst({
+        where: { name: 'งานวางแผนและงบประมาณ', division_id: strat.id },
       });
-
-      await dbClient.department.create({
-        data: { name: 'งานกิจกรรมนักเรียนนักศึกษา', division_id: dev.id },
-      });
-
-      const d5 = await dbClient.department.create({
-        data: { name: 'งานวางแผนและงบประมาณ', division_id: strat.id },
-      });
-      deptPlanId = d5.id;
+      if (existingPlan) {
+        deptPlanId = existingPlan.id;
+      } else {
+        const d5 = await dbClient.department.create({
+          data: { name: 'งานวางแผนและงบประมาณ', division_id: strat.id },
+        });
+        deptPlanId = d5.id;
+      }
     }
 
-    // 4. Seed Budget Categories
+    // 4. Seed Budget Categories (Idempotent)
     if (seed_budget_categories) {
       const defaultCats = [
         { name: 'ค่าตอบแทน (วิทยากร / คณะกรรมการ)', source_type: SourceType.SUBSIDY },
@@ -389,28 +403,34 @@ router.post('/install', async (req: Request, res: Response) => {
         { name: 'ค่าวัสดุ (เอกสาร / อุปกรณ์อบรม / วัสดุฝึก)', source_type: SourceType.SUBSIDY },
       ];
       for (const cat of defaultCats) {
-        await dbClient.budgetCategory.create({ data: cat });
+        const exists = await dbClient.budgetCategory.findFirst({ where: { name: cat.name } });
+        if (!exists) {
+          await dbClient.budgetCategory.create({ data: cat });
+        }
       }
     }
 
-    // 5. Seed Strategic Plans
+    // 5. Seed Strategic Plans (Idempotent)
     if (seed_strategic_plans) {
       const year = parseInt(current_fiscal_year || '2569');
-      await dbClient.strategicPlan.create({
-        data: {
-          fiscal_year: year,
-          title: `แผนปฏิบัติราชการประจำปีงบประมาณ พ.ศ. ${year} ${college_name || 'สถานศึกษา'}`,
-          indicators: {
-            create: [
-              { code: 'STRAT-1.1', description: 'ยุทธศาสตร์ที่ 1: พัฒนาคุณภาพและมาตรฐานการจัดการศึกษาอาชีวศึกษาสู่สากล' },
-              { code: 'STRAT-1.2', description: 'ยุทธศาสตร์ที่ 1 (ตัวชี้วัด): ร้อยละของผู้สำเร็จการศึกษาที่มีงานทำหรือประกอบอาชีพอิสระ' },
-              { code: 'STRAT-2.1', description: 'ยุทธศาสตร์ที่ 2: พัฒนาครูและบุคลากรทางการศึกษาให้มีความเชี่ยวชาญด้านวิชาชีพและเทคโนโลยีดิจิทัล' },
-              { code: 'STRAT-3.1', description: 'ยุทธศาสตร์ที่ 3: ขยายโอกาสทางการศึกษาวิชาชีพและฝึกอบรมทักษะอาชีพแก่ชุมชนท้องถิ่น' },
-              { code: 'STRAT-4.1', description: 'ยุทธศาสตร์ที่ 4: พัฒนาระบบบริหารจัดการด้วยเทคโนโลยีดิจิทัลและหลักธรรมาภิบาล' },
-            ],
+      const existingStrat = await dbClient.strategicPlan.findFirst({ where: { fiscal_year: year } });
+      if (!existingStrat) {
+        await dbClient.strategicPlan.create({
+          data: {
+            fiscal_year: year,
+            title: `แผนปฏิบัติราชการประจำปีงบประมาณ พ.ศ. ${year} ${college_name || 'สถานศึกษา'}`,
+            indicators: {
+              create: [
+                { code: 'STRAT-1.1', description: 'ยุทธศาสตร์ที่ 1: พัฒนาคุณภาพและมาตรฐานการจัดการศึกษาอาชีวศึกษาสู่สากล' },
+                { code: 'STRAT-1.2', description: 'ยุทธศาสตร์ที่ 1 (ตัวชี้วัด): ร้อยละของผู้สำเร็จการศึกษาที่มีงานทำหรือประกอบอาชีพอิสระ' },
+                { code: 'STRAT-2.1', description: 'ยุทธศาสตร์ที่ 2: พัฒนาครูและบุคลากรทางการศึกษาให้มีความเชี่ยวชาญด้านวิชาชีพและเทคโนโลยีดิจิทัล' },
+                { code: 'STRAT-3.1', description: 'ยุทธศาสตร์ที่ 3: ขยายโอกาสทางการศึกษาวิชาชีพและฝึกอบรมทักษะอาชีพแก่ชุมชนท้องถิ่น' },
+                { code: 'STRAT-4.1', description: 'ยุทธศาสตร์ที่ 4: พัฒนาระบบบริหารจัดการด้วยเทคโนโลยีดิจิทัลและหลักธรรมาภิบาล' },
+              ],
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     // 6. Optional: Seed Demo Accounts for Testing
