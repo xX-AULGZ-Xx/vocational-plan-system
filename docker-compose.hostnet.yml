@@ -1,0 +1,44 @@
+# ==============================================================================
+# Docker Compose using Host Network (เข้าถึง MySQL Localhost 127.0.0.1 บน Server ได้ 100%)
+# ==============================================================================
+# คำสั่งรัน:
+#   $ docker compose -f docker-compose.hostnet.yml up -d --build
+# ==============================================================================
+
+services:
+  # 1. Backend API Service (Node.js Express + LibreOffice + Thai Fonts)
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: vps-api
+    restart: always
+    network_mode: "host"
+    environment:
+      PORT: 5050
+      # เชื่อมต่อไปยัง MySQL ของเครื่องแม่ผ่าน 127.0.0.1 ตรงๆ
+      DATABASE_URL: "${DATABASE_URL:-mysql://root:rootpassword@127.0.0.1:3306/vocational_plan_db}"
+      JWT_SECRET: "${JWT_SECRET:-super-secret-jwt-key-chiangrai-vocational-2026}"
+      CORS_ORIGIN: "http://localhost:3005,http://localhost:3000,http://127.0.0.1:3005"
+      STORAGE_DIR: "/app/apps/api/storage"
+    volumes:
+      - app_storage:/app/apps/api/storage
+
+  # 2. Frontend Web Service (Next.js 16 Standalone)
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: vps-web
+    restart: always
+    network_mode: "host"
+    environment:
+      PORT: 3005
+      INTERNAL_API_URL: "http://127.0.0.1:5050"
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}"
+    volumes:
+      - app_storage:/app/apps/api/storage
+
+volumes:
+  app_storage:
+    driver: local
