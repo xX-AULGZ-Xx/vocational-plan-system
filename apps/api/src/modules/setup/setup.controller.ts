@@ -341,6 +341,238 @@ router.post('/install', async (req: Request, res: Response) => {
           CONSTRAINT \`strategic_indicators_plan_id_fkey\` FOREIGN KEY (\`plan_id\`) REFERENCES \`strategic_plans\` (\`id\`) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       `);
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`document_templates\` (
+          \`id\` int NOT NULL AUTO_INCREMENT,
+          \`name\` varchar(150) NOT NULL,
+          \`description\` text DEFAULT NULL,
+          \`file_name\` varchar(255) NOT NULL,
+          \`file_path\` varchar(500) NOT NULL,
+          \`file_size\` int NOT NULL DEFAULT '0',
+          \`default_type\` enum('PROPOSAL','FULL_SUMMARY','SHORT_SUMMARY','NONE') NOT NULL DEFAULT 'NONE',
+          \`is_active\` tinyint(1) NOT NULL DEFAULT '1',
+          \`version\` int NOT NULL DEFAULT '1',
+          \`mappings\` json DEFAULT NULL,
+          \`created_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updated_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`template_tags\` (
+          \`id\` int NOT NULL AUTO_INCREMENT,
+          \`template_id\` int NOT NULL,
+          \`tag_name\` varchar(100) NOT NULL,
+          \`tag_type\` enum('TEXT','LONGTEXT','DATE','BOOLEAN','TABLE_LOOP','IMAGE','CALCULATION','DROPDOWN','DATERANGE','TIMELINE','ALIGNMENT_CHECKLIST','DIVISION_DROPDOWN','DEPARTMENT_DROPDOWN') NOT NULL DEFAULT 'TEXT',
+          \`label\` varchar(150) DEFAULT NULL,
+          \`description\` text DEFAULT NULL,
+          \`is_required\` tinyint(1) NOT NULL DEFAULT '0',
+          \`sort_order\` int NOT NULL DEFAULT '0',
+          \`options\` json DEFAULT NULL,
+          \`created_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updated_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          KEY \`template_tags_template_id_fkey\` (\`template_id\`),
+          CONSTRAINT \`template_tags_template_id_fkey\` FOREIGN KEY (\`template_id\`) REFERENCES \`document_templates\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`projects\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`project_code\` varchar(50) DEFAULT NULL,
+          \`fiscal_year\` int NOT NULL,
+          \`title\` varchar(255) NOT NULL,
+          \`department_id\` int NOT NULL,
+          \`leader_id\` bigint NOT NULL,
+          \`template_id\` int DEFAULT NULL,
+          \`background\` text DEFAULT NULL,
+          \`objectives\` json DEFAULT NULL,
+          \`target_groups\` json DEFAULT NULL,
+          \`expected_results\` text DEFAULT NULL,
+          \`dynamic_data\` json DEFAULT NULL,
+          \`status\` enum('draft','submitted','dept_approved','deputy_approved','planning_approved','approved','rejected','in_progress','completed','cancelled') NOT NULL DEFAULT 'draft',
+          \`total_budget\` decimal(12,2) NOT NULL DEFAULT '0.00',
+          \`actual_spent\` decimal(12,2) NOT NULL DEFAULT '0.00',
+          \`created_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updated_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`projects_project_code_key\` (\`project_code\`),
+          KEY \`projects_department_id_fkey\` (\`department_id\`),
+          KEY \`projects_leader_id_fkey\` (\`leader_id\`),
+          CONSTRAINT \`projects_department_id_fkey\` FOREIGN KEY (\`department_id\`) REFERENCES \`departments\` (\`id\`),
+          CONSTRAINT \`projects_leader_id_fkey\` FOREIGN KEY (\`leader_id\`) REFERENCES \`users\` (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`project_alignments\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`project_id\` bigint NOT NULL,
+          \`indicator_id\` int NOT NULL,
+          PRIMARY KEY (\`id\`),
+          KEY \`project_alignments_project_id_fkey\` (\`project_id\`),
+          KEY \`project_alignments_indicator_id_fkey\` (\`indicator_id\`),
+          CONSTRAINT \`project_alignments_indicator_id_fkey\` FOREIGN KEY (\`indicator_id\`) REFERENCES \`strategic_indicators\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`project_alignments_project_id_fkey\` FOREIGN KEY (\`project_id\`) REFERENCES \`projects\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`project_budget_items\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`project_id\` bigint NOT NULL,
+          \`category_id\` int NOT NULL,
+          \`description\` varchar(255) NOT NULL,
+          \`quantity\` decimal(10,2) NOT NULL,
+          \`unit\` varchar(50) NOT NULL,
+          \`unit_price\` decimal(10,2) NOT NULL,
+          \`total_amount\` decimal(12,2) NOT NULL,
+          PRIMARY KEY (\`id\`),
+          KEY \`project_budget_items_project_id_fkey\` (\`project_id\`),
+          KEY \`project_budget_items_category_id_fkey\` (\`category_id\`),
+          CONSTRAINT \`project_budget_items_category_id_fkey\` FOREIGN KEY (\`category_id\`) REFERENCES \`budget_categories\` (\`id\`),
+          CONSTRAINT \`project_budget_items_project_id_fkey\` FOREIGN KEY (\`project_id\`) REFERENCES \`projects\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`project_timelines\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`project_id\` bigint NOT NULL,
+          \`activity_name\` varchar(255) NOT NULL,
+          \`start_date\` date NOT NULL,
+          \`end_date\` date NOT NULL,
+          \`location\` varchar(255) DEFAULT NULL,
+          \`is_milestone\` tinyint(1) NOT NULL DEFAULT '0',
+          PRIMARY KEY (\`id\`),
+          KEY \`project_timelines_project_id_fkey\` (\`project_id\`),
+          CONSTRAINT \`project_timelines_project_id_fkey\` FOREIGN KEY (\`project_id\`) REFERENCES \`projects\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`project_approvals\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`project_id\` bigint NOT NULL,
+          \`step_order\` int NOT NULL,
+          \`approver_id\` bigint NOT NULL,
+          \`status\` enum('PENDING','APPROVED','REJECTED','REVISION_REQUESTED') NOT NULL DEFAULT 'PENDING',
+          \`comment\` text DEFAULT NULL,
+          \`signed_at\` timestamp NULL DEFAULT NULL,
+          PRIMARY KEY (\`id\`),
+          KEY \`project_approvals_project_id_fkey\` (\`project_id\`),
+          KEY \`project_approvals_approver_id_fkey\` (\`approver_id\`),
+          CONSTRAINT \`project_approvals_approver_id_fkey\` FOREIGN KEY (\`approver_id\`) REFERENCES \`users\` (\`id\`),
+          CONSTRAINT \`project_approvals_project_id_fkey\` FOREIGN KEY (\`project_id\`) REFERENCES \`projects\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`project_documents\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`project_id\` bigint NOT NULL,
+          \`file_name\` varchar(255) NOT NULL,
+          \`file_path\` varchar(500) NOT NULL,
+          \`file_type\` varchar(50) NOT NULL,
+          \`version\` int NOT NULL DEFAULT '1',
+          \`is_generated\` tinyint(1) NOT NULL DEFAULT '1',
+          \`created_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          KEY \`project_documents_project_id_fkey\` (\`project_id\`),
+          CONSTRAINT \`project_documents_project_id_fkey\` FOREIGN KEY (\`project_id\`) REFERENCES \`projects\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`project_evaluation_forms\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`project_id\` bigint NOT NULL,
+          \`title\` varchar(255) NOT NULL,
+          \`description\` text DEFAULT NULL,
+          \`theme_config\` json DEFAULT NULL,
+          \`is_active\` tinyint(1) NOT NULL DEFAULT '1',
+          \`target_responses\` int NOT NULL DEFAULT '0',
+          \`created_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updated_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`project_evaluation_forms_project_id_key\` (\`project_id\`),
+          CONSTRAINT \`project_evaluation_forms_project_id_fkey\` FOREIGN KEY (\`project_id\`) REFERENCES \`projects\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`evaluation_sections\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`form_id\` bigint NOT NULL,
+          \`title\` varchar(200) NOT NULL,
+          \`description\` text DEFAULT NULL,
+          \`order_index\` int NOT NULL DEFAULT '0',
+          PRIMARY KEY (\`id\`),
+          KEY \`evaluation_sections_form_id_fkey\` (\`form_id\`),
+          CONSTRAINT \`evaluation_sections_form_id_fkey\` FOREIGN KEY (\`form_id\`) REFERENCES \`project_evaluation_forms\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`evaluation_questions\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`section_id\` bigint NOT NULL,
+          \`question_text\` varchar(500) NOT NULL,
+          \`question_type\` enum('RATING_5','TEXT','RADIO','CHECKBOX') NOT NULL DEFAULT 'RATING_5',
+          \`options\` json DEFAULT NULL,
+          \`order_index\` int NOT NULL DEFAULT '0',
+          \`is_required\` tinyint(1) NOT NULL DEFAULT '1',
+          PRIMARY KEY (\`id\`),
+          KEY \`evaluation_questions_section_id_fkey\` (\`section_id\`),
+          CONSTRAINT \`evaluation_questions_section_id_fkey\` FOREIGN KEY (\`section_id\`) REFERENCES \`evaluation_sections\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`evaluation_responses\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`form_id\` bigint NOT NULL,
+          \`respondent_meta\` json DEFAULT NULL,
+          \`submitted_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          KEY \`evaluation_responses_form_id_fkey\` (\`form_id\`),
+          CONSTRAINT \`evaluation_responses_form_id_fkey\` FOREIGN KEY (\`form_id\`) REFERENCES \`project_evaluation_forms\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`evaluation_answers\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`response_id\` bigint NOT NULL,
+          \`question_id\` bigint NOT NULL,
+          \`score\` int DEFAULT NULL,
+          \`text_value\` text DEFAULT NULL,
+          PRIMARY KEY (\`id\`),
+          KEY \`evaluation_answers_response_id_fkey\` (\`response_id\`),
+          KEY \`evaluation_answers_question_id_fkey\` (\`question_id\`),
+          CONSTRAINT \`evaluation_answers_question_id_fkey\` FOREIGN KEY (\`question_id\`) REFERENCES \`evaluation_questions\` (\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`evaluation_answers_response_id_fkey\` FOREIGN KEY (\`response_id\`) REFERENCES \`evaluation_responses\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`notifications\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`user_id\` bigint NOT NULL,
+          \`title\` varchar(255) NOT NULL,
+          \`message\` text NOT NULL,
+          \`type\` enum('PROJECT_SUBMITTED','APPROVAL_REQUIRED','PROJECT_APPROVED','PROJECT_FINAL_APPROVED','PROJECT_REVISION','PROJECT_REJECTED','SYSTEM_ANNOUNCEMENT') NOT NULL DEFAULT 'PROJECT_APPROVED',
+          \`link_url\` varchar(500) DEFAULT NULL,
+          \`is_read\` tinyint(1) NOT NULL DEFAULT '0',
+          \`read_at\` timestamp NULL DEFAULT NULL,
+          \`created_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          KEY \`notifications_user_id_is_read_idx\` (\`user_id\`,\`is_read\`),
+          CONSTRAINT \`notifications_user_id_fkey\` FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
     } catch (schemaCreateErr: any) {
       console.warn('Notice: DDL creation warning:', schemaCreateErr.message);
     }
