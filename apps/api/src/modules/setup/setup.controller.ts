@@ -28,16 +28,23 @@ function isDirectoryWritable(dirPath: string): boolean {
 // Check if the system has already been setup
 router.get('/status', async (req: Request, res: Response) => {
   try {
-    const setupSetting = await (prisma as any).systemSetting.findUnique({
-      where: { key: 'is_system_setup' },
-    });
+    let isSetup = false;
+    let adminCount = 0;
 
-    const isSetup = setupSetting?.value === 'true';
+    try {
+      const setupSetting = await (prisma as any).systemSetting.findUnique({
+        where: { key: 'is_system_setup' },
+      });
+      isSetup = setupSetting?.value === 'true';
 
-    // Count admin users
-    const adminCount = await prisma.user.count({
-      where: { role: Role.ADMIN },
-    });
+      adminCount = await prisma.user.count({
+        where: { role: Role.ADMIN },
+      });
+    } catch (dbError) {
+      // Database not created or tables missing yet -> definitely needs setup
+      isSetup = false;
+      adminCount = 0;
+    }
 
     return res.json({
       success: true,
@@ -45,10 +52,10 @@ router.get('/status', async (req: Request, res: Response) => {
       admin_count: adminCount,
     });
   } catch (error: any) {
-    return res.status(500).json({
-      success: false,
-      message: 'เกิดข้อผิดพลาดในการตรวจสอบสถานะระบบ',
-      error: error.message,
+    return res.json({
+      success: true,
+      is_setup: false,
+      admin_count: 0,
     });
   }
 });

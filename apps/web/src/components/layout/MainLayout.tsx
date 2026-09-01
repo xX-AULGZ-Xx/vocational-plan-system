@@ -1,15 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAuthPage = pathname === '/login' || pathname === '/setup';
   const isStandalonePage = pathname?.startsWith('/surveys');
+
+  useEffect(() => {
+    // Global setup check for any page
+    if (pathname !== '/setup') {
+      fetch('/api/v1/setup/status')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.is_setup === false) {
+            router.push('/setup');
+          }
+        })
+        .catch(() => {});
+    }
+  }, [pathname, router]);
 
   if (isAuthPage) {
     return <main className="min-h-screen bg-slate-900">{children}</main>;
