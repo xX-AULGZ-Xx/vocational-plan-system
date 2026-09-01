@@ -16,6 +16,7 @@ import adminRouter from './modules/admin/admin.controller';
 import evaluationRouter from './modules/evaluation/evaluation.controller';
 import notificationsRouter from './modules/notifications/notifications.controller';
 import setupRouter from './modules/setup/setup.controller';
+import systemUpdateRouter from './modules/system-update/update.controller';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -43,7 +44,8 @@ app.get('/', (req: Request, res: Response) => {
       budgets: '/api/v1/budgets',
       divisions: '/api/v1/divisions',
       strategics: '/api/v1/strategics',
-      evaluation: '/api/v1/projects/:id/evaluation'
+      evaluation: '/api/v1/projects/:id/evaluation',
+      system_update: '/api/v1/system-update'
     }
   });
 });
@@ -64,6 +66,7 @@ app.use('/api/v1/documents', documentRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/setup', setupRouter);
 app.use('/api/v1/notifications', notificationsRouter);
+app.use('/api/v1/system-update', systemUpdateRouter);
 app.use('/api/v1', evaluationRouter);
 
 // Global 404 handler

@@ -18,6 +18,7 @@ import {
   FileText,
   Clock,
   Settings,
+  ArrowUpCircle,
   X,
 } from 'lucide-react';
 
@@ -58,6 +59,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
     { name: 'จัดการฝ่ายและแผนกวิชา/งาน', href: '/admin/departments', icon: Building2, roles: ['ADMIN'] },
     { name: 'จัดการเทมเพลตเอกสาร', href: '/admin/templates', icon: FileText, roles: ['ADMIN', 'PLANNING_OFFICER'] },
     { name: 'ตั้งค่าระบบสถานศึกษา', href: '/admin/settings', icon: Settings, roles: ['ADMIN'] },
+    { name: 'อัปเดตและสำรองระบบ', href: '/admin/system-update', icon: ArrowUpCircle, roles: ['ADMIN'] },
   ];
 
   // Filter navigation by role
