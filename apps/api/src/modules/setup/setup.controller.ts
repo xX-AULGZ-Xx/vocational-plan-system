@@ -107,6 +107,7 @@ router.get('/health', async (req: Request, res: Response) => {
 // 2.1 POST /api/v1/setup/test-db
 // Test MySQL connection with provided host, port, user, pass, database
 router.post('/test-db', async (req: Request, res: Response) => {
+  let testClient: any = null;
   try {
     const { host, port, user, password, database } = req.body;
     if (!host || !user || !database) {
@@ -116,28 +117,54 @@ router.post('/test-db', async (req: Request, res: Response) => {
       });
     }
 
-    const mysql = require('mysql2/promise');
-    const connection = await mysql.createConnection({
-      host: host.trim(),
-      port: parseInt(port) || 3306,
-      user: user.trim(),
-      password: password || '',
-      database: database.trim(),
-      connectTimeout: 5000,
+    const hostClean = host.trim();
+    const portClean = port ? String(port).trim() : '3306';
+    const userClean = encodeURIComponent(user.trim());
+    const passClean = password ? encodeURIComponent(password) : '';
+    const dbClean = database.trim();
+
+    // Construct connection URL
+    const url = passClean
+      ? `mysql://${userClean}:${passClean}@${hostClean}:${portClean}/${dbClean}`
+      : `mysql://${userClean}@${hostClean}:${portClean}/${dbClean}`;
+
+    const { PrismaClient: DynamicPrismaClient } = require('@prisma/client');
+    testClient = new DynamicPrismaClient({
+      datasources: {
+        db: { url },
+      },
     });
 
-    await connection.ping();
-    await connection.end();
+    // Test ping
+    await testClient.$queryRaw`SELECT 1`;
+    await testClient.$disconnect();
 
     return res.json({
       success: true,
-      message: 'เชื่อมต่อ MySQL Database สำเร็จ!',
+      message: 'เชื่อมต่อ MySQL Database สำเร็จเรียบร้อย!',
     });
   } catch (error: any) {
+    if (testClient) {
+      try {
+        await testClient.$disconnect();
+      } catch (e) {}
+    }
+    const errMsg = error.message || '';
+    let userMsg = 'ไม่สามารถเชื่อมต่อ MySQL ได้';
+    if (errMsg.includes('P1000') || errMsg.includes('Authentication failed')) {
+      userMsg = 'รหัสผ่าน MySQL หรือ Username ไม่ถูกต้อง (Authentication failed)';
+    } else if (errMsg.includes('P1001') || errMsg.includes('Can\'t reach database server')) {
+      userMsg = 'ไม่สามารถติดต่อ MySQL Server ได้ (ตรวจสอบ Host/Port หรือ Firewall 3306)';
+    } else if (errMsg.includes('P1003') || errMsg.includes('database') && errMsg.includes('does not exist')) {
+      userMsg = 'ไม่พบชื่อ Database นี้ใน MySQL (กรุณาสร้าง Database ใน aaPanel ก่อน)';
+    } else {
+      userMsg = `ข้อผิดพลาด: ${errMsg.substring(0, 150)}`;
+    }
+
     return res.status(400).json({
       success: false,
-      message: `ไม่สามารถเชื่อมต่อ MySQL ได้: ${error.message}`,
-      error: error.message,
+      message: userMsg,
+      error: errMsg,
     });
   }
 });

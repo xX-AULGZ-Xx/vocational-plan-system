@@ -61,7 +61,16 @@ export default function SetupWizardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dbConfig),
       });
-      const data = await res.json();
+
+      let data: any = {};
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(text.includes('502') ? 'ไม่สามารถเชื่อมต่อ Backend API ได้ (502 Bad Gateway)' : `ข้อผิดพลาด (${res.status}): ${text.substring(0, 100)}`);
+      }
+
       if (res.ok && data.success) {
         setDbTestMsg({ success: true, message: data.message });
         setHealthResult((prev: any) => ({ ...prev, database: true }));
@@ -69,7 +78,7 @@ export default function SetupWizardPage() {
         setDbTestMsg({ success: false, message: data.message || 'ไม่สามารถเชื่อมต่อ MySQL ได้' });
       }
     } catch (err: any) {
-      setDbTestMsg({ success: false, message: `เกิดข้อผิดพลาด: ${err.message}` });
+      setDbTestMsg({ success: false, message: `${err.message}` });
     } finally {
       setTestingDb(false);
     }
