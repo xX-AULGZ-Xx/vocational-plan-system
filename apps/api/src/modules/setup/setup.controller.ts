@@ -257,7 +257,99 @@ router.post('/install', async (req: Request, res: Response) => {
       }
     }
 
-    // 2. Security check: Check if system is already initialized
+    // 2. Ensure all core tables exist in the database (Native SQL DDL, zero CLI dependencies)
+    try {
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`system_settings\` (
+          \`id\` int NOT NULL AUTO_INCREMENT,
+          \`key\` varchar(100) NOT NULL,
+          \`value\` text NOT NULL,
+          \`description\` varchar(255) DEFAULT NULL,
+          \`updated_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`system_settings_key_key\` (\`key\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`divisions\` (
+          \`id\` int NOT NULL AUTO_INCREMENT,
+          \`name\` varchar(100) NOT NULL,
+          \`code\` varchar(20) NOT NULL,
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`divisions_code_key\` (\`code\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`departments\` (
+          \`id\` int NOT NULL AUTO_INCREMENT,
+          \`division_id\` int NOT NULL,
+          \`name\` varchar(150) NOT NULL,
+          PRIMARY KEY (\`id\`),
+          KEY \`departments_division_id_fkey\` (\`division_id\`),
+          CONSTRAINT \`departments_division_id_fkey\` FOREIGN KEY (\`division_id\`) REFERENCES \`divisions\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`users\` (
+          \`id\` bigint NOT NULL AUTO_INCREMENT,
+          \`department_id\` int DEFAULT NULL,
+          \`username\` varchar(50) NOT NULL,
+          \`password_hash\` varchar(255) DEFAULT NULL,
+          \`email\` varchar(100) DEFAULT NULL,
+          \`google_id\` varchar(100) DEFAULT NULL,
+          \`avatar_url\` varchar(500) DEFAULT NULL,
+          \`full_name\` varchar(150) NOT NULL,
+          \`position\` varchar(100) DEFAULT NULL,
+          \`signature_img\` varchar(255) DEFAULT NULL,
+          \`role\` enum('TEACHER','HEAD_DEPT','DEPUTY_DIRECTOR','PLANNING_OFFICER','DIRECTOR','ADMIN') NOT NULL DEFAULT 'TEACHER',
+          \`is_active\` tinyint(1) NOT NULL DEFAULT '1',
+          \`created_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`users_username_key\` (\`username\`),
+          UNIQUE KEY \`users_email_key\` (\`email\`),
+          UNIQUE KEY \`users_google_id_key\` (\`google_id\`),
+          KEY \`users_department_id_fkey\` (\`department_id\`),
+          CONSTRAINT \`users_department_id_fkey\` FOREIGN KEY (\`department_id\`) REFERENCES \`departments\` (\`id\`) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`budget_categories\` (
+          \`id\` int NOT NULL AUTO_INCREMENT,
+          \`name\` varchar(100) NOT NULL,
+          \`source_type\` enum('GOVERNMENT','SUBSIDY','REVENUE') NOT NULL,
+          PRIMARY KEY (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`strategic_plans\` (
+          \`id\` int NOT NULL AUTO_INCREMENT,
+          \`fiscal_year\` int NOT NULL,
+          \`title\` varchar(255) NOT NULL,
+          PRIMARY KEY (\`id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+
+      await dbClient.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS \`strategic_indicators\` (
+          \`id\` int NOT NULL AUTO_INCREMENT,
+          \`plan_id\` int NOT NULL,
+          \`code\` varchar(50) NOT NULL,
+          \`description\` text NOT NULL,
+          PRIMARY KEY (\`id\`),
+          KEY \`strategic_indicators_plan_id_fkey\` (\`plan_id\`),
+          CONSTRAINT \`strategic_indicators_plan_id_fkey\` FOREIGN KEY (\`plan_id\`) REFERENCES \`strategic_plans\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+      `);
+    } catch (schemaCreateErr: any) {
+      console.warn('Notice: DDL creation warning:', schemaCreateErr.message);
+    }
+
+    // 3. Security check: Check if system is already initialized
     let isAlreadySetup = false;
     try {
       const existingSetup = await (dbClient as any).systemSetting.findUnique({
