@@ -1,0 +1,56 @@
+# ==============================================================================
+# Docker Compose for External MySQL Server (Server ที่มี MySQL 3306 อยู่แล้ว)
+# ==============================================================================
+# คำสั่งรัน:
+#   $ docker compose -f docker-compose.prod.yml up -d --build
+# ==============================================================================
+
+services:
+  # 1. Backend API Service (Node.js Express + Prisma + LibreOffice + Thai Fonts)
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: vps-api
+    restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      PORT: 5050
+      # เชื่อมต่อไปยัง MySQL ของเครื่อง Host (หรือระบุ IP Host)
+      DATABASE_URL: "${DATABASE_URL:-mysql://root:rootpassword@host.docker.internal:3306/vocational_plan_db}"
+      JWT_SECRET: "${JWT_SECRET:-super-secret-jwt-key-chiangrai-vocational-2026}"
+      CORS_ORIGIN: "http://localhost:3005,http://localhost:3000,http://web:3005"
+      STORAGE_DIR: "/app/apps/api/storage"
+    ports:
+      - "5050:5050"
+    volumes:
+      - app_storage:/app/apps/api/storage
+    networks:
+      - vps-network
+
+  # 2. Frontend Web Service (Next.js 16 Standalone)
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: vps-web
+    restart: always
+    depends_on:
+      - api
+    environment:
+      PORT: 3005
+      INTERNAL_API_URL: "http://api:5050"
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}"
+    ports:
+      - "3005:3005"
+    networks:
+      - vps-network
+
+volumes:
+  app_storage:
+    driver: local
+
+networks:
+  vps-network:
+    driver: bridge
