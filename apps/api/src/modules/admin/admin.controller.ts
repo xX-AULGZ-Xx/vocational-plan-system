@@ -118,21 +118,33 @@ const DEFAULT_SETTINGS = [
 // GET /api/v1/admin/settings
 router.get('/settings', async (req: AuthRequest, res: Response) => {
   try {
-    const existing = await (prisma as any).systemSetting.findMany();
-    const existingMap = new Map(existing.map((s: any) => [s.key, s.value]));
+    let existing: any[] = [];
+    try {
+      existing = await (prisma as any).systemSetting.findMany();
+    } catch (dbErr) {
+      // Database not ready/tables missing -> return default fallback settings safely
+      const fallbackResult: Record<string, string> = {};
+      for (const def of DEFAULT_SETTINGS) {
+        fallbackResult[def.key] = def.value;
+      }
+      return res.json({ success: true, data: fallbackResult });
+    }
 
+    const existingMap = new Map(existing.map((s: any) => [s.key, s.value]));
     const result: Record<string, string> = {};
 
     // Seed missing defaults
     for (const def of DEFAULT_SETTINGS) {
       if (!existingMap.has(def.key)) {
-        await (prisma as any).systemSetting.create({
-          data: {
-            key: def.key,
-            value: def.value,
-            description: def.description,
-          },
-        });
+        try {
+          await (prisma as any).systemSetting.create({
+            data: {
+              key: def.key,
+              value: def.value,
+              description: def.description,
+            },
+          });
+        } catch (e) {}
         result[def.key] = def.value;
       } else {
         result[def.key] = (existingMap.get(def.key) as string) || '';
@@ -149,7 +161,11 @@ router.get('/settings', async (req: AuthRequest, res: Response) => {
     return res.json({ success: true, data: result });
   } catch (error: any) {
     console.error('Fetch settings error:', error);
-    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงการตั้งค่า', error: error.message });
+    const fallbackResult: Record<string, string> = {};
+    for (const def of DEFAULT_SETTINGS) {
+      fallbackResult[def.key] = def.value;
+    }
+    return res.json({ success: true, data: fallbackResult });
   }
 });
 

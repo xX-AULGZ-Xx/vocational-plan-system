@@ -62,7 +62,15 @@ function LoginForm() {
         body: JSON.stringify({ username: u.trim(), password: p }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(text.includes('502') ? 'ไม่สามารถเชื่อมต่อ Backend API ได้ (502 Bad Gateway)' : `เกิดข้อผิดพลาด (${res.status}): ${text.substring(0, 100)}`);
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
       }
@@ -90,7 +98,15 @@ function LoginForm() {
         body: JSON.stringify({ credential: credentialResponse.credential }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(text.includes('502') ? 'ไม่สามารถเชื่อมต่อ Backend API ได้ (502 Bad Gateway)' : `เกิดข้อผิดพลาด (${res.status}): ${text.substring(0, 100)}`);
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.message || 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ');
       }
