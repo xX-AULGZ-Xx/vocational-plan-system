@@ -312,6 +312,7 @@ router.post('/install', async (req: Request, res: Response) => {
         is_active: true,
       },
     });
+
     // 2. Save System Settings
     const settingsToSave: Record<string, string> = {
       is_system_setup: 'true',
