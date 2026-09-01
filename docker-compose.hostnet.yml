@@ -23,6 +23,7 @@ services:
       STORAGE_DIR: "/app/apps/api/storage"
     volumes:
       - ./apps/api/storage:/app/apps/api/storage
+      - ./:/app/host_config
 
   # 2. Frontend Web Service (Next.js 16 Standalone)
   web:
@@ -38,6 +39,7 @@ services:
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}"
     volumes:
       - ./apps/api/storage:/app/apps/api/storage
+      - ./:/app/host_config
 
 volumes:
   app_storage:

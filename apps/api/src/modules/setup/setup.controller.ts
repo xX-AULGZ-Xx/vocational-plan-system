@@ -233,6 +233,8 @@ router.post('/install', async (req: Request, res: Response) => {
 
       // Persist DATABASE_URL to .env on disk across possible paths so container and host remember it
       const envLocations = [
+        '/app/host_config/.env',
+        '/app/host_config/apps/api/.env',
         path.resolve(process.cwd(), '.env'),
         path.resolve(process.cwd(), 'apps/api/.env'),
         '/app/.env',
