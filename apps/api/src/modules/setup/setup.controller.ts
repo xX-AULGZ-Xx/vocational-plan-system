@@ -220,15 +220,28 @@ router.post('/install', async (req: Request, res: Response) => {
       });
     }
 
-    // Auto-create database schema if needed
+    // Auto-create database schema if needed using db_config or environment URL
     try {
       const { execSync } = require('child_process');
+      let pushEnv = { ...process.env };
+      if (db_config && db_config.host && db_config.user) {
+        const hostClean = db_config.host.trim();
+        const portClean = db_config.port ? String(db_config.port).trim() : '3306';
+        const userClean = encodeURIComponent(db_config.user.trim());
+        const passClean = db_config.password ? encodeURIComponent(db_config.password) : '';
+        const dbClean = (db_config.database || 'vocational_plan_db').trim();
+        pushEnv.DATABASE_URL = passClean
+          ? `mysql://${userClean}:${passClean}@${hostClean}:${portClean}/${dbClean}`
+          : `mysql://${userClean}@${hostClean}:${portClean}/${dbClean}`;
+      }
+
       execSync('npx prisma db push --skip-generate --accept-data-loss', {
-        stdio: 'ignore',
-        timeout: 20000,
+        env: pushEnv,
+        stdio: 'inherit',
+        timeout: 30000,
       });
-    } catch (pushErr) {
-      console.warn('Prisma db push notice:', pushErr);
+    } catch (pushErr: any) {
+      console.warn('Prisma db push notice:', pushErr.message);
     }
 
     // 1. Create or update Super Admin User

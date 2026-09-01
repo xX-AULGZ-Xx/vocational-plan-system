@@ -202,7 +202,7 @@ export default function SetupWizardPage() {
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.message || 'การติดตั้งระบบล้มเหลว');
+        throw new Error(data.error || data.message || 'การติดตั้งระบบล้มเหลว');
       }
 
       showAlert.success('🎉 ติดตั้งและตั้งค่าระบบสำเร็จ! กำลังพาท่านไปหน้าเข้าสู่ระบบ');
