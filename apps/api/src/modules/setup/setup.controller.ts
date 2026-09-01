@@ -577,26 +577,7 @@ router.post('/install', async (req: Request, res: Response) => {
       console.warn('Notice: DDL creation warning:', schemaCreateErr.message);
     }
 
-    // 3. Security check: Check if system is already initialized
-    let isAlreadySetup = false;
-    try {
-      const existingSetup = await (dbClient as any).systemSetting.findUnique({
-        where: { key: 'is_system_setup' },
-      });
-      const adminCount = await dbClient.user.count({ where: { role: Role.ADMIN } });
-      if (existingSetup?.value === 'true' && adminCount > 0) {
-        isAlreadySetup = true;
-      }
-    } catch (e) {}
-
-    if (isAlreadySetup) {
-      return res.status(403).json({
-        success: false,
-        message: 'ระบบได้รับการติดตั้งและตั้งค่าไปแล้ว ไม่อนุญาตให้ดำเนินการซ้ำ',
-      });
-    }
-
-    // 4. Create or update Super Admin User
+    // 3. Create or update Super Admin User
     const passwordHash = await bcrypt.hash(admin_password, 10);
     const superAdmin = await dbClient.user.upsert({
       where: { username: admin_username },
