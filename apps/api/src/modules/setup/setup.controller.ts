@@ -172,20 +172,8 @@ router.post('/test-db', async (req: Request, res: Response) => {
 // 3. POST /api/v1/setup/install
 // Execute first-time installation and seed default data
 router.post('/install', async (req: Request, res: Response) => {
+  let dbClient = prisma;
   try {
-    // Security check: Check if system is already initialized
-    const existingSetup = await (prisma as any).systemSetting.findUnique({
-      where: { key: 'is_system_setup' },
-    });
-    const adminCount = await prisma.user.count({ where: { role: Role.ADMIN } });
-
-    if (existingSetup?.value === 'true' && adminCount > 0) {
-      return res.status(403).json({
-        success: false,
-        message: 'ระบบได้รับการติดตั้งและตั้งค่าไปแล้ว ไม่อนุญาตให้ดำเนินการซ้ำ',
-      });
-    }
-
     const {
       admin_name,
       admin_username,
@@ -220,33 +208,78 @@ router.post('/install', async (req: Request, res: Response) => {
       });
     }
 
-    // Auto-create database schema if needed using db_config or environment URL
+    // 1. Calculate Database URL from db_config if provided
+    let calculatedDbUrl = process.env.DATABASE_URL || '';
+    if (db_config && db_config.host && db_config.user) {
+      const hostClean = db_config.host.trim();
+      const portClean = db_config.port ? String(db_config.port).trim() : '3306';
+      const userClean = encodeURIComponent(db_config.user.trim());
+      const passClean = db_config.password ? encodeURIComponent(db_config.password) : '';
+      const dbClean = (db_config.database || 'vocational_plan_db').trim();
+      calculatedDbUrl = passClean
+        ? `mysql://${userClean}:${passClean}@${hostClean}:${portClean}/${dbClean}`
+        : `mysql://${userClean}@${hostClean}:${portClean}/${dbClean}`;
+
+      // Update current process env
+      process.env.DATABASE_URL = calculatedDbUrl;
+
+      // Create dynamic client instance for setup execution
+      const { PrismaClient: DynamicPrismaClient } = require('@prisma/client');
+      dbClient = new DynamicPrismaClient({
+        datasources: {
+          db: { url: calculatedDbUrl },
+        },
+      });
+
+      // Persist DATABASE_URL to .env on disk so container restarts remember it
+      try {
+        const envPath = path.resolve(process.cwd(), '.env');
+        let currentEnvContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+        if (currentEnvContent.includes('DATABASE_URL=')) {
+          currentEnvContent = currentEnvContent.replace(/DATABASE_URL=.*/g, `DATABASE_URL="${calculatedDbUrl}"`);
+        } else {
+          currentEnvContent += `\nDATABASE_URL="${calculatedDbUrl}"\n`;
+        }
+        fs.writeFileSync(envPath, currentEnvContent, 'utf8');
+      } catch (envErr) {
+        console.warn('Notice: Could not write .env file:', envErr);
+      }
+    }
+
+    // 2. Auto-create database schema tables
     try {
       const { execSync } = require('child_process');
-      let pushEnv = { ...process.env };
-      if (db_config && db_config.host && db_config.user) {
-        const hostClean = db_config.host.trim();
-        const portClean = db_config.port ? String(db_config.port).trim() : '3306';
-        const userClean = encodeURIComponent(db_config.user.trim());
-        const passClean = db_config.password ? encodeURIComponent(db_config.password) : '';
-        const dbClean = (db_config.database || 'vocational_plan_db').trim();
-        pushEnv.DATABASE_URL = passClean
-          ? `mysql://${userClean}:${passClean}@${hostClean}:${portClean}/${dbClean}`
-          : `mysql://${userClean}@${hostClean}:${portClean}/${dbClean}`;
-      }
-
       execSync('npx prisma db push --skip-generate --accept-data-loss', {
-        env: pushEnv,
+        env: { ...process.env, DATABASE_URL: calculatedDbUrl },
         stdio: 'inherit',
-        timeout: 30000,
+        timeout: 35000,
       });
     } catch (pushErr: any) {
       console.warn('Prisma db push notice:', pushErr.message);
     }
 
-    // 1. Create or update Super Admin User
+    // 3. Security check: Check if system is already initialized
+    let isAlreadySetup = false;
+    try {
+      const existingSetup = await (dbClient as any).systemSetting.findUnique({
+        where: { key: 'is_system_setup' },
+      });
+      const adminCount = await dbClient.user.count({ where: { role: Role.ADMIN } });
+      if (existingSetup?.value === 'true' && adminCount > 0) {
+        isAlreadySetup = true;
+      }
+    } catch (e) {}
+
+    if (isAlreadySetup) {
+      return res.status(403).json({
+        success: false,
+        message: 'ระบบได้รับการติดตั้งและตั้งค่าไปแล้ว ไม่อนุญาตให้ดำเนินการซ้ำ',
+      });
+    }
+
+    // 4. Create or update Super Admin User
     const passwordHash = await bcrypt.hash(admin_password, 10);
-    const superAdmin = await prisma.user.upsert({
+    const superAdmin = await dbClient.user.upsert({
       where: { username: admin_username },
       update: {
         full_name: admin_name,
@@ -266,7 +299,6 @@ router.post('/install', async (req: Request, res: Response) => {
         is_active: true,
       },
     });
-
     // 2. Save System Settings
     const settingsToSave: Record<string, string> = {
       is_system_setup: 'true',
@@ -289,7 +321,7 @@ router.post('/install', async (req: Request, res: Response) => {
     };
 
     for (const [key, value] of Object.entries(settingsToSave)) {
-      await (prisma as any).systemSetting.upsert({
+      await (dbClient as any).systemSetting.upsert({
         where: { key },
         update: { value: String(value) },
         create: { key, value: String(value), description: '' },
@@ -301,49 +333,49 @@ router.post('/install', async (req: Request, res: Response) => {
     let deptPlanId: number | null = null;
 
     if (seed_departments) {
-      const acad = await prisma.division.upsert({
+      const acad = await dbClient.division.upsert({
         where: { code: 'ACAD' },
         update: {},
         create: { name: 'ฝ่ายวิชาการ', code: 'ACAD' },
       });
 
-      const resDiv = await prisma.division.upsert({
+      const resDiv = await dbClient.division.upsert({
         where: { code: 'RES' },
         update: {},
         create: { name: 'ฝ่ายบริหารทรัพยากร', code: 'RES' },
       });
 
-      const dev = await prisma.division.upsert({
+      const dev = await dbClient.division.upsert({
         where: { code: 'DEV' },
         update: {},
         create: { name: 'ฝ่ายพัฒนากิจการนักเรียน นักศึกษา', code: 'DEV' },
       });
 
-      const strat = await prisma.division.upsert({
+      const strat = await dbClient.division.upsert({
         where: { code: 'STRAT' },
         update: {},
         create: { name: 'ฝ่ายแผนงานและความร่วมมือ', code: 'STRAT' },
       });
 
       // Sample Departments
-      const d1 = await prisma.department.create({
+      const d1 = await dbClient.department.create({
         data: { name: 'แผนกวิชาเทคโนโลยีสารสนเทศ', division_id: acad.id },
       });
       deptTechId = d1.id;
 
-      await prisma.department.create({
+      await dbClient.department.create({
         data: { name: 'แผนกวิชาการบัญชี', division_id: acad.id },
       });
 
-      await prisma.department.create({
+      await dbClient.department.create({
         data: { name: 'งานการเงินและบัญชี', division_id: resDiv.id },
       });
 
-      await prisma.department.create({
+      await dbClient.department.create({
         data: { name: 'งานกิจกรรมนักเรียนนักศึกษา', division_id: dev.id },
       });
 
-      const d5 = await prisma.department.create({
+      const d5 = await dbClient.department.create({
         data: { name: 'งานวางแผนและงบประมาณ', division_id: strat.id },
       });
       deptPlanId = d5.id;
@@ -357,14 +389,14 @@ router.post('/install', async (req: Request, res: Response) => {
         { name: 'ค่าวัสดุ (เอกสาร / อุปกรณ์อบรม / วัสดุฝึก)', source_type: SourceType.SUBSIDY },
       ];
       for (const cat of defaultCats) {
-        await prisma.budgetCategory.create({ data: cat });
+        await dbClient.budgetCategory.create({ data: cat });
       }
     }
 
     // 5. Seed Strategic Plans
     if (seed_strategic_plans) {
       const year = parseInt(current_fiscal_year || '2569');
-      await prisma.strategicPlan.create({
+      await dbClient.strategicPlan.create({
         data: {
           fiscal_year: year,
           title: `แผนปฏิบัติราชการประจำปีงบประมาณ พ.ศ. ${year} ${college_name || 'สถานศึกษา'}`,
@@ -393,7 +425,7 @@ router.post('/install', async (req: Request, res: Response) => {
       ];
 
       for (const u of demoUsers) {
-        await prisma.user.upsert({
+        await dbClient.user.upsert({
           where: { username: u.username },
           update: {},
           create: u,
