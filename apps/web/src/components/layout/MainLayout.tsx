@@ -18,13 +18,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       fetch('/api/v1/setup/status')
         .then((res) => res.json())
         .then((data) => {
-          if (data.success && data.is_setup === false) {
-            router.push('/setup');
+          if (data && data.is_setup === false) {
+            window.location.replace('/setup');
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          // If status endpoint itself failed -> likely needs setup
+          window.location.replace('/setup');
+        });
     }
-  }, [pathname, router]);
+  }, [pathname]);
 
   if (isAuthPage) {
     return <main className="min-h-screen bg-slate-900">{children}</main>;

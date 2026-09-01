@@ -39,12 +39,14 @@ function LoginForm() {
     fetch('/api/v1/setup/status')
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && data.is_setup === false) {
-          router.push('/setup');
+        if (data && data.is_setup === false) {
+          window.location.replace('/setup');
         }
       })
-      .catch((e) => {});
-  }, [router]);
+      .catch(() => {
+        window.location.replace('/setup');
+      });
+  }, []);
 
   const handleLogin = async (u = username, p = password) => {
     if (!u.trim() || !p.trim()) {
