@@ -23,7 +23,6 @@ services:
       STORAGE_DIR: "/app/apps/api/storage"
     volumes:
       - ./apps/api/storage:/app/apps/api/storage
-      - ./.env:/app/.env
 
   # 2. Frontend Web Service (Next.js 16 Standalone)
   web:
