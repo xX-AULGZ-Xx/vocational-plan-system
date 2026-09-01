@@ -258,13 +258,17 @@ router.post('/install', async (req: Request, res: Response) => {
     // 2. Auto-create database schema tables
     try {
       const { execSync } = require('child_process');
-      execSync('npx prisma db push --skip-generate --accept-data-loss', {
+      const schemaPath = fs.existsSync('/app/apps/api/prisma/schema.prisma')
+        ? '/app/apps/api/prisma/schema.prisma'
+        : path.resolve(process.cwd(), 'prisma/schema.prisma');
+
+      execSync(`npx prisma db push --schema="${schemaPath}" --skip-generate --accept-data-loss`, {
         env: { ...process.env, DATABASE_URL: calculatedDbUrl },
-        stdio: 'inherit',
-        timeout: 35000,
+        stdio: 'pipe',
+        timeout: 40000,
       });
     } catch (pushErr: any) {
-      console.warn('Prisma db push notice:', pushErr.message);
+      console.warn('Prisma db push warning:', pushErr.stdout?.toString() || pushErr.message);
     }
 
     // 3. Security check: Check if system is already initialized
