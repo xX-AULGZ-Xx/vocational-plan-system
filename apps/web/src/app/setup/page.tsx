@@ -200,7 +200,15 @@ export default function SetupWizardPage() {
         }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      const contentType = res.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(text.includes('502') ? 'ไม่สามารถเชื่อมต่อ Backend API ได้ (502 Bad Gateway)' : `เกิดข้อผิดพลาด (${res.status}): ${text.substring(0, 150)}`);
+      }
+
       if (!res.ok || !data.success) {
         throw new Error(data.error || data.message || 'การติดตั้งระบบล้มเหลว');
       }
