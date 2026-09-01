@@ -231,18 +231,27 @@ router.post('/install', async (req: Request, res: Response) => {
         },
       });
 
-      // Persist DATABASE_URL to .env on disk so container restarts remember it
-      try {
-        const envPath = path.resolve(process.cwd(), '.env');
-        let currentEnvContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
-        if (currentEnvContent.includes('DATABASE_URL=')) {
-          currentEnvContent = currentEnvContent.replace(/DATABASE_URL=.*/g, `DATABASE_URL="${calculatedDbUrl}"`);
-        } else {
-          currentEnvContent += `\nDATABASE_URL="${calculatedDbUrl}"\n`;
-        }
-        fs.writeFileSync(envPath, currentEnvContent, 'utf8');
-      } catch (envErr) {
-        console.warn('Notice: Could not write .env file:', envErr);
+      // Persist DATABASE_URL to .env on disk across possible paths so container and host remember it
+      const envLocations = [
+        path.resolve(process.cwd(), '.env'),
+        path.resolve(process.cwd(), 'apps/api/.env'),
+        '/app/.env',
+        '/app/apps/api/.env',
+      ];
+
+      for (const envPath of envLocations) {
+        try {
+          let currentEnvContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+          if (currentEnvContent.includes('DATABASE_URL=')) {
+            currentEnvContent = currentEnvContent.replace(/DATABASE_URL=.*/g, `DATABASE_URL="${calculatedDbUrl}"`);
+          } else {
+            currentEnvContent += `\nDATABASE_URL="${calculatedDbUrl}"\n`;
+          }
+          if (!currentEnvContent.includes('JWT_SECRET=')) {
+            currentEnvContent += `JWT_SECRET="super-secret-jwt-key-chiangrai-vocational-2026"\n`;
+          }
+          fs.writeFileSync(envPath, currentEnvContent, 'utf8');
+        } catch (envErr) {}
       }
     }
 

@@ -22,7 +22,8 @@ services:
       CORS_ORIGIN: "http://localhost:3005,http://localhost:3000,http://127.0.0.1:3005"
       STORAGE_DIR: "/app/apps/api/storage"
     volumes:
-      - app_storage:/app/apps/api/storage
+      - ./apps/api/storage:/app/apps/api/storage
+      - ./.env:/app/.env
 
   # 2. Frontend Web Service (Next.js 16 Standalone)
   web:
@@ -37,7 +38,7 @@ services:
       INTERNAL_API_URL: "http://127.0.0.1:5050"
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}"
     volumes:
-      - app_storage:/app/apps/api/storage
+      - ./apps/api/storage:/app/apps/api/storage
 
 volumes:
   app_storage:
