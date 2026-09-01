@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ShieldAlert, RefreshCw, Clock, ArrowRight } from 'lucide-react';
-import { api } from '@/lib/api';
 
 export default function MaintenancePage() {
   const [checking, setChecking] = useState(false);
@@ -18,7 +17,7 @@ export default function MaintenancePage() {
   const checkStatus = async () => {
     try {
       setChecking(true);
-      const res = await api.get<any>('/api/v1/system-update/maintenance/status');
+      const res = await fetch('/api/v1/system-update/maintenance/status').then((r) => r.json());
       if (res?.data) {
         setMaintenanceInfo(res.data);
         if (!res.data.enabled) {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { api } from '@/lib/api';
+import AccessDenied from '@/components/common/AccessDenied';
 import {
   ArrowUpCircle,
   RefreshCw,
@@ -89,7 +89,11 @@ interface ProgressLog {
 }
 
 export default function SystemUpdatePage() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+
+  if (user && user.role !== 'ADMIN') {
+    return <AccessDenied requiredRole="ผู้ดูแลระบบ (ADMIN)" />;
+  }
 
   const [activeTab, setActiveTab] = useState<'update' | 'backups' | 'cli'>('update');
   const [loading, setLoading] = useState<boolean>(true);
@@ -116,16 +120,20 @@ export default function SystemUpdatePage() {
   const [alertInfo, setAlertInfo] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   useEffect(() => {
-    fetchInitialData();
-  }, []);
+    if (token) {
+      fetchInitialData();
+    }
+  }, [token]);
 
   const fetchInitialData = async () => {
     try {
       setLoading(true);
+      const headers = { Authorization: `Bearer ${token}` };
+
       const [infoRes, updateRes, backupsRes] = await Promise.all([
-        api.get<any>('/api/v1/system-update/info').catch(() => null),
-        api.get<any>('/api/v1/system-update/check').catch(() => null),
-        api.get<any>('/api/v1/system-update/backups').catch(() => null),
+        fetch('/api/v1/system-update/info', { headers }).then((r) => r.json()).catch(() => null),
+        fetch('/api/v1/system-update/check', { headers }).then((r) => r.json()).catch(() => null),
+        fetch('/api/v1/system-update/backups', { headers }).then((r) => r.json()).catch(() => null),
       ]);
 
       if (infoRes?.data) {
@@ -151,7 +159,10 @@ export default function SystemUpdatePage() {
   const handleCheckUpdate = async () => {
     try {
       setCheckingUpdate(true);
-      const res = await api.get<any>('/api/v1/system-update/check');
+      const res = await fetch('/api/v1/system-update/check', {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json());
+
       if (res?.data) {
         setUpdateInfo(res.data);
         if (res.data.hasUpdate) {
@@ -170,10 +181,18 @@ export default function SystemUpdatePage() {
   const handleSaveMaintenance = async () => {
     try {
       setSavingMaintenance(true);
-      const res = await api.post<any>('/api/v1/system-update/maintenance', {
-        enabled: maintenanceEnabled,
-        message: maintenanceMsg,
-      });
+      const res = await fetch('/api/v1/system-update/maintenance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          enabled: maintenanceEnabled,
+          message: maintenanceMsg,
+        }),
+      }).then((r) => r.json());
+
       if (res?.success) {
         setAlertInfo({
           type: 'success',
@@ -190,16 +209,20 @@ export default function SystemUpdatePage() {
   const handleCreateBackup = async () => {
     try {
       setCreatingBackup(true);
-      const res = await api.post<any>('/api/v1/system-update/backup', {
-        description: `Manual backup by ${user?.full_name || 'Admin'}`,
-      });
+      const res = await fetch('/api/v1/system-update/backup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          description: `Manual backup by ${user?.full_name || 'Admin'}`,
+        }),
+      }).then((r) => r.json());
+
       if (res?.success) {
         setAlertInfo({ type: 'success', message: `สร้างไฟล์สำรองข้อมูล ${res.data.filename} เรียบร้อยแล้ว` });
-        // Refresh backups list and system info
-        const backupsRes = await api.get<any>('/api/v1/system-update/backups');
-        if (backupsRes?.data) setBackups(backupsRes.data);
-        const infoRes = await api.get<any>('/api/v1/system-update/info');
-        if (infoRes?.data) setSystemInfo(infoRes.data);
+        fetchInitialData();
       }
     } catch (err: any) {
       setAlertInfo({ type: 'error', message: 'สร้างการสำรองข้อมูลล้มเหลว: ' + err.message });
@@ -222,8 +245,6 @@ export default function SystemUpdatePage() {
     setCurrentProgress(5);
 
     try {
-      // Connect to SSE log stream
-      const token = localStorage.getItem('token');
       const eventSource = new EventSource(`/api/v1/system-update/stream`);
 
       eventSource.onmessage = (event) => {
@@ -250,10 +271,16 @@ export default function SystemUpdatePage() {
         eventSource.close();
       };
 
-      // Trigger execute API
-      await api.post<any>('/api/v1/system-update/execute', {
-        createBackupFirst: createBackupBeforeUpdate,
-        targetVersion: updateInfo?.latestVersion || '1.2.0',
+      await fetch('/api/v1/system-update/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          createBackupFirst: createBackupBeforeUpdate,
+          targetVersion: updateInfo?.latestVersion || '1.2.0',
+        }),
       });
     } catch (err: any) {
       setUpdating(false);
