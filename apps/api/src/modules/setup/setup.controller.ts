@@ -440,9 +440,9 @@ router.post('/install', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Setup install error:', error);
-    return res.status(500).json({
+    return res.json({
       success: false,
-      message: 'เกิดข้อผิดพลาดในการติดตั้งระบบ',
+      message: error.message || 'เกิดข้อผิดพลาดในการติดตั้งระบบ',
       error: error.message,
     });
   }
