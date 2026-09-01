@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import AccessDenied from '@/components/common/AccessDenied';
 import {
@@ -107,6 +107,9 @@ export default function SystemUpdatePage() {
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [currentProgress, setCurrentProgress] = useState<number>(0);
 
+  // Polling ref
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
   // Maintenance form
   const [maintenanceEnabled, setMaintenanceEnabled] = useState<boolean>(false);
   const [maintenanceMsg, setMaintenanceMsg] = useState<string>('');
@@ -123,6 +126,9 @@ export default function SystemUpdatePage() {
     if (token) {
       fetchInitialData();
     }
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, [token]);
 
   const fetchInitialData = async () => {
@@ -238,32 +244,61 @@ export default function SystemUpdatePage() {
       {
         stage: 'init',
         message: 'เริ่มต้นการอัปเดตระบบ...',
-        progress: 5,
+        progress: 10,
         timestamp: new Date().toLocaleTimeString('th-TH'),
       },
     ]);
-    setCurrentProgress(5);
+    setCurrentProgress(10);
 
     try {
-      const eventSource = new EventSource(`/api/v1/system-update/stream`);
+      // 1. Setup SSE Connection with Token
+      const sseUrl = `/api/v1/system-update/stream?token=${encodeURIComponent(token || '')}`;
+      const eventSource = new EventSource(sseUrl);
+
+      const handleProgressData = (data: any) => {
+        if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
+          setLogs(data.logs.map((l: any) => ({
+            ...l,
+            timestamp: l.timestamp ? new Date(l.timestamp).toLocaleTimeString('th-TH') : new Date().toLocaleTimeString('th-TH'),
+          })));
+        } else if (data.message) {
+          setLogs((prev) => {
+            const exists = prev.some((p) => p.message === data.message);
+            if (exists) return prev;
+            return [
+              ...prev,
+              {
+                stage: data.stage || 'update',
+                message: data.message,
+                progress: data.progress,
+                timestamp: new Date().toLocaleTimeString('th-TH'),
+              },
+            ];
+          });
+        }
+
+        if (typeof data.progress === 'number' && data.progress >= 0) {
+          setCurrentProgress(data.progress);
+        }
+
+        if (data.progress === 100) {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          eventSource.close();
+          setUpdating(false);
+          setAlertInfo({ type: 'success', message: 'ระบบได้รับการอัปเดตเสร็จสมบูรณ์ 100%' });
+          fetchInitialData();
+        } else if (data.progress === -1) {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          eventSource.close();
+          setUpdating(false);
+          setAlertInfo({ type: 'error', message: 'การอัปเดตล้มเหลว: ' + data.message });
+        }
+      };
 
       eventSource.onmessage = (event) => {
         try {
           const logData = JSON.parse(event.data);
-          setLogs((prev) => [...prev, logData]);
-          if (logData.progress >= 0) {
-            setCurrentProgress(logData.progress);
-          }
-          if (logData.progress === 100) {
-            eventSource.close();
-            setUpdating(false);
-            setAlertInfo({ type: 'success', message: 'ระบบได้รับการอัปเดตเสร็จสมบูรณ์ 100%' });
-            fetchInitialData();
-          } else if (logData.progress === -1) {
-            eventSource.close();
-            setUpdating(false);
-            setAlertInfo({ type: 'error', message: 'การอัปเดตล้มเหลว: ' + logData.message });
-          }
+          handleProgressData(logData);
         } catch (e) {}
       };
 
@@ -271,6 +306,18 @@ export default function SystemUpdatePage() {
         eventSource.close();
       };
 
+      // 2. Dual Fallback: Poll /api/v1/system-update/progress every 1s
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      pollingRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/v1/system-update/progress?token=${encodeURIComponent(token || '')}`).then((r) => r.json());
+          if (res?.data) {
+            handleProgressData(res.data);
+          }
+        } catch (e) {}
+      }, 1000);
+
+      // 3. Trigger execute API
       await fetch('/api/v1/system-update/execute', {
         method: 'POST',
         headers: {
@@ -284,6 +331,7 @@ export default function SystemUpdatePage() {
       });
     } catch (err: any) {
       setUpdating(false);
+      if (pollingRef.current) clearInterval(pollingRef.current);
       setAlertInfo({ type: 'error', message: 'เกิดข้อผิดพลาดในการเริ่มอัปเดต: ' + err.message });
     }
   };
@@ -514,13 +562,13 @@ export default function SystemUpdatePage() {
                     <Terminal className="w-4 h-4 text-emerald-400" />
                     <span>Live Update Execution Stream</span>
                   </div>
-                  <span>{currentProgress}%</span>
+                  <span className="font-bold text-emerald-400">{currentProgress}%</span>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="w-full bg-slate-800 rounded-full h-2">
+                <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
                   <div
-                    className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
+                    className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500"
                     style={{ width: `${Math.max(currentProgress, 5)}%` }}
                   />
                 </div>

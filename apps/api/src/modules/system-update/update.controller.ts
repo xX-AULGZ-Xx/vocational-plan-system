@@ -1,8 +1,10 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 import { authenticate, authorize, AuthRequest } from '../../middlewares/auth';
 import { UpdateService } from './update.service';
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
 
 // Store active SSE clients for update logs
 let logListeners: ((data: any) => void)[] = [];
@@ -25,10 +27,75 @@ router.get('/maintenance/status', (req: Request, res: Response) => {
   }
 });
 
+// 2. GET /api/v1/system-update/stream (SSE for live logs - supports query param ?token=... or Header)
+router.get('/stream', (req: Request, res: Response) => {
+  // Validate token from Header or Query Param
+  const authHeader = req.headers.authorization;
+  const queryToken = req.query.token as string;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : queryToken;
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Unauthorized (No token provided)' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    if (decoded.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Forbidden (Admin role required)' });
+    }
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+  }
+
+  // Set SSE Headers with Nginx unbuffered streaming
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Crucial for aaPanel / Nginx / Reverse Proxies
+  res.flushHeaders?.();
+
+  // Send current state immediately on connect
+  const currentState = UpdateService.getProgressState();
+  res.write(`data: ${JSON.stringify(currentState)}\n\n`);
+
+  const listener = (data: any) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  logListeners.push(listener);
+
+  req.on('close', () => {
+    logListeners = logListeners.filter((l) => l !== listener);
+  });
+});
+
+// 3. GET /api/v1/system-update/progress (Polling endpoint for real-time progress)
+router.get('/progress', (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  const queryToken = req.query.token as string;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : queryToken;
+
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    if (decoded.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+
+  const progressState = UpdateService.getProgressState();
+  return res.json({ success: true, data: progressState });
+});
+
 // Protected routes below (ADMIN only)
 router.use(authenticate, authorize(['ADMIN']));
 
-// 2. GET /api/v1/system-update/info
+// 4. GET /api/v1/system-update/info
 router.get('/info', async (req: AuthRequest, res: Response) => {
   try {
     const info = await UpdateService.getSystemInfo();
@@ -38,7 +105,7 @@ router.get('/info', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// 3. GET /api/v1/system-update/check
+// 5. GET /api/v1/system-update/check
 router.get('/check', async (req: AuthRequest, res: Response) => {
   try {
     const checkResult = await UpdateService.checkForUpdates();
@@ -48,7 +115,7 @@ router.get('/check', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// 4. POST /api/v1/system-update/maintenance
+// 6. POST /api/v1/system-update/maintenance
 router.post('/maintenance', (req: AuthRequest, res: Response) => {
   try {
     const { enabled, message } = req.body;
@@ -63,7 +130,7 @@ router.post('/maintenance', (req: AuthRequest, res: Response) => {
   }
 });
 
-// 5. GET /api/v1/system-update/backups
+// 7. GET /api/v1/system-update/backups
 router.get('/backups', (req: AuthRequest, res: Response) => {
   try {
     const backups = UpdateService.listBackups();
@@ -73,7 +140,7 @@ router.get('/backups', (req: AuthRequest, res: Response) => {
   }
 });
 
-// 6. POST /api/v1/system-update/backup
+// 8. POST /api/v1/system-update/backup
 router.post('/backup', async (req: AuthRequest, res: Response) => {
   try {
     const { description } = req.body;
@@ -88,7 +155,7 @@ router.post('/backup', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// 7. POST /api/v1/system-update/restore
+// 9. POST /api/v1/system-update/restore
 router.post('/restore', async (req: AuthRequest, res: Response) => {
   try {
     const { backupId } = req.body;
@@ -102,25 +169,7 @@ router.post('/restore', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// 8. GET /api/v1/system-update/stream (SSE for live logs)
-router.get('/stream', (req: Request, res: Response) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
-
-  const listener = (data: any) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
-  };
-
-  logListeners.push(listener);
-
-  req.on('close', () => {
-    logListeners = logListeners.filter((l) => l !== listener);
-  });
-});
-
-// 9. POST /api/v1/system-update/execute (Trigger 1-Click Update)
+// 10. POST /api/v1/system-update/execute (Trigger 1-Click Update)
 router.post('/execute', async (req: AuthRequest, res: Response) => {
   try {
     const { createBackupFirst, targetVersion } = req.body;
@@ -131,7 +180,7 @@ router.post('/execute', async (req: AuthRequest, res: Response) => {
       message: 'เริ่มกระบวนการอัปเดตระบบในเบื้องหลังแล้ว ติดตามสถานะผ่านหน้าจอ Live Logs',
     });
 
-    // Run async execution pipeline
+    // Run async execution pipeline in background
     UpdateService.executeUpdatePipeline(
       { createBackupFirst: createBackupFirst !== false, targetVersion },
       (stage, message, progress) => {

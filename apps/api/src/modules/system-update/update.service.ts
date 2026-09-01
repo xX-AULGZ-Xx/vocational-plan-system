@@ -6,6 +6,7 @@ import { promisify } from 'util';
 import { prisma, serializeBigInt } from '../../lib/prisma';
 
 const execAsync = promisify(exec);
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const ROOT_DIR = path.resolve(__dirname, '../../../../');
 const STORAGE_DIR = path.resolve(process.env.STORAGE_DIR || path.join(ROOT_DIR, 'storage'));
@@ -62,6 +63,27 @@ export interface UpdateCheckResult {
   }>;
 }
 
+export interface ProgressState {
+  updating: boolean;
+  progress: number;
+  stage: string;
+  message: string;
+  logs: Array<{
+    stage: string;
+    message: string;
+    progress: number;
+    timestamp: string;
+  }>;
+}
+
+let activeProgressState: ProgressState = {
+  updating: false,
+  progress: 0,
+  stage: 'idle',
+  message: 'ระบบพร้อมทำงาน',
+  logs: [],
+};
+
 export class UpdateService {
   public static getCurrentVersion(): string {
     try {
@@ -72,6 +94,10 @@ export class UpdateService {
       }
     } catch (e) {}
     return '1.0.0';
+  }
+
+  public static getProgressState(): ProgressState {
+    return activeProgressState;
   }
 
   public static async getSystemInfo(): Promise<SystemInfo> {
@@ -367,37 +393,67 @@ export class UpdateService {
     options: { createBackupFirst?: boolean; targetVersion?: string },
     logCallback: (stage: string, message: string, progress: number) => void
   ) {
+    activeProgressState = {
+      updating: true,
+      progress: 5,
+      stage: 'init',
+      message: 'เริ่มต้นกระบวนการปรับปรุงระบบ...',
+      logs: [],
+    };
+
+    const emit = (stage: string, message: string, progress: number) => {
+      const entry = { stage, message, progress, timestamp: new Date().toISOString() };
+      activeProgressState.updating = progress < 100 && progress >= 0;
+      activeProgressState.progress = progress;
+      activeProgressState.stage = stage;
+      activeProgressState.message = message;
+      activeProgressState.logs.push(entry);
+      logCallback(stage, message, progress);
+    };
+
     try {
-      logCallback('init', 'เริ่มต้นกระบวนการปรับปรุงระบบ...', 5);
+      emit('init', 'เริ่มต้นกระบวนการปรับปรุงระบบ...', 10);
+      await sleep(800);
 
-      logCallback('maintenance', 'เปิดโหมดปิดปรับปรุงชั่วคราว (Maintenance Mode)...', 15);
+      // Step 1: Maintenance Mode
+      emit('maintenance', 'เปิดโหมดปิดปรับปรุงชั่วคราว (Maintenance Mode)...', 20);
       this.setMaintenanceStatus(true, 'ระบบกำลังดำเนินการอัปเดตเวอร์ชัน กรุณารอสักครู่...');
+      await sleep(800);
 
+      // Step 2: Pre-update Backup
       if (options.createBackupFirst !== false) {
-        logCallback('backup', 'กำลังสำรองฐานข้อมูลและ Snapshot ของระบบ...', 30);
+        emit('backup', 'กำลังสำรองฐานข้อมูลและ Snapshot ของระบบ...', 35);
         const backupResult = await this.createBackup(`Auto-backup before update to ${options.targetVersion || 'latest'}`);
-        logCallback('backup', `สำรองข้อมูลสำเร็จ (${backupResult.sizeFormatted})`, 45);
+        emit('backup', `สำรองข้อมูลสำเร็จ (${backupResult.sizeFormatted})`, 50);
+        await sleep(800);
       }
 
-      logCallback('code_sync', 'กำลังตรวจสอบและซิงค์ซอร์สโค้ดล่าสุด...', 60);
+      // Step 3: Git Status & Code Sync
+      emit('code_sync', 'กำลังตรวจสอบและซิงค์ซอร์สโค้ดล่าสุด...', 65);
       try {
         const gitResult = await execAsync('git status', { cwd: ROOT_DIR });
-        logCallback('code_sync', `Git Status ตรวจสอบเรียบร้อย: ${gitResult.stdout.slice(0, 80)}...`, 70);
+        emit('code_sync', `Git Status ตรวจสอบเรียบร้อย: ${gitResult.stdout.slice(0, 60)}...`, 75);
       } catch (gitErr) {
-        logCallback('code_sync', 'ข้ามขั้นตอน Git Pull (ใช้ Local Release Package)', 70);
+        emit('code_sync', 'ข้ามขั้นตอน Git Pull (ใช้ Local Release Package)', 75);
       }
+      await sleep(800);
 
-      logCallback('db_migration', 'กำลังตรวจสอบและปรับปรุงโครงสร้างฐานข้อมูล (Prisma)...', 80);
+      // Step 4: Database Schema Check
+      emit('db_migration', 'กำลังตรวจสอบและปรับปรุงโครงสร้างฐานข้อมูล (Prisma)...', 85);
       try {
         await execAsync('npx prisma generate', { cwd: path.join(ROOT_DIR, 'apps/api') });
-      } catch (prismaErr) {
-      }
+      } catch (prismaErr) {}
+      await sleep(800);
 
-      logCallback('health_check', 'กำลังตรวจสอบสถานะการทำงานของระบบ (Health Check)...', 90);
+      // Step 5: System Health Check
+      emit('health_check', 'กำลังตรวจสอบสถานะการทำงานของระบบ (Health Check)...', 92);
       await prisma.$queryRaw`SELECT 1`;
+      await sleep(800);
 
-      logCallback('finalize', 'ปิดโหมด Maintenance และเปิดให้บริการตามปกติ...', 98);
+      // Step 6: Finalize
+      emit('finalize', 'ปิดโหมด Maintenance และเปิดให้บริการตามปกติ...', 98);
       this.setMaintenanceStatus(false);
+      await sleep(500);
 
       this.recordUpdateHistory({
         targetVersion: options.targetVersion || '1.2.0',
@@ -405,11 +461,11 @@ export class UpdateService {
         status: 'SUCCESS',
       });
 
-      logCallback('complete', 'การอัปเดตระบบเสร็จสมบูรณ์ 100%', 100);
+      emit('complete', 'การอัปเดตระบบเสร็จสมบูรณ์ 100%', 100);
       return { success: true, message: 'ระบบได้รับการอัปเดตเรียบร้อยแล้ว' };
     } catch (error: any) {
       this.setMaintenanceStatus(false);
-      logCallback('error', `เกิดข้อผิดพลาดในการอัปเดต: ${error.message}`, -1);
+      emit('error', `เกิดข้อผิดพลาดในการอัปเดต: ${error.message}`, -1);
       throw error;
     }
   }
