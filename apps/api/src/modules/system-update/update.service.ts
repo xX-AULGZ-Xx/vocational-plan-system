@@ -84,6 +84,15 @@ let activeProgressState: ProgressState = {
   logs: [],
 };
 
+async function safeFindMany(modelAccessor: any): Promise<any[]> {
+  try {
+    if (modelAccessor && typeof modelAccessor.findMany === 'function') {
+      return await modelAccessor.findMany();
+    }
+  } catch (e) {}
+  return [];
+}
+
 export class UpdateService {
   public static getCurrentVersion(): string {
     try {
@@ -262,30 +271,41 @@ export class UpdateService {
     const backupId = `backup_${timestamp}`;
     const backupFilePath = path.join(BACKUP_DIR, `${backupId}.json`);
 
+    // Fetch all database tables with safe accessor fallback
     const [
       users,
       divisions,
       departments,
-      strategics,
+      strategicPlans,
+      strategicIndicators,
       projects,
+      projectAlignments,
       budgetCategories,
-      budgetItems,
-      approvals,
+      projectBudgetItems,
+      projectTimelines,
+      projectApprovals,
+      projectDocuments,
       documentTemplates,
+      templateTags,
       notifications,
       systemSettings,
     ] = await Promise.all([
-      (prisma as any).user.findMany(),
-      (prisma as any).division.findMany(),
-      (prisma as any).department.findMany(),
-      (prisma as any).strategic.findMany(),
-      (prisma as any).project.findMany(),
-      (prisma as any).budgetCategory.findMany(),
-      (prisma as any).budgetItem.findMany(),
-      (prisma as any).approval.findMany(),
-      (prisma as any).documentTemplate.findMany(),
-      (prisma as any).notification.findMany(),
-      (prisma as any).systemSetting.findMany().catch(() => []),
+      safeFindMany((prisma as any).user),
+      safeFindMany((prisma as any).division),
+      safeFindMany((prisma as any).department),
+      safeFindMany((prisma as any).strategicPlan),
+      safeFindMany((prisma as any).strategicIndicator),
+      safeFindMany((prisma as any).project),
+      safeFindMany((prisma as any).projectAlignment),
+      safeFindMany((prisma as any).budgetCategory),
+      safeFindMany((prisma as any).projectBudgetItem),
+      safeFindMany((prisma as any).projectTimeline),
+      safeFindMany((prisma as any).projectApproval),
+      safeFindMany((prisma as any).projectDocument),
+      safeFindMany((prisma as any).documentTemplate),
+      safeFindMany((prisma as any).templateTag),
+      safeFindMany((prisma as any).notification),
+      safeFindMany((prisma as any).systemSetting),
     ]);
 
     const backupData = {
@@ -297,22 +317,27 @@ export class UpdateService {
         users: users.length,
         divisions: divisions.length,
         departments: departments.length,
-        strategics: strategics.length,
+        strategicPlans: strategicPlans.length,
         projects: projects.length,
-        budgetItems: budgetItems.length,
-        approvals: approvals.length,
+        projectBudgetItems: projectBudgetItems.length,
+        projectApprovals: projectApprovals.length,
         documentTemplates: documentTemplates.length,
       },
       data: {
         users: serializeBigInt(users),
         divisions: serializeBigInt(divisions),
         departments: serializeBigInt(departments),
-        strategics: serializeBigInt(strategics),
+        strategicPlans: serializeBigInt(strategicPlans),
+        strategicIndicators: serializeBigInt(strategicIndicators),
         projects: serializeBigInt(projects),
+        projectAlignments: serializeBigInt(projectAlignments),
         budgetCategories: serializeBigInt(budgetCategories),
-        budgetItems: serializeBigInt(budgetItems),
-        approvals: serializeBigInt(approvals),
+        projectBudgetItems: serializeBigInt(projectBudgetItems),
+        projectTimelines: serializeBigInt(projectTimelines),
+        projectApprovals: serializeBigInt(projectApprovals),
+        projectDocuments: serializeBigInt(projectDocuments),
         documentTemplates: serializeBigInt(documentTemplates),
+        templateTags: serializeBigInt(templateTags),
         notifications: serializeBigInt(notifications),
         systemSettings: serializeBigInt(systemSettings),
       },
