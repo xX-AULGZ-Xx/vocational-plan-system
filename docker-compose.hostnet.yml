@@ -17,7 +17,7 @@ services:
     environment:
       PORT: 5050
       # เชื่อมต่อไปยัง MySQL ของเครื่องแม่ผ่าน 127.0.0.1 ตรงๆ
-      DATABASE_URL: "${DATABASE_URL:-mysql://root:rootpassword@127.0.0.1:3306/vocational_plan_db}"
+      DATABASE_URL: "${DATABASE_URL}"
       JWT_SECRET: "${JWT_SECRET:-super-secret-jwt-key-chiangrai-vocational-2026}"
       CORS_ORIGIN: "http://localhost:3005,http://localhost:3000,http://127.0.0.1:3005"
       STORAGE_DIR: "/app/apps/api/storage"
