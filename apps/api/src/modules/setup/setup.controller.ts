@@ -161,7 +161,7 @@ router.post('/test-db', async (req: Request, res: Response) => {
       userMsg = `ข้อผิดพลาด: ${errMsg.substring(0, 150)}`;
     }
 
-    return res.status(400).json({
+    return res.json({
       success: false,
       message: userMsg,
       error: errMsg,
