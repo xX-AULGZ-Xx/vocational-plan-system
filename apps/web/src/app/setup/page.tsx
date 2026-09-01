@@ -130,6 +130,8 @@ export default function SetupWizardPage() {
       const data = await res.json();
       if (data.success && data.is_setup) {
         setIsAlreadySetup(true);
+        window.location.replace('/login');
+        return;
       } else {
         fetchHealthCheck();
       }
@@ -210,15 +212,26 @@ export default function SetupWizardPage() {
       }
 
       if (!res.ok || !data.success) {
+        if (res.status === 403 || (data.message && data.message.includes('ติดตั้งและตั้งค่าไปแล้ว'))) {
+          showAlert.info('ระบบได้รับการติดตั้งเรียบร้อยแล้ว กำลังพาท่านไปหน้าเข้าสู่ระบบ');
+          setTimeout(() => {
+            window.location.replace('/login');
+          }, 1200);
+          return;
+        }
         throw new Error(data.error || data.message || 'การติดตั้งระบบล้มเหลว');
       }
 
       showAlert.success('🎉 ติดตั้งและตั้งค่าระบบสำเร็จ! กำลังพาท่านไปหน้าเข้าสู่ระบบ');
       setTimeout(() => {
-        router.push('/login');
+        window.location.replace('/login');
       }, 1500);
     } catch (err: any) {
-      showAlert.error(err.message || 'เกิดข้อผิดพลาดในการติดตั้ง');
+      if (err.message && err.message.includes('ติดตั้งและตั้งค่าไปแล้ว')) {
+        window.location.replace('/login');
+      } else {
+        showAlert.error(err.message || 'เกิดข้อผิดพลาดในการติดตั้ง');
+      }
     } finally {
       setInstalling(false);
     }
