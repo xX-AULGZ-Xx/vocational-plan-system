@@ -223,13 +223,9 @@ router.post('/install', async (req: Request, res: Response) => {
       // Update current process env
       process.env.DATABASE_URL = calculatedDbUrl;
 
-      // Create dynamic client instance for setup execution
-      const { PrismaClient: DynamicPrismaClient } = require('@prisma/client');
-      dbClient = new DynamicPrismaClient({
-        datasources: {
-          db: { url: calculatedDbUrl },
-        },
-      });
+      // Update global prisma client with live connection
+      const { refreshPrismaClient } = require('../../lib/prisma');
+      dbClient = refreshPrismaClient(calculatedDbUrl);
 
       // Persist DATABASE_URL to .env on disk across possible paths so container and host remember it
       const envLocations = [
