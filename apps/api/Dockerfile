@@ -41,5 +41,5 @@ RUN mkdir -p storage/templates storage/exports storage/logos storage/uploads
 
 EXPOSE 5050
 
-# Start API with automatic migration
-CMD ["sh", "-c", "npx prisma migrate deploy && pnpm start"]
+# Start API server directly (Database migration and initialization can be completed via /setup)
+CMD ["pnpm", "start"]

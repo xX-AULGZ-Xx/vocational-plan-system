@@ -185,7 +185,10 @@ export default function SetupWizardPage() {
       const res = await fetch('/api/v1/setup/install', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          db_config: dbConfig,
+        }),
       });
 
       const data = await res.json();

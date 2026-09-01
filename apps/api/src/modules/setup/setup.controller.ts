@@ -171,6 +171,7 @@ router.post('/install', async (req: Request, res: Response) => {
       theme_primary_hover,
       theme_accent_color,
       theme_font_family,
+      db_config,
       seed_departments = true,
       seed_budget_categories = true,
       seed_strategic_plans = true,
@@ -183,6 +184,17 @@ router.post('/install', async (req: Request, res: Response) => {
         success: false,
         message: 'กรุณากรอกข้อมูลผู้ดูแลระบบให้ครบถ้วน (ชื่อ, ชื่อผู้ใช้, รหัสผ่าน)',
       });
+    }
+
+    // Auto-create database schema if needed
+    try {
+      const { execSync } = require('child_process');
+      execSync('npx prisma db push --skip-generate --accept-data-loss', {
+        stdio: 'ignore',
+        timeout: 20000,
+      });
+    } catch (pushErr) {
+      console.warn('Prisma db push notice:', pushErr);
     }
 
     // 1. Create or update Super Admin User
