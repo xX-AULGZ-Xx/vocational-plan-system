@@ -480,26 +480,29 @@ export default function AdminTemplatesPage() {
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col relative">
-            <div className="p-4 bg-blue-900 text-white flex justify-between items-center shrink-0">
-              <h2 className="text-lg font-bold">อัปโหลดแม่แบบใหม่</h2>
-              <button onClick={() => setShowUploadModal(false)} className="p-1 hover:bg-white/20 rounded-lg">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col relative my-auto animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-slate-800">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-400" />
+                อัปโหลดแม่แบบใหม่
+              </h2>
+              <button onClick={() => setShowUploadModal(false)} className="p-1 hover:bg-white/10 rounded-lg transition text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อแม่แบบ</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">รายละเอียด (ถ้ามี)</label>
-                <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" rows={2} />
+                <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" rows={2} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">ประเภทเอกสาร (Default Type)</label>
-                <select value={defaultType} onChange={e => setDefaultType(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <select value={defaultType} onChange={e => setDefaultType(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                   <option value="NONE">ไม่ระบุ (None)</option>
                   <option value="PROPOSAL">แบบเสนอโครงการ (Proposal)</option>
                   <option value="FULL_SUMMARY">สรุปแบบเต็ม (Full Summary)</option>
@@ -508,15 +511,15 @@ export default function AdminTemplatesPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">ไฟล์แม่แบบ (.docx)</label>
-                <input type="file" accept=".docx" onChange={e => setFile(e.target.files?.[0] || null)} className="w-full" />
+                <input type="file" accept=".docx" onChange={e => setFile(e.target.files?.[0] || null)} className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
               </div>
               {msg && (
                 <p className={`text-sm ${msg.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>{msg.text}</p>
               )}
             </div>
-            <div className="p-4 border-t bg-slate-50 flex justify-end gap-2">
-              <button onClick={() => setShowUploadModal(false)} className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300">ยกเลิก</button>
-              <button onClick={handleUpload} disabled={uploading} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+              <button onClick={() => setShowUploadModal(false)} className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium transition">ยกเลิก</button>
+              <button onClick={handleUpload} disabled={uploading} className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition shadow-sm disabled:opacity-50">
                 {uploading ? 'กำลังอัปโหลด...' : 'บันทึก'}
               </button>
             </div>
@@ -526,8 +529,8 @@ export default function AdminTemplatesPage() {
 
       {/* Tag Manager Modal */}
       {selectedTemplate && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white sm:rounded-2xl shadow-xl w-full h-full sm:max-w-5xl sm:h-[90vh] flex flex-col overflow-hidden relative">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full h-full sm:max-w-5xl sm:h-[90vh] flex flex-col overflow-hidden relative my-auto animate-in fade-in zoom-in-95 duration-200">
             
             <div className="bg-white px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
                 <div>
