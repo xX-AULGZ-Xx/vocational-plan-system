@@ -189,9 +189,53 @@ router.use(authorize([Role.ADMIN]));
 // 1. Document Template Management Endpoints
 // ==========================================
 
+async function ensureTemplateTablesExist() {
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`document_templates\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`name\` varchar(150) NOT NULL,
+        \`description\` text DEFAULT NULL,
+        \`file_name\` varchar(255) NOT NULL,
+        \`file_path\` varchar(500) NOT NULL,
+        \`file_size\` int NOT NULL DEFAULT '0',
+        \`default_type\` enum('PROPOSAL','FULL_SUMMARY','SHORT_SUMMARY','NONE') NOT NULL DEFAULT 'NONE',
+        \`is_active\` tinyint(1) NOT NULL DEFAULT '1',
+        \`version\` int NOT NULL DEFAULT '1',
+        \`mappings\` json DEFAULT NULL,
+        \`created_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        \`updated_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (\`id\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`template_tags\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`template_id\` int NOT NULL,
+        \`tag_name\` varchar(100) NOT NULL,
+        \`tag_type\` enum('TEXT','LONGTEXT','DATE','BOOLEAN','TABLE_LOOP','IMAGE','CALCULATION','DROPDOWN','DATERANGE','TIMELINE','ALIGNMENT_CHECKLIST','DIVISION_DROPDOWN','DEPARTMENT_DROPDOWN') NOT NULL DEFAULT 'TEXT',
+        \`label\` varchar(150) DEFAULT NULL,
+        \`description\` text DEFAULT NULL,
+        \`is_required\` tinyint(1) NOT NULL DEFAULT '0',
+        \`sort_order\` int NOT NULL DEFAULT '0',
+        \`options\` json DEFAULT NULL,
+        \`created_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        \`updated_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (\`id\`),
+        KEY \`template_tags_template_id_fkey\` (\`template_id\`),
+        CONSTRAINT \`template_tags_template_id_fkey\` FOREIGN KEY (\`template_id\`) REFERENCES \`document_templates\` (\`id\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+  } catch (e: any) {
+    console.warn('ensureTemplateTablesExist warning:', e.message);
+  }
+}
+
 // GET /api/v1/admin/templates
 router.get('/templates', async (req: AuthRequest, res: Response) => {
   try {
+    await ensureTemplateTablesExist();
     const templates = await (prisma as any).documentTemplate.findMany({
       orderBy: { created_at: 'desc' },
       include: {
@@ -247,6 +291,7 @@ router.post('/templates', (req: AuthRequest, res: Response) => {
     }
 
     try {
+      await ensureTemplateTablesExist();
       const { name, description, default_type, is_default } = req.body;
       const file = req.file;
 
