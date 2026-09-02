@@ -28,22 +28,30 @@ function isDirectoryWritable(dirPath: string): boolean {
 // Check if the system has already been setup
 router.get('/status', async (req: Request, res: Response) => {
   try {
+    const { refreshPrismaClient } = require('../../lib/prisma');
+    const client = refreshPrismaClient();
+
     let isSetup = false;
     let adminCount = 0;
 
     try {
-      const setupSetting = await (prisma as any).systemSetting.findUnique({
+      const setupSetting = await (client as any).systemSetting.findUnique({
         where: { key: 'is_system_setup' },
       });
       isSetup = setupSetting?.value === 'true';
 
-      adminCount = await prisma.user.count({
+      adminCount = await client.user.count({
         where: { role: Role.ADMIN },
       });
     } catch (dbError) {
-      // Database not created or tables missing yet -> definitely needs setup
-      isSetup = false;
-      adminCount = 0;
+      // Database not created or tables missing yet -> check if users exist
+      try {
+        adminCount = await client.user.count();
+        isSetup = adminCount > 0;
+      } catch {
+        isSetup = false;
+        adminCount = 0;
+      }
     }
 
     return res.json({
