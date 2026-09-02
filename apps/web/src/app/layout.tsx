@@ -38,7 +38,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="th" className={`${prompt.variable} ${sarabun.variable}`}>
-      <body className={`${prompt.className} antialiased bg-slate-100 text-slate-900`}>
+      <body className="antialiased bg-slate-100 text-slate-900 font-sans">
         <AuthProvider>
           <SettingsProvider>
             <NotificationProvider>

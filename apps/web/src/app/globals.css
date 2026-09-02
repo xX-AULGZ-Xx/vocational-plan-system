@@ -62,7 +62,11 @@
 body {
   color: rgb(var(--foreground-rgb));
   background: #f1f5f9;
-  font-family: var(--font-ui-family), var(--font-prompt), sans-serif;
+  font-family: var(--font-ui-family, 'Prompt'), var(--font-prompt), sans-serif;
+}
+
+input, button, select, textarea, optgroup {
+  font-family: inherit;
 }
 
 /* Dynamic Theme Helper Classes */
