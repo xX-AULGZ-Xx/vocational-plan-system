@@ -23,7 +23,20 @@ import {
   RotateCcw,
   Sparkles,
   ExternalLink,
+  GitBranch,
+  GitCommit,
+  GitPullRequest,
+  Check,
 } from 'lucide-react';
+
+interface GitCommitInfo {
+  sha: string;
+  shortSha: string;
+  message: string;
+  author: string;
+  date: string;
+  url: string;
+}
 
 interface SystemInfo {
   appVersion: string;
@@ -32,6 +45,13 @@ interface SystemInfo {
   platform: string;
   arch: string;
   uptime: number;
+  git: {
+    branch: string;
+    commitHash: string;
+    commitMessage: string;
+    commitDate: string;
+    repoUrl: string;
+  };
   memory: {
     totalMb: number;
     freeMb: number;
@@ -61,12 +81,21 @@ interface UpdateCheckResult {
   hasUpdate: boolean;
   publishedAt: string;
   releaseNotes: string;
-  changelog: Array<{
-    version: string;
+  repoUrl: string;
+  cloneUrl: string;
+  currentCommit: {
+    hash: string;
+    message: string;
     date: string;
-    title: string;
-    type: 'feature' | 'fix' | 'security' | 'performance';
-    items: string[];
+  };
+  latestCommit: GitCommitInfo | null;
+  recentCommits: GitCommitInfo[];
+  releases: Array<{
+    name: string;
+    tagName: string;
+    publishedAt: string;
+    body: string;
+    htmlUrl: string;
   }>;
 }
 
@@ -95,7 +124,7 @@ export default function SystemUpdatePage() {
     return <AccessDenied requiredRole="ผู้ดูแลระบบ (ADMIN)" />;
   }
 
-  const [activeTab, setActiveTab] = useState<'update' | 'backups' | 'cli'>('update');
+  const [activeTab, setActiveTab] = useState<'update' | 'commits' | 'backups' | 'cli'>('update');
   const [loading, setLoading] = useState<boolean>(true);
   const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
   const [creatingBackup, setCreatingBackup] = useState<boolean>(false);
@@ -107,7 +136,6 @@ export default function SystemUpdatePage() {
   const [logs, setLogs] = useState<ProgressLog[]>([]);
   const [currentProgress, setCurrentProgress] = useState<number>(0);
 
-  // Polling ref
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // Maintenance form
@@ -172,9 +200,12 @@ export default function SystemUpdatePage() {
       if (res?.data) {
         setUpdateInfo(res.data);
         if (res.data.hasUpdate) {
-          setAlertInfo({ type: 'info', message: `พบการอัปเดตเวอร์ชันใหม่ (${res.data.latestVersion}) พร้อมให้อัปเกรด!` });
+          setAlertInfo({
+            type: 'info',
+            message: `พบการอัปเดตใหม่บน GitHub! Commit ล่าสุด: ${res.data.latestCommit?.message || res.data.latestVersion}`,
+          });
         } else {
-          setAlertInfo({ type: 'success', message: 'ระบบของคุณเป็นเวอร์ชันล่าสุดแล้ว' });
+          setAlertInfo({ type: 'success', message: 'ระบบของคุณซิงค์ตรงกับ GitHub Repository ล่าสุดแล้ว' });
         }
       }
     } catch (err: any) {
@@ -243,7 +274,7 @@ export default function SystemUpdatePage() {
     setLogs([
       {
         stage: 'init',
-        message: 'เริ่มต้นการอัปเดตระบบ...',
+        message: `เริ่มต้นการดึงโค้ดอัปเดตจาก GitHub (https://github.com/xX-AULGZ-Xx/vocational-plan-system.git)...`,
         progress: 10,
         timestamp: new Date().toLocaleTimeString('th-TH'),
       },
@@ -257,10 +288,14 @@ export default function SystemUpdatePage() {
 
       const handleProgressData = (data: any) => {
         if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
-          setLogs(data.logs.map((l: any) => ({
-            ...l,
-            timestamp: l.timestamp ? new Date(l.timestamp).toLocaleTimeString('th-TH') : new Date().toLocaleTimeString('th-TH'),
-          })));
+          setLogs(
+            data.logs.map((l: any) => ({
+              ...l,
+              timestamp: l.timestamp
+                ? new Date(l.timestamp).toLocaleTimeString('th-TH')
+                : new Date().toLocaleTimeString('th-TH'),
+            }))
+          );
         } else if (data.message) {
           setLogs((prev) => {
             const exists = prev.some((p) => p.message === data.message);
@@ -285,7 +320,7 @@ export default function SystemUpdatePage() {
           if (pollingRef.current) clearInterval(pollingRef.current);
           eventSource.close();
           setUpdating(false);
-          setAlertInfo({ type: 'success', message: 'ระบบได้รับการอัปเดตเสร็จสมบูรณ์ 100%' });
+          setAlertInfo({ type: 'success', message: 'ระบบได้รับการอัปเดตจาก GitHub สำเร็จ 100%' });
           fetchInitialData();
         } else if (data.progress === -1) {
           if (pollingRef.current) clearInterval(pollingRef.current);
@@ -310,7 +345,9 @@ export default function SystemUpdatePage() {
       if (pollingRef.current) clearInterval(pollingRef.current);
       pollingRef.current = setInterval(async () => {
         try {
-          const res = await fetch(`/api/v1/system-update/progress?token=${encodeURIComponent(token || '')}`).then((r) => r.json());
+          const res = await fetch(`/api/v1/system-update/progress?token=${encodeURIComponent(token || '')}`).then((r) =>
+            r.json()
+          );
           if (res?.data) {
             handleProgressData(res.data);
           }
@@ -347,16 +384,25 @@ export default function SystemUpdatePage() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Header Banner */}
+      {/* Header Banner with GitHub Repo Link */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 p-6 rounded-2xl text-white shadow-xl">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full text-xs font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            ระบบความปลอดภัยและการบำรุงรักษา
+            <GitBranch className="w-3.5 h-3.5" />
+            GitHub Repository Sync & Updater
           </div>
           <h1 className="text-2xl font-black tracking-tight">ศูนย์ควบคุมการอัปเดตและสำรองระบบ</h1>
-          <p className="text-sm text-slate-300">
-            ตรวจสอบเวอร์ชันใหม่, สำรองข้อมูล Snapshot, บริหารจัดการโหมด Maintenance และอัปเดตระบบอัตโนมัติ
+          <p className="text-sm text-slate-300 flex items-center gap-2 flex-wrap">
+            <span>เชื่อมโยงกับ GitHub:</span>
+            <a
+              href={updateInfo?.repoUrl || 'https://github.com/xX-AULGZ-Xx/vocational-plan-system'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-mono text-xs text-blue-300 hover:text-white bg-white/10 px-2.5 py-0.5 rounded-md transition"
+            >
+              <span>xX-AULGZ-Xx/vocational-plan-system</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </p>
         </div>
 
@@ -367,7 +413,7 @@ export default function SystemUpdatePage() {
             className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-xl text-sm font-medium transition backdrop-blur-xs border border-white/15"
           >
             <RefreshCw className={`w-4 h-4 ${checkingUpdate ? 'animate-spin' : ''}`} />
-            <span>{checkingUpdate ? 'กำลังตรวจ...' : 'ตรวจสอบเวอร์ชันใหม่'}</span>
+            <span>{checkingUpdate ? 'กำลังตรวจ GitHub...' : 'ตรวจสอบจาก GitHub'}</span>
           </button>
         </div>
       </div>
@@ -397,10 +443,10 @@ export default function SystemUpdatePage() {
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Version Status */}
+        {/* Card 1: Version & Git Status */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">เวอร์ชันของระบบ</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">สถานะ Git / เวอร์ชัน</span>
             <span
               className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
                 updateInfo?.hasUpdate
@@ -408,18 +454,21 @@ export default function SystemUpdatePage() {
                   : 'bg-emerald-100 text-emerald-800'
               }`}
             >
-              {updateInfo?.hasUpdate ? 'มีเวอร์ชันใหม่' : 'เวอร์ชันล่าสุด'}
+              {updateInfo?.hasUpdate ? 'มีโค้ดใหม่บน GitHub' : 'ซิงค์ล่าสุดแล้ว'}
             </span>
           </div>
           <div className="my-3">
-            <div className="text-2xl font-black text-slate-900">
-              v{systemInfo?.appVersion || '1.0.0'}
+            <div className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <span>v{systemInfo?.appVersion || '1.0.0'}</span>
+              <span className="text-xs font-mono px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md">
+                {systemInfo?.git?.commitHash || 'unknown'}
+              </span>
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">
-              เวอร์ชันล่าสุด: <span className="font-semibold text-slate-700">v{updateInfo?.latestVersion || '1.0.0'}</span>
+            <div className="text-xs text-slate-500 mt-1 truncate">
+              GitHub ล่าสุด: <span className="font-mono font-semibold text-slate-700">{updateInfo?.latestCommit?.shortSha || '19f6338'}</span>
             </div>
           </div>
-          <div className="text-xs text-slate-400">Node.js: {systemInfo?.nodeVersion || 'v20+'}</div>
+          <div className="text-xs text-slate-400">Branch: {systemInfo?.git?.branch || 'main'}</div>
         </div>
 
         {/* Card 2: Database Status */}
@@ -502,6 +551,18 @@ export default function SystemUpdatePage() {
         </button>
 
         <button
+          onClick={() => setActiveTab('commits')}
+          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition ${
+            activeTab === 'commits'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <GitCommit className="w-4 h-4" />
+          <span>ประวัติ GitHub Commits ({updateInfo?.recentCommits?.length || 0})</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('backups')}
           className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition ${
             activeTab === 'backups'
@@ -510,7 +571,7 @@ export default function SystemUpdatePage() {
           }`}
         >
           <FileArchive className="w-4 h-4" />
-          <span>ประวัติและการสำรองข้อมูล ({backups.length})</span>
+          <span>ประวัติการสำรองข้อมูล ({backups.length})</span>
         </button>
 
         <button
@@ -533,13 +594,32 @@ export default function SystemUpdatePage() {
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
               <div className="space-y-1">
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-500" />
-                  <span>เวอร์ชันพร้อมใช้งานล่าสุด: v{updateInfo?.latestVersion || '1.2.0'}</span>
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-slate-900">
+                    GitHub Remote: xX-AULGZ-Xx/vocational-plan-system
+                  </h2>
+                  <a
+                    href="https://github.com/xX-AULGZ-Xx/vocational-plan-system"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:underline flex items-center gap-0.5"
+                  >
+                    <span>ดูบน GitHub</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
                 <p className="text-sm text-slate-600">
-                  {updateInfo?.releaseNotes || 'การปรับปรุงประสิทธิภาพและความปลอดภัยของระบบ'}
+                  {updateInfo?.releaseNotes || 'ซิงค์ซอร์สโค้ดและปรับปรุงระบบล่าสุดจาก GitHub Repository'}
                 </p>
+                {updateInfo?.latestCommit && (
+                  <div className="text-xs text-slate-500 pt-1 flex items-center gap-2">
+                    <span className="font-semibold">Commit ล่าสุด:</span>
+                    <span className="font-mono bg-slate-100 text-slate-800 px-2 py-0.5 rounded">
+                      {updateInfo.latestCommit.shortSha}
+                    </span>
+                    <span>- {updateInfo.latestCommit.message}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-3">
@@ -549,18 +629,18 @@ export default function SystemUpdatePage() {
                   className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition active:scale-95 disabled:opacity-50"
                 >
                   <PlayCircle className="w-5 h-5" />
-                  <span>{updating ? 'กำลังดำเนินการอัปเดต...' : 'เริ่มการอัปเดตระบบ (1-Click Update)'}</span>
+                  <span>{updating ? 'กำลังดึงโค้ดจาก GitHub...' : 'ดึงโค้ดและอัปเดตจาก GitHub (1-Click Update)'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Live Update Progress Console (Shows when updating or has logs) */}
+            {/* Live Update Progress Console */}
             {(updating || logs.length > 0) && (
               <div className="bg-slate-900 rounded-xl p-5 text-white font-mono text-xs space-y-4 shadow-inner">
                 <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-2">
                   <div className="flex items-center gap-2">
                     <Terminal className="w-4 h-4 text-emerald-400" />
-                    <span>Live Update Execution Stream</span>
+                    <span>Live GitHub Sync Execution Stream</span>
                   </div>
                   <span className="font-bold text-emerald-400">{currentProgress}%</span>
                 </div>
@@ -595,33 +675,38 @@ export default function SystemUpdatePage() {
               </div>
             )}
 
-            {/* Changelog Sections */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-                ประวัติรายการเปลี่ยนแปลง (Release Changelog)
+            {/* Recent GitHub Commits preview on Update Tab */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <GitCommit className="w-4 h-4 text-indigo-600" />
+                <span>รายการ Commits ล่าสุดบน GitHub (xX-AULGZ-Xx/vocational-plan-system)</span>
               </h3>
 
-              <div className="space-y-4">
-                {updateInfo?.changelog?.map((release, rIdx) => (
-                  <div key={rIdx} className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 bg-blue-100 text-blue-800 font-bold text-xs rounded-lg">
-                          v{release.version}
-                        </span>
-                        <span className="font-bold text-slate-900 text-sm">{release.title}</span>
-                      </div>
-                      <span className="text-xs text-slate-400 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        {release.date}
+              <div className="space-y-2">
+                {updateInfo?.recentCommits?.slice(0, 5).map((commit, idx) => (
+                  <div
+                    key={commit.sha || idx}
+                    className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                        {commit.shortSha}
                       </span>
+                      <span className="text-xs font-medium text-slate-800">{commit.message}</span>
                     </div>
 
-                    <ul className="list-disc list-inside text-xs text-slate-600 space-y-1 pl-1">
-                      {release.items.map((item, iIdx) => (
-                        <li key={iIdx}>{item}</li>
-                      ))}
-                    </ul>
+                    <div className="flex items-center gap-3 shrink-0 text-[11px] text-slate-500">
+                      <span>{commit.author}</span>
+                      <a
+                        href={commit.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-0.5"
+                      >
+                        <span>GitHub</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -676,7 +761,64 @@ export default function SystemUpdatePage() {
         </div>
       )}
 
-      {/* TAB 2: BACKUPS MANAGEMENT */}
+      {/* TAB 2: GITHUB COMMITS LIST */}
+      {activeTab === 'commits' && (
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <GitCommit className="w-5 h-5 text-indigo-600" />
+                <span>ประวัติ Commits ทั้งหมดจาก GitHub</span>
+              </h2>
+              <p className="text-xs text-slate-500">
+                ดึงข้อมูล Real-time จาก Repository: <code>https://github.com/xX-AULGZ-Xx/vocational-plan-system</code>
+              </p>
+            </div>
+
+            <a
+              href="https://github.com/xX-AULGZ-Xx/vocational-plan-system/commits/main"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition"
+            >
+              <span>เปิดดูบน GitHub</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {updateInfo?.recentCommits?.map((commit) => (
+              <div key={commit.sha} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-md">
+                      {commit.shortSha}
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">{commit.message}</span>
+                  </div>
+                  <div className="text-xs text-slate-500 flex items-center gap-2">
+                    <span>ผู้แก้ไข: <strong>{commit.author}</strong></span>
+                    <span>•</span>
+                    <span>{commit.date ? new Date(commit.date).toLocaleString('th-TH') : '-'}</span>
+                  </div>
+                </div>
+
+                <a
+                  href={commit.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 shrink-0"
+                >
+                  <span>ดูการเปลี่ยนแปลง</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: BACKUPS MANAGEMENT */}
       {activeTab === 'backups' && (
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
@@ -740,7 +882,7 @@ export default function SystemUpdatePage() {
         </div>
       )}
 
-      {/* TAB 3: SERVER CLI GUIDE */}
+      {/* TAB 4: SERVER CLI GUIDE */}
       {activeTab === 'cli' && (
         <div className="space-y-6">
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
@@ -749,7 +891,7 @@ export default function SystemUpdatePage() {
               <span>คำสั่งอัปเดตผ่านเซิร์ฟเวอร์ Linux / aaPanel / SSH</span>
             </h2>
             <p className="text-sm text-slate-600">
-              สำหรับผู้ดูแลระบบที่ต้องการสั่งอัปเดตและ Rebuild ระบบโดยตรงบนเครื่อง Server สามารถใช้ Script อัตโนมัติที่เราจัดเตรียมไว้:
+              สำหรับผู้ดูแลระบบที่ต้องการสั่งอัปเดตโดยตรงบนเซิร์ฟเวอร์จาก GitHub Repository:
             </p>
 
             {/* Script 1: tools/update.sh */}
@@ -769,11 +911,13 @@ export default function SystemUpdatePage() {
             {/* Script 2: Docker Compose */}
             <div className="space-y-2 pt-3">
               <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                <span>2. หรือสั่งอัปเดตผ่าน Docker Compose โดยตรง:</span>
+                <span>2. หรือสั่งอัปเดตผ่าน Git & Docker Compose โดยตรง:</span>
               </div>
               <div className="bg-slate-900 text-slate-200 p-4 rounded-xl font-mono text-xs overflow-x-auto space-y-1 shadow-inner">
-                <div className="text-slate-400">git pull</div>
-                <div className="text-slate-400">docker compose up -d --build</div>
+                <div className="text-emerald-400"># ดึงโค้ดจาก https://github.com/xX-AULGZ-Xx/vocational-plan-system.git</div>
+                <div>git pull origin main</div>
+                <div className="text-emerald-400 mt-1"># Rebuild Container</div>
+                <div>docker compose up -d --build</div>
                 <div className="text-emerald-400 mt-1"># ตรวจสอบสถานะการทำงาน</div>
                 <div>docker compose ps</div>
               </div>
@@ -786,13 +930,15 @@ export default function SystemUpdatePage() {
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
-            <div className="flex items-center gap-3 text-amber-600">
-              <AlertTriangle className="w-7 h-7" />
-              <h3 className="text-lg font-black text-slate-900">ยืนยันการเริ่มอัปเดตระบบ?</h3>
+            <div className="flex items-center gap-3 text-indigo-600">
+              <GitPullRequest className="w-7 h-7" />
+              <h3 className="text-lg font-black text-slate-900">ยืนยันการดึงโค้ดและอัปเดตจาก GitHub?</h3>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              ระบบจะทำการเปิด <strong>Maintenance Mode</strong> ชั่วคราว และดำเนินการอัปเกรดฐานข้อมูล รวมถึงซิงค์ซอร์สโค้ดล่าสุดเวอร์ชัน <strong>v{updateInfo?.latestVersion || '1.2.0'}</strong>
+              ระบบจะทำการเปิด <strong>Maintenance Mode</strong> ชั่วคราว และดึงโค้ดล่าสุดจาก Repository:{' '}
+              <strong className="text-indigo-700">https://github.com/xX-AULGZ-Xx/vocational-plan-system.git</strong>{' '}
+              พร้อมอัปเดตโครงสร้างฐานข้อมูล
             </p>
 
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
@@ -818,7 +964,7 @@ export default function SystemUpdatePage() {
                 onClick={handleStartUpdate}
                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition"
               >
-                ยืนยันและเริ่มอัปเดตทันที
+                ยืนยันและเริ่มอัปเดตจาก GitHub
               </button>
             </div>
           </div>

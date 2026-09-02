@@ -31,10 +31,11 @@ if command -v mysqldump &> /dev/null; then
 fi
 
 # 3. Pull latest changes from Git
-echo "[3/6] 🔄 ดึงซอร์สโค้ดและอัปเดตล่าสุด (git pull)..."
+echo "[3/6] 🔄 ดึงซอร์สโค้ดและอัปเดตล่าสุดจาก GitHub (https://github.com/xX-AULGZ-Xx/vocational-plan-system.git)..."
 if [ -d ".git" ]; then
-    git fetch origin
-    git pull origin main || git pull origin master || echo "Git pull completed or up to date."
+    git remote set-url origin https://github.com/xX-AULGZ-Xx/vocational-plan-system.git 2>/dev/null || true
+    git fetch origin main || git fetch origin
+    git pull origin main --no-rebase || git pull origin master --no-rebase || echo "Git pull completed."
 else
     echo "⚠️ ไม่พบ .git ข้ามขั้นตอน git pull"
 fi

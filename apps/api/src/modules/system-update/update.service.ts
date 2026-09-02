@@ -14,8 +14,22 @@ const BACKUP_DIR = path.join(STORAGE_DIR, 'backups');
 const MAINTENANCE_FILE = path.join(STORAGE_DIR, 'maintenance.json');
 const UPDATE_LOG_FILE = path.join(STORAGE_DIR, 'update_history.json');
 
+const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'xX-AULGZ-Xx';
+const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'vocational-plan-system';
+const GITHUB_REPO_URL = `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`;
+const GITHUB_CLONE_URL = `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}.git`;
+
 if (!fs.existsSync(BACKUP_DIR)) {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+export interface GitCommitInfo {
+  sha: string;
+  shortSha: string;
+  message: string;
+  author: string;
+  date: string;
+  url: string;
 }
 
 export interface SystemInfo {
@@ -25,6 +39,13 @@ export interface SystemInfo {
   platform: string;
   arch: string;
   uptime: number;
+  git: {
+    branch: string;
+    commitHash: string;
+    commitMessage: string;
+    commitDate: string;
+    repoUrl: string;
+  };
   memory: {
     totalMb: number;
     freeMb: number;
@@ -54,12 +75,21 @@ export interface UpdateCheckResult {
   hasUpdate: boolean;
   publishedAt: string;
   releaseNotes: string;
-  changelog: Array<{
-    version: string;
+  repoUrl: string;
+  cloneUrl: string;
+  currentCommit: {
+    hash: string;
+    message: string;
     date: string;
-    title: string;
-    type: 'feature' | 'fix' | 'security' | 'performance';
-    items: string[];
+  };
+  latestCommit: GitCommitInfo | null;
+  recentCommits: GitCommitInfo[];
+  releases: Array<{
+    name: string;
+    tagName: string;
+    publishedAt: string;
+    body: string;
+    htmlUrl: string;
   }>;
 }
 
@@ -105,6 +135,35 @@ export class UpdateService {
     return '1.0.0';
   }
 
+  public static async getLocalGitInfo() {
+    let branch = 'main';
+    let commitHash = 'unknown';
+    let commitMessage = '';
+    let commitDate = '';
+
+    try {
+      const branchRes = await execAsync('git branch --show-current', { cwd: ROOT_DIR });
+      branch = branchRes.stdout.trim() || 'main';
+
+      const hashRes = await execAsync('git rev-parse --short HEAD', { cwd: ROOT_DIR });
+      commitHash = hashRes.stdout.trim() || 'unknown';
+
+      const msgRes = await execAsync('git log -1 --pretty=%B', { cwd: ROOT_DIR });
+      commitMessage = msgRes.stdout.trim() || '';
+
+      const dateRes = await execAsync('git log -1 --pretty=%cd --date=iso', { cwd: ROOT_DIR });
+      commitDate = dateRes.stdout.trim() || '';
+    } catch (e) {}
+
+    return {
+      branch,
+      commitHash,
+      commitMessage,
+      commitDate,
+      repoUrl: GITHUB_REPO_URL,
+    };
+  }
+
   public static getProgressState(): ProgressState {
     return activeProgressState;
   }
@@ -114,6 +173,7 @@ export class UpdateService {
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
     const currentVersion = this.getCurrentVersion();
+    const gitInfo = await this.getLocalGitInfo();
 
     let dbStatus: 'connected' | 'error' = 'connected';
     let dbError: string | undefined = undefined;
@@ -136,6 +196,7 @@ export class UpdateService {
       platform: process.platform,
       arch: process.arch,
       uptime: Math.floor(process.uptime()),
+      git: gitInfo,
       memory: {
         totalMb: Math.round(totalMem / (1024 * 1024)),
         freeMb: Math.round(freeMem / (1024 * 1024)),
@@ -183,74 +244,122 @@ export class UpdateService {
     return data;
   }
 
+  /**
+   * Check for updates directly against GitHub Repository
+   */
   public static async checkForUpdates(): Promise<UpdateCheckResult> {
     const currentVersion = this.getCurrentVersion();
-    
-    const updateUrl = process.env.UPDATE_MANIFEST_URL;
-    if (updateUrl) {
-      try {
-        const res = await fetch(updateUrl);
-        if (res.ok) {
-          const data: any = await res.json();
-          return {
-            currentVersion,
-            latestVersion: data.version || currentVersion,
-            hasUpdate: this.compareVersions(data.version || currentVersion, currentVersion) > 0,
-            publishedAt: data.publishedAt || new Date().toISOString(),
-            releaseNotes: data.releaseNotes || 'อัปเดตความปลอดภัยและการทำงานทั่วไป',
-            changelog: data.changelog || [],
-          };
+    const localGit = await this.getLocalGitInfo();
+
+    let remoteVersion = currentVersion;
+    let recentCommits: GitCommitInfo[] = [];
+    let releases: any[] = [];
+    let latestCommit: GitCommitInfo | null = null;
+    let releaseNotes = '';
+    let publishedAt = new Date().toISOString();
+
+    const headers = {
+      'User-Agent': 'Vocational-Plan-System-Updater',
+      Accept: 'application/vnd.github.v3+json',
+    };
+
+    // 1. Fetch GitHub Commits
+    try {
+      const commitsRes = await fetch(
+        `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/commits?per_page=10`,
+        { headers }
+      );
+      if (commitsRes.ok) {
+        const commitsData = await commitsRes.json();
+        if (Array.isArray(commitsData)) {
+          recentCommits = commitsData.map((c: any) => ({
+            sha: c.sha,
+            shortSha: c.sha.slice(0, 7),
+            message: c.commit.message.split('\n')[0],
+            author: c.commit.author?.name || c.author?.login || 'Developer',
+            date: c.commit.author?.date || '',
+            url: c.html_url,
+          }));
+
+          if (recentCommits.length > 0) {
+            latestCommit = recentCommits[0];
+            releaseNotes = `Commit ล่าสุดบน GitHub: ${latestCommit.message} (${latestCommit.shortSha})`;
+            publishedAt = latestCommit.date || publishedAt;
+          }
         }
-      } catch (err) {
-        console.warn('Could not fetch remote update manifest:', err);
       }
+    } catch (err) {
+      console.warn('GitHub Commits fetch failed:', err);
     }
 
-    const latestVersion = '1.2.0';
-    const hasUpdate = this.compareVersions(latestVersion, currentVersion) > 0;
+    // 2. Fetch GitHub Releases
+    try {
+      const releasesRes = await fetch(
+        `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases?per_page=5`,
+        { headers }
+      );
+      if (releasesRes.ok) {
+        const releasesData = await releasesRes.json();
+        if (Array.isArray(releasesData) && releasesData.length > 0) {
+          releases = releasesData.map((r: any) => ({
+            name: r.name || r.tag_name,
+            tagName: r.tag_name,
+            publishedAt: r.published_at,
+            body: r.body || 'ไม่มีรายละเอียดเพิ่มเติม',
+            htmlUrl: r.html_url,
+          }));
+
+          const latestRelease = releases[0];
+          remoteVersion = latestRelease.tagName.replace(/^v/, '');
+          releaseNotes = latestRelease.body || releaseNotes;
+          publishedAt = latestRelease.publishedAt || publishedAt;
+        }
+      }
+    } catch (err) {
+      console.warn('GitHub Releases fetch failed:', err);
+    }
+
+    // 3. Fetch remote package.json if no release tag found
+    if (remoteVersion === currentVersion) {
+      try {
+        const pkgRes = await fetch(
+          `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/main/package.json`,
+          { headers }
+        );
+        if (pkgRes.ok) {
+          const remotePkg: any = await pkgRes.json();
+          if (remotePkg && remotePkg.version) {
+            remoteVersion = remotePkg.version;
+          }
+        }
+      } catch (err) {}
+    }
+
+    // Determine if there is a pending update
+    let hasUpdate = false;
+    if (latestCommit && localGit.commitHash !== 'unknown') {
+      hasUpdate = !latestCommit.sha.startsWith(localGit.commitHash);
+    }
+    if (this.compareVersions(remoteVersion, currentVersion) > 0) {
+      hasUpdate = true;
+    }
 
     return {
       currentVersion,
-      latestVersion,
+      latestVersion: remoteVersion,
       hasUpdate,
-      publishedAt: '2026-09-01T00:00:00.000Z',
-      releaseNotes: 'เพิ่มระบบ System Update Center, ปรับปรุงระบบสำรองข้อมูลอัตโนมัติ และอัปเกรดความปลอดภัยของเซิร์ฟเวอร์',
-      changelog: [
-        {
-          version: '1.2.0',
-          date: '2026-09-01',
-          title: 'System Update & Health Center',
-          type: 'feature',
-          items: [
-            'เพิ่มหน้าจอศูนย์ควบคุมการอัปเดตระบบและสำรองข้อมูล (Admin System Update Hub)',
-            'เพิ่มระบบ Maintenance Mode อัตโนมัติขณะปรับปรุงระบบ',
-            'เพิ่มระบบ Snapshot Auto Backup ทั้ง Database และ Uploads',
-            'ปรับปรุงความเสถียรของ Live Preview และ Real-time Notifications',
-          ],
-        },
-        {
-          version: '1.1.0',
-          date: '2026-08-15',
-          title: 'Thai Sarabun Docx Export & Approval Chain Fixes',
-          type: 'feature',
-          items: [
-            'ปรับปรุงเทมเพลตมาตรฐานระเบียบสำนักนายกรัฐมนตรี',
-            'เพิ่มระบบแจ้งเตือนผ่าน SMTP อีเมลสำหรับผู้บริหารและผู้เสนอโครงการ',
-            'แก้ไขปัญหาการแสดงผลฟอนต์ภาษาไทย TH Sarabun New',
-          ],
-        },
-        {
-          version: '1.0.0',
-          date: '2026-07-01',
-          title: 'Official Release',
-          type: 'feature',
-          items: [
-            'เปิดตัวระบบบริหารจัดการงานแผนงานและโครงการ วก.เชียงราย',
-            'ระบบ Digital Approval Chain 4 ขั้นตอน',
-            'ระบบคำนวณงบประมาณ 4 ฝ่ายบริหาร',
-          ],
-        },
-      ],
+      publishedAt,
+      releaseNotes: releaseNotes || 'ซิงค์ซอร์สโค้ดและปรับปรุงระบบล่าสุดจาก GitHub Repository',
+      repoUrl: GITHUB_REPO_URL,
+      cloneUrl: GITHUB_CLONE_URL,
+      currentCommit: {
+        hash: localGit.commitHash,
+        message: localGit.commitMessage,
+        date: localGit.commitDate,
+      },
+      latestCommit,
+      recentCommits,
+      releases,
     };
   }
 
@@ -271,7 +380,6 @@ export class UpdateService {
     const backupId = `backup_${timestamp}`;
     const backupFilePath = path.join(BACKUP_DIR, `${backupId}.json`);
 
-    // Fetch all database tables with safe accessor fallback
     const [
       users,
       divisions,
@@ -414,6 +522,9 @@ export class UpdateService {
     };
   }
 
+  /**
+   * Execute 1-Click Update Pipeline syncing directly from GitHub Repository
+   */
   public static async executeUpdatePipeline(
     options: { createBackupFirst?: boolean; targetVersion?: string },
     logCallback: (stage: string, message: string, progress: number) => void
@@ -422,7 +533,7 @@ export class UpdateService {
       updating: true,
       progress: 5,
       stage: 'init',
-      message: 'เริ่มต้นกระบวนการปรับปรุงระบบ...',
+      message: 'เริ่มต้นกระบวนการปรับปรุงระบบจาก GitHub...',
       logs: [],
     };
 
@@ -437,57 +548,72 @@ export class UpdateService {
     };
 
     try {
-      emit('init', 'เริ่มต้นกระบวนการปรับปรุงระบบ...', 10);
-      await sleep(800);
+      emit('init', `เชื่อมต่อ GitHub Repository: ${GITHUB_REPO_URL}`, 10);
+      await sleep(600);
 
       // Step 1: Maintenance Mode
       emit('maintenance', 'เปิดโหมดปิดปรับปรุงชั่วคราว (Maintenance Mode)...', 20);
-      this.setMaintenanceStatus(true, 'ระบบกำลังดำเนินการอัปเดตเวอร์ชัน กรุณารอสักครู่...');
-      await sleep(800);
+      this.setMaintenanceStatus(true, 'ระบบกำลังดำเนินการอัปเดตเวอร์ชันจาก GitHub กรุณารอสักครู่...');
+      await sleep(600);
 
       // Step 2: Pre-update Backup
       if (options.createBackupFirst !== false) {
         emit('backup', 'กำลังสำรองฐานข้อมูลและ Snapshot ของระบบ...', 35);
-        const backupResult = await this.createBackup(`Auto-backup before update to ${options.targetVersion || 'latest'}`);
+        const backupResult = await this.createBackup(`Auto-backup before update via GitHub`);
         emit('backup', `สำรองข้อมูลสำเร็จ (${backupResult.sizeFormatted})`, 50);
-        await sleep(800);
+        await sleep(600);
       }
 
-      // Step 3: Git Status & Code Sync
-      emit('code_sync', 'กำลังตรวจสอบและซิงค์ซอร์สโค้ดล่าสุด...', 65);
+      // Step 3: Git Pull directly from GitHub
+      emit('code_sync', `กำลังดึงโค้ดล่าสุดจาก GitHub (${GITHUB_CLONE_URL})...`, 65);
       try {
-        const gitResult = await execAsync('git status', { cwd: ROOT_DIR });
-        emit('code_sync', `Git Status ตรวจสอบเรียบร้อย: ${gitResult.stdout.slice(0, 60)}...`, 75);
-      } catch (gitErr) {
-        emit('code_sync', 'ข้ามขั้นตอน Git Pull (ใช้ Local Release Package)', 75);
+        // Ensure remote origin points to user repo
+        try {
+          await execAsync(`git remote set-url origin ${GITHUB_CLONE_URL}`, { cwd: ROOT_DIR });
+        } catch (e) {}
+
+        const gitPull = await execAsync('git pull origin main --no-rebase', { cwd: ROOT_DIR }).catch(async () => {
+          return await execAsync('git pull origin master --no-rebase', { cwd: ROOT_DIR });
+        });
+
+        const newCommitHash = await execAsync('git rev-parse --short HEAD', { cwd: ROOT_DIR })
+          .then((r) => r.stdout.trim())
+          .catch(() => 'latest');
+
+        emit('code_sync', `ดึงโค้ดจาก GitHub สำเร็จ (Commit: ${newCommitHash}) - ${gitPull.stdout.slice(0, 70).replace(/[\r\n]+/g, ' ')}`, 75);
+      } catch (gitErr: any) {
+        emit('code_sync', `การซิงค์ Git: ${gitErr.message.slice(0, 100)}`, 75);
       }
-      await sleep(800);
+      await sleep(600);
 
       // Step 4: Database Schema Check
       emit('db_migration', 'กำลังตรวจสอบและปรับปรุงโครงสร้างฐานข้อมูล (Prisma)...', 85);
       try {
         await execAsync('npx prisma generate', { cwd: path.join(ROOT_DIR, 'apps/api') });
       } catch (prismaErr) {}
-      await sleep(800);
+      await sleep(600);
 
       // Step 5: System Health Check
       emit('health_check', 'กำลังตรวจสอบสถานะการทำงานของระบบ (Health Check)...', 92);
       await prisma.$queryRaw`SELECT 1`;
-      await sleep(800);
+      await sleep(600);
 
       // Step 6: Finalize
       emit('finalize', 'ปิดโหมด Maintenance และเปิดให้บริการตามปกติ...', 98);
       this.setMaintenanceStatus(false);
-      await sleep(500);
+      await sleep(400);
 
+      const finalCommit = await this.getLocalGitInfo();
       this.recordUpdateHistory({
-        targetVersion: options.targetVersion || '1.2.0',
+        targetVersion: options.targetVersion || this.getCurrentVersion(),
+        commitHash: finalCommit.commitHash,
+        repoUrl: GITHUB_REPO_URL,
         updatedAt: new Date().toISOString(),
         status: 'SUCCESS',
       });
 
-      emit('complete', 'การอัปเดตระบบเสร็จสมบูรณ์ 100%', 100);
-      return { success: true, message: 'ระบบได้รับการอัปเดตเรียบร้อยแล้ว' };
+      emit('complete', `การอัปเดตระบบจาก GitHub เสร็จสมบูรณ์ 100% (Commit: ${finalCommit.commitHash})`, 100);
+      return { success: true, message: 'ระบบได้รับการอัปเดตจาก GitHub เรียบร้อยแล้ว' };
     } catch (error: any) {
       this.setMaintenanceStatus(false);
       emit('error', `เกิดข้อผิดพลาดในการอัปเดต: ${error.message}`, -1);
