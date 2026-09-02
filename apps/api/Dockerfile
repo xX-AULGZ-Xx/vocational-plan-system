@@ -36,10 +36,11 @@ WORKDIR /app/apps/api
 RUN npx prisma generate
 RUN pnpm build
 
-# Ensure storage directories exist
-RUN mkdir -p storage/templates storage/exports storage/logos storage/uploads
+# Ensure storage directories exist & permissions on entrypoint
+RUN mkdir -p storage/templates storage/exports storage/logos storage/uploads && \
+    chmod +x /app/apps/api/entrypoint.sh
 
 EXPOSE 5050
 
-# Start API server directly (Database migration and initialization can be completed via /setup)
-CMD ["pnpm", "start"]
+# Start API server with automated Prisma schema push
+CMD ["/app/apps/api/entrypoint.sh"]

@@ -74,9 +74,23 @@ app.use((req: Request, res: Response) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
 
+import { exec } from 'child_process';
+
+// Auto-sync database tables (e.g. document_templates, template_tags, settings) on startup
+function autoSyncDatabase() {
+  exec('npx prisma db push --skip-generate', { cwd: path.resolve(__dirname, '..') }, (err, stdout, stderr) => {
+    if (err) {
+      console.warn('⚠️ Auto-db schema sync notice:', stderr || err.message);
+    } else {
+      console.log('✅ Database schema verified & synchronized.');
+    }
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(`  วก.เชียงราย - ระบบบริหารจัดการงานแผนงานและโครงการ API`);
   console.log(`  Server running on http://localhost:${PORT}`);
   console.log(`=======================================================`);
+  autoSyncDatabase();
 });
