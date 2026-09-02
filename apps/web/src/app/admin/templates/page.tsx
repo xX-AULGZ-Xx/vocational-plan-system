@@ -17,7 +17,9 @@ import {
   ArrowDown,
   Save,
   Check,
-  AlertCircle
+  AlertCircle,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import AccessDenied from '@/components/common/AccessDenied';
 
@@ -267,6 +269,72 @@ export default function AdminTemplatesPage() {
     } finally {
       setSavingTags(false);
     }
+  };
+
+  const handleExportTags = () => {
+    if (!selectedTemplate || tags.length === 0) {
+      showAlert.warning('ไม่มีตัวแปรให้ส่งออก');
+      return;
+    }
+    const exportData = {
+      template_name: selectedTemplate.name,
+      exported_at: new Date().toISOString(),
+      tags: tags.map((t, i) => ({
+        tag_name: t.tag_name,
+        label: t.label,
+        tag_type: t.tag_type,
+        description: t.description || '',
+        is_required: !!t.is_required,
+        sort_order: i,
+        options: t.options || null,
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tags-${selectedTemplate.name.replace(/\s+/g, '_')}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showAlert.success('ส่งออกไฟล์ตัวแปร Tag (JSON) สำเร็จ');
+  };
+
+  const handleImportTags = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileReader = new FileReader();
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+
+    fileReader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        const importedTags = Array.isArray(json) ? json : json.tags;
+        if (!Array.isArray(importedTags) || importedTags.length === 0) {
+          showAlert.error('รูปแบบไฟล์ JSON ไม่ถูกต้องหรือไม่พบรายการ Tag');
+          return;
+        }
+
+        const validTags = importedTags.map((t: any, index: number) => ({
+          tag_name: String(t.tag_name || `tag_${index + 1}`).trim(),
+          label: String(t.label || t.tag_name || '').trim(),
+          tag_type: t.tag_type || 'TEXT',
+          description: t.description || '',
+          is_required: !!t.is_required,
+          sort_order: index,
+          options: t.options || null,
+        }));
+
+        setTags(validTags);
+        showAlert.success(`นำเข้าสำเร็จ ${validTags.length} ตัวแปร (กรุณากดบันทึกการตั้งค่า Tag)`);
+      } catch (err: any) {
+        showAlert.error('ไม่สามารถอ่านไฟล์ JSON ได้: ' + err.message);
+      } finally {
+        e.target.value = '';
+      }
+    };
+    fileReader.readAsText(file);
   };
 
   const moveTag = (index: number, direction: 'up' | 'down') => {
@@ -540,23 +608,44 @@ export default function AdminTemplatesPage() {
                   </h3>
                   <p className="text-sm text-gray-500 mt-1">ตั้งค่าตัวแปร (Tags) สำหรับใช้สร้างฟอร์มกรอกข้อมูลอัตโนมัติ</p>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  {/* Export Tags Button */}
+                  <button
+                    onClick={handleExportTags}
+                    disabled={tags.length === 0}
+                    className="inline-flex items-center px-3 py-1.5 border border-emerald-300 shadow-xs text-xs sm:text-sm font-medium rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 transition"
+                    title="ดาวน์โหลดโครงสร้างตัวแปรเป็นไฟล์ JSON"
+                  >
+                    <Download className="w-4 h-4 mr-1.5" />
+                    Export Tags
+                  </button>
+
+                  {/* Import Tags Button */}
+                  <label className="inline-flex items-center px-3 py-1.5 border border-indigo-300 shadow-xs text-xs sm:text-sm font-medium rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 cursor-pointer transition">
+                    <Upload className="w-4 h-4 mr-1.5" />
+                    Import Tags
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleImportTags}
+                      className="hidden"
+                    />
+                  </label>
+
                   <button
                     onClick={handleRescanTags}
                     disabled={extracting}
-                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-xs text-xs sm:text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition"
                   >
-                    <RefreshCw className={`w-4 h-4 mr-2 ${extracting ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`w-4 h-4 mr-1.5 ${extracting ? 'animate-spin' : ''}`} />
                     สแกนแท็กใหม่
                   </button>
                   <button
                     onClick={() => setSelectedTemplate(null)}
-                    className="text-gray-400 hover:text-gray-500 focus:outline-none"
+                    className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 focus:outline-none transition"
                   >
                     <span className="sr-only">Close</span>
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="w-6 h-6" />
                   </button>
                 </div>
               </div>
