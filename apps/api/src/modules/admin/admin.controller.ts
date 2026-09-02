@@ -50,10 +50,13 @@ const logoUpload = multer({
 // Multer storage for docx templates
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    if (!fs.existsSync(TEMPLATES_DIR)) {
+      fs.mkdirSync(TEMPLATES_DIR, { recursive: true });
+    }
     cb(null, TEMPLATES_DIR);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    const ext = path.extname(file.originalname) || '.docx';
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, `template-${uniqueSuffix}${ext}`);
   },
@@ -61,12 +64,20 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 30 * 1024 * 1024 }, // 30MB
   fileFilter: (req, file, cb) => {
-    if (
+    const originalNameDecoded = fixThaiEncoding(file.originalname).toLowerCase();
+    const isDocx =
       file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      file.originalname.endsWith('.docx')
-    ) {
+      file.mimetype === 'application/msword' ||
+      file.mimetype === 'application/octet-stream' ||
+      file.mimetype === 'application/zip' ||
+      file.mimetype === 'application/x-zip-compressed' ||
+      originalNameDecoded.endsWith('.docx') ||
+      originalNameDecoded.endsWith('.doc') ||
+      file.originalname.toLowerCase().endsWith('.docx');
+
+    if (isDocx) {
       cb(null, true);
     } else {
       cb(new Error('รองรับเฉพาะไฟล์เอกสาร Microsoft Word (.docx) เท่านั้น'));
@@ -229,176 +240,180 @@ function fixThaiEncoding(str: string): string {
 }
 
 // POST /api/v1/admin/templates (Upload / Update template)
-router.post('/templates', upload.single('file'), async (req: AuthRequest, res: Response) => {
-  try {
-    const { name, description, default_type, is_default } = req.body;
-    const file = req.file;
-
-    if (!file) {
-      return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดไฟล์เทมเพลต .docx' });
+router.post('/templates', (req: AuthRequest, res: Response) => {
+  upload.single('file')(req as any, res as any, async (multerErr: any) => {
+    if (multerErr) {
+      return res.status(400).json({ success: false, message: multerErr.message || 'การอัปโหลดไฟล์ล้มเหลว' });
     }
 
-    const correctFileName = fixThaiEncoding(file.originalname);
-    const templateName = name ? fixThaiEncoding(name) : correctFileName.replace('.docx', '');
-    const isFormPj = templateName.includes('Form') || templateName.includes('แบบฟอร์ม') || correctFileName.includes('TX1');
-    
-
-    // Automatically sanitize and merge broken XML tags in docx template
-    // Sanitize removed due to destroying tags
-
-    // Automatically extract embedded fonts from template to web public fonts
     try {
-      const publicFontsDir = path.resolve('../web/public/fonts');
-      extractFontsFromDocx(file.path, publicFontsDir);
-    } catch (fontErr) {
-      console.warn('Font extraction notice:', fontErr);
-    }
+      const { name, description, default_type, is_default } = req.body;
+      const file = req.file;
 
-    // Extract tags from uploaded template
-    let extractedTags = [];
-    try {
-      extractedTags = extractTagsFromDocx(file.path);
-    } catch (e: any) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      return res.status(400).json({ success: false, message: e.message });
-    }
-    const newMappings: Record<string, string> = {};
-    for (const t of extractedTags) {
-      newMappings[t.key] = t.detectedLabel || t.key;
-    }
-
-    // If set as default, reset others
-    if (default_type && default_type !== 'NONE') {
-      await (prisma as any).documentTemplate.updateMany({
-        data: { default_type: 'NONE' },
-      });
-    }
-
-    // Check if a template with the same file_name or name already exists
-    const existing = await (prisma as any).documentTemplate.findFirst({
-      where: {
-        OR: [
-          { file_name: correctFileName },
-          { name: templateName },
-        ],
-      },
-    });
-
-    let template;
-    if (existing) {
-      // Remove old file if path changed
-      if (existing.file_path && existing.file_path !== file.path && fs.existsSync(existing.file_path)) {
-        try {
-          fs.unlinkSync(existing.file_path);
-        } catch (e) {
-          console.warn('Could not delete old template file:', e);
-        }
+      if (!file) {
+        return res.status(400).json({ success: false, message: 'กรุณาอัปโหลดไฟล์เทมเพลต .docx' });
       }
 
-      // Newly extracted tags override old mappings
-      let existingMappings = existing.mappings;
-      if (typeof existingMappings === 'string') {
-        try {
-          existingMappings = JSON.parse(existingMappings);
-        } catch {
-          existingMappings = {};
-        }
+      const correctFileName = fixThaiEncoding(file.originalname);
+      const templateName = name ? fixThaiEncoding(name) : correctFileName.replace(/\.docx$/i, '');
+
+      // Automatically extract embedded fonts from template to web public fonts
+      try {
+        const publicFontsDir = path.resolve('../web/public/fonts');
+        extractFontsFromDocx(file.path, publicFontsDir);
+      } catch (fontErr) {
+        console.warn('Font extraction notice:', fontErr);
       }
-      const mergedMappings = { ...(existingMappings || {}), ...newMappings };
 
-      template = await (prisma as any).documentTemplate.update({
-        where: { id: existing.id },
-        data: {
-          name: templateName,
-          description: description !== undefined ? description : existing.description,
-          file_name: correctFileName,
-          file_path: file.path,
-          file_size: file.size,
-          default_type: default_type || (is_default === 'true' ? 'PROPOSAL' : existing.default_type),
-          mappings: mergedMappings,
-          version: (existing.version || 1) + 1,
-          updated_at: new Date(),
-        },
-      });
-    } else {
-      template = await (prisma as any).documentTemplate.create({
-        data: {
-          name: templateName,
-          description: description || '',
-          file_name: correctFileName,
-          file_path: file.path,
-          file_size: file.size,
-          default_type: default_type || (is_default === 'true' ? 'PROPOSAL' : 'NONE'),
-          mappings: newMappings,
-          version: 1,
-        },
-      });
-    }
+      // Extract tags from uploaded template
+      let extractedTags: any[] = [];
+      try {
+        extractedTags = extractTagsFromDocx(file.path);
+      } catch (e: any) {
+        console.warn('Tag extraction warning:', e);
+      }
 
-    // Sync TemplateTags
-    if (template && extractedTags.length > 0) {
-      // Keep existing tags if their names match to preserve user customizations (label, tag_type, sort_order)
-      const existingTags = await (prisma as any).templateTag.findMany({
-        where: { template_id: template.id }
-      });
-      const existingTagMap = new Map<string, any>(existingTags.map((t: any) => [t.tag_name, t]));
-      
-      // Delete old tags not in the current extraction
-      const extractedKeys = extractedTags.map(t => t.key.replace(/^#/, ''));
-      await (prisma as any).templateTag.deleteMany({
+      const newMappings: Record<string, string> = {};
+      for (const t of extractedTags) {
+        newMappings[t.key] = t.detectedLabel || t.key;
+      }
+
+      // If set as default, reset others
+      if (default_type && default_type !== 'NONE') {
+        await (prisma as any).documentTemplate.updateMany({
+          data: { default_type: 'NONE' },
+        });
+      }
+
+      // Check if a template with the same file_name or name already exists
+      const existing = await (prisma as any).documentTemplate.findFirst({
         where: {
-          template_id: template.id,
-          tag_name: { notIn: extractedKeys }
-        }
+          OR: [
+            { file_name: correctFileName },
+            { name: templateName },
+          ],
+        },
       });
 
-      // Upsert tags
-      for (let i = 0; i < extractedTags.length; i++) {
-        const t = extractedTags[i];
-        const existing = existingTagMap.get(t.key.replace(/^#/, ''));
-        
-        // Auto-detect type based on tag naming (basic heuristic)
-        let defaultTagType = 'TEXT';
-        if (t.key.startsWith('#') || t.key.endsWith('_items')) defaultTagType = 'TABLE_LOOP';
-        if (t.key.includes('image') || t.key.includes('picture')) defaultTagType = 'IMAGE';
-        if (t.key.includes('total') || t.key.includes('sum')) defaultTagType = 'CALCULATION';
-        if (t.key.includes('date')) defaultTagType = 'DATE';
-        
-        if (existing) {
-          await (prisma as any).templateTag.update({
-            where: { id: existing.id },
-            data: {
-              sort_order: i, // Ensure sort order matches extraction order
-              label: existing.label || t.detectedLabel || t.key
-            }
+      let template;
+      if (existing) {
+        // Remove old file if path changed
+        if (existing.file_path && existing.file_path !== file.path && fs.existsSync(existing.file_path)) {
+          try {
+            fs.unlinkSync(existing.file_path);
+          } catch (e) {
+            console.warn('Could not delete old template file:', e);
+          }
+        }
+
+        // Newly extracted tags override old mappings
+        let existingMappings = existing.mappings;
+        if (typeof existingMappings === 'string') {
+          try {
+            existingMappings = JSON.parse(existingMappings);
+          } catch {
+            existingMappings = {};
+          }
+        }
+        const mergedMappings = { ...(existingMappings || {}), ...newMappings };
+
+        template = await (prisma as any).documentTemplate.update({
+          where: { id: existing.id },
+          data: {
+            name: templateName,
+            description: description !== undefined ? description : existing.description,
+            file_name: correctFileName,
+            file_path: file.path,
+            file_size: file.size,
+            default_type: default_type || (is_default === 'true' ? 'PROPOSAL' : existing.default_type),
+            mappings: mergedMappings,
+            version: (existing.version || 1) + 1,
+            updated_at: new Date(),
+          },
+        });
+      } else {
+        template = await (prisma as any).documentTemplate.create({
+          data: {
+            name: templateName,
+            description: description || '',
+            file_name: correctFileName,
+            file_path: file.path,
+            file_size: file.size,
+            default_type: default_type || (is_default === 'true' ? 'PROPOSAL' : 'NONE'),
+            mappings: newMappings,
+            version: 1,
+          },
+        });
+      }
+
+      // Sync TemplateTags safely
+      if (template && extractedTags.length > 0) {
+        try {
+          const existingTags = await (prisma as any).templateTag.findMany({
+            where: { template_id: template.id }
           });
-        } else {
-          await (prisma as any).templateTag.create({
-            data: {
-              template_id: template.id,
-              tag_name: t.key.replace(/^#/, ''), // Remove loop # indicator for DB storage if preferred, but keep exact key
-              tag_type: defaultTagType,
-              label: t.detectedLabel || t.key,
-              sort_order: i,
+          const existingTagMap = new Map<string, any>(existingTags.map((t: any) => [t.tag_name, t]));
+
+          const extractedKeys = extractedTags.map(t => t.key.replace(/^#/, ''));
+          if (extractedKeys.length > 0) {
+            await (prisma as any).templateTag.deleteMany({
+              where: {
+                template_id: template.id,
+                tag_name: { notIn: extractedKeys }
+              }
+            });
+          }
+
+          for (let i = 0; i < extractedTags.length; i++) {
+            const t = extractedTags[i];
+            const cleanKey = t.key.replace(/^#/, '');
+            const existing = existingTagMap.get(cleanKey);
+
+            let defaultTagType = t.suggested_type || 'TEXT';
+            if (t.key.startsWith('#') || t.key.endsWith('_items')) defaultTagType = 'TABLE_LOOP';
+            if (t.key.includes('image') || t.key.includes('picture')) defaultTagType = 'IMAGE';
+            if (t.key.includes('total') || t.key.includes('sum')) defaultTagType = 'CALCULATION';
+            if (t.key.includes('date')) defaultTagType = 'DATE';
+
+            if (existing) {
+              await (prisma as any).templateTag.update({
+                where: { id: existing.id },
+                data: {
+                  sort_order: i,
+                  label: existing.label || t.detectedLabel || cleanKey
+                }
+              });
+            } else {
+              await (prisma as any).templateTag.create({
+                data: {
+                  template_id: template.id,
+                  tag_name: cleanKey,
+                  tag_type: defaultTagType,
+                  label: t.detectedLabel || cleanKey,
+                  sort_order: i,
+                }
+              });
             }
-          });
+          }
+        } catch (tagErr) {
+          console.warn('Template tag sync notice:', tagErr);
         }
       }
-    }
 
-    return res.status(200).json({
-      success: true,
-      message: existing
-        ? `อัปเดตไฟล์แม่แบบ "${correctFileName}" รูปแบบและตัวแปรใหม่ ${extractedTags.length} รายการเรียบร้อยแล้ว`
-        : 'อัปโหลดและบันทึกเทมเพลตเอกสารสำเร็จ',
-      data: serializeBigInt(template),
-      tagsCount: extractedTags.length,
-      extractedTags,
-    });
-  } catch (error: any) {
-    console.error('Upload template error:', error);
-    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัปโหลดเทมเพลต', error: error.message });
-  }
+      return res.status(200).json({
+        success: true,
+        message: existing
+          ? `อัปเดตไฟล์แม่แบบ "${correctFileName}" รูปแบบและตัวแปรใหม่ ${extractedTags.length} รายการเรียบร้อยแล้ว`
+          : `อัปโหลดและบันทึกแม่แบบเอกสาร "${templateName}" สำเร็จ`,
+        data: serializeBigInt(template),
+        tagsCount: extractedTags.length,
+        extractedTags,
+      });
+    } catch (error: any) {
+      console.error('Upload template error:', error);
+      return res.status(500).json({ success: false, message: `เกิดข้อผิดพลาดในการอัปโหลดเทมเพลต: ${error.message}`, error: error.message });
+    }
+  });
 });
 
 // PUT /api/v1/admin/templates/:id/file (Update existing template file)

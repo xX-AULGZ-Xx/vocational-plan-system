@@ -77,139 +77,142 @@ const defaultKnownLabels: Record<string, string> = {
 
 export function extractTagsFromDocx(filePath: string): ExtractedTag[] {
   if (!fs.existsSync(filePath)) {
-    throw new Error('ไม่พบไฟล์เอกสารแม่แบบเพื่อวิเคราะห์ข้อมูล');
+    return [];
   }
 
-  const content = fs.readFileSync(filePath, 'binary');
-  const zip = new PizZip(content);
+  try {
+    const content = fs.readFileSync(filePath, 'binary');
+    const zip = new PizZip(content);
 
-  const xmlFiles = [
-    'word/document.xml',
-    'word/header1.xml',
-    'word/header2.xml',
-    'word/header3.xml',
-    'word/footer1.xml',
-    'word/footer2.xml',
-    'word/footer3.xml',
-  ];
+    const xmlFiles = [
+      'word/document.xml',
+      'word/header1.xml',
+      'word/header2.xml',
+      'word/header3.xml',
+      'word/footer1.xml',
+      'word/footer2.xml',
+      'word/footer3.xml',
+    ];
 
-  let combinedText = '';
-  for (const xmlFile of xmlFiles) {
-    const file = zip.files[xmlFile];
-    if (file) {
-      const xmlStr = file.asText();
-      const plainText = xmlStr.replace(/<[^>]+>/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '');
-      combinedText += '\n' + plainText;
-    }
-  }
-
-
-
-  const tagRegex = /\{([^{}]+)\}/g;
-  const rawTags: string[] = [];
-  let match;
-  while ((match = tagRegex.exec(combinedText)) !== null) {
-    rawTags.push(match[1].trim());
-  }
-
-  const isLoopTable: Record<string, boolean> = {};
-  for (let i = 0; i < rawTags.length; i++) {
-    const tag = rawTags[i];
-    if (tag.startsWith("#")) {
-      const name = tag.substring(1).trim();
-      let hasSubTags = false;
-      let depth = 1;
-      for (let j = i + 1; j < rawTags.length; j++) {
-        const nextTag = rawTags[j];
-        if (nextTag === `#${name}`) {
-          depth++;
-        } else if (nextTag === `/${name}`) {
-          depth--;
-          if (depth === 0) break;
-        } else if (!nextTag.startsWith("#") && !nextTag.startsWith("/") && !nextTag.startsWith("^") && !nextTag.startsWith("?")) {
-          hasSubTags = true;
-        }
+    let combinedText = '';
+    for (const xmlFile of xmlFiles) {
+      const file = zip.files[xmlFile];
+      if (file) {
+        const xmlStr = file.asText();
+        const plainText = xmlStr.replace(/<[^>]+>/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '');
+        combinedText += '\n' + plainText;
       }
-      isLoopTable[name] = hasSubTags;
     }
-  }
 
-  const foundTagsMap = new Map<string, ExtractedTag>();
-  const activeLoops: string[] = [];
+    const tagRegex = /\{([^{}]+)\}/g;
+    const rawTags: string[] = [];
+    let match;
+    while ((match = tagRegex.exec(combinedText)) !== null) {
+      rawTags.push(match[1].trim());
+    }
 
-  for (let i = 0; i < rawTags.length; i++) {
-    const tag = rawTags[i];
-    if (!tag) continue;
+    const isLoopTable: Record<string, boolean> = {};
+    for (let i = 0; i < rawTags.length; i++) {
+      const tag = rawTags[i];
+      if (tag.startsWith("#")) {
+        const name = tag.substring(1).trim();
+        let hasSubTags = false;
+        let depth = 1;
+        for (let j = i + 1; j < rawTags.length; j++) {
+          const nextTag = rawTags[j];
+          if (nextTag === `#${name}`) {
+            depth++;
+          } else if (nextTag === `/${name}`) {
+            depth--;
+            if (depth === 0) break;
+          } else if (!nextTag.startsWith("#") && !nextTag.startsWith("/") && !nextTag.startsWith("^") && !nextTag.startsWith("?")) {
+            hasSubTags = true;
+          }
+        }
+        isLoopTable[name] = hasSubTags;
+      }
+    }
 
-    let key = tag;
-    let type: ExtractedTag['type'] = 'variable';
-    let suggested_type: ExtractedTag['suggested_type'] = 'TEXT';
+    const foundTagsMap = new Map<string, ExtractedTag>();
+    const activeLoops: string[] = [];
 
-    if (tag.startsWith("#")) {
-      const name = tag.substring(1).trim();
-      key = tag;
-      if (isLoopTable[name]) {
-        activeLoops.push(name);
-        type = 'loop';
-        suggested_type = 'TABLE_LOOP';
-      } else {
+    for (let i = 0; i < rawTags.length; i++) {
+      const tag = rawTags[i];
+      if (!tag) continue;
+
+      let key = tag;
+      let type: ExtractedTag['type'] = 'variable';
+      let suggested_type: ExtractedTag['suggested_type'] = 'TEXT';
+
+      if (tag.startsWith("#")) {
+        const name = tag.substring(1).trim();
+        key = tag;
+        if (isLoopTable[name]) {
+          activeLoops.push(name);
+          type = 'loop';
+          suggested_type = 'TABLE_LOOP';
+        } else {
+          type = 'loop';
+          suggested_type = 'BOOLEAN';
+        }
+      } else if (tag.startsWith("/")) {
+        const name = tag.substring(1).trim();
+        if (isLoopTable[name]) {
+          const index = activeLoops.indexOf(name);
+          if (index > -1) {
+            activeLoops.splice(index, 1);
+          }
+        }
+        continue;
+      } else if (tag.startsWith("^") || tag.startsWith("?")) {
+        key = tag;
         type = 'loop';
         suggested_type = 'BOOLEAN';
-      }
-    } else if (tag.startsWith("/")) {
-      const name = tag.substring(1).trim();
-      if (isLoopTable[name]) {
-        const index = activeLoops.indexOf(name);
-        if (index > -1) {
-          activeLoops.splice(index, 1);
-        }
-      }
-      continue;
-    } else if (tag.startsWith("^") || tag.startsWith("?")) {
-      key = tag;
-      type = 'loop';
-      suggested_type = 'BOOLEAN';
-    } else if (tag.startsWith("%")) {
-      key = tag;
-      type = 'image';
-      suggested_type = 'IMAGE';
-    } else if (tag.startsWith("@")) {
-      key = tag;
-      type = 'raw';
-      suggested_type = 'LONGTEXT';
-    } else if (tag.startsWith(">") || tag.startsWith("!")) {
-      continue;
-    } else {
-      key = tag;
-      type = 'variable';
-      if (key.startsWith('is_')) {
-        suggested_type = 'BOOLEAN';
-      } else if (key.endsWith('date') || key.endsWith('time')) {
-        suggested_type = 'DATE';
-      } else if (key.includes('total') || key.includes('sum') || key.includes('amount')) {
-        suggested_type = 'CALCULATION';
-      } else if (key.includes('description') || key.includes('rationale') || key.includes('background') || key.includes('objectives') || key.includes('timelines') || key.includes('results')) {
+      } else if (tag.startsWith("%")) {
+        key = tag;
+        type = 'image';
+        suggested_type = 'IMAGE';
+      } else if (tag.startsWith("@")) {
+        key = tag;
+        type = 'raw';
         suggested_type = 'LONGTEXT';
+      } else if (tag.startsWith(">") || tag.startsWith("!")) {
+        continue;
       } else {
-        suggested_type = 'TEXT';
+        key = tag;
+        type = 'variable';
+        if (key.startsWith('is_')) {
+          suggested_type = 'BOOLEAN';
+        } else if (key.endsWith('date') || key.endsWith('time')) {
+          suggested_type = 'DATE';
+        } else if (key.includes('total') || key.includes('sum') || key.includes('amount')) {
+          suggested_type = 'CALCULATION';
+        } else if (key.includes('description') || key.includes('rationale') || key.includes('background') || key.includes('objectives') || key.includes('timelines') || key.includes('results')) {
+          suggested_type = 'LONGTEXT';
+        } else {
+          suggested_type = 'TEXT';
+        }
+      }
+
+      const rawKeyClean = key.replace(/^[#^/%@?!]/, '');
+      const isCustom = !defaultKnownLabels[rawKeyClean];
+      const detectedLabel = defaultKnownLabels[rawKeyClean] || rawKeyClean;
+      
+      if (!foundTagsMap.has(key)) {
+        foundTagsMap.set(key, {
+          key: key,
+          tag: `{${tag}}`,
+          detectedLabel,
+          type,
+          is_custom: isCustom,
+          suggested_type
+        });
       }
     }
 
-    const rawKeyClean = key.replace(/^[#^/%@?!]/, '');
-    const isCustom = !defaultKnownLabels[rawKeyClean];
-    const detectedLabel = defaultKnownLabels[rawKeyClean] || rawKeyClean;
-    
-    if (!foundTagsMap.has(key)) {
-      foundTagsMap.set(key, {
-        key: key,
-        tag: `{${tag}}`,
-        detectedLabel,
-        type,
-        is_custom: isCustom,
-        suggested_type
-      });
-    }
+    return Array.from(foundTagsMap.values());
+  } catch (err) {
+    console.warn('Tag extraction notice:', err);
+    return [];
   }
-
-  return Array.from(foundTagsMap.values());
 }

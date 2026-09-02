@@ -97,6 +97,11 @@ export default function AdminTemplatesPage() {
       });
 
       const data = await res.json();
+      if (!res.ok || !data.success) {
+        setMsg({ type: 'error', text: data.message || 'เกิดข้อผิดพลาดในการอัปโหลดเทมเพลต' });
+        return;
+      }
+
       setMsg({ type: 'success', text: data.message || 'อัปโหลดสำเร็จ' });
       setShowUploadModal(false);
       setName('');
