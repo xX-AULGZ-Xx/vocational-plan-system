@@ -49,10 +49,13 @@ export default function MyProjectsPage() {
   const [summaryTemplates, setSummaryTemplates] = useState<any[]>([]);
   const [dropdownOpenId, setDropdownOpenId] = useState<number | null>(null);
 
+  // Scope State (For Admin & Planning Officer)
+  const [projectScope, setProjectScope] = useState<'ALL' | 'MINE'>(user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER' ? 'ALL' : 'MINE');
+
   useEffect(() => {
     fetchMyProjects();
     fetchSummaryTemplates();
-  }, [token]);
+  }, [token, projectScope]);
 
   const fetchSummaryTemplates = async () => {
     if (!token) return;
@@ -73,7 +76,13 @@ export default function MyProjectsPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const endpoint = user?.role === 'PLANNING_OFFICER' ? '/api/v1/projects' : '/api/v1/projects?my_projects=true';
+      let endpoint = '/api/v1/projects';
+      if (projectScope === 'MINE') {
+        endpoint = '/api/v1/projects?my_projects=true';
+      } else if (user?.role !== 'ADMIN' && user?.role !== 'PLANNING_OFFICER') {
+        endpoint = '/api/v1/projects?my_projects=true';
+      }
+      
       const res = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -210,19 +219,55 @@ export default function MyProjectsPage() {
               <FolderKanban className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">โครงการของฉัน</h1>
-              <p className="text-xs text-slate-500">ติดตามสถานะโครงการ ส่งข้อเสนอ และพิมพ์เอกสารสรุปโครงการ</p>
+              <h1 className="text-2xl font-bold text-slate-900">
+                {user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER'
+                  ? (projectScope === 'ALL' ? 'ทะเบียนโครงการทั้งหมด (สถานศึกษา)' : 'โครงการที่ฉันรับผิดชอบ')
+                  : 'โครงการของฉัน'}
+              </h1>
+              <p className="text-xs text-slate-500">
+                {user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER'
+                  ? 'ตรวจสอบ ติดตามสถานะ และเข้าถึงโครงการทั้งหมดของสถานศึกษา'
+                  : 'ติดตามสถานะโครงการ ส่งข้อเสนอ และพิมพ์เอกสารสรุปโครงการ'}
+              </p>
             </div>
           </div>
         </div>
 
-        <Link
-          href="/projects/new"
-          className="flex items-center gap-2 bg-theme-primary hover:bg-theme-primary-hover text-white px-4 py-2.5 rounded-theme shadow-sm font-bold text-sm transition active:scale-95"
-        >
-          <FilePlus className="w-5 h-5" />
-          <span>สร้างโครงการใหม่</span>
-        </Link>
+        <div className="flex items-center gap-2.5">
+          {/* Scope Toggle for Admin & Planning Officer */}
+          {(user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER') && (
+            <div className="flex items-center bg-slate-100 p-1 rounded-theme border border-slate-200">
+              <button
+                onClick={() => setProjectScope('ALL')}
+                className={`px-3 py-1.5 rounded-theme text-xs font-bold transition ${
+                  projectScope === 'ALL'
+                    ? 'bg-white text-theme-primary shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                โครงการทั้งหมด ({projects.length})
+              </button>
+              <button
+                onClick={() => setProjectScope('MINE')}
+                className={`px-3 py-1.5 rounded-theme text-xs font-bold transition ${
+                  projectScope === 'MINE'
+                    ? 'bg-white text-theme-primary shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                โครงการของฉัน
+              </button>
+            </div>
+          )}
+
+          <Link
+            href="/projects/new"
+            className="flex items-center gap-2 bg-theme-primary hover:bg-theme-primary-hover text-white px-4 py-2.5 rounded-theme shadow-sm font-bold text-sm transition active:scale-95"
+          >
+            <FilePlus className="w-5 h-5" />
+            <span>สร้างโครงการใหม่</span>
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
@@ -312,6 +357,9 @@ export default function MyProjectsPage() {
                   </h3>
                   <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-500">
                     <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5"/> {p.department?.name || '-'}</span>
+                    {p.leader && (
+                      <span className="flex items-center gap-1"><span className="text-slate-400">ผู้รับผิดชอบ:</span> {p.leader.full_name}</span>
+                    )}
                     <span className="flex items-center gap-1"><DollarSign className="w-3.5 h-3.5"/> {Number(p.total_budget || 0).toLocaleString()} บาท</span>
                   </div>
                 </div>
