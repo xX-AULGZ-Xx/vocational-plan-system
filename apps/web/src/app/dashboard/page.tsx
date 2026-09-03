@@ -123,13 +123,22 @@ export default function DashboardPage() {
             <option value={2568} className="text-slate-900">ปีงบประมาณ 2568</option>
           </select>
 
-          <Link
-            href="/projects/new"
-            className="flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold rounded-theme bg-theme-accent hover:brightness-110 text-white shadow-md transition"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>เสนอโครงการใหม่</span>
-          </Link>
+          {user ? (
+            <Link
+              href="/projects/new"
+              className="flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold rounded-theme bg-theme-accent hover:brightness-110 text-white shadow-md transition"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>เสนอโครงการใหม่</span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold rounded-theme bg-white text-slate-900 hover:bg-slate-100 shadow-md transition"
+            >
+              <span>เข้าสู่ระบบสถานศึกษา</span>
+            </Link>
+          )}
         </div>
       </div>
 

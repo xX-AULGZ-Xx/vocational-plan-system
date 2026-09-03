@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { prisma, serializeBigInt } from '../../lib/prisma';
-import { authenticate, AuthRequest } from '../../middlewares/auth';
+import { authenticate, optionalAuthenticate, AuthRequest } from '../../middlewares/auth';
 import { ApprovalStatus, ProjectStatus, NotificationType } from '@prisma/client';
 import { renderDynamicDocx } from '../../lib/docx-generator';
 import { scanDocxTemplate } from '../../lib/docx-scanner';
@@ -150,7 +150,7 @@ router.post('/render-docx-preview', async (req: any, res: any) => {
 });
 
 // GET /api/v1/projects
-router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
+router.get('/', optionalAuthenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { fiscal_year, status, division_code, department_id, search, my_projects } = req.query;
 
@@ -224,7 +224,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
 // GET /api/v1/projects/:id
 
-router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
+router.get('/:id', optionalAuthenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const project = await prisma.project.findUnique({

@@ -5,7 +5,8 @@ import { authenticate, AuthRequest } from '../../middlewares/auth';
 const router = Router();
 
 // GET /api/v1/budgets/dashboard-stats
-router.get('/dashboard-stats', authenticate, async (req: AuthRequest, res: Response) => {
+// Allows public viewing for guest dashboard or authenticated user
+router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
   try {
     const { fiscal_year } = req.query;
     const year = fiscal_year ? parseInt(fiscal_year as string) : 2569;

@@ -63,12 +63,17 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
   ];
 
   // Filter navigation by role
-  const mainNav = allMainNav.filter((item) => item.roles.includes(role));
+  const mainNav = user
+    ? allMainNav.filter((item) => item.roles.includes(role))
+    : [
+        { name: 'ภาพรวมระบบ (Dashboard)', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'แผนปฏิบัติงาน / ปฏิทิน', href: '/schedule', icon: Calendar },
+      ];
 
-  const showDivisions = ['DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'].includes(role);
+  const showDivisions = user && ['DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'].includes(role);
   const divisionNav = showDivisions ? allDivisionNav : [];
 
-  const adminNav = allAdminNav.filter((item) => item.roles.includes(role));
+  const adminNav = user ? allAdminNav.filter((item) => item.roles.includes(role)) : [];
 
   const isActive = (path: string) => pathname === path || pathname.startsWith(`${path}/`);
 
