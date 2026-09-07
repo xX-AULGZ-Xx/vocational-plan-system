@@ -1,7 +1,7 @@
 # ==============================================================================
 # Vocational Planning & Project Management System — Docker Compose Configuration
 # ==============================================================================
-# ใช้ร่วมกับ MySQL ของ Host Server aaPanel (Port 3306) โดยตรง ไม่สร้าง Container DB ซ้ำซ้อน
+# ทำงานร่วมกับ aaPanel Host Network 100% (เข้าถึง MySQL 127.0.0.1:3306 ของเครื่องแม่ได้ทันที)
 #
 # คำสั่งรัน:
 #   $ docker compose up -d --build
@@ -15,21 +15,16 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: vps-api
     restart: always
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    network_mode: "host"
     environment:
       PORT: 5050
-      DATABASE_URL: "${DATABASE_URL:-mysql://root:rootpassword@host.docker.internal:3306/vocational_plan_db}"
+      DATABASE_URL: "${DATABASE_URL:-mysql://root:rootpassword@127.0.0.1:3306/vocational_plan_db}"
       JWT_SECRET: "${JWT_SECRET:-super-secret-jwt-key-chiangrai-vocational-2026}"
-      CORS_ORIGIN: "http://localhost:3005,http://localhost:3000,http://web:3005"
+      CORS_ORIGIN: "http://localhost:3005,http://localhost:3000,http://127.0.0.1:3005,http://plan.cric.ac.th"
       STORAGE_DIR: "/app/apps/api/storage"
-    ports:
-      - "5050:5050"
     volumes:
       - ./apps/api/storage:/app/apps/api/storage
       - ./:/app/host_config
-    networks:
-      - vps-network
 
   # 2. Frontend Web Service (Next.js 16 Standalone)
   web:
@@ -38,20 +33,11 @@ services:
       dockerfile: apps/web/Dockerfile
     container_name: vps-web
     restart: always
-    depends_on:
-      - api
+    network_mode: "host"
     environment:
       PORT: 3005
-      INTERNAL_API_URL: "http://api:5050"
+      INTERNAL_API_URL: "http://127.0.0.1:5050"
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}"
-    ports:
-      - "3005:3005"
     volumes:
       - ./apps/api/storage:/app/apps/api/storage
       - ./:/app/host_config
-    networks:
-      - vps-network
-
-networks:
-  vps-network:
-    driver: bridge
