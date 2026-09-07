@@ -125,7 +125,12 @@ router.post('/test-db', async (req: Request, res: Response) => {
       });
     }
 
-    const hostClean = host.trim();
+    let hostClean = host.trim();
+    // In Docker bridge network, localhost/127.0.0.1 refers to the container itself.
+    // Automatically map to host.docker.internal to reach the host server's MySQL.
+    if (hostClean === 'localhost' || hostClean === '127.0.0.1') {
+      hostClean = 'host.docker.internal';
+    }
     const portClean = port ? String(port).trim() : '3306';
     const userClean = encodeURIComponent(user.trim());
     const passClean = password ? encodeURIComponent(password) : '';
@@ -219,7 +224,10 @@ router.post('/install', async (req: Request, res: Response) => {
     // 1. Calculate Database URL from db_config if provided
     let calculatedDbUrl = process.env.DATABASE_URL || '';
     if (db_config && db_config.host && db_config.user) {
-      const hostClean = db_config.host.trim();
+      let hostClean = db_config.host.trim();
+      if (hostClean === 'localhost' || hostClean === '127.0.0.1') {
+        hostClean = 'host.docker.internal';
+      }
       const portClean = db_config.port ? String(db_config.port).trim() : '3306';
       const userClean = encodeURIComponent(db_config.user.trim());
       const passClean = db_config.password ? encodeURIComponent(db_config.password) : '';
