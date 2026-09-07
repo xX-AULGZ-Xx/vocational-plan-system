@@ -40,19 +40,19 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: vps-api
     restart: always
-    depends_on:
-      mysql:
-        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       PORT: 5050
-      DATABASE_URL: "mysql://plan_user:plan_password@mysql:3306/vocational_plan_db"
+      DATABASE_URL: "${DATABASE_URL:-mysql://plan_user:plan_password@mysql:3306/vocational_plan_db}"
       JWT_SECRET: "${JWT_SECRET:-super-secret-jwt-key-chiangrai-vocational-2026}"
       CORS_ORIGIN: "http://localhost:3005,http://localhost:3000,http://web:3005"
       STORAGE_DIR: "/app/apps/api/storage"
     ports:
       - "5050:5050"
     volumes:
-      - app_storage:/app/apps/api/storage
+      - ./apps/api/storage:/app/apps/api/storage
+      - ./:/app/host_config
     networks:
       - vps-network
 
@@ -71,13 +71,14 @@ services:
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}"
     ports:
       - "3005:3005"
+    volumes:
+      - ./apps/api/storage:/app/apps/api/storage
+      - ./:/app/host_config
     networks:
       - vps-network
 
 volumes:
   mysql_data:
-    driver: local
-  app_storage:
     driver: local
 
 networks:
