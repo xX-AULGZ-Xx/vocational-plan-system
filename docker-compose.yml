@@ -1,39 +1,14 @@
 # ==============================================================================
 # Vocational Planning & Project Management System — Docker Compose Configuration
 # ==============================================================================
-# Mode 1 (Full Stack): รวม MySQL Container ภายใน
-#   $ docker compose up -d --build
+# ใช้ร่วมกับ MySQL ของ Host Server aaPanel (Port 3306) โดยตรง ไม่สร้าง Container DB ซ้ำซ้อน
 #
-# Mode 2 (External Host MySQL): กรณี Server มี MySQL อยู่แล้ว (เช่น Port 3306)
-#   $ docker compose -f docker-compose.yml -f docker-compose.external-db.yml up -d --build
+# คำสั่งรัน:
+#   $ docker compose up -d --build
 # ==============================================================================
 
 services:
-  # 1. MySQL Database Container (สร้างฐานข้อมูลอัตโนมัติ)
-  # *หากเซิร์ฟเวอร์มี MySQL อยู่แล้ว ให้ดูคำแนะนำใน docker-compose.external-db.yml*
-  mysql:
-    image: mysql:8.0
-    container_name: vps-mysql
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: vocational_plan_db
-      MYSQL_USER: plan_user
-      MYSQL_PASSWORD: plan_password
-    ports:
-      - "3308:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    networks:
-      - vps-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "plan_user", "-pplan_password"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  # 2. Backend API Service (Node.js Express + Prisma + LibreOffice + Thai Fonts)
+  # 1. Backend API Service (Node.js Express + Prisma + LibreOffice + Thai Fonts)
   api:
     build:
       context: .
@@ -44,7 +19,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       PORT: 5050
-      DATABASE_URL: "${DATABASE_URL:-mysql://plan_user:plan_password@mysql:3306/vocational_plan_db}"
+      DATABASE_URL: "${DATABASE_URL:-mysql://root:rootpassword@host.docker.internal:3306/vocational_plan_db}"
       JWT_SECRET: "${JWT_SECRET:-super-secret-jwt-key-chiangrai-vocational-2026}"
       CORS_ORIGIN: "http://localhost:3005,http://localhost:3000,http://web:3005"
       STORAGE_DIR: "/app/apps/api/storage"
@@ -56,7 +31,7 @@ services:
     networks:
       - vps-network
 
-  # 3. Frontend Web Service (Next.js 16 Standalone)
+  # 2. Frontend Web Service (Next.js 16 Standalone)
   web:
     build:
       context: .
@@ -76,10 +51,6 @@ services:
       - ./:/app/host_config
     networks:
       - vps-network
-
-volumes:
-  mysql_data:
-    driver: local
 
 networks:
   vps-network:
