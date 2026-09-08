@@ -349,11 +349,11 @@ export default function ProjectSummaryPage() {
       }
       case 'APPROVER_DROPDOWN': {
         const deputyList = [
-          { name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร' },
-          { name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
-          { name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
-          { name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', division: 'ฝ่ายวิชาการ', position: deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ' },
-        ].filter(d => !!d.name);
+          { name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', rawName: deputyResName, division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร' },
+          { name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', rawName: deputyStratName, division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
+          { name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', rawName: deputyDevName, division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
+          { name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', rawName: deputyAcadName, division: 'ฝ่ายวิชาการ', position: deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ' },
+        ];
 
         return (
           <div key={key} className="col-span-1 lg:col-span-2">
@@ -364,46 +364,56 @@ export default function ProjectSummaryPage() {
               </span>
             </div>
             {tag.description && <p className="text-xs text-gray-500 mb-1">{tag.description}</p>}
-            <select
-              value={value || ''}
-              onChange={(e) => {
-                const selectedVal = e.target.value;
-                const selectedDeputy = deputyList.find(d => d.name === selectedVal);
-                setDynamicData(prev => {
-                  const next: Record<string, any> = { ...prev, [key]: selectedVal };
-                  if (selectedDeputy) {
-                    next['approver_position'] = selectedDeputy.position;
-                    next['approver_name_position'] = selectedDeputy.position;
-                    next[`${key}_position`] = selectedDeputy.position;
-                    next['deputy_position'] = selectedDeputy.position;
-                    template?.tags?.forEach((t: any) => {
-                      if (
-                        t.tag_type === 'APPROVER_POSITION' ||
-                        t.tag_type === 'DEPUTY_POSITION' ||
-                        t.tag_name === 'approver_position' ||
-                        t.tag_name === 'approver_name_position' ||
-                        t.tag_name === 'deputy_position' ||
-                        t.tag_name === `${key}_position` ||
-                        (t.tag_name.includes('approver') && t.tag_name.includes('pos'))
-                      ) {
-                        next[t.tag_name] = selectedDeputy.position;
-                      }
-                    });
-                  }
-                  return next;
-                });
-              }}
-              disabled={!isEditing}
-              required={tag.is_required}
-              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            >
-              <option value="">-- เลือกผู้เห็นชอบโครงการ (รองผู้อำนวยการฝ่าย) --</option>
-              {deputyList.map((d, i) => (
-                <option key={`dep-${i}`} value={d.name}>
-                  {d.name} ({d.division})
-                </option>
-              ))}
-            </select>
+            <div className="space-y-1.5">
+              <select
+                value={value || ''}
+                onChange={(e) => {
+                  const selectedVal = e.target.value;
+                  const selectedDeputy = deputyList.find(d => d.name === selectedVal || d.rawName === selectedVal);
+                  setDynamicData(prev => {
+                    const next: Record<string, any> = { ...prev, [key]: selectedVal };
+                    if (selectedDeputy) {
+                      next['approver_position'] = selectedDeputy.position;
+                      next['approver_name_position'] = selectedDeputy.position;
+                      next[`${key}_position`] = selectedDeputy.position;
+                      next['deputy_position'] = selectedDeputy.position;
+                      template?.tags?.forEach((t: any) => {
+                        if (
+                          t.tag_type === 'APPROVER_POSITION' ||
+                          t.tag_type === 'DEPUTY_POSITION' ||
+                          t.tag_name === 'approver_position' ||
+                          t.tag_name === 'approver_name_position' ||
+                          t.tag_name === 'deputy_position' ||
+                          t.tag_name === `${key}_position` ||
+                          (t.tag_name.includes('approver') && t.tag_name.includes('pos'))
+                        ) {
+                          next[t.tag_name] = selectedDeputy.position;
+                        }
+                      });
+                    }
+                    return next;
+                  });
+                }}
+                disabled={!isEditing}
+                className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-white"
+              >
+                <option value="">-- เลือกผู้เห็นชอบโครงการ (รองผู้อำนวยการฝ่าย) --</option>
+                {deputyList.map((d, i) => (
+                  <option key={`dep-${i}`} value={d.rawName || d.name}>
+                    {d.rawName ? `${d.rawName} (${d.division})` : `${d.name} (${d.division})`}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={value || ''}
+                onChange={(e) => handleDynamicChange(key, e.target.value)}
+                placeholder="ชื่อ-นามสกุล ผู้เห็นชอบโครงการ (สามารถพิมพ์หรือแก้ไขได้)..."
+                required={tag.is_required}
+                disabled={!isEditing}
+                className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-slate-50/50 focus:bg-white"
+              />
+            </div>
           </div>
         );
       }
