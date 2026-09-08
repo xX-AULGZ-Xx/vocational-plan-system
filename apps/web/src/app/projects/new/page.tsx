@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
-import { getCurrentThaiFiscalYear } from '@/lib/bahttext';
+import { getCurrentThaiFiscalYear, detectProjectFiscalYear, calculateFiscalYearFromDateString } from '@/lib/bahttext';
 import { showAlert } from '@/lib/sweetalert';
 import {
   ArrowLeft,
@@ -198,7 +198,18 @@ export default function NewProjectPage() {
   };
 
   const handleDynamicChange = (key: string, value: any) => {
-    setDynamicData(prev => ({ ...prev, [key]: value }));
+    setDynamicData(prev => {
+      const updated = { ...prev, [key]: value };
+      
+      // Auto-detect project fiscal year from start date / DATERANGE / DATE / period
+      const detectedFY = detectProjectFiscalYear(updated, currentFiscalYear || fiscalYear);
+      if (detectedFY) {
+        setFiscalYear(detectedFY);
+        updated['fiscal_year'] = String(detectedFY);
+      }
+      
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent, status: 'draft' | 'pending') => {
@@ -206,7 +217,7 @@ export default function NewProjectPage() {
     
     // Auto-map system fields from dynamic data
     const computedTitle = dynamicData['title'] || dynamicData['project_name'] || 'โครงการไม่มีชื่อ';
-    const computedFiscalYear = parseInt(dynamicData['fiscal_year']) || new Date().getFullYear() + 543;
+    const computedFiscalYear = detectProjectFiscalYear(dynamicData, currentFiscalYear || fiscalYear);
     const computedTotalBudget = dynamicData['total_budget'] || 0;
     // For department, find department matching the selected approver/endorser or user's department
     const approverVal = dynamicData['endorser_name'] || dynamicData['endorser'] || dynamicData['approver_name'] || dynamicData['approver'] || '';
@@ -268,7 +279,7 @@ export default function NewProjectPage() {
         total_budget: computedTotalBudget,
         template_id: proposalTemplate?.id,
         status: status === 'pending' ? 'submitted' : status,
-        dynamic_data: JSON.stringify(dynamicData),
+        dynamic_data: JSON.stringify({ ...dynamicData, fiscal_year: String(computedFiscalYear) }),
         // Mock essential relational data to satisfy backend API requirements for now
         background: dynamicData['background'] || '',
         expected_results: dynamicData['expected_results'] || '',
@@ -304,11 +315,12 @@ export default function NewProjectPage() {
   const handlePreview = async () => {
     if (!proposalTemplate) return;
     try {
+      const computedFiscalYear = detectProjectFiscalYear(dynamicData, currentFiscalYear || fiscalYear);
       // Create a combined form data
       const formData = {
         ...dynamicData,
         title,
-        fiscal_year: fiscalYear,
+        fiscal_year: computedFiscalYear,
         budget_items: budgetItems,
       };
 
@@ -1271,8 +1283,13 @@ export default function NewProjectPage() {
       <form className="space-y-6">
         {/* Dynamic Form from Tags */}
         <div className="bg-white shadow-sm rounded-xl border border-gray-100 p-6">
-          <div className="flex justify-between items-center mb-4 border-b pb-2">
-            <h2 className="text-lg font-medium text-gray-900">ข้อมูลตามแม่แบบ (Dynamic Form)</h2>
+          <div className="flex flex-wrap justify-between items-center gap-2 mb-4 border-b pb-2">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-medium text-gray-900">ข้อมูลตามแม่แบบ (Dynamic Form)</h2>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-900 border border-blue-200">
+                ปีงบประมาณ พ.ศ. {fiscalYear}
+              </span>
+            </div>
             {proposalTemplate && (
               <span className="text-xs font-medium bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">
                 {proposalTemplate.name}

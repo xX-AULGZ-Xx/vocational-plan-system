@@ -357,6 +357,46 @@ router.get('/:id', optionalAuthenticate, async (req: AuthRequest, res: Response)
 });
 
 
+function extractFiscalYearFromDynamicData(dynamicData: any, fallbackYear?: number): number {
+  if (!dynamicData) return fallbackYear || 2568;
+  try {
+    const parsed = typeof dynamicData === 'string' ? JSON.parse(dynamicData) : dynamicData;
+    // 1. Check DATERANGE or objects with start
+    for (const [_, val] of Object.entries(parsed)) {
+      if (val && typeof val === 'object' && !Array.isArray(val) && (val as any).start) {
+        const match = String((val as any).start).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if (match) {
+          let y = parseInt(match[1], 10);
+          const m = parseInt(match[2], 10);
+          if (y < 2400) y += 543;
+          return m >= 10 ? y + 1 : y;
+        }
+      }
+    }
+    // 2. Check DATE fields or start_date keywords
+    for (const [key, val] of Object.entries(parsed)) {
+      if (typeof val === 'string' && val) {
+        const lk = key.toLowerCase();
+        if (lk.includes('start') || lk.includes('begin') || lk.includes('period') || lk.includes('duration') || lk.includes('date')) {
+          const match = val.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+          if (match) {
+            let y = parseInt(match[1], 10);
+            const m = parseInt(match[2], 10);
+            if (y < 2400) y += 543;
+            return m >= 10 ? y + 1 : y;
+          }
+        }
+      }
+    }
+    // 3. If explicit fiscal_year inside dynamic_data
+    if (parsed.fiscal_year) {
+      const parsedFY = parseInt(String(parsed.fiscal_year), 10);
+      if (!isNaN(parsedFY) && parsedFY > 2500) return parsedFY;
+    }
+  } catch {}
+  return fallbackYear || 2568;
+}
+
 // POST /api/v1/projects (Create project)
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -406,6 +446,15 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       deptId = firstDept ? firstDept.id : 1;
     }
 
+    // Determine final fiscal year from start date / dynamic_data or payload
+    let finalFiscalYear = fiscal_year ? parseInt(fiscal_year) : null;
+    if (dynamic_data) {
+      finalFiscalYear = extractFiscalYearFromDynamicData(dynamic_data, finalFiscalYear || undefined);
+    }
+    if (!finalFiscalYear || isNaN(finalFiscalYear)) {
+      finalFiscalYear = 2568;
+    }
+
     // Calculate total budget
     const totalBudget = budget_items.reduce((sum: number, item: any) => {
       const q = parseFloat(item.quantity) || 0;
@@ -416,7 +465,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     const project = await prisma.project.create({
       data: {
         title,
-        fiscal_year: parseInt(fiscal_year) || 2569,
+        fiscal_year: finalFiscalYear,
         department_id: deptId,
         leader_id: leaderId,
         template_id: template_id ? parseInt(template_id) : null,
@@ -577,7 +626,9 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         where: { id: projectId },
         data: {
           title: title !== undefined ? title : existingProject.title,
-          fiscal_year: fiscal_year !== undefined ? parseInt(fiscal_year) : existingProject.fiscal_year,
+          fiscal_year: dynamic_data !== undefined
+            ? extractFiscalYearFromDynamicData(dynamic_data, fiscal_year !== undefined ? parseInt(fiscal_year) : existingProject.fiscal_year)
+            : (fiscal_year !== undefined ? parseInt(fiscal_year) : existingProject.fiscal_year),
           department_id: department_id !== undefined ? parseInt(department_id) : existingProject.department_id,
           template_id: template_id !== undefined ? (template_id ? parseInt(template_id) : null) : existingProject.template_id,
           background: background !== undefined ? background : existingProject.background,

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
+import { getCurrentThaiFiscalYear, detectProjectFiscalYear } from '@/lib/bahttext';
 import { showAlert } from '@/lib/sweetalert';
 import {
   ArrowLeft,
@@ -223,7 +224,15 @@ const fetchProposalTemplate = async () => {
   };
 
   const handleDynamicChange = (key: string, value: any) => {
-    setDynamicData(prev => ({ ...prev, [key]: value }));
+    setDynamicData(prev => {
+      const updated = { ...prev, [key]: value };
+      const detectedFY = detectProjectFiscalYear(updated, currentFiscalYear || fiscalYear);
+      if (detectedFY) {
+        setFiscalYear(detectedFY);
+        updated['fiscal_year'] = String(detectedFY);
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent, status: 'draft' | 'pending') => {
@@ -231,7 +240,7 @@ const fetchProposalTemplate = async () => {
     
     // Auto-map system fields from dynamic data
     const computedTitle = dynamicData['title'] || dynamicData['project_name'] || 'โครงการไม่มีชื่อ';
-    const computedFiscalYear = parseInt(dynamicData['fiscal_year']) || new Date().getFullYear() + 543;
+    const computedFiscalYear = detectProjectFiscalYear(dynamicData, currentFiscalYear || fiscalYear);
     const computedTotalBudget = dynamicData['total_budget'] || 0;
     // For department, find department matching the selected approver/endorser or user's department
     const approverVal = dynamicData['endorser_name'] || dynamicData['endorser'] || dynamicData['approver_name'] || dynamicData['approver'] || '';
@@ -297,7 +306,7 @@ const fetchProposalTemplate = async () => {
         total_budget: computedTotalBudget,
         template_id: proposalTemplate?.id,
         status: status === 'pending' ? 'submitted' : status,
-        dynamic_data: JSON.stringify(dynamicData),
+        dynamic_data: JSON.stringify({ ...dynamicData, fiscal_year: String(computedFiscalYear) }),
         // Mock essential relational data to satisfy backend API requirements for now
         background: dynamicData['background'] || '',
         expected_results: dynamicData['expected_results'] || '',
