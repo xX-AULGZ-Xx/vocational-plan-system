@@ -15,15 +15,6 @@ router.get('/', async (req: Request, res: Response) => {
     const settings = await (prisma as any).systemSetting.findMany();
     const settingsMap = new Map<string, string>(settings.map((s: any) => [s.key, s.value]));
 
-    // Fetch users for fallback if setting is not explicitly stored
-    const deputyUsers = await prisma.user.findMany({
-      where: { role: 'DEPUTY_DIRECTOR' },
-      include: { department: true },
-    });
-    const headUsers = await prisma.user.findMany({
-      where: { role: 'HEAD_DEPT' },
-    });
-
     const enriched = divisions.map((div) => {
       const divCodeLower = div.code.toLowerCase();
       let deputyName = settingsMap.get(`deputy_name_${divCodeLower}`) || 
@@ -34,28 +25,12 @@ router.get('/', async (req: Request, res: Response) => {
                            settingsMap.get(`deputy_pos_div_${div.id}`) || 
                            `รองผู้อำนวยการ${div.name}`;
 
-      if (!deputyName) {
-        const deputyUser = deputyUsers.find((u) => u.department?.division_id === div.id);
-        if (deputyUser) {
-          deputyName = deputyUser.full_name;
-          if (deputyUser.position) deputyPosition = deputyUser.position;
-        }
-      }
-
       const departments = div.departments.map((dept) => {
         let headName = settingsMap.get(`head_name_dept_${dept.id}`) || 
                        settingsMap.get(`head_dept_${dept.id}_name`) || '';
         let headPosition = settingsMap.get(`head_position_dept_${dept.id}`) || 
                            settingsMap.get(`head_dept_${dept.id}_position`) || 
                            `หัวหน้า${dept.name}`;
-
-        if (!headName) {
-          const headUser = headUsers.find((u) => u.department_id === dept.id);
-          if (headUser) {
-            headName = headUser.full_name;
-            if (headUser.position) headPosition = headUser.position;
-          }
-        }
 
         return {
           ...dept,
@@ -112,19 +87,6 @@ router.get('/:code', async (req: Request, res: Response) => {
 
     let deputyName = deputySetting ? deputySetting.value : '';
     let deputyPosition = deputyPosSetting ? deputyPosSetting.value : `รองผู้อำนวยการ${division.name}`;
-
-    if (!deputyName) {
-      const deputyUser = await prisma.user.findFirst({
-        where: {
-          role: 'DEPUTY_DIRECTOR',
-          department: { division_id: division.id }
-        }
-      });
-      if (deputyUser) {
-        deputyName = deputyUser.full_name;
-        if (deputyUser.position) deputyPosition = deputyUser.position;
-      }
-    }
 
     const data = {
       ...division,
