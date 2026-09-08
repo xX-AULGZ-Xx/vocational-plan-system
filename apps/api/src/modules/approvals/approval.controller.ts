@@ -6,6 +6,54 @@ import { notificationService } from '../notifications/notification.service';
 
 const router = Router();
 
+// Helper to resolve project target division from dynamic_data approver tags or department
+async function getProjectTargetDivisionId(project: any): Promise<number | null> {
+  if (project.dynamic_data) {
+    try {
+      const parsed = typeof project.dynamic_data === 'string' ? JSON.parse(project.dynamic_data) : project.dynamic_data;
+      if (parsed.approver_division_id) {
+        return Number(parsed.approver_division_id);
+      }
+      
+      const approverPos = String(parsed.approver_position || parsed.approver_name_position || parsed.deputy_position || '');
+      const approverName = String(parsed.approver_name || parsed.approver || '');
+
+      const allDivisions = await prisma.division.findMany();
+      let settingsMap = new Map<string, string>();
+      try {
+        const settings = await (prisma as any).systemSetting.findMany();
+        settingsMap = new Map<string, string>(settings.map((s: any) => [s.key, s.value]));
+      } catch {
+        // ignore
+      }
+
+      for (const div of allDivisions) {
+        const divCodeLower = div.code.toLowerCase();
+        const deputyName = settingsMap.get(`deputy_name_${divCodeLower}`) || 
+                           settingsMap.get(`deputy_${divCodeLower}_name`) || 
+                           settingsMap.get(`deputy_name_div_${div.id}`) || '';
+        const deputyPosition = settingsMap.get(`deputy_position_${divCodeLower}`) || 
+                               settingsMap.get(`deputy_${divCodeLower}_position`) || 
+                               settingsMap.get(`deputy_pos_div_${div.id}`) || 
+                               `รองผู้อำนวยการ${div.name}`;
+
+        if (approverPos && deputyPosition && approverPos.includes(deputyPosition)) return div.id;
+        if (approverPos && approverPos.includes(div.name)) return div.id;
+        if (approverName && deputyName && approverName.includes(deputyName)) return div.id;
+        if (approverName && approverName.includes(div.name)) return div.id;
+
+        if (div.code === 'ACAD' && approverPos.includes('วิชาการ')) return div.id;
+        if (div.code === 'RES' && (approverPos.includes('ทรัพยากร') || approverPos.includes('บริหาร'))) return div.id;
+        if (div.code === 'DEV' && (approverPos.includes('พัฒนากิจการ') || approverPos.includes('กิจกรรม') || approverPos.includes('พัฒนานักเรียน'))) return div.id;
+        if (div.code === 'STRAT' && (approverPos.includes('แผนงาน') || approverPos.includes('ความร่วมมือ'))) return div.id;
+      }
+    } catch {
+      // ignore json error
+    }
+  }
+  return project.department?.division_id || null;
+}
+
 // Helper to generate project code: PRJ-YYYY-[DIV]-XXXX with collision prevention
 async function generateProjectCode(fiscalYear: number, divisionCode: string): Promise<string> {
   const existingProjects = await prisma.project.findMany({
@@ -76,18 +124,8 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       newProjectStatus = ProjectStatus.dept_approved;
       nextStepOrder = 2;
 
-      // Extract approver division from project's dynamic_data if specified
-      let targetDivisionId = project.department?.division_id;
-      if (project.dynamic_data) {
-        try {
-          const parsed = typeof project.dynamic_data === 'string' ? JSON.parse(project.dynamic_data) : project.dynamic_data;
-          if (parsed.approver_division_id) {
-            targetDivisionId = Number(parsed.approver_division_id);
-          }
-        } catch {
-          // ignore json parse error
-        }
-      }
+      // Extract approver division from project's dynamic_data tags (ผู้เห็นชอบโครงการ)
+      const targetDivisionId = await getProjectTargetDivisionId(project);
 
       const deputy =
         (targetDivisionId
@@ -140,7 +178,16 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       newProjectStatus = ProjectStatus.planning_approved;
       nextStepOrder = 4;
 
-      const divisionCode = project.department?.division?.code || 'GEN';
+      const targetDivId = await getProjectTargetDivisionId(project);
+      let divisionCode = 'GEN';
+      if (targetDivId) {
+        const div = await prisma.division.findUnique({ where: { id: targetDivId } });
+        if (div?.code) divisionCode = div.code;
+      }
+      if (divisionCode === 'GEN' && project.department?.division?.code) {
+        divisionCode = project.department.division.code;
+      }
+
       if (!assignedProjectCode) {
         assignedProjectCode = await generateProjectCode(project.fiscal_year, divisionCode);
       }
@@ -329,6 +376,7 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
 // GET /api/v1/approvals/inbox (Approvals pending for the logged in user)
 router.get('/inbox', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const userId = BigInt(req.user!.id);
     const userRole = req.user!.role;
     const userDeptId = req.user!.department_id;
     const userDivId = req.user!.division_id;
@@ -345,11 +393,6 @@ router.get('/inbox', authenticate, async (req: AuthRequest, res: Response) => {
       }
     } else if (userRole === Role.DEPUTY_DIRECTOR) {
       whereCondition.step_order = 2;
-      if (userDivId) {
-        whereCondition.project = {
-          department: { division_id: userDivId },
-        };
-      }
     } else if (userRole === Role.PLANNING_OFFICER) {
       whereCondition.step_order = 3;
     } else if (userRole === Role.DIRECTOR) {
@@ -396,7 +439,24 @@ router.get('/inbox', authenticate, async (req: AuthRequest, res: Response) => {
       orderBy: { project: { created_at: 'desc' } },
     });
 
-    return res.json({ success: true, data: serializeBigInt(pendingApprovals) });
+    // For DEPUTY_DIRECTOR, filter results so they only see projects matching their assigned division (from tags/data) or approver_id
+    let filteredApprovals = pendingApprovals;
+    if (userRole === Role.DEPUTY_DIRECTOR && userDivId) {
+      const matchedList = [];
+      for (const item of pendingApprovals) {
+        if (item.approver_id === userId) {
+          matchedList.push(item);
+          continue;
+        }
+        const targetDivId = await getProjectTargetDivisionId(item.project);
+        if (targetDivId === userDivId) {
+          matchedList.push(item);
+        }
+      }
+      filteredApprovals = matchedList;
+    }
+
+    return res.json({ success: true, data: serializeBigInt(filteredApprovals) });
   } catch (error: any) {
     console.error('Approvals inbox error:', error);
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงรายการอนุมัติ', error: error.message });
@@ -425,7 +485,7 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
     } else if (userRole === Role.DEPUTY_DIRECTOR) {
       whereCondition.OR = [
         { approver_id: userId },
-        { step_order: 2, project: { department: { division_id: userDivId } } },
+        { step_order: 2 },
       ];
     } else if (userRole === Role.PLANNING_OFFICER) {
       whereCondition.OR = [
@@ -474,7 +534,23 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
       take: 100,
     });
 
-    return res.json({ success: true, data: serializeBigInt(historyApprovals) });
+    let filteredHistory = historyApprovals;
+    if (userRole === Role.DEPUTY_DIRECTOR && userDivId) {
+      const matched = [];
+      for (const item of historyApprovals) {
+        if (item.approver_id === userId) {
+          matched.push(item);
+          continue;
+        }
+        const targetDivId = await getProjectTargetDivisionId(item.project);
+        if (targetDivId === userDivId) {
+          matched.push(item);
+        }
+      }
+      filteredHistory = matched;
+    }
+
+    return res.json({ success: true, data: serializeBigInt(filteredHistory) });
   } catch (error: any) {
     console.error('Approvals history error:', error);
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงประวัติการอนุมัติ', error: error.message });
@@ -484,6 +560,7 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
 // GET /api/v1/approvals/pipeline-stats (Summary counts of pipeline across steps)
 router.get('/pipeline-stats', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const userId = BigInt(req.user!.id);
     const userRole = req.user!.role;
     const userDeptId = req.user!.department_id;
     const userDivId = req.user!.division_id;
@@ -508,13 +585,26 @@ router.get('/pipeline-stats', authenticate, async (req: AuthRequest, res: Respon
         },
       });
     } else if (userRole === Role.DEPUTY_DIRECTOR) {
-      myPendingCount = await prisma.projectApproval.count({
-        where: {
-          status: ApprovalStatus.PENDING,
-          step_order: 2,
-          ...(userDivId ? { project: { department: { division_id: userDivId } } } : {}),
-        },
-      });
+      if (!userDivId) {
+        myPendingCount = step2Count;
+      } else {
+        const step2Items = await prisma.projectApproval.findMany({
+          where: { status: ApprovalStatus.PENDING, step_order: 2 },
+          include: { project: { include: { department: true } } }
+        });
+        let count = 0;
+        for (const item of step2Items) {
+          if (item.approver_id === userId) {
+            count++;
+            continue;
+          }
+          const targetDivId = await getProjectTargetDivisionId(item.project);
+          if (targetDivId === userDivId) {
+            count++;
+          }
+        }
+        myPendingCount = count;
+      }
     } else if (userRole === Role.PLANNING_OFFICER) {
       myPendingCount = step3Count;
     } else if (userRole === Role.DIRECTOR) {
