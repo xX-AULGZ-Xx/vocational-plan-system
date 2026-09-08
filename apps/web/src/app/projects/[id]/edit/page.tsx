@@ -37,6 +37,8 @@ export default function EditProjectPage() {
     deputyDevPosition,
     deputyStratName,
     deputyStratPosition,
+    planningHeadName,
+    planningHeadPosition,
     currentFiscalYear,
     isSubmissionOpen,
     submissionStartDate,
@@ -64,7 +66,7 @@ export default function EditProjectPage() {
     if (token && projectId) {
       fetchDivisions().then(() => fetchProposalTemplate().then(() => fetchProject()));
     }
-  }, [token, projectId]);
+  }, [token, projectId, planningHeadName]);
 
   const fetchProject = async () => {
     try {
@@ -99,6 +101,8 @@ export default function EditProjectPage() {
         // Default auto-fill if empty
         if (!parsedDynamic.leader_name) parsedDynamic.leader_name = user?.full_name || '';
         if (!parsedDynamic.leader_position) parsedDynamic.leader_position = user?.position || 'ครู';
+        if (!parsedDynamic.planning_head_name) parsedDynamic.planning_head_name = planningHeadName || '';
+        if (!parsedDynamic.planning_head_position) parsedDynamic.planning_head_position = planningHeadPosition || 'หัวหน้างานวางแผนและงบประมาณ';
         if (!parsedDynamic.head_name) {
           const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
           if (userDept?.head_name) parsedDynamic.head_name = userDept.head_name;
@@ -407,14 +411,14 @@ const fetchProposalTemplate = async () => {
             <select
               value={value || ''}
               onChange={(e) => {
-                handleDynamicChange(key, e.target.value);
-                const selectedDeputy = deputyList.find(d => d.name === e.target.value);
+                const selectedVal = e.target.value;
+                handleDynamicChange(key, selectedVal);
+                const selectedDeputy = deputyList.find(d => d.name === selectedVal);
                 if (selectedDeputy) {
-                  if (dynamicData[`${key}_position`] !== undefined || dynamicData['approver_position'] !== undefined || dynamicData['deputy_position'] !== undefined) {
-                    handleDynamicChange(`${key}_position`, selectedDeputy.position);
-                    handleDynamicChange('approver_position', selectedDeputy.position);
-                    handleDynamicChange('deputy_position', selectedDeputy.position);
-                  }
+                  // Auto fill all approver position tags
+                  handleDynamicChange('approver_position', selectedDeputy.position);
+                  handleDynamicChange(`${key}_position`, selectedDeputy.position);
+                  handleDynamicChange('deputy_position', selectedDeputy.position);
                 }
               }}
               disabled={!isEditing}
@@ -431,13 +435,100 @@ const fetchProposalTemplate = async () => {
           </div>
         );
       }
+      case 'LEADER_POSITION': {
+        const standardPositions = ['หัวหน้างาน', 'ผู้ช่วยงาน', 'ครูประจำแผนก', 'เจ้าหน้าที่'];
+        const isCustom = value && !standardPositions.includes(value);
+
+        return (
+          <div key={key} className="col-span-1">
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
+              <span className="text-[10px] font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                เลือกหรือกรอกตำแหน่ง
+              </span>
+            </div>
+            {tag.description && <p className="text-xs text-gray-500 mb-1">{tag.description}</p>}
+            <div className="space-y-1.5">
+              <select
+                value={isCustom ? 'OTHER' : (value || '')}
+                onChange={(e) => {
+                  if (e.target.value !== 'OTHER') {
+                    handleDynamicChange(key, e.target.value);
+                  } else {
+                    handleDynamicChange(key, '');
+                  }
+                }}
+                disabled={!isEditing}
+                className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-white"
+              >
+                <option value="">-- เลือกตำแหน่งผู้เสนอโครงการ --</option>
+                {standardPositions.map((pos) => (
+                  <option key={pos} value={pos}>{pos}</option>
+                ))}
+                <option value="OTHER">อื่นๆ (ระบุเอง)</option>
+              </select>
+              {(isCustom || value === '' || !standardPositions.includes(value)) && (
+                <input
+                  type="text"
+                  placeholder="ระบุตำแหน่งผู้เสนอโครงการ..."
+                  value={value || ''}
+                  onChange={(e) => handleDynamicChange(key, e.target.value)}
+                  required={tag.is_required}
+                  className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-slate-50/50 focus:bg-white"
+                />
+              )}
+            </div>
+          </div>
+        );
+      }
+      case 'APPROVER_POSITION': {
+        return (
+          <div key={key} className="col-span-1">
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
+              <span className="text-[10px] font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                ดึงอัตโนมัติตามรองฝ่าย
+              </span>
+            </div>
+            {tag.description && <p className="text-xs text-gray-500 mb-1">{tag.description}</p>}
+            <input
+              type="text"
+              value={value || ''}
+              onChange={(e) => handleDynamicChange(key, e.target.value)}
+              required={tag.is_required}
+              placeholder="ระบบจะดึงอัตโนมัติตามรองฝ่ายที่เลือก"
+              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-purple-50/30 font-medium text-purple-950 focus:bg-white"
+            />
+          </div>
+        );
+      }
+      case 'PLANNING_HEAD_NAME':
+      case 'PLANNING_HEAD_POSITION': {
+        return (
+          <div key={key} className="col-span-1">
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
+              <span className="text-[10px] font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                ดึงอัตโนมัติ (งานแผน)
+              </span>
+            </div>
+            {tag.description && <p className="text-xs text-gray-500 mb-1">{tag.description}</p>}
+            <input
+              type="text"
+              value={value || ''}
+              onChange={(e) => handleDynamicChange(key, e.target.value)}
+              required={tag.is_required}
+              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-blue-50/20 font-medium text-blue-950 focus:bg-white"
+            />
+          </div>
+        );
+      }
       case 'APPROVER_POSITION_DROPDOWN': {
         const standardPositions = [
           'หัวหน้างาน',
-          'หัวหน้าแผนก',
           'ผู้ช่วยงาน',
+          'ครูประจำแผนก',
           'เจ้าหน้าที่',
-          'ครูประจำสาขา',
         ];
 
         return (
@@ -467,10 +558,8 @@ const fetchProposalTemplate = async () => {
         );
       }
       case 'LEADER_NAME':
-      case 'LEADER_POSITION':
       case 'HEAD_NAME':
       case 'HEAD_POSITION':
-      case 'APPROVER_POSITION':
       case 'DIRECTOR_NAME':
       case 'DIRECTOR_POSITION':
       case 'COLLEGE_NAME':

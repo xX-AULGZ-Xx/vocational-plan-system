@@ -22,6 +22,8 @@ interface SettingsContextType {
   deputyDevPosition: string;
   deputyStratName: string;
   deputyStratPosition: string;
+  planningHeadName: string;
+  planningHeadPosition: string;
   currentFiscalYear: string;
   isSubmissionOpen: boolean;
   submissionStartDate: string;
@@ -66,6 +68,8 @@ const defaultContext: SettingsContextType = {
   deputyDevPosition: 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา',
   deputyStratName: '',
   deputyStratPosition: 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ',
+  planningHeadName: '',
+  planningHeadPosition: 'หัวหน้างานวางแผนและงบประมาณ',
   currentFiscalYear: String(getCurrentThaiFiscalYear()),
   isSubmissionOpen: true,
   submissionStartDate: '',
@@ -191,6 +195,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const deputyDevPosition = settings.deputy_dev_position || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา';
   const deputyStratName = settings.deputy_strat_name || '';
   const deputyStratPosition = settings.deputy_strat_position || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ';
+  const planningHeadName = settings.planning_head_name || '';
+  const planningHeadPosition = settings.planning_head_position || 'หัวหน้างานวางแผนและงบประมาณ';
   const currentFiscalYear = settings.current_fiscal_year || String(getCurrentThaiFiscalYear());
   const isSubmissionOpen = settings.is_submission_open !== 'false';
   const submissionStartDate = settings.submission_start_date || '';
@@ -240,6 +246,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         deputyDevPosition,
         deputyStratName,
         deputyStratPosition,
+        planningHeadName,
+        planningHeadPosition,
         currentFiscalYear,
         isSubmissionOpen,
         submissionStartDate,

@@ -113,6 +113,8 @@ const DEFAULT_SETTINGS = [
   { key: 'deputy_dev_position', value: 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', description: 'ตำแหน่ง รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
   { key: 'deputy_strat_name', value: '', description: 'ชื่อ รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
   { key: 'deputy_strat_position', value: 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', description: 'ตำแหน่ง รองผู้อำนวยการฝ่ายแผนงานฯ' },
+  { key: 'planning_head_name', value: '', description: 'ชื่อ หัวหน้างานวางแผนและงบประมาณ' },
+  { key: 'planning_head_position', value: 'หัวหน้างานวางแผนและงบประมาณ', description: 'ตำแหน่ง หัวหน้างานวางแผนและงบประมาณ' },
   { key: 'enable_test_mode', value: 'true', description: 'เปิด/ปิดโหมดทดสอบระบบ (1-Click Test Login ในหน้าล็อกอิน)' },
   { key: 'google_client_id', value: '', description: 'Google OAuth 2.0 Client ID สำหรับ Sign in with Google' },
   { key: 'google_allowed_domains', value: 'cric.ac.th, vec.mail.go.th', description: 'โดเมนอีเมลองค์กรที่อนุญาตให้ล็อกอิน (คั่นด้วยเครื่องหมายจุลภาค)' },
@@ -198,6 +200,17 @@ router.get('/settings', async (req: AuthRequest, res: Response) => {
           result['deputy_dev_name'] = u.full_name;
         } else if (u.department?.division_id === 4 && !result['deputy_strat_name']) {
           result['deputy_strat_name'] = u.full_name;
+        }
+      }
+
+      // Fallback planning head from PLANNING_OFFICER or Planning department head
+      if (!result['planning_head_name']) {
+        const planOfficer = await prisma.user.findFirst({
+          where: { role: 'PLANNING_OFFICER', is_active: true },
+        });
+        if (planOfficer) {
+          result['planning_head_name'] = planOfficer.full_name;
+          if (planOfficer.position) result['planning_head_position'] = planOfficer.position;
         }
       }
     } catch (depErr) {}

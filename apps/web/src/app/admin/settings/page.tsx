@@ -1318,6 +1318,41 @@ export default function AdminSettingsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* หัวหน้างานวางแผนและงบประมาณ */}
+              <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-3 mt-4">
+                <h3 className="text-xs font-bold text-blue-950 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                  หัวหน้างานวางแผนและงบประมาณ (ดึง Auto Fill ลงในเอกสารและแบบเสนอโครงการ)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      ชื่อ-นามสกุล หัวหน้างานวางแผนและงบประมาณ
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.planning_head_name || ''}
+                      onChange={(e) => handleChange('planning_head_name', e.target.value)}
+                      placeholder="เช่น นายรักแผน มุ่งมั่นพัฒนา (หากเว้นว่างจะดึงจากผู้ใช้บทบาทงานแผน)"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      ตำแหน่งทางการ
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.planning_head_position || 'หัวหน้างานวางแผนและงบประมาณ'}
+                      onChange={(e) => handleChange('planning_head_position', e.target.value)}
+                      placeholder="หัวหน้างานวางแผนและงบประมาณ"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

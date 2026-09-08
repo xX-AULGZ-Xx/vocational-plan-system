@@ -83,6 +83,8 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
     if (!formData.deputy_dev_position) formData.deputy_dev_position = settingsMap.get('deputy_dev_position') || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา';
     if (!formData.deputy_strat_name) formData.deputy_strat_name = settingsMap.get('deputy_strat_name') || '';
     if (!formData.deputy_strat_position) formData.deputy_strat_position = settingsMap.get('deputy_strat_position') || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ';
+    if (!formData.planning_head_name) formData.planning_head_name = settingsMap.get('planning_head_name') || '';
+    if (!formData.planning_head_position) formData.planning_head_position = settingsMap.get('planning_head_position') || 'หัวหน้างานวางแผนและงบประมาณ';
   } catch (err) {
     console.warn('Could not load system settings for docx render fallback:', err);
   }
