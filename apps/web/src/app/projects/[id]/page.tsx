@@ -278,6 +278,32 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    if (!project) return;
+    const isRejected = project.status === 'rejected';
+    const confirmed = await showAlert.confirm(
+      isRejected ? 'ยืนยันการลบโครงการ' : 'ยืนยันการลบแบบร่าง',
+      `คุณต้องการลบโครงการ "${project.title}" ใช่หรือไม่? (การดำเนินการนี้ไม่สามารถย้อนกลับได้)`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/v1/projects/${project.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        await showAlert.success('ลบโครงการเรียบร้อยแล้ว');
+        router.push('/my-projects');
+      } else {
+        showAlert.error('ลบไม่สำเร็จ', data.message);
+      }
+    } catch (err) {
+      showAlert.error('ข้อผิดพลาด', 'เกิดข้อผิดพลาดในการลบโครงการ');
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-12 text-center text-slate-500">
@@ -320,6 +346,10 @@ export default function ProjectDetailPage() {
   const pendingApproval = project.approvals?.find((a: any) => a.status === 'PENDING');
   
   const isDraft = project.status === 'draft';
+  const isRejected = project.status === 'rejected';
+  const isOwnerOrAdmin = user && (user.id === project.leader?.id || user.role === 'ADMIN');
+  const canEditProject = isOwnerOrAdmin && (isDraft || isRejected);
+  const canDeleteProject = isOwnerOrAdmin && (isDraft || isRejected);
   const canUploadDoc = !isDraft && user && (user.id === project.leader?.id || user.role === 'ADMIN' || user.role === 'PLANNING_OFFICER');
 const canApprove =
     user &&
@@ -458,20 +488,32 @@ const canApprove =
               <span>ดูตัวอย่างเอกสาร</span>
             </button>
 
-            {/* If Draft: Edit Project Button */}
-            {project.status === 'draft' && (
+            {/* Edit Project Button (for Draft / Rejected) */}
+            {canEditProject && (
               <Link
                 href={`/projects/${project.id}/edit`}
                 className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition transform active:scale-95"
-                title="แก้ไขข้อมูลโครงการแบบร่าง"
+                title="แก้ไขข้อมูลโครงการ"
               >
                 <Edit3 className="w-3.5 h-3.5" />
                 <span>แก้ไขโครงการ</span>
               </Link>
             )}
 
+            {/* Delete Project Button (for Draft / Rejected) */}
+            {canDeleteProject && (
+              <button
+                onClick={handleDeleteProject}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 shadow-sm transition transform active:scale-95"
+                title="ลบโครงการ"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>ลบโครงการ</span>
+              </button>
+            )}
+
             {/* If Draft / Rejected: Submit for Approval Button */}
-            {(project.status === 'draft' || project.status === 'rejected') && (
+            {canEditProject && (
               <button
                 onClick={handleSubmitProject}
                 disabled={submitting}
@@ -479,7 +521,7 @@ const canApprove =
                 title="ยื่นเสนอโครงการเข้าสู่กระบวนการพิจารณาและอนุมัติ"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{submitting ? 'กำลังส่งโครงการ...' : 'ยื่นเสนอขออนุมัติโครงการ'}</span>
+                <span>{submitting ? 'กำลังส่งโครงการ...' : isRejected ? 'ยื่นเสนอโครงการอีกครั้ง' : 'ยื่นเสนอขออนุมัติโครงการ'}</span>
               </button>
             )}
 
@@ -530,6 +572,43 @@ const canApprove =
             )}
           </div>
         </div>
+
+        {/* Feedback banner if Rejected or Returned for revision */}
+        {isRejected && (
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-start justify-between gap-3 shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-bold text-sm text-rose-800">โครงการนี้ไม่ผ่านการอนุมัติ / ขอให้แก้ไข</h4>
+                <p className="text-rose-700 mt-0.5">
+                  {(() => {
+                    const latestRejected = [...(project.approvals || [])].reverse().find((a: any) => a.status === 'REJECTED' || a.status === 'REVISION_REQUESTED');
+                    if (latestRejected?.comment) {
+                      return `เหตุผล / ข้อเสนอแนะ: "${latestRejected.comment}"`;
+                    }
+                    return 'ท่านสามารถคลิก "แก้ไขโครงการ" เพื่อปรับปรุงข้อมูลและยื่นเสนอใหม่ หรือคลิก "ลบโครงการ" ได้';
+                  })()}
+                </p>
+              </div>
+            </div>
+            {canEditProject && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href={`/projects/${project.id}/edit`}
+                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs transition"
+                >
+                  แก้ไขโครงการ
+                </Link>
+                <button
+                  onClick={handleDeleteProject}
+                  className="px-3 py-1.5 bg-white border border-rose-300 hover:bg-rose-100 text-rose-700 font-bold rounded-lg text-xs transition"
+                >
+                  ลบโครงการ
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {actionMsg && (
           <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-theme text-xs font-medium">

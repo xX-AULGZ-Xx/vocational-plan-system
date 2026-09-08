@@ -25,6 +25,7 @@ import {
   Building2,
   DollarSign,
   AlertCircle,
+  Edit3,
   X,
 } from 'lucide-react';
 
@@ -175,9 +176,10 @@ export default function MyProjectsPage() {
   };
 
   const handleDeleteProject = async (p: any) => {
+    const isRejected = p.status === 'rejected';
     const confirmed = await showAlert.confirm(
-      'ยืนยันการลบแบบร่าง',
-      `คุณต้องการลบแบบร่างโครงการ "${p.title}" ใช่หรือไม่? (การดำเนินการนี้ไม่สามารถย้อนกลับได้)`
+      isRejected ? 'ยืนยันการลบโครงการ' : 'ยืนยันการลบแบบร่าง',
+      `คุณต้องการลบโครงการ "${p.title}" ใช่หรือไม่? (การดำเนินการนี้ไม่สามารถย้อนกลับได้)`
     );
     if (!confirmed) return;
 
@@ -388,21 +390,22 @@ export default function MyProjectsPage() {
 
                 {/* Actions */}
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
-                  {p.status === 'draft' && (
+                  {(p.status === 'draft' || p.status === 'rejected') && (
                     <>
                       <Link
                         href={`/projects/${p.id}/edit`}
                         className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-theme border border-amber-200 transition"
                       >
-                        <span>แก้ไขแบบร่าง</span>
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>แก้ไขโครงการ</span>
                       </Link>
                       <button
                         onClick={() => handleDeleteProject(p)}
                         className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-theme border border-red-200 transition"
-                        title="ลบแบบร่างโครงการ"
+                        title="ลบโครงการ"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        <span>ลบแบบร่าง</span>
+                        <span>ลบโครงการ</span>
                       </button>
                     </>
                   )}

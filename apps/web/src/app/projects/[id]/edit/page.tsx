@@ -76,8 +76,8 @@ export default function EditProjectPage() {
       const data = await res.json();
       if (data.success && data.data) {
         const proj = data.data;
-        if (proj.status !== 'draft') {
-          await showAlert.warning('ไม่สามารถแก้ไขได้', 'ไม่สามารถแก้ไขโครงการที่ส่งขออนุมัติไปแล้วได้');
+        if (proj.status !== 'draft' && proj.status !== 'rejected') {
+          await showAlert.warning('ไม่สามารถแก้ไขได้', 'ไม่สามารถแก้ไขโครงการที่กำลังอยู่ในขั้นตอนการพิจารณาหรืออนุมัติแล้วได้');
           router.push('/my-projects');
           return;
         }

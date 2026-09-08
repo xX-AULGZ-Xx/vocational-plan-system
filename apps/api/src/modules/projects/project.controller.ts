@@ -698,11 +698,11 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์ในการลบโครงการนี้' });
     }
 
-    // Status check: only draft status can be deleted
-    if (project.status !== 'draft') {
+    // Status check: draft and rejected status can be deleted
+    if (project.status !== 'draft' && project.status !== 'rejected') {
       return res.status(400).json({
         success: false,
-        message: 'สามารถลบได้เฉพาะโครงการที่ยังเป็นแบบร่าง (Draft) เท่านั้น',
+        message: 'สามารถลบได้เฉพาะโครงการที่เป็นแบบร่าง (Draft) หรือไม่ได้รับการอนุมัติ (Rejected) เท่านั้น',
       });
     }
 
