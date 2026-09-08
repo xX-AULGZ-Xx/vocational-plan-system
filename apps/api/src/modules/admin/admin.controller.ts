@@ -739,41 +739,68 @@ router.put('/templates/:id/tags', async (req: AuthRequest, res: Response) => {
     const tags: any[] = req.body.tags || []; // Array of { id, tag_type, label, sort_order, is_required }
     const templateId = parseInt(id);
 
-    const incomingIds = tags.filter(t => t.id).map(t => t.id);
-    await (prisma as any).templateTag.deleteMany({
-      where: {
-        template_id: templateId,
-        id: { notIn: incomingIds }
-      }
-    });
+    // Make sure MySQL enum column in template_tags contains all new enum values
+    try {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE \`template_tags\` 
+        MODIFY COLUMN \`tag_type\` enum('TEXT','LONGTEXT','DATE','BOOLEAN','TABLE_LOOP','IMAGE','CALCULATION','DROPDOWN','DATERANGE','TIMELINE','ALIGNMENT_CHECKLIST','DIVISION_DROPDOWN','DEPARTMENT_DROPDOWN','DIRECTOR_NAME','DIRECTOR_POSITION','DEPUTY_DROPDOWN','DEPUTY_ACAD_NAME','DEPUTY_ACAD_POSITION','DEPUTY_RES_NAME','DEPUTY_RES_POSITION','DEPUTY_DEV_NAME','DEPUTY_DEV_POSITION','DEPUTY_STRAT_NAME','DEPUTY_STRAT_POSITION','LEADER_NAME','LEADER_POSITION','COLLEGE_NAME') NOT NULL DEFAULT 'TEXT'
+      `);
+    } catch (alterErr) {
+      // Column might already be modified or user has limited DDL permissions
+    }
 
-    for (const tag of (tags as any[])) {
+    const incomingIds = tags.filter(t => t.id).map(t => parseInt(t.id));
+    if (incomingIds.length > 0) {
+      await (prisma as any).templateTag.deleteMany({
+        where: {
+          template_id: templateId,
+          id: { notIn: incomingIds }
+        }
+      });
+    } else {
+      await (prisma as any).templateTag.deleteMany({
+        where: {
+          template_id: templateId
+        }
+      });
+    }
+
+    for (let i = 0; i < tags.length; i++) {
+      const tag = tags[i];
+      const optJson = tag.options !== undefined 
+        ? (typeof tag.options === 'string' ? tag.options : JSON.stringify(tag.options))
+        : null;
+
       if (tag.id) {
-        await (prisma as any).templateTag.update({
-          where: { id: tag.id },
-          data: {
-            tag_name: tag.tag_name,
-            tag_type: tag.tag_type,
-            label: tag.label,
-            description: tag.description,
-            options: tag.options,
-            sort_order: tag.sort_order,
-            is_required: tag.is_required
-          }
-        });
+        await prisma.$executeRawUnsafe(`
+          UPDATE \`template_tags\`
+          SET \`tag_name\` = ?, \`tag_type\` = ?, \`label\` = ?, \`description\` = ?, \`options\` = ?, \`sort_order\` = ?, \`is_required\` = ?
+          WHERE \`id\` = ? AND \`template_id\` = ?
+        `,
+          tag.tag_name || `tag_${i + 1}`,
+          tag.tag_type || 'TEXT',
+          tag.label || tag.tag_name || '',
+          tag.description || null,
+          optJson,
+          tag.sort_order !== undefined ? parseInt(tag.sort_order) : i,
+          tag.is_required ? 1 : 0,
+          parseInt(tag.id),
+          templateId
+        );
       } else {
-        await (prisma as any).templateTag.create({
-          data: {
-            template_id: templateId,
-            tag_name: tag.tag_name,
-            tag_type: tag.tag_type,
-            label: tag.label,
-            description: tag.description,
-            options: tag.options,
-            sort_order: tag.sort_order,
-            is_required: tag.is_required || false
-          }
-        });
+        await prisma.$executeRawUnsafe(`
+          INSERT INTO \`template_tags\` (\`template_id\`, \`tag_name\`, \`tag_type\`, \`label\`, \`description\`, \`options\`, \`sort_order\`, \`is_required\`, \`created_at\`, \`updated_at\`)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        `,
+          templateId,
+          tag.tag_name || `tag_${i + 1}`,
+          tag.tag_type || 'TEXT',
+          tag.label || tag.tag_name || '',
+          tag.description || null,
+          optJson,
+          tag.sort_order !== undefined ? parseInt(tag.sort_order) : i,
+          tag.is_required ? 1 : 0
+        );
       }
     }
 
@@ -782,7 +809,8 @@ router.put('/templates/:id/tags', async (req: AuthRequest, res: Response) => {
       message: 'บันทึกการตั้งค่าตัวแปรเรียบร้อยแล้ว'
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกตัวแปร', error: error.message });
+    console.error('Save tags error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกตัวแปร: ' + error.message, error: error.message });
   }
 });
 

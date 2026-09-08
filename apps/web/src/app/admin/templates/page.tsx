@@ -260,12 +260,15 @@ export default function AdminTemplatesPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setMsg({ type: 'success', text: 'บันทึกตัวแปรเรียบร้อยแล้ว' });
+        setMsg({ type: 'success', text: 'บันทึกการตั้งค่าตัวแปรเรียบร้อยแล้ว' });
+        showAlert.success('บันทึกตัวแปรเรียบร้อยแล้ว');
       } else {
-        setMsg({ type: 'error', text: data.message });
+        setMsg({ type: 'error', text: data.message || 'บันทึกไม่สำเร็จ' });
+        showAlert.error('บันทึกไม่สำเร็จ', data.message || 'เกิดข้อผิดพลาดในการบันทึกตัวแปร');
       }
-    } catch (e) {
-      setMsg({ type: 'error', text: 'เกิดข้อผิดพลาดในการบันทึกตัวแปร' });
+    } catch (e: any) {
+      setMsg({ type: 'error', text: 'เกิดข้อผิดพลาดในการบันทึกตัวแปร: ' + e.message });
+      showAlert.error('ข้อผิดพลาด', e.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     } finally {
       setSavingTags(false);
     }
