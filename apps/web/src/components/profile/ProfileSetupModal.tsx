@@ -72,6 +72,8 @@ export default function ProfileSetupModal() {
   const [customPosition, setCustomPosition] = useState('');
   const [selectedDivisionId, setSelectedDivisionId] = useState<number | ''>('');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | ''>('');
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<number[]>([]);
+  const [isHead, setIsHead] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Check if setup is needed
@@ -90,6 +92,9 @@ export default function ProfileSetupModal() {
       if (user.full_name && user.full_name !== user.username) {
         setFullName(user.full_name);
       }
+      if (user.role === 'HEAD_DEPT') {
+        setIsHead(true);
+      }
       if (user.position) {
         if (TEACHER_POSITIONS.includes(user.position)) {
           setPersonnelType('TEACHER');
@@ -107,6 +112,7 @@ export default function ProfileSetupModal() {
       }
       if (user.department?.id) {
         setSelectedDepartmentId(user.department.id);
+        setSelectedDepartmentIds([user.department.id]);
       }
     }
   }, [user]);
@@ -152,6 +158,7 @@ export default function ProfileSetupModal() {
       if (acadDiv) {
         setSelectedDivisionId(acadDiv.id);
         setSelectedDepartmentId('');
+        setSelectedDepartmentIds([]);
       }
     } else {
       setPosition('เจ้าหน้าที่');
@@ -161,6 +168,7 @@ export default function ProfileSetupModal() {
       if (resDiv) {
         setSelectedDivisionId(resDiv.id);
         setSelectedDepartmentId('');
+        setSelectedDepartmentIds([]);
       }
     }
   };
@@ -172,18 +180,29 @@ export default function ProfileSetupModal() {
     return div?.departments || [];
   }, [divisions, selectedDivisionId]);
 
-  // When division changes, check if department is still valid
+  // When division changes, reset or filter department choices
   const handleDivisionChange = (divId: number) => {
     setSelectedDivisionId(divId);
-    const div = divisions.find((d) => d.id === divId);
-    if (div && div.departments.length > 0) {
-      const isCurrentValid = div.departments.some((dept) => dept.id === Number(selectedDepartmentId));
-      if (!isCurrentValid) {
+    setSelectedDepartmentId('');
+    setSelectedDepartmentIds([]);
+  };
+
+  // Toggle department in multi-select mode
+  const handleToggleDepartment = (deptId: number) => {
+    setSelectedDepartmentIds((prev) => {
+      let next: number[];
+      if (prev.includes(deptId)) {
+        next = prev.filter((id) => id !== deptId);
+      } else {
+        next = [...prev, deptId];
+      }
+      if (next.length > 0) {
+        setSelectedDepartmentId(next[0]);
+      } else {
         setSelectedDepartmentId('');
       }
-    } else {
-      setSelectedDepartmentId('');
-    }
+      return next;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -206,8 +225,9 @@ export default function ProfileSetupModal() {
       return;
     }
 
-    if (!selectedDepartmentId) {
-      setErrorMsg(personnelType === 'TEACHER' ? 'กรุณาเลือกแผนกวิชาที่สังกัด' : 'กรุณาเลือกงานที่สังกัด');
+    const effectiveDeptId = selectedDepartmentId || (selectedDepartmentIds.length > 0 ? selectedDepartmentIds[0] : null);
+    if (!effectiveDeptId) {
+      setErrorMsg(personnelType === 'TEACHER' ? 'กรุณาเลือกแผนกวิชาที่สังกัดอย่างน้อย 1 รายการ' : 'กรุณาเลือกงานที่สังกัดอย่างน้อย 1 งาน');
       return;
     }
 
@@ -223,7 +243,8 @@ export default function ProfileSetupModal() {
         body: JSON.stringify({
           full_name: fullName.trim(),
           position: effectivePosition,
-          department_id: Number(selectedDepartmentId),
+          department_id: Number(effectiveDeptId),
+          is_head: isHead,
         }),
       });
 
@@ -250,7 +271,7 @@ export default function ProfileSetupModal() {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-xl w-full overflow-hidden flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden flex flex-col my-8">
         {/* Header */}
         <div
           className="p-6 text-white text-left relative overflow-hidden"
@@ -265,10 +286,10 @@ export default function ProfileSetupModal() {
                 <span>เข้าสู่ระบบครั้งแรก (First-Time Setup)</span>
               </div>
               <h2 className="text-xl font-bold text-white tracking-tight">
-                ตั้งค่าข้อมูลโปรไฟล์ส่วนตัว
+                ตั้งค่าข้อมูลโปรไฟล์และหน้าที่ความรับผิดชอบ
               </h2>
               <p className="text-xs text-blue-100/90 mt-1 leading-relaxed">
-                กรุณาระบุชื่อ-นามสกุลจริง ตำแหน่ง และแผนกวิชา/งานที่สังกัด เพื่อใช้แสดงผลในเอกสารและสายการอนุมัติโครงการ
+                กรุณาระบุชื่อ-นามสกุลจริง ตำแหน่ง และเลือกฝ่าย/งานที่สังกัด (สามารถเลือกได้มากกว่า 1 งาน) พร้อมระบุหากดำรงตำแหน่งหัวหน้างาน
               </p>
             </div>
           </div>
@@ -327,7 +348,7 @@ export default function ProfileSetupModal() {
                 </div>
                 <div>
                   <p className="text-xs font-bold">ครู / สายผู้สอน</p>
-                  <p className="text-[10px] text-slate-500">สังกัดแผนกวิชาต่างๆ</p>
+                  <p className="text-[10px] text-slate-500">สังกัดแผนกวิชา / ช่วยงานฝ่าย</p>
                 </div>
               </button>
 
@@ -386,59 +407,131 @@ export default function ProfileSetupModal() {
             )}
           </div>
 
-          {/* Division and Department Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Division */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                <span>ฝ่ายงานที่สังกัด</span>
-                <span className="text-red-500">*</span>
-              </label>
-              <select
-                required
-                value={selectedDivisionId}
-                onChange={(e) => handleDivisionChange(Number(e.target.value))}
-                disabled={fetchingDivisions}
-                className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white disabled:bg-slate-100"
-              >
-                <option value="">-- เลือกฝ่ายงาน --</option>
-                {divisions.map((div) => (
-                  <option key={div.id} value={div.id}>
-                    {div.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Division Selector */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-slate-500" />
+              <span>ฝ่ายงานหลักที่สังกัด</span>
+              <span className="text-red-500">*</span>
+            </label>
+            <select
+              required
+              value={selectedDivisionId}
+              onChange={(e) => handleDivisionChange(Number(e.target.value))}
+              disabled={fetchingDivisions}
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white disabled:bg-slate-100 font-semibold text-slate-800"
+            >
+              <option value="">-- เลือกฝ่ายงาน --</option>
+              {divisions.map((div) => (
+                <option key={div.id} value={div.id}>
+                  {div.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {/* Department */}
-            <div className="space-y-1.5">
+          {/* Departments & Works Selection (Multiple selectable items) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
                 <UserCheck className="w-3.5 h-3.5 text-slate-500" />
-                <span>{personnelType === 'TEACHER' ? 'แผนกวิชา' : 'งานที่สังกัด'}</span>
-                <span className="text-red-500">*</span>
+                <span>
+                  {personnelType === 'TEACHER' ? 'แผนกวิชา / งานที่รับผิดชอบ' : 'งานที่รับผิดชอบในฝ่าย'}
+                  <span className="text-red-500 font-bold ml-1">*</span>
+                </span>
               </label>
-              <select
-                required
-                value={selectedDepartmentId}
-                onChange={(e) => setSelectedDepartmentId(Number(e.target.value))}
-                disabled={fetchingDivisions || !selectedDivisionId}
-                className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white disabled:bg-slate-100"
-              >
-                <option value="">
-                  {selectedDivisionId
-                    ? personnelType === 'TEACHER'
-                      ? '-- เลือกแผนกวิชา --'
-                      : '-- เลือกงานที่สังกัด --'
-                    : '-- กรุณาเลือกฝ่ายงานก่อน --'}
-                </option>
-                {currentDepartments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
+              <span className="text-[11px] text-blue-900 font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                เลือกได้มากกว่า 1 งาน (เลือกแล้ว {selectedDepartmentIds.length} รายการ)
+              </span>
             </div>
+
+            {selectedDivisionId ? (
+              <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 max-h-52 overflow-y-auto space-y-1.5">
+                {currentDepartments.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-3 text-center">ยังไม่มีข้อมูลงานในฝ่ายนี้</p>
+                ) : (
+                  currentDepartments.map((dept) => {
+                    const isChecked = selectedDepartmentIds.includes(dept.id);
+                    const isPrimary = selectedDepartmentId === dept.id;
+
+                    return (
+                      <div
+                        key={dept.id}
+                        onClick={() => handleToggleDepartment(dept.id)}
+                        className={`p-2.5 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition ${
+                          isChecked
+                            ? 'bg-blue-50/90 border-blue-400 text-blue-950 font-semibold shadow-2xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100/80'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}} // Handled by div click
+                            className="w-4 h-4 text-blue-900 rounded border-slate-300 focus:ring-blue-900 pointer-events-none"
+                          />
+                          <span>{dept.name}</span>
+                        </div>
+
+                        {isChecked && (
+                          <div className="flex items-center gap-1.5">
+                            {isPrimary && (
+                              <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-bold">
+                                งานหลัก
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedDepartmentId(dept.id);
+                              }}
+                              className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                                isPrimary
+                                  ? 'hidden'
+                                  : 'bg-white text-slate-600 border-slate-300 hover:bg-blue-100 hover:text-blue-900'
+                              }`}
+                            >
+                              ตั้งเป็นงานหลัก
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
+              <div className="p-4 border border-dashed border-slate-300 rounded-xl text-center text-xs text-slate-400 bg-slate-50">
+                กรุณาเลือกฝ่ายงานด้านบนก่อนเพื่อแสดงรายการงาน/แผนกวิชา
+              </div>
+            )}
+          </div>
+
+          {/* Is Head of Department / Work Checkbox */}
+          <div className="pt-2">
+            <label className={`flex items-start gap-3 p-3.5 rounded-xl border transition cursor-pointer ${
+              isHead
+                ? 'bg-amber-50/80 border-amber-300 shadow-2xs ring-1 ring-amber-400'
+                : 'bg-slate-50 border-slate-200 hover:bg-slate-100/60'
+            }`}>
+              <input
+                type="checkbox"
+                checked={isHead}
+                onChange={(e) => setIsHead(e.target.checked)}
+                className="w-4 h-4 mt-0.5 text-amber-600 rounded border-slate-300 focus:ring-amber-500 cursor-pointer"
+              />
+              <div>
+                <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <ShieldCheck className={`w-4 h-4 ${isHead ? 'text-amber-600' : 'text-slate-400'}`} />
+                  <span>เป็นหัวหน้างาน / หัวหน้าแผนกวิชา (สิทธิ์ลงนามอนุมัติขั้นที่ 1)</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  ติ๊กตัวเลือกนี้หากท่านดำรงตำแหน่งหัวหน้างานหรือหัวหน้าแผนก เพื่อให้ระบบจัดคิวเสนอโครงการมายังท่านสำหรับการพิจารณาเห็นชอบโครงการ
+                </p>
+              </div>
+            </label>
           </div>
 
           {/* Action Buttons */}

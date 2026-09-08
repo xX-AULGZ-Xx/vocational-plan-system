@@ -289,7 +289,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
 router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = BigInt(req.user!.id);
-    const { full_name, position, department_id, signature_img, role } = req.body;
+    const { full_name, position, department_id, signature_img, role, is_head } = req.body;
 
     if (!full_name || !full_name.trim()) {
       return res.status(400).json({ success: false, message: 'กรุณาระบุชื่อ-นามสกุล' });
@@ -316,8 +316,37 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
       is_profile_completed: true,
     };
 
+    if (is_head) {
+      updateData.role = 'HEAD_DEPT';
+    }
+
     if (signature_img !== undefined) {
       updateData.signature_img = signature_img;
+    }
+
+    // If marked as head of department/work, also update systemSetting for this department
+    if (is_head) {
+      await (prisma as any).systemSetting.upsert({
+        where: { key: `head_name_dept_${deptId}` },
+        update: { value: full_name.trim() },
+        create: {
+          key: `head_name_dept_${deptId}`,
+          value: full_name.trim(),
+          description: `ชื่อหัวหน้า (${deptExists.name})`,
+        },
+      });
+
+      if (position) {
+        await (prisma as any).systemSetting.upsert({
+          where: { key: `head_position_dept_${deptId}` },
+          update: { value: position.trim() },
+          create: {
+            key: `head_position_dept_${deptId}`,
+            value: position.trim(),
+            description: `ตำแหน่งหัวหน้า (${deptExists.name})`,
+          },
+        });
+      }
     }
 
     // Update user in DB
