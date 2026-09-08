@@ -314,7 +314,11 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
       ? head_dept_ids.map((id: any) => parseInt(id))
       : (is_head ? [deptId] : []);
 
-    const isUserHead = headIds.length > 0;
+    // Check existing user to preserve roles like ADMIN, DEPUTY_DIRECTOR, etc.
+    const existingUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!existingUser) {
+      return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลผู้ใช้ในระบบ' });
+    }
 
     const updateData: any = {
       full_name: full_name.trim(),
@@ -323,8 +327,12 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
       is_profile_completed: true,
     };
 
-    if (isUserHead) {
+    if (existingUser.role === 'ADMIN' || existingUser.role === 'DIRECTOR' || existingUser.role === 'DEPUTY_DIRECTOR') {
+      // Keep executive/admin roles intact
+    } else if (isUserHead) {
       updateData.role = 'HEAD_DEPT';
+    } else {
+      updateData.role = 'TEACHER';
     }
 
     if (signature_img !== undefined) {
@@ -333,29 +341,33 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
 
     // Update head settings for each department marked as head
     for (const hId of headIds) {
-      const targetDept = await prisma.department.findUnique({ where: { id: hId } });
-      const deptName = targetDept?.name || 'แผนก/งาน';
+      try {
+        const targetDept = await prisma.department.findUnique({ where: { id: hId } });
+        const deptName = targetDept?.name || 'แผนก/งาน';
 
-      await (prisma as any).systemSetting.upsert({
-        where: { key: `head_name_dept_${hId}` },
-        update: { value: full_name.trim() },
-        create: {
-          key: `head_name_dept_${hId}`,
-          value: full_name.trim(),
-          description: `ชื่อหัวหน้า (${deptName})`,
-        },
-      });
-
-      if (position) {
         await (prisma as any).systemSetting.upsert({
-          where: { key: `head_position_dept_${hId}` },
-          update: { value: position.trim() },
+          where: { key: `head_name_dept_${hId}` },
+          update: { value: full_name.trim() },
           create: {
-            key: `head_position_dept_${hId}`,
-            value: position.trim(),
-            description: `ตำแหน่งหัวหน้า (${deptName})`,
+            key: `head_name_dept_${hId}`,
+            value: full_name.trim(),
+            description: `ชื่อหัวหน้า (${deptName})`,
           },
         });
+
+        if (position) {
+          await (prisma as any).systemSetting.upsert({
+            where: { key: `head_position_dept_${hId}` },
+            update: { value: position.trim() },
+            create: {
+              key: `head_position_dept_${hId}`,
+              value: position.trim(),
+              description: `ตำแหน่งหัวหน้า (${deptName})`,
+            },
+          });
+        }
+      } catch (headErr) {
+        console.warn(`Failed to update head settings for dept ${hId}:`, headErr);
       }
     }
 
