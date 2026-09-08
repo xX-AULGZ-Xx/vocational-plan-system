@@ -19,12 +19,16 @@ WORKDIR /app
 # Install pnpm globally
 RUN npm install -g pnpm
 
+# Optimize Prisma binary and installation performance
+ENV PRISMA_CLI_BINARY_TARGETS="debian-openssl-3.0.x"
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
+
 # Copy package files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/api/prisma ./apps/api/prisma/
 
-# Install dependencies
+# Install dependencies with postinstall optimization
 RUN pnpm install --filter api... --frozen-lockfile
 
 # Copy API source code
