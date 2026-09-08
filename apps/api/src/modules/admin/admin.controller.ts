@@ -183,6 +183,25 @@ router.get('/settings', async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Fallback deputy names from DEPUTY_DIRECTOR users if empty in settings
+    try {
+      const deputyUsers = await prisma.user.findMany({
+        where: { role: 'DEPUTY_DIRECTOR' },
+        include: { department: true },
+      });
+      for (const u of deputyUsers) {
+        if (u.department?.division_id === 1 && !result['deputy_acad_name']) {
+          result['deputy_acad_name'] = u.full_name;
+        } else if (u.department?.division_id === 2 && !result['deputy_res_name']) {
+          result['deputy_res_name'] = u.full_name;
+        } else if (u.department?.division_id === 3 && !result['deputy_dev_name']) {
+          result['deputy_dev_name'] = u.full_name;
+        } else if (u.department?.division_id === 4 && !result['deputy_strat_name']) {
+          result['deputy_strat_name'] = u.full_name;
+        }
+      }
+    } catch (depErr) {}
+
     return res.json({ success: true, data: result });
   } catch (error: any) {
     console.error('Fetch settings error:', error);
