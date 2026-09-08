@@ -150,6 +150,7 @@ router.post('/google', async (req: Request, res: Response) => {
       role: user.role,
       full_name: user.full_name,
       avatar_url: user.avatar_url,
+      is_profile_completed: (user as any).is_profile_completed ?? false,
       department_id: user.department_id,
       department_name: user.department?.name,
       division_id: user.department?.division_id,
@@ -171,6 +172,7 @@ router.post('/google', async (req: Request, res: Response) => {
         position: user.position,
         role: user.role,
         avatar_url: user.avatar_url,
+        is_profile_completed: (user as any).is_profile_completed ?? false,
         department: user.department,
       }),
     });
@@ -213,6 +215,7 @@ router.post('/login', async (req: Request, res: Response) => {
       username: user.username,
       role: user.role,
       full_name: user.full_name,
+      is_profile_completed: (user as any).is_profile_completed ?? true,
       department_id: user.department_id,
       department_name: user.department?.name,
       division_id: user.department?.division_id,
@@ -233,6 +236,7 @@ router.post('/login', async (req: Request, res: Response) => {
         position: user.position,
         role: user.role,
         avatar_url: user.avatar_url,
+        is_profile_completed: (user as any).is_profile_completed ?? true,
         department: user.department,
       }),
     });
@@ -272,11 +276,101 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
         avatar_url: user.avatar_url,
         google_id: user.google_id,
         signature_img: user.signature_img,
+        is_profile_completed: (user as any).is_profile_completed ?? false,
         department: user.department,
       }),
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด', error: error.message });
+  }
+});
+
+// PUT /api/v1/auth/profile (Update Profile / Complete First-Time Setup)
+router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = BigInt(req.user!.id);
+    const { full_name, position, department_id, signature_img, role } = req.body;
+
+    if (!full_name || !full_name.trim()) {
+      return res.status(400).json({ success: false, message: 'กรุณาระบุชื่อ-นามสกุล' });
+    }
+
+    if (!department_id) {
+      return res.status(400).json({ success: false, message: 'กรุณาเลือกแผนกวิชาหรือฝ่ายงานที่สังกัด' });
+    }
+
+    const deptId = parseInt(String(department_id));
+    const deptExists = await prisma.department.findUnique({
+      where: { id: deptId },
+      include: { division: true },
+    });
+
+    if (!deptExists) {
+      return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลแผนกวิชาหรือฝ่ายงานที่ระบุ' });
+    }
+
+    const updateData: any = {
+      full_name: full_name.trim(),
+      position: position ? position.trim() : 'ครูผู้สอน',
+      department_id: deptId,
+      is_profile_completed: true,
+    };
+
+    if (signature_img !== undefined) {
+      updateData.signature_img = signature_img;
+    }
+
+    // Update user in DB
+    const updatedUser = await (prisma as any).user.update({
+      where: { id: userId },
+      data: updateData,
+      include: {
+        department: {
+          include: {
+            division: true,
+          },
+        },
+      },
+    });
+
+    const payload = {
+      id: updatedUser.id.toString(),
+      username: updatedUser.username,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      full_name: updatedUser.full_name,
+      avatar_url: updatedUser.avatar_url,
+      is_profile_completed: true,
+      department_id: updatedUser.department_id,
+      department_name: updatedUser.department?.name,
+      division_id: updatedUser.department?.division_id,
+      division_code: updatedUser.department?.division?.code,
+      division_name: updatedUser.department?.division?.name,
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+
+    return res.json({
+      success: true,
+      message: 'บันทึกข้อมูลโปรไฟล์เรียบร้อยแล้ว',
+      token,
+      user: serializeBigInt({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        full_name: updatedUser.full_name,
+        position: updatedUser.position,
+        role: updatedUser.role,
+        avatar_url: updatedUser.avatar_url,
+        google_id: updatedUser.google_id,
+        signature_img: updatedUser.signature_img,
+        is_profile_completed: true,
+        department: updatedUser.department,
+      }),
+    });
+  } catch (error: any) {
+    console.error('Profile update error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกโปรไฟล์', error: error.message });
   }
 });
 

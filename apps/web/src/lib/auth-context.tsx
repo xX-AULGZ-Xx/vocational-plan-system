@@ -10,6 +10,7 @@ export interface User {
   position: string;
   avatar_url?: string | null;
   google_id?: string | null;
+  is_profile_completed?: boolean;
   role: 'TEACHER' | 'HEAD_DEPT' | 'DEPUTY_DIRECTOR' | 'PLANNING_OFFICER' | 'DIRECTOR' | 'ADMIN';
   department?: {
     id: number;
@@ -27,6 +28,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (token: string, user: User) => void;
+  updateUser: (user: User, token?: string) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -35,6 +37,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   token: null,
   login: () => {},
+  updateUser: () => {},
   logout: () => {},
   isLoading: true,
 });
@@ -78,6 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('vps_user', JSON.stringify(newUser));
   };
 
+  const updateUser = (newUser: User, newToken?: string) => {
+    setUser(newUser);
+    localStorage.setItem('vps_user', JSON.stringify(newUser));
+    if (newToken) {
+      setToken(newToken);
+      localStorage.setItem('vps_token', newToken);
+    }
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -87,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, updateUser, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
