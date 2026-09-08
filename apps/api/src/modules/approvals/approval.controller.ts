@@ -15,8 +15,8 @@ async function getProjectTargetDivisionId(project: any): Promise<number | null> 
         return Number(parsed.approver_division_id);
       }
       
-      const approverPos = String(parsed.approver_position || parsed.approver_name_position || parsed.deputy_position || '');
-      const approverName = String(parsed.approver_name || parsed.approver || '');
+      const approverPos = String(parsed.endorser_position || parsed.approver_position || parsed.approver_name_position || parsed.deputy_position || '');
+      const approverName = String(parsed.endorser_name || parsed.endorser || parsed.approver_name || parsed.approver || '');
 
       const allDivisions = await prisma.division.findMany();
       let settingsMap = new Map<string, string>();

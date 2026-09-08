@@ -142,7 +142,7 @@ export default function EditProjectPage() {
         if (!parsedDynamic.deputy_strat_position) parsedDynamic.deputy_strat_position = deputyStratPosition || '';
         
         // Approver auto fill
-        if (!parsedDynamic.approver_name && !parsedDynamic.approver) {
+        if (!parsedDynamic.approver_name && !parsedDynamic.approver && !parsedDynamic.endorser_name && !parsedDynamic.endorser) {
           const userDivId = proj.department?.division_id || user?.department?.division_id || (user as any)?.division_id;
           if (userDivId === 1 && deputyAcadName) parsedDynamic.approver_name = deputyAcadName;
           else if (userDivId === 2 && deputyResName) parsedDynamic.approver_name = deputyResName;
@@ -150,7 +150,7 @@ export default function EditProjectPage() {
           else if (userDivId === 4 && deputyStratName) parsedDynamic.approver_name = deputyStratName;
           else parsedDynamic.approver_name = deputyResName || deputyAcadName || deputyStratName || deputyDevName || '';
         }
-        if (!parsedDynamic.approver_position && !parsedDynamic.approver_name_position) {
+        if (!parsedDynamic.approver_position && !parsedDynamic.approver_name_position && !parsedDynamic.endorser_position && !parsedDynamic.endorser_name_position) {
           const userDivId = proj.department?.division_id || user?.department?.division_id || (user as any)?.division_id;
           if (userDivId === 1 && deputyAcadPosition) parsedDynamic.approver_position = deputyAcadPosition;
           else if (userDivId === 2 && deputyResPosition) parsedDynamic.approver_position = deputyResPosition;
@@ -233,9 +233,9 @@ const fetchProposalTemplate = async () => {
     const computedTitle = dynamicData['title'] || dynamicData['project_name'] || 'โครงการไม่มีชื่อ';
     const computedFiscalYear = parseInt(dynamicData['fiscal_year']) || new Date().getFullYear() + 543;
     const computedTotalBudget = dynamicData['total_budget'] || 0;
-    // For department, find department matching the selected approver/division or user's department
-    const approverVal = dynamicData['approver_name'] || dynamicData['approver'] || '';
-    const approverPos = dynamicData['approver_position'] || dynamicData['approver_name_position'] || '';
+    // For department, find department matching the selected approver/endorser or user's department
+    const approverVal = dynamicData['endorser_name'] || dynamicData['endorser'] || dynamicData['approver_name'] || dynamicData['approver'] || '';
+    const approverPos = dynamicData['endorser_position'] || dynamicData['endorser_name_position'] || dynamicData['approver_position'] || dynamicData['approver_name_position'] || '';
     const approverDivId = dynamicData['approver_division_id'];
 
     const matchedDiv = (divisionsData || []).find((d: any) => 
@@ -557,9 +557,12 @@ const fetchProposalTemplate = async () => {
                           t.tag_type === 'DEPUTY_POSITION' ||
                           t.tag_name === 'approver_position' ||
                           t.tag_name === 'approver_name_position' ||
+                          t.tag_name === 'endorser_position' ||
+                          t.tag_name === 'endorser_name_position' ||
                           t.tag_name === 'deputy_position' ||
                           t.tag_name === `${key}_position` ||
-                          (t.tag_name.includes('approver') && t.tag_name.includes('pos'))
+                          (t.tag_name.includes('approver') && t.tag_name.includes('pos')) ||
+                          (t.tag_name.includes('endorser') && t.tag_name.includes('pos'))
                         ) {
                           next[t.tag_name] = selectedDeputy.position;
                         }
