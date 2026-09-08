@@ -394,10 +394,46 @@ const fetchProposalTemplate = async () => {
           </div>
         );
       }
+      case 'APPROVER_POSITION_DROPDOWN': {
+        const standardPositions = [
+          'หัวหน้างาน',
+          'หัวหน้าแผนก',
+          'ผู้ช่วยงาน',
+          'เจ้าหน้าที่',
+          'ครูประจำสาขา',
+        ];
+
+        return (
+          <div key={key} className="col-span-1 lg:col-span-2">
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
+              <span className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                ตำแหน่งผู้เห็นชอบ
+              </span>
+            </div>
+            {tag.description && <p className="text-xs text-gray-500 mb-1">{tag.description}</p>}
+            <select
+              value={value || ''}
+              onChange={(e) => handleDynamicChange(key, e.target.value)}
+              disabled={!isEditing}
+              required={tag.is_required}
+              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            >
+              <option value="">-- เลือกตำแหน่งผู้เห็นชอบโครงการ --</option>
+              {standardPositions.map((pos, i) => (
+                <option key={i} value={pos}>
+                  {pos}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      }
       case 'LEADER_NAME':
       case 'LEADER_POSITION':
       case 'HEAD_NAME':
       case 'HEAD_POSITION':
+      case 'APPROVER_POSITION':
       case 'DIRECTOR_NAME':
       case 'DIRECTOR_POSITION':
       case 'COLLEGE_NAME':
