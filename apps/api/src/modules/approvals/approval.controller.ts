@@ -75,11 +75,33 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       // Step 1 -> Step 2 (Deputy Director)
       newProjectStatus = ProjectStatus.dept_approved;
       nextStepOrder = 2;
+
+      // Extract approver division from project's dynamic_data if specified
+      let targetDivisionId = project.department?.division_id;
+      if (project.dynamic_data) {
+        try {
+          const parsed = typeof project.dynamic_data === 'string' ? JSON.parse(project.dynamic_data) : project.dynamic_data;
+          if (parsed.approver_division_id) {
+            targetDivisionId = Number(parsed.approver_division_id);
+          }
+        } catch {
+          // ignore json parse error
+        }
+      }
+
       const deputy =
+        (targetDivisionId
+          ? await prisma.user.findFirst({
+              where: {
+                role: Role.DEPUTY_DIRECTOR,
+                department: { division_id: targetDivisionId },
+              },
+            })
+          : null) ||
         (await prisma.user.findFirst({
           where: {
             role: Role.DEPUTY_DIRECTOR,
-            department: { division_id: project.department.division_id },
+            department: { division_id: project.department?.division_id },
           },
         })) ||
         (await prisma.user.findFirst({

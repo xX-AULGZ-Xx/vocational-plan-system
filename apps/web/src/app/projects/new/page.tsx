@@ -208,9 +208,31 @@ export default function NewProjectPage() {
     const computedTitle = dynamicData['title'] || dynamicData['project_name'] || 'โครงการไม่มีชื่อ';
     const computedFiscalYear = parseInt(dynamicData['fiscal_year']) || new Date().getFullYear() + 543;
     const computedTotalBudget = dynamicData['total_budget'] || 0;
-    // For department, find department id from divisionsData or fallback to 1
-    const allDepts = divisionsData.reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []);
-    const computedDepartmentId = allDepts.length > 0 ? allDepts[0].id : 1;
+    // For department, find department matching the selected approver/division or user's department
+    const approverVal = dynamicData['approver_name'] || dynamicData['approver'] || '';
+    const approverPos = dynamicData['approver_position'] || dynamicData['approver_name_position'] || '';
+    const approverDivId = dynamicData['approver_division_id'];
+
+    const matchedDiv = (divisionsData || []).find((d: any) => 
+      (approverDivId && d.id === approverDivId) ||
+      (approverVal && (d.deputy_name === approverVal || d.name === approverVal)) ||
+      (approverPos && (d.deputy_position === approverPos || approverPos.includes(d.name)))
+    );
+
+    const allDepts = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []);
+    let computedDepartmentId = user?.department?.id || (user as any)?.department_id;
+
+    if (matchedDiv && matchedDiv.departments?.length > 0) {
+      // If user belongs to this division, keep user's department, otherwise use first dept of matched division
+      const userDeptInDiv = matchedDiv.departments.find((dept: any) => dept.id === computedDepartmentId);
+      if (!userDeptInDiv) {
+        computedDepartmentId = matchedDiv.departments[0].id;
+      }
+    } else if (!computedDepartmentId && allDepts.length > 0) {
+      computedDepartmentId = allDepts[0].id;
+    } else if (!computedDepartmentId) {
+      computedDepartmentId = 1;
+    }
     
     if (!computedTitle) {
       setErrorMsg('กรุณากรอกชื่อโครงการและแผนกที่รับผิดชอบ');
@@ -477,6 +499,8 @@ export default function NewProjectPage() {
                   setDynamicData(prev => {
                     const next: Record<string, any> = { ...prev, [key]: selectedVal };
                     if (selectedDeputy) {
+                      next['approver_division_id'] = selectedDeputy.id;
+                      next['approver_division_name'] = selectedDeputy.division;
                       next['approver_position'] = selectedDeputy.position;
                       next['approver_name_position'] = selectedDeputy.position;
                       next[`${key}_position`] = selectedDeputy.position;

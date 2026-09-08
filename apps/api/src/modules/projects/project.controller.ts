@@ -442,6 +442,96 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         })) ||
         (await prisma.user.findFirst({
           where: { role: 'HEAD_DEPT' },
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูลโครงการ', error: error.message });
+  }
+});
+
+
+// POST /api/v1/projects (Create project)
+router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const {
+      title,
+      fiscal_year,
+      department_id,
+      template_id,
+      background,
+      objectives,
+      target_groups,
+      expected_results,
+      status = 'draft',
+      dynamic_data,
+      alignments = [],
+      timelines = [],
+      budget_items = [],
+    } = req.body;
+
+    const leaderId = BigInt(req.user!.id);
+    const deptId = department_id ? parseInt(department_id) : (req.user!.department_id || 1);
+
+    // Calculate total budget
+    const totalBudget = budget_items.reduce((sum: number, item: any) => {
+      const q = parseFloat(item.quantity) || 0;
+      const p = parseFloat(item.unit_price) || 0;
+      return sum + q * p;
+    }, 0);
+
+    const project = await prisma.project.create({
+      data: {
+        title,
+        fiscal_year: parseInt(fiscal_year) || 2569,
+        department_id: deptId,
+        leader_id: leaderId,
+        template_id: template_id ? parseInt(template_id) : null,
+        background,
+        objectives,
+        target_groups,
+        expected_results,
+        dynamic_data: dynamic_data !== undefined ? (typeof dynamic_data === 'string' ? dynamic_data : JSON.stringify(dynamic_data)) : undefined,
+        status: status === 'submitted' ? ProjectStatus.submitted : ProjectStatus.draft,
+        total_budget: totalBudget,
+        alignments: {
+          create: alignments.map((indicatorId: number) => ({
+            indicator_id: indicatorId,
+          })),
+        },
+        timelines: {
+          create: timelines.map((t: any) => ({
+            activity_name: t.activity_name,
+            start_date: new Date(t.start_date),
+            end_date: new Date(t.end_date),
+            location: t.location || '',
+            is_milestone: Boolean(t.is_milestone),
+          })),
+        },
+        budget_items: {
+          create: budget_items.map((b: any) => {
+            const q = parseFloat(b.quantity) || 0;
+            const p = parseFloat(b.unit_price) || 0;
+            return {
+              category_id: parseInt(b.category_id),
+              description: b.description,
+              quantity: q,
+              unit: b.unit,
+              unit_price: p,
+              total_amount: q * p,
+            };
+          }),
+        },
+      },
+    });
+
+    // If submitted, create Step 1 approval queue (Head of Dept)
+    if (status === 'submitted') {
+      const headOfDept =
+        (await prisma.user.findFirst({
+          where: {
+            department_id: deptId,
+            role: 'HEAD_DEPT',
+          },
+        })) ||
+        (await prisma.user.findFirst({
+          where: { role: 'HEAD_DEPT' },
         })) ||
         (await prisma.user.findFirst({
           where: { role: 'ADMIN' },
@@ -454,19 +544,29 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
             step_order: 1,
             approver_id: headOfDept.id,
             status: ApprovalStatus.PENDING,
-            comment: 'çŠ§ï½ªçŠ¹è¬‚ï½¸ï¿½ï½¹Â€çŠ§ï½ªçŠ§å­ï½¸ï½­çŠ¹ã‚‚ï½¸ï¿½ï½¸ï½£çŠ§ï¿½ï½¸â‰’ï½¸ï½²çŠ§ï½£ çŠ§ï½£çŠ§ï½­çŠ§ï½«çŠ§ï½±çŠ§ï½§çŠ§ï½«çŠ§å­ï½¹éœžï½¸ï½²çŠ¹â‰’ï½¸æ†«ï½¸å­ï½¸ï¿½/çŠ§ï¿½ï½¸ï½²çŠ§å­ï½¸æ¨…ï½¸ï½´çŠ§è¬‚ï½¸ï½²çŠ§ï½£çŠ§å†…ï½¸ï½²',
+            comment: 'เสนอขออนุมัติโครงการ รอหัวหน้าแผนก/งานพิจารณา',
           },
         });
+
+        // Send notification to Head of Department
+        notificationService.createNotification({
+          userId: headOfDept.id,
+          title: 'มีโครงการใหม่รอพิจารณาอนุมัติ (ขั้นที่ 1)',
+          message: `โครงการ "${project.title}" ถูกเสนอโดย ${req.user!.full_name} รอการพิจารณาเห็นชอบจากท่าน`,
+          type: NotificationType.PROJECT_SUBMITTED,
+          linkUrl: `/approvals`,
+        }).catch(err => console.error('Notification dispatch error:', err));
       }
     }
 
     return res.status(201).json({
       success: true,
-      message: 'çŠ§å£Ÿï½¸ï½±çŠ§å­ï½¸ä¼¶ï½¸ï½¶çŠ§â‰’ï½¸ã‚‚ï½¹éœžï½¸ï½­çŠ§ï½¡çŠ§ï½¹çŠ§ï½¥çŠ¹ã‚‚ï½¸ï¿½ï½¸ï½£çŠ§ï¿½ï½¸â‰’ï½¸ï½²çŠ§ï½£çŠ§ï½ªçŠ§ï½³çŠ¹Â€çŠ§ï½£çŠ¹ï¿½ï½¸ï¿½',
+      message: 'สร้างโครงการเรียบร้อยแล้ว',
       data: serializeBigInt(project),
     });
   } catch (error: any) {
-    console.error('Create project error:', error);  return res.status(500).json({ success: false, message: 'çŠ¹Â€çŠ§â‰’ï½¸ï½´çŠ§æ‰‰ï½¸ã‚‚ï½¹éœžï½¸ï½­çŠ§æ†«ï½¸ï½´çŠ§æ‰‰ï½¸æ¨…ï½¸ï½¥çŠ§ï½²çŠ§ï¿½', error: error.message });
+    console.error('Create project error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการสร้างโครงการ', error: error.message });
   }
 });
 

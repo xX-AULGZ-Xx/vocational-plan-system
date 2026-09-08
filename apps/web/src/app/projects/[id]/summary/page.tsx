@@ -393,6 +393,8 @@ export default function ProjectSummaryPage() {
                   setDynamicData(prev => {
                     const next: Record<string, any> = { ...prev, [key]: selectedVal };
                     if (selectedDeputy) {
+                      next['approver_division_id'] = selectedDeputy.id;
+                      next['approver_division_name'] = selectedDeputy.division;
                       next['approver_position'] = selectedDeputy.position;
                       next['approver_name_position'] = selectedDeputy.position;
                       next[`${key}_position`] = selectedDeputy.position;
