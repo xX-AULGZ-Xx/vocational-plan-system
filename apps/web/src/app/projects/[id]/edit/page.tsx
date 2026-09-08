@@ -612,6 +612,40 @@ const fetchProposalTemplate = async () => {
           </div>
         );
       default: // TEXT or CALCULATION
+        if (key === 'fiscal_year' || tag.tag_name === 'fiscal_year' || tag.tag_name === 'fiscalYear') {
+          const currentVal = String(value || fiscalYear || currentFiscalYear || String(new Date().getFullYear() + 543));
+          const baseYear = parseInt(currentFiscalYear) || (new Date().getFullYear() + 543);
+          const years = Array.from({ length: 7 }, (_, i) => baseYear + 1 - i); // +1, 0, -1, -2, -3, -4, -5
+          if (value && !years.includes(parseInt(String(value)))) {
+            years.push(parseInt(String(value)));
+            years.sort((a, b) => b - a);
+          }
+
+          return (
+            <div key={key}>
+              <div className="mb-1">
+                <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
+                {tag.description && <p className="text-xs text-gray-500 mt-0.5">{tag.description}</p>}
+              </div>
+              <select
+                value={currentVal}
+                onChange={(e) => {
+                  handleDynamicChange(key, e.target.value);
+                  setFiscalYear(parseInt(e.target.value) || baseYear);
+                }}
+                required={tag.is_required}
+                className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-white font-medium"
+              >
+                {years.map((y) => (
+                  <option key={y} value={String(y)}>
+                    ปีงบประมาณ {y} {y === baseYear ? '(ปีปัจจุบัน)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        }
+
         return (
           <div key={key}>
             <div className="mb-1">
