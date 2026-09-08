@@ -39,6 +39,10 @@ export default function DivisionPage() {
   const [deputyPosition, setDeputyPosition] = useState('');
   const [savingDeputy, setSavingDeputy] = useState(false);
 
+  // Filter & Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+
   const fetchDivisionData = () => {
     if (!code) return;
     fetch(`/api/v1/divisions/${code}`)
@@ -126,9 +130,6 @@ export default function DivisionPage() {
   }
 
   const Icon = getDivisionIcon(division.code);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
 
   // Aggregate projects directly across all departments in the division
   const allProjects = (division.departments?.flatMap((d: any) =>
