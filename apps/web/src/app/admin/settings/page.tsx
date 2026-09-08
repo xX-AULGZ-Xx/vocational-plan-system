@@ -31,6 +31,9 @@ import {
   Sliders,
   Code,
   Trash2,
+  Plus,
+  Edit2,
+  X,
 } from 'lucide-react';
 import { showAlert } from '@/lib/sweetalert';
 
@@ -83,6 +86,76 @@ export default function AdminSettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [existingFiscalYears, setExistingFiscalYears] = useState<any[]>([]);
   const [deletingYear, setDeletingYear] = useState<number | null>(null);
+  const [showAddYearModal, setShowAddYearModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [newYearInput, setNewYearInput] = useState(String(getCurrentThaiFiscalYear() + 1));
+  const [setAsActiveYear, setSetAsActiveYear] = useState(false);
+  const [addingYear, setAddingYear] = useState(false);
+
+  const handleSetActiveYear = async (year: number) => {
+    handleChange('current_fiscal_year', String(year));
+    try {
+      const res = await fetch('/api/v1/admin/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ...settings, current_fiscal_year: String(year) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await refreshSettings();
+        fetchFiscalYears();
+        showAlert.success('สำเร็จ', `เปลี่ยนปีงบประมาณปัจจุบันเป็น พ.ศ. ${year} เรียบร้อยแล้ว`);
+      } else {
+        showAlert.error('ผิดพลาด', data.message || 'ไม่สามารถเปลี่ยนปีงบประมาณได้');
+      }
+    } catch (err: any) {
+      showAlert.error('ผิดพลาด', err.message || 'เกิดข้อผิดพลาดในการเปลี่ยนปีงบประมาณ');
+    }
+  };
+
+  const handleAddFiscalYear = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const year = parseInt(newYearInput, 10);
+    if (isNaN(year) || year < 2500 || year > 2600) {
+      showAlert.error('ข้อมูลไม่ถูกต้อง', 'กรุณาระบุปี พ.ศ. ให้ถูกต้อง (เช่น 2568, 2569)');
+      return;
+    }
+
+    setAddingYear(true);
+    try {
+      const res = await fetch('/api/v1/admin/fiscal-years', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fiscal_year: year,
+          set_active: setAsActiveYear,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showAlert.success('สำเร็จ', data.message || `เพิ่มปีงบประมาณ พ.ศ. ${year} สำเร็จ`);
+        setShowAddYearModal(false);
+        if (setAsActiveYear) {
+          handleChange('current_fiscal_year', String(year));
+          await refreshSettings();
+        }
+        fetchFiscalYears();
+      } else {
+        showAlert.error('ผิดพลาด', data.message || 'ไม่สามารถเพิ่มปีงบประมาณได้');
+      }
+    } catch (err: any) {
+      showAlert.error('ผิดพลาด', err.message || 'เกิดข้อผิดพลาดในการบันทึกปีงบประมาณ');
+    } finally {
+      setAddingYear(false);
+    }
+  };
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -909,253 +982,415 @@ export default function AdminSettingsPage() {
             </div>
           )}
 
-          {/* Section 2: Budget & Submission Window */}
+          {/* Section 2: Budget & Submission Window (Table Design) */}
           {(activeTab === 'all' || activeTab === 'budget') && (
             <div className="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
                   <div className="p-1.5 bg-emerald-50 text-emerald-800 rounded-md">
                     <Calendar className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="font-bold text-slate-900 text-sm sm:text-base">๒. ระบบงบประมาณและเวลาเสนอโครงการ</h2>
-                    <p className="text-[11px] sm:text-xs text-slate-500">กำหนดปีงบประมาณเริ่มต้น และเปิด/ปิดระบบรับข้อเสนอโครงการตามช่วงเวลา</p>
+                    <h2 className="font-bold text-slate-900 text-sm sm:text-base">๒. จัดการปีงบประมาณและเวลาเสนอโครงการ</h2>
+                    <p className="text-[11px] sm:text-xs text-slate-500">จัดการรายการปีงบประมาณ กำหนดปีปัจจุบัน และตั้งค่าช่วงเวลาเปิด/ปิดรับข้อเสนอโครงการ</p>
                   </div>
                 </div>
 
-                <div className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
-                  isSubmissionOpen ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                }`}>
-                  <span className={`w-2 h-2 rounded-full ${isSubmissionOpen ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                  {isSubmissionOpen ? 'เปิดรับข้อเสนอโครงการ' : 'ปิดรับข้อเสนอ'}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewYearInput(String(getCurrentThaiFiscalYear() + 1));
+                      setShowAddYearModal(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ เพิ่มปีงบประมาณ</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleModal(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg shadow-xs transition"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>ตั้งค่าเวลาและสถานะเปิดรับ</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    ปีงบประมาณเริ่มต้น (พ.ศ.) <span className="text-red-500">*</span>
-                  </label>
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <input
-                        type="number"
-                        list="fiscal-years-list"
-                        value={settings.current_fiscal_year || String(getCurrentThaiFiscalYear())}
-                        onChange={(e) => handleChange('current_fiscal_year', e.target.value)}
-                        placeholder={String(getCurrentThaiFiscalYear())}
-                        className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono font-bold"
-                      />
-                      <datalist id="fiscal-years-list">
-                        {Array.from({ length: 9 }, (_, i) => {
-                          const base = getCurrentThaiFiscalYear();
-                          const y = base + 2 - i;
-                          return <option key={y} value={y} label={`ปีงบประมาณ ${y}`} />;
-                        })}
-                      </datalist>
-                    </div>
+              {/* Status Overview Card */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                <div className="space-y-1">
+                  <span className="text-slate-500 font-medium text-[11px]">ปีงบประมาณที่เปิดใช้งานปัจจุบัน:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-bold font-mono text-blue-900">
+                      พ.ศ. {settings.current_fiscal_year || getCurrentThaiFiscalYear()}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                      Active
+                    </span>
+                  </div>
+                </div>
 
-                    {/* Quick year select badges */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      <span className="text-[11px] text-slate-500 font-medium mr-1">เลือกปีด่วน:</span>
-                      {Array.from({ length: 6 }, (_, i) => {
-                        const base = getCurrentThaiFiscalYear();
-                        const y = base + 1 - i;
-                        const isSelected = String(settings.current_fiscal_year) === String(y);
+                <div className="space-y-1">
+                  <span className="text-slate-500 font-medium text-[11px]">สถานะการเปิดรับข้อเสนอโครงการ:</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                      isSubmissionOpen ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${isSubmissionOpen ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                      {isSubmissionOpen ? 'เปิดรับข้อเสนอโครงการ' : 'ปิดรับข้อเสนอ'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-slate-500 font-medium text-[11px]">ช่วงเวลาเปิดรับ (Start - Deadline):</span>
+                  <div className="font-mono text-slate-700 font-medium">
+                    {settings.submission_start_date || settings.submission_end_date ? (
+                      `${settings.submission_start_date ? new Date(settings.submission_start_date).toLocaleDateString('th-TH') : 'ไม่จำกัด'} — ${settings.submission_end_date ? new Date(settings.submission_end_date).toLocaleDateString('th-TH') : 'ไม่จำกัด'}`
+                    ) : (
+                      <span className="text-slate-400">เปิดรับตลอดเวลา (ไม่ระบุวันหมดเขต)</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Fiscal Years Table */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-theme-primary" />
+                    <span>ตารางข้อมูลปีงบประมาณและโครงการในระบบ</span>
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={fetchFiscalYears}
+                    className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition"
+                  >
+                    รีเฟรชตาราง
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-2xs">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="px-4 py-3">ปีงบประมาณ (พ.ศ.)</th>
+                        <th className="px-4 py-3 text-center">สถานะ</th>
+                        <th className="px-4 py-3 text-center">จำนวนโครงการ</th>
+                        <th className="px-4 py-3 text-right">งบประมาณรวม</th>
+                        <th className="px-4 py-3 text-right">เบิกจ่ายจริง</th>
+                        <th className="px-4 py-3 text-center">การจัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {existingFiscalYears.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-slate-400">
+                            ยังไม่มีข้อมูลปีงบประมาณในระบบ สามารถกดปุ่ม "+ เพิ่มปีงบประมาณ" เพื่อสร้างได้ทันที
+                          </td>
+                        </tr>
+                      ) : (
+                        existingFiscalYears.map((item) => {
+                          const isCurrent = String(settings.current_fiscal_year) === String(item.fiscal_year);
+                          const isDeleting = deletingYear === item.fiscal_year;
+
+                          return (
+                            <tr key={item.fiscal_year} className={`hover:bg-slate-50/70 transition ${isCurrent ? 'bg-blue-50/30' : ''}`}>
+                              <td className="px-4 py-3 font-medium text-slate-900">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold text-sm">พ.ศ. {item.fiscal_year}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {isCurrent ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    <Check className="w-3 h-3" /> ปีปัจจุบัน (Active)
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetActiveYear(item.fiscal_year)}
+                                    className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-800 border border-slate-200 transition"
+                                    title="ตั้งเป็นปีงบประมาณปัจจุบันของระบบ"
+                                  >
+                                    ตั้งเป็นปีปัจจุบัน
+                                  </button>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center font-semibold text-slate-700">
+                                {item.project_count > 0 ? (
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-mono">
+                                    {item.project_count} โครงการ
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">-</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono text-slate-700">
+                                {item.total_budget > 0 ? `${item.total_budget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท` : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-600">
+                                {item.actual_spent > 0 ? `${item.actual_spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท` : '-'}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowScheduleModal(true)}
+                                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+                                    title="แก้ไขเวลาและสถานะเปิดรับ"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={isDeleting}
+                                    onClick={() => handleDeleteFiscalYear(item.fiscal_year, item.project_count)}
+                                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition disabled:opacity-50"
+                                    title="ลบปีงบประมาณนี้"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 1-Click Test Mode Settings */}
+              <div className="pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between p-3 bg-amber-50/50 rounded-xl border border-amber-200/80">
+                  <div className="space-y-0.5">
+                    <p className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                      <FlaskConical className="w-4 h-4 text-amber-600" />
+                      <span>โหมดทดสอบระบบ (1-Click Test Login ในหน้าล็อกอิน)</span>
+                      {settings.enable_test_mode !== 'false' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          เปิดใช้งานอยู่
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
+                          ปิดใช้งาน
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      แสดงกล่องสลับบัญชีทดสอบด่วนในหน้าล็อกอินสำหรับทดสอบบทบาทต่างๆ (ครู, หน.แผนก, รอง ผอ., งานแผน, ผอ., Admin)
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('enable_test_mode', settings.enable_test_mode !== 'false' ? 'false' : 'true')}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      settings.enable_test_mode !== 'false' ? 'bg-amber-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        settings.enable_test_mode !== 'false' ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal: เพิ่มปีงบประมาณ */}
+          {showAddYearModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
+                <div className="p-4 bg-emerald-700 text-white flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-5 h-5" />
+                    <h3 className="font-bold text-sm sm:text-base">เพิ่มปีงบประมาณใหม่</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddYearModal(false)}
+                    className="p-1 hover:bg-white/20 rounded-lg transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      ระบุปีงบประมาณ (พ.ศ.) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={newYearInput}
+                      onChange={(e) => setNewYearInput(e.target.value)}
+                      placeholder="เช่น 2570"
+                      className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 font-mono font-bold"
+                    />
+                  </div>
+
+                  {/* Quick Select Chips */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] text-slate-500 font-medium">เลือกปีด่วน:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const y = getCurrentThaiFiscalYear() + 2 - i;
                         return (
                           <button
                             key={y}
                             type="button"
-                            onClick={() => handleChange('current_fiscal_year', String(y))}
-                            className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold border transition ${
-                              isSelected
-                                ? 'bg-blue-900 text-white border-blue-900 shadow-xs'
-                                : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                            onClick={() => setNewYearInput(String(y))}
+                            className={`px-2.5 py-1 text-xs font-mono font-bold rounded-lg border transition ${
+                              newYearInput === String(y)
+                                ? 'bg-emerald-600 text-white border-emerald-600'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
                             }`}
                           >
-                            {y} {y === base ? '(ปีนี้)' : ''}
+                            พ.ศ. {y}
                           </button>
                         );
                       })}
                     </div>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    💡 สามารถพิมพ์ระบุปีงบประมาณย้อนหลังหรือปีถัดไปได้อิสระ เพื่อให้ระบบถอยไปจัดการหรือเปิดรับโครงการของปีงบประมาณนั้น
-                  </p>
-                </div>
 
-                {/* Open/Close Toggle */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    สถานะการเปิดรับข้อเสนอโครงการ
-                  </label>
-                  <div className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => handleChange('is_submission_open', isSubmissionOpen ? 'false' : 'true')}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        isSubmissionOpen ? 'bg-emerald-600' : 'bg-slate-300'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          isSubmissionOpen ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                    <span className="text-xs sm:text-sm font-medium text-slate-800">
-                      {isSubmissionOpen ? 'เปิดให้ผู้ใช้ยื่นข้อเสนอโครงการได้ตามปกติ' : 'ปิดระบบรับข้อเสนอโครงการชั่วคราว'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Start Date */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-500" />
-                    วันที่เริ่มต้นเปิดรับ (ระบุหรือไม่ระบุก็ได้)
-                  </label>
-                  <input
-                    type="date"
-                    value={settings.submission_start_date || ''}
-                    onChange={(e) => handleChange('submission_start_date', e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono"
-                  />
-                </div>
-
-                {/* End Date */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-slate-500" />
-                    วันที่สิ้นสุดการเปิดรับ (Deadline)
-                  </label>
-                  <input
-                    type="date"
-                    value={settings.submission_end_date || ''}
-                    onChange={(e) => handleChange('submission_end_date', e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono"
-                  />
-                </div>
-
-                {/* Test Mode Toggle */}
-                <div className="md:col-span-2 pt-2 border-t border-slate-100">
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                    <FlaskConical className="w-3.5 h-3.5 text-amber-600" />
-                    โหมดทดสอบระบบ (1-Click Test Login)
-                  </label>
-                  <div className="flex items-center justify-between p-3 bg-amber-50/50 rounded-xl border border-amber-200/80">
-                    <div className="space-y-0.5">
-                      <p className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                        <span>เปิดใช้งานปุ่มสลับบัญชีทดสอบด่วนในหน้าล็อกอิน</span>
-                        {settings.enable_test_mode !== 'false' ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                            เปิดใช้งานอยู่
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
-                            ปิดใช้งาน (Production Mode)
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-[11px] text-slate-500">
-                        เมื่อเปิด: จะแสดงกล่อง 1-Click Test Login ในหน้าล็อกอินสำหรับทดสอบบทบาทต่างๆ (ครู, หน.แผนก, รอง ผอ., งานแผน, ผอ., Admin)
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleChange('enable_test_mode', settings.enable_test_mode !== 'false' ? 'false' : 'true')}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        settings.enable_test_mode !== 'false' ? 'bg-amber-600' : 'bg-slate-300'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          settings.enable_test_mode !== 'false' ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Fiscal Years List & Management (Delete Data) */}
-                <div className="md:col-span-2 pt-4 border-t border-slate-100 space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                     <div>
-                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-theme-primary" />
-                        <span>จัดการรายการปีงบประมาณและข้อมูลโครงการในระบบ</span>
-                      </h3>
-                      <p className="text-[11px] text-slate-500">
-                        แสดงปีงบประมาณที่มีข้อมูลโครงการในฐานข้อมูล สามารถลบโครงการของปีงบประมาณที่ไม่ได้ใช้งานแล้วได้
-                      </p>
+                      <p className="text-xs font-bold text-slate-800">กำหนดให้เป็นปีงบประมาณปัจจุบันทันที</p>
+                      <p className="text-[10px] text-slate-500">ระบบจะเปลี่ยนปีงบประมาณเริ่มต้นเป็นปีนี้</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={fetchFiscalYears}
-                      className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition"
-                    >
-                      รีเฟรชรายการ
-                    </button>
+                    <input
+                      type="checkbox"
+                      id="set-active-check"
+                      checked={setAsActiveYear}
+                      onChange={(e) => setSetAsActiveYear(e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded border-slate-300 cursor-pointer"
+                    />
                   </div>
 
-                  {existingFiscalYears.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-200">
-                      ยังไม่มีข้อมูลโครงการในปีงบประมาณใดๆ ในฐานข้อมูล
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
-                          <tr>
-                            <th className="px-4 py-2.5">ปีงบประมาณ</th>
-                            <th className="px-4 py-2.5 text-center">จำนวนโครงการ</th>
-                            <th className="px-4 py-2.5 text-right">งบประมาณรวม</th>
-                            <th className="px-4 py-2.5 text-right">เบิกจ่ายจริง</th>
-                            <th className="px-4 py-2.5 text-center">การจัดการ</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {existingFiscalYears.map((item) => {
-                            const isCurrent = String(settings.current_fiscal_year) === String(item.fiscal_year);
-                            const isDeleting = deletingYear === item.fiscal_year;
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddYearModal(false)}
+                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="button"
+                      disabled={addingYear}
+                      onClick={handleAddFiscalYear}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition disabled:opacity-50"
+                    >
+                      {addingYear ? 'กำลังบันทึก...' : 'บันทึกปีงบประมาณ'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-                            return (
-                              <tr key={item.fiscal_year} className="hover:bg-slate-50/50 transition">
-                                <td className="px-4 py-3 font-medium text-slate-900 flex items-center gap-2">
-                                  <span className="font-mono font-bold text-sm">พ.ศ. {item.fiscal_year}</span>
-                                  {isCurrent && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                                      ปีปัจจุบันของระบบ
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 text-center text-slate-700 font-semibold">
-                                  {item.project_count} โครงการ
-                                </td>
-                                <td className="px-4 py-3 text-right font-mono text-slate-700">
-                                  {item.total_budget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
-                                </td>
-                                <td className="px-4 py-3 text-right font-mono text-emerald-600 font-semibold">
-                                  {item.actual_spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <button
-                                    type="button"
-                                    disabled={isDeleting}
-                                    onClick={() => handleDeleteFiscalYear(item.fiscal_year, item.project_count)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition disabled:opacity-50 active:scale-95"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                                    <span>{isDeleting ? 'กำลังลบ...' : 'ลบปีงบประมาณนี้'}</span>
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+          {/* Modal: ตั้งค่าสถานะเปิดรับและช่วงเวลาเสนอโครงการ */}
+          {showScheduleModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200">
+                <div className="p-4 bg-blue-900 text-white flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    <h3 className="font-bold text-sm sm:text-base">ตั้งค่าสถานะและเวลาเปิดรับข้อเสนอโครงการ</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleModal(false)}
+                    className="p-1 hover:bg-white/20 rounded-lg transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  {/* Status Toggle */}
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">สถานะเปิดรับข้อเสนอโครงการ</p>
+                        <p className="text-[11px] text-slate-500">
+                          {isSubmissionOpen ? 'เปิดให้ผู้ใช้ส่งข้อเสนอโครงการได้ตามปกติ' : 'ปิดระบบรับข้อเสนอโครงการชั่วคราว'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleChange('is_submission_open', isSubmissionOpen ? 'false' : 'true')}
+                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          isSubmissionOpen ? 'bg-emerald-600' : 'bg-slate-300'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            isSubmissionOpen ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Dates */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                        <span>วันเริ่มต้นเปิดรับ (Start Date)</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={settings.submission_start_date || ''}
+                        onChange={(e) => handleChange('submission_start_date', e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-mono outline-none focus:border-blue-900"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">เว้นว่างได้หากไม่จำกัด</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-slate-500" />
+                        <span>วันสิ้นสุดการรับ (Deadline)</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={settings.submission_end_date || ''}
+                        onChange={(e) => handleChange('submission_end_date', e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg font-mono outline-none focus:border-blue-900"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">เว้นว่างได้หากไม่จำกัด</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setShowScheduleModal(false)}
+                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                    >
+                      ปิด
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handleSave();
+                        setShowScheduleModal(false);
+                      }}
+                      className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition shadow-xs"
+                    >
+                      บันทึกการตั้งค่า
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1745,6 +1980,222 @@ export default function AdminSettingsPage() {
           <span>{saving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}</span>
         </button>
       </div>
+
+      {/* Modal 1: เพิ่มปีงบประมาณใหม่ */}
+      {showAddYearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">เพิ่มปีงบประมาณใหม่</h3>
+                  <p className="text-xs text-slate-500">สร้างรอบปีงบประมาณสำหรับจัดทำแผนงานและโครงการ</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddYearModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddFiscalYear} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  ระบุปีงบประมาณ (พ.ศ.) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="2500"
+                  max="2600"
+                  required
+                  value={newYearInput}
+                  onChange={(e) => setNewYearInput(e.target.value)}
+                  placeholder="เช่น 2568, 2569"
+                  className="w-full px-3.5 py-2.5 text-sm font-mono font-bold border border-slate-300 rounded-xl outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition"
+                />
+                
+                {/* Quick Year Selection Chips */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[11px] text-slate-400">เลือกด่วน:</span>
+                  {[
+                    getCurrentThaiFiscalYear() - 1,
+                    getCurrentThaiFiscalYear(),
+                    getCurrentThaiFiscalYear() + 1,
+                    getCurrentThaiFiscalYear() + 2,
+                  ].map((y) => (
+                    <button
+                      key={y}
+                      type="button"
+                      onClick={() => setNewYearInput(String(y))}
+                      className={`px-2 py-0.5 rounded text-[11px] font-mono font-medium transition ${
+                        newYearInput === String(y)
+                          ? 'bg-emerald-600 text-white font-bold'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={setAsActiveYear}
+                    onChange={(e) => setSetAsActiveYear(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                  />
+                  <span>กำหนดให้เป็น <strong>ปีงบประมาณปัจจุบันของระบบ (Active)</strong> ทันที</span>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddYearModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingYear}
+                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>{addingYear ? 'กำลังบันทึก...' : 'เพิ่มปีงบประมาณ'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: ตั้งค่าสถานะและเวลาเปิดรับข้อเสนอโครงการ */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-50 text-blue-900 rounded-xl">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">ตั้งค่าสถานะและเวลาเปิดรับข้อเสนอโครงการ</h3>
+                  <p className="text-xs text-slate-500">กำหนดเปิด/ปิดรับ และกรอบระยะเวลาเสนอโครงการประจำปีงบประมาณ</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Submission Open/Close Switch */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <label className="block text-xs font-bold text-slate-800">
+                  สถานะการเปิดรับข้อเสนอโครงการ:
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleChange('is_submission_open', 'true')}
+                    className={`p-3 rounded-xl border text-center font-bold text-xs transition flex items-center justify-center gap-2 ${
+                      settings.is_submission_open === 'true'
+                        ? 'border-emerald-600 bg-emerald-50 text-emerald-800 shadow-xs ring-2 ring-emerald-600/20'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>เปิดรับข้อเสนอโครงการ</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleChange('is_submission_open', 'false')}
+                    className={`p-3 rounded-xl border text-center font-bold text-xs transition flex items-center justify-center gap-2 ${
+                      settings.is_submission_open === 'false'
+                        ? 'border-red-600 bg-red-50 text-red-800 shadow-xs ring-2 ring-red-600/20'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                    <span>ปิดรับข้อเสนอโครงการ</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  หากเลือก "ปิดรับข้อเสนอโครงการ" ครูและบุคลากรจะไม่สามารถกดสร้างหรือเสนอโครงการใหม่ได้
+                </p>
+              </div>
+
+              {/* Date Ranges */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-blue-900" />
+                    <span>วันเริ่มต้นเปิดรับข้อเสนอ</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={settings.submission_start_date || ''}
+                    onChange={(e) => handleChange('submission_start_date', e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:border-blue-900 bg-white"
+                  />
+                  <span className="text-[10px] text-slate-400 block mt-1">ปล่อยว่างได้หากไม่จำกัดวันเริ่ม</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-red-500" />
+                    <span>วันสิ้นสุดการรับ (Deadline)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={settings.submission_end_date || ''}
+                    onChange={(e) => handleChange('submission_end_date', e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:border-blue-900 bg-white"
+                  />
+                  <span className="text-[10px] text-slate-400 block mt-1">ปล่อยว่างได้หากไม่จำกัดวันหมดเขต</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={async () => {
+                    await handleSave();
+                    setShowScheduleModal(false);
+                  }}
+                  className="px-5 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-800 rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{saving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

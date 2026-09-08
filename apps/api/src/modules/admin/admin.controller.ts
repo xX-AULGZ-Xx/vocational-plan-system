@@ -1471,7 +1471,7 @@ router.post('/settings/test-email', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// GET /api/v1/admin/fiscal-years (List all fiscal years present in DB with project count)
+// GET /api/v1/admin/fiscal-years (List all fiscal years present in DB or configured with project count)
 router.get('/fiscal-years', async (req: AuthRequest, res: Response) => {
   try {
     const rawYears = await prisma.project.groupBy({
@@ -1488,14 +1488,59 @@ router.get('/fiscal-years', async (req: AuthRequest, res: Response) => {
       },
     });
 
-    const yearsList = rawYears.map((r: any) => ({
-      fiscal_year: r.fiscal_year,
-      project_count: r._count?.id || 0,
-      total_budget: Number(r._sum?.total_budget) || 0,
-      actual_spent: Number(r._sum?.actual_spent) || 0,
-    }));
+    const yearsMap = new Map<number, any>();
+    for (const r of rawYears) {
+      yearsMap.set(r.fiscal_year, {
+        fiscal_year: r.fiscal_year,
+        project_count: r._count?.id || 0,
+        total_budget: Number(r._sum?.total_budget) || 0,
+        actual_spent: Number(r._sum?.actual_spent) || 0,
+      });
+    }
 
-    return res.json({ success: true, data: yearsList });
+    // Also ensure current_fiscal_year from settings exists in map
+    try {
+      const currentYearSetting = await (prisma as any).systemSetting.findUnique({
+        where: { key: 'current_fiscal_year' },
+      });
+      if (currentYearSetting?.value) {
+        const cYear = parseInt(currentYearSetting.value);
+        if (!isNaN(cYear) && !yearsMap.has(cYear)) {
+          yearsMap.set(cYear, {
+            fiscal_year: cYear,
+            project_count: 0,
+            total_budget: 0,
+            actual_spent: 0,
+          });
+        }
+      }
+
+      // Also check stored custom fiscal_years setting if any
+      const customYearsSetting = await (prisma as any).systemSetting.findUnique({
+        where: { key: 'custom_fiscal_years' },
+      });
+      if (customYearsSetting?.value) {
+        try {
+          const list = JSON.parse(customYearsSetting.value);
+          if (Array.isArray(list)) {
+            for (const y of list) {
+              const numY = parseInt(y);
+              if (!isNaN(numY) && !yearsMap.has(numY)) {
+                yearsMap.set(numY, {
+                  fiscal_year: numY,
+                  project_count: 0,
+                  total_budget: 0,
+                  actual_spent: 0,
+                });
+              }
+            }
+          }
+        } catch {}
+      }
+    } catch (e) {}
+
+    const sortedList = Array.from(yearsMap.values()).sort((a, b) => b.fiscal_year - a.fiscal_year);
+    return res.json({ success: true, data: sortedList });
   } catch (error: any) {
     console.error('Get fiscal years error:', error);
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงรายการปีงบประมาณ', error: error.message });
@@ -1561,6 +1606,56 @@ router.delete('/fiscal-years/:year', async (req: AuthRequest, res: Response) => 
   } catch (error: any) {
     console.error('Delete fiscal year error:', error);
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการลบข้อมูลปีงบประมาณ', error: error.message });
+  }
+});
+
+// POST /api/v1/admin/fiscal-years (Add / Register a new fiscal year)
+router.post('/fiscal-years', async (req: AuthRequest, res: Response) => {
+  try {
+    const { fiscal_year, set_as_active } = req.body;
+    const year = parseInt(String(fiscal_year));
+    if (isNaN(year) || year < 2500 || year > 2700) {
+      return res.status(400).json({ success: false, message: 'กรุณาระบุปีงบประมาณ พ.ศ. ให้ถูกต้อง (เช่น 2569, 2570)' });
+    }
+
+    // Add to custom_fiscal_years array in system_settings
+    let customYears: number[] = [];
+    const customSetting = await (prisma as any).systemSetting.findUnique({ where: { key: 'custom_fiscal_years' } });
+    if (customSetting?.value) {
+      try { customYears = JSON.parse(customSetting.value); } catch {}
+    }
+    if (!customYears.includes(year)) {
+      customYears.push(year);
+      await (prisma as any).systemSetting.upsert({
+        where: { key: 'custom_fiscal_years' },
+        update: { value: JSON.stringify(customYears) },
+        create: {
+          key: 'custom_fiscal_years',
+          value: JSON.stringify(customYears),
+          description: 'รายการปีงบประมาณที่เพิ่มด้วยตนเอง',
+        },
+      });
+    }
+
+    if (set_as_active) {
+      await (prisma as any).systemSetting.upsert({
+        where: { key: 'current_fiscal_year' },
+        update: { value: String(year) },
+        create: {
+          key: 'current_fiscal_year',
+          value: String(year),
+          description: 'ปีงบประมาณเริ่มต้น',
+        },
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: `เพิ่มปีงบประมาณ พ.ศ. ${year} เรียบร้อยแล้ว`,
+      data: { fiscal_year: year },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการเพิ่มปีงบประมาณ', error: error.message });
   }
 });
 
