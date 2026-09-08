@@ -352,21 +352,18 @@ const fetchProposalTemplate = async () => {
       }
       case 'APPROVER_DROPDOWN': {
         const deputyList = [
-          { name: deputyResName, division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร' },
-          { name: deputyStratName, division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
-          { name: deputyDevName, division: 'ฝ่ายพัฒนากิจการนักเรียน นักศึกษา', position: deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
-          { name: deputyAcadName, division: 'ฝ่ายวิชาการ', position: deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ' },
+          { name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร' },
+          { name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
+          { name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
+          { name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', division: 'ฝ่ายวิชาการ', position: deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ' },
         ].filter(d => !!d.name);
-
-        const allDepts = (typeof divisionsData !== 'undefined' ? divisionsData : []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []);
-        const headList = allDepts.filter((d: any) => !!d.head_name);
 
         return (
           <div key={key} className="col-span-1 lg:col-span-2">
             <div className="mb-1 flex items-center justify-between">
               <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
               <span className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
-                ผู้เห็นชอบโครงการ
+                ผู้เห็นชอบโครงการ (รองฝ่าย)
               </span>
             </div>
             {tag.description && <p className="text-xs text-gray-500 mb-1">{tag.description}</p>}
@@ -375,12 +372,11 @@ const fetchProposalTemplate = async () => {
               onChange={(e) => {
                 handleDynamicChange(key, e.target.value);
                 const selectedDeputy = deputyList.find(d => d.name === e.target.value);
-                const selectedHead = headList.find((d: any) => d.head_name === e.target.value);
-                const pos = selectedDeputy ? selectedDeputy.position : (selectedHead ? (selectedHead.head_position || `หัวหน้า${selectedHead.name}`) : '');
-                if (pos) {
-                  if (dynamicData[`${key}_position`] !== undefined || dynamicData['approver_position'] !== undefined) {
-                    handleDynamicChange(`${key}_position`, pos);
-                    handleDynamicChange('approver_position', pos);
+                if (selectedDeputy) {
+                  if (dynamicData[`${key}_position`] !== undefined || dynamicData['approver_position'] !== undefined || dynamicData['deputy_position'] !== undefined) {
+                    handleDynamicChange(`${key}_position`, selectedDeputy.position);
+                    handleDynamicChange('approver_position', selectedDeputy.position);
+                    handleDynamicChange('deputy_position', selectedDeputy.position);
                   }
                 }
               }}
@@ -388,25 +384,12 @@ const fetchProposalTemplate = async () => {
               required={tag.is_required}
               className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             >
-              <option value="">-- เลือกผู้เห็นชอบโครงการ (รอง ผอ. / หัวหน้างาน) --</option>
-              {deputyList.length > 0 && (
-                <optgroup label="รองผู้อำนวยการ ๔ ฝ่าย">
-                  {deputyList.map((d, i) => (
-                    <option key={`dep-${i}`} value={d.name}>
-                      {d.name} ({d.division})
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {headList.length > 0 && (
-                <optgroup label="หัวหน้างาน / หัวหน้าแผนกวิชา">
-                  {headList.map((d: any, i: number) => (
-                    <option key={`head-${i}`} value={d.head_name}>
-                      {d.head_name} ({d.name})
-                    </option>
-                  ))}
-                </optgroup>
-              )}
+              <option value="">-- เลือกผู้เห็นชอบโครงการ (รองผู้อำนวยการฝ่าย) --</option>
+              {deputyList.map((d, i) => (
+                <option key={`dep-${i}`} value={d.name}>
+                  {d.name} ({d.division})
+                </option>
+              ))}
             </select>
           </div>
         );

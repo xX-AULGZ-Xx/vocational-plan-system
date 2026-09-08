@@ -801,7 +801,7 @@ export default function AdminTemplatesPage() {
                                 <option value="COLLEGE_NAME">ชื่อสถานศึกษา (College Name)</option>
                                 <option value="DIRECTOR_NAME">ชื่อผู้อำนวยการ (Director Name)</option>
                                 <option value="DIRECTOR_POSITION">ตำแหน่งผู้อำนวยการ (Director Position)</option>
-                                <option value="APPROVER_DROPDOWN">ตัวเลือก ผู้เห็นชอบโครงการ (Approver Dropdown - รอง ผอ. / หัวหน้างาน)</option>
+                                <option value="APPROVER_DROPDOWN">ตัวเลือก ผู้เห็นชอบโครงการ (รองผู้อำนวยการฝ่าย)</option>
                                 <option value="DEPUTY_DROPDOWN">ตัวเลือก รอง ผอ. 4 ฝ่าย (Deputy Dropdown)</option>
                                 <option value="DEPUTY_ACAD_NAME">ชื่อ รอง ผอ. ฝ่ายวิชาการ</option>
                                 <option value="DEPUTY_ACAD_POSITION">ตำแหน่ง รอง ผอ. ฝ่ายวิชาการ</option>
