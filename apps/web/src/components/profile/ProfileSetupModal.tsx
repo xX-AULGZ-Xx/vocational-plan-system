@@ -70,10 +70,11 @@ export default function ProfileSetupModal() {
   const [personnelType, setPersonnelType] = useState<'TEACHER' | 'STAFF'>('TEACHER');
   const [position, setPosition] = useState('ครู');
   const [customPosition, setCustomPosition] = useState('');
-  const [selectedDivisionId, setSelectedDivisionId] = useState<number | ''>('');
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | ''>('');
+  const [selectedDivisionIds, setSelectedDivisionIds] = useState<number[]>([]);
+  const [primaryDivisionId, setPrimaryDivisionId] = useState<number | ''>('');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | ''>(''); // Primary department
   const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<number[]>([]);
-  const [isHead, setIsHead] = useState(false);
+  const [headDeptIds, setHeadDeptIds] = useState<number[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Check if setup is needed
@@ -92,9 +93,6 @@ export default function ProfileSetupModal() {
       if (user.full_name && user.full_name !== user.username) {
         setFullName(user.full_name);
       }
-      if (user.role === 'HEAD_DEPT') {
-        setIsHead(true);
-      }
       if (user.position) {
         if (TEACHER_POSITIONS.includes(user.position)) {
           setPersonnelType('TEACHER');
@@ -108,11 +106,15 @@ export default function ProfileSetupModal() {
         }
       }
       if (user.department?.division_id) {
-        setSelectedDivisionId(user.department.division_id);
+        setSelectedDivisionIds([user.department.division_id]);
+        setPrimaryDivisionId(user.department.division_id);
       }
       if (user.department?.id) {
         setSelectedDepartmentId(user.department.id);
         setSelectedDepartmentIds([user.department.id]);
+        if (user.role === 'HEAD_DEPT') {
+          setHeadDeptIds([user.department.id]);
+        }
       }
     }
   }, [user]);
@@ -130,13 +132,15 @@ export default function ProfileSetupModal() {
       const data = await res.json();
       if (data.success && data.data) {
         setDivisions(data.data);
-        // Default to Academic division if teacher and nothing selected
-        if (!selectedDivisionId) {
+        // Default select divisions based on teacher/staff
+        if (selectedDivisionIds.length === 0) {
           const acadDiv = data.data.find((d: Division) => d.code === 'acad' || d.name.includes('วิชาการ'));
           if (acadDiv) {
-            setSelectedDivisionId(acadDiv.id);
+            setSelectedDivisionIds([acadDiv.id]);
+            setPrimaryDivisionId(acadDiv.id);
           } else if (data.data.length > 0) {
-            setSelectedDivisionId(data.data[0].id);
+            setSelectedDivisionIds([data.data[0].id]);
+            setPrimaryDivisionId(data.data[0].id);
           }
         }
       }
@@ -153,38 +157,61 @@ export default function ProfileSetupModal() {
     if (type === 'TEACHER') {
       setPosition('ครู');
       setCustomPosition('');
-      // Find academic division
       const acadDiv = divisions.find((d) => d.code === 'acad' || d.name.includes('วิชาการ'));
       if (acadDiv) {
-        setSelectedDivisionId(acadDiv.id);
+        setSelectedDivisionIds([acadDiv.id]);
+        setPrimaryDivisionId(acadDiv.id);
         setSelectedDepartmentId('');
         setSelectedDepartmentIds([]);
+        setHeadDeptIds([]);
       }
     } else {
       setPosition('เจ้าหน้าที่');
       setCustomPosition('');
-      // Find resource management or planning division for staff
       const resDiv = divisions.find((d) => d.code === 'res' || d.name.includes('บริหาร'));
       if (resDiv) {
-        setSelectedDivisionId(resDiv.id);
+        setSelectedDivisionIds([resDiv.id]);
+        setPrimaryDivisionId(resDiv.id);
         setSelectedDepartmentId('');
         setSelectedDepartmentIds([]);
+        setHeadDeptIds([]);
       }
     }
   };
 
-  // Filtered departments based on selected division
-  const currentDepartments = useMemo(() => {
-    if (!selectedDivisionId) return [];
-    const div = divisions.find((d) => d.id === Number(selectedDivisionId));
-    return div?.departments || [];
-  }, [divisions, selectedDivisionId]);
+  // Toggle division selection (multiple divisions allowed)
+  const handleToggleDivision = (divId: number) => {
+    setSelectedDivisionIds((prev) => {
+      let next: number[];
+      if (prev.includes(divId)) {
+        if (prev.length === 1) return prev; // Keep at least 1
+        next = prev.filter((id) => id !== divId);
+      } else {
+        next = [...prev, divId];
+      }
 
-  // When division changes, reset or filter department choices
-  const handleDivisionChange = (divId: number) => {
-    setSelectedDivisionId(divId);
-    setSelectedDepartmentId('');
-    setSelectedDepartmentIds([]);
+      // If primary division was removed, set new primary
+      if (!next.includes(Number(primaryDivisionId))) {
+        setPrimaryDivisionId(next[0] || '');
+      }
+
+      // Remove departments that belong to unselected divisions
+      const validDeptIds = divisions
+        .filter((d) => next.includes(d.id))
+        .flatMap((d) => d.departments.map((dept) => dept.id));
+
+      setSelectedDepartmentIds((curDepts) => {
+        const filtered = curDepts.filter((id) => validDeptIds.includes(id));
+        if (!filtered.includes(Number(selectedDepartmentId))) {
+          setSelectedDepartmentId(filtered[0] || '');
+        }
+        return filtered;
+      });
+
+      setHeadDeptIds((curHeads) => curHeads.filter((id) => validDeptIds.includes(id)));
+
+      return next;
+    });
   };
 
   // Toggle department in multi-select mode
@@ -193,15 +220,38 @@ export default function ProfileSetupModal() {
       let next: number[];
       if (prev.includes(deptId)) {
         next = prev.filter((id) => id !== deptId);
+        // Also remove from headDeptIds if unchecked
+        setHeadDeptIds((heads) => heads.filter((h) => h !== deptId));
       } else {
         next = [...prev, deptId];
       }
+
       if (next.length > 0) {
-        setSelectedDepartmentId(next[0]);
+        if (!next.includes(Number(selectedDepartmentId))) {
+          setSelectedDepartmentId(next[0]);
+        }
       } else {
         setSelectedDepartmentId('');
       }
       return next;
+    });
+  };
+
+  // Toggle is_head for specific department
+  const handleToggleHeadDept = (deptId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Auto-select department if not already selected
+    if (!selectedDepartmentIds.includes(deptId)) {
+      setSelectedDepartmentIds((prev) => [...prev, deptId]);
+      if (!selectedDepartmentId) setSelectedDepartmentId(deptId);
+    }
+
+    setHeadDeptIds((prev) => {
+      if (prev.includes(deptId)) {
+        return prev.filter((id) => id !== deptId);
+      } else {
+        return [...prev, deptId];
+      }
     });
   };
 
@@ -220,14 +270,14 @@ export default function ProfileSetupModal() {
       return;
     }
 
-    if (!selectedDivisionId) {
-      setErrorMsg('กรุณาเลือกฝ่ายงานที่สังกัด');
+    if (selectedDivisionIds.length === 0) {
+      setErrorMsg('กรุณาเลือกฝ่ายงานที่สังกัดอย่างน้อย 1 ฝ่าย');
       return;
     }
 
     const effectiveDeptId = selectedDepartmentId || (selectedDepartmentIds.length > 0 ? selectedDepartmentIds[0] : null);
     if (!effectiveDeptId) {
-      setErrorMsg(personnelType === 'TEACHER' ? 'กรุณาเลือกแผนกวิชาที่สังกัดอย่างน้อย 1 รายการ' : 'กรุณาเลือกงานที่สังกัดอย่างน้อย 1 งาน');
+      setErrorMsg(personnelType === 'TEACHER' ? 'กรุณาเลือกแผนกวิชาหรือภาระงานที่รับผิดชอบอย่างน้อย 1 รายการ' : 'กรุณาเลือกงานที่รับผิดชอบอย่างน้อย 1 งาน');
       return;
     }
 
@@ -244,7 +294,8 @@ export default function ProfileSetupModal() {
           full_name: fullName.trim(),
           position: effectivePosition,
           department_id: Number(effectiveDeptId),
-          is_head: isHead,
+          is_head: headDeptIds.length > 0,
+          head_dept_ids: headDeptIds,
         }),
       });
 
@@ -269,6 +320,9 @@ export default function ProfileSetupModal() {
     return null;
   }
 
+  // Group departments by selected divisions
+  const activeDivisionsWithDepts = divisions.filter((d) => selectedDivisionIds.includes(d.id));
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden flex flex-col my-8">
@@ -289,7 +343,7 @@ export default function ProfileSetupModal() {
                 ตั้งค่าข้อมูลโปรไฟล์และหน้าที่ความรับผิดชอบ
               </h2>
               <p className="text-xs text-blue-100/90 mt-1 leading-relaxed">
-                กรุณาระบุชื่อ-นามสกุลจริง ตำแหน่ง และเลือกฝ่าย/งานที่สังกัด (สามารถเลือกได้มากกว่า 1 งาน) พร้อมระบุหากดำรงตำแหน่งหัวหน้างาน
+                กรุณาระบุชื่อ-นามสกุลจริง ตำแหน่ง และเลือกฝ่าย/งานที่สังกัด (สามารถเลือกได้หลายฝ่ายและหลายงาน) พร้อมติ๊กตำแหน่งหัวหน้างานได้ทันที
               </p>
             </div>
           </div>
@@ -407,30 +461,49 @@ export default function ProfileSetupModal() {
             )}
           </div>
 
-          {/* Division Selector */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-slate-500" />
-              <span>ฝ่ายงานหลักที่สังกัด</span>
-              <span className="text-red-500">*</span>
-            </label>
-            <select
-              required
-              value={selectedDivisionId}
-              onChange={(e) => handleDivisionChange(Number(e.target.value))}
-              disabled={fetchingDivisions}
-              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white disabled:bg-slate-100 font-semibold text-slate-800"
-            >
-              <option value="">-- เลือกฝ่ายงาน --</option>
-              {divisions.map((div) => (
-                <option key={div.id} value={div.id}>
-                  {div.name}
-                </option>
-              ))}
-            </select>
+          {/* Division Multi-Select */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                <span>ฝ่ายงานที่ปฏิบัติหน้าที่ (เลือกได้มากกว่า 1 ฝ่าย)</span>
+                <span className="text-red-500">*</span>
+              </label>
+              <span className="text-[11px] text-blue-900 font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                เลือกแล้ว {selectedDivisionIds.length} ฝ่าย
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {divisions.map((div) => {
+                const isChecked = selectedDivisionIds.includes(div.id);
+                return (
+                  <div
+                    key={div.id}
+                    onClick={() => handleToggleDivision(div.id)}
+                    className={`p-3 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition ${
+                      isChecked
+                        ? 'bg-blue-50/90 border-blue-500 text-blue-950 font-bold shadow-2xs ring-1 ring-blue-500'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}}
+                        className="w-4 h-4 text-blue-900 rounded border-slate-300 pointer-events-none"
+                      />
+                      <span>{div.name}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono">[{div.code?.toUpperCase()}]</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Departments & Works Selection (Multiple selectable items) */}
+          {/* Departments & Works Selection with Inline Head of Work Checkbox */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
@@ -441,97 +514,93 @@ export default function ProfileSetupModal() {
                 </span>
               </label>
               <span className="text-[11px] text-blue-900 font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                เลือกได้มากกว่า 1 งาน (เลือกแล้ว {selectedDepartmentIds.length} รายการ)
+                เลือกงานแล้ว {selectedDepartmentIds.length} งาน / หัวหน้างาน {headDeptIds.length} งาน
               </span>
             </div>
 
-            {selectedDivisionId ? (
-              <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 max-h-52 overflow-y-auto space-y-1.5">
-                {currentDepartments.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-3 text-center">ยังไม่มีข้อมูลงานในฝ่ายนี้</p>
-                ) : (
-                  currentDepartments.map((dept) => {
-                    const isChecked = selectedDepartmentIds.includes(dept.id);
-                    const isPrimary = selectedDepartmentId === dept.id;
-
-                    return (
-                      <div
-                        key={dept.id}
-                        onClick={() => handleToggleDepartment(dept.id)}
-                        className={`p-2.5 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition ${
-                          isChecked
-                            ? 'bg-blue-50/90 border-blue-400 text-blue-950 font-semibold shadow-2xs'
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100/80'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}} // Handled by div click
-                            className="w-4 h-4 text-blue-900 rounded border-slate-300 focus:ring-blue-900 pointer-events-none"
-                          />
-                          <span>{dept.name}</span>
-                        </div>
-
-                        {isChecked && (
-                          <div className="flex items-center gap-1.5">
-                            {isPrimary && (
-                              <span className="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-bold">
-                                งานหลัก
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedDepartmentId(dept.id);
-                              }}
-                              className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                                isPrimary
-                                  ? 'hidden'
-                                  : 'bg-white text-slate-600 border-slate-300 hover:bg-blue-100 hover:text-blue-900'
-                              }`}
-                            >
-                              ตั้งเป็นงานหลัก
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            ) : (
-              <div className="p-4 border border-dashed border-slate-300 rounded-xl text-center text-xs text-slate-400 bg-slate-50">
-                กรุณาเลือกฝ่ายงานด้านบนก่อนเพื่อแสดงรายการงาน/แผนกวิชา
-              </div>
-            )}
-          </div>
-
-          {/* Is Head of Department / Work Checkbox */}
-          <div className="pt-2">
-            <label className={`flex items-start gap-3 p-3.5 rounded-xl border transition cursor-pointer ${
-              isHead
-                ? 'bg-amber-50/80 border-amber-300 shadow-2xs ring-1 ring-amber-400'
-                : 'bg-slate-50 border-slate-200 hover:bg-slate-100/60'
-            }`}>
-              <input
-                type="checkbox"
-                checked={isHead}
-                onChange={(e) => setIsHead(e.target.checked)}
-                className="w-4 h-4 mt-0.5 text-amber-600 rounded border-slate-300 focus:ring-amber-500 cursor-pointer"
-              />
-              <div>
-                <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <ShieldCheck className={`w-4 h-4 ${isHead ? 'text-amber-600' : 'text-slate-400'}`} />
-                  <span>เป็นหัวหน้างาน / หัวหน้าแผนกวิชา (สิทธิ์ลงนามอนุมัติขั้นที่ 1)</span>
+            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 max-h-64 overflow-y-auto space-y-3">
+              {activeDivisionsWithDepts.length === 0 ? (
+                <div className="text-center py-5 text-slate-400 text-xs">
+                  กรุณาเลือกฝ่ายงานด้านบนเพื่อแสดงรายการงาน/แผนกวิชา
                 </div>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                  ติ๊กตัวเลือกนี้หากท่านดำรงตำแหน่งหัวหน้างานหรือหัวหน้าแผนก เพื่อให้ระบบจัดคิวเสนอโครงการมายังท่านสำหรับการพิจารณาเห็นชอบโครงการ
-                </p>
-              </div>
-            </label>
+              ) : (
+                activeDivisionsWithDepts.map((div) => (
+                  <div key={div.id} className="space-y-1.5">
+                    <div className="text-[11px] font-bold text-slate-600 bg-slate-200/70 px-2.5 py-1 rounded-md flex items-center justify-between">
+                      <span>📁 {div.name}</span>
+                      <span className="text-[10px] font-mono text-slate-500">[{div.code?.toUpperCase()}]</span>
+                    </div>
+
+                    <div className="space-y-1.5 pl-1">
+                      {div.departments.map((dept) => {
+                        const isChecked = selectedDepartmentIds.includes(dept.id);
+                        const isPrimary = selectedDepartmentId === dept.id;
+                        const isHeadOfThisDept = headDeptIds.includes(dept.id);
+
+                        return (
+                          <div
+                            key={dept.id}
+                            onClick={() => handleToggleDepartment(dept.id)}
+                            className={`p-2.5 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer transition ${
+                              isChecked
+                                ? 'bg-white border-blue-400 text-slate-900 font-semibold shadow-2xs'
+                                : 'bg-white/80 border-slate-200 text-slate-700 hover:bg-white'
+                            }`}
+                          >
+                            {/* Left: Department Name */}
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {}}
+                                className="w-4 h-4 text-blue-900 rounded border-slate-300 pointer-events-none shrink-0"
+                              />
+                              <span className="truncate">{dept.name}</span>
+                              {isPrimary && (
+                                <span className="text-[9px] bg-blue-600 text-white px-1.5 py-0.2 rounded font-bold shrink-0">
+                                  งานหลัก
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Right Actions: [Set Primary] & [เป็นหัวหน้างาน Toggle] */}
+                            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center pl-6 sm:pl-0">
+                              {isChecked && !isPrimary && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedDepartmentId(dept.id);
+                                  }}
+                                  className="text-[10px] px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-300 hover:bg-blue-50 hover:text-blue-900 hover:border-blue-300"
+                                >
+                                  ตั้งเป็นงานหลัก
+                                </button>
+                              )}
+
+                              {/* Head of department toggle button */}
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleHeadDept(dept.id, e)}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition flex items-center gap-1.5 ${
+                                  isHeadOfThisDept
+                                    ? 'bg-amber-500 text-white border-amber-600 shadow-xs ring-1 ring-amber-400'
+                                    : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-amber-50 hover:text-amber-900 hover:border-amber-300'
+                                }`}
+                                title="ติ๊กเพื่อระบุว่าท่านดำรงตำแหน่งหัวหน้าสำหรับงาน/แผนกนี้"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                <span>{isHeadOfThisDept ? '✓ เป็นหัวหน้างาน' : '+ เป็นหัวหน้างาน'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Action Buttons */}
