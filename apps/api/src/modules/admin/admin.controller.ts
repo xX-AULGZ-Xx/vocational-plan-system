@@ -250,14 +250,46 @@ async function ensureTemplateTablesExist() {
 router.get('/templates', async (req: AuthRequest, res: Response) => {
   try {
     await ensureTemplateTablesExist();
-    const templates = await (prisma as any).documentTemplate.findMany({
-      orderBy: { created_at: 'desc' },
-      include: {
-        tags: {
-          orderBy: { sort_order: 'asc' }
+
+    // Query templates and tags using raw SQL to ensure compatibility even if Prisma enum is regenerating
+    let templates: any[] = [];
+    try {
+      templates = await prisma.$queryRawUnsafe(`
+        SELECT * FROM \`document_templates\` ORDER BY \`created_at\` DESC
+      `);
+      const allTags: any[] = await prisma.$queryRawUnsafe(`
+        SELECT * FROM \`template_tags\` ORDER BY \`sort_order\` ASC
+      `);
+
+      const tagsByTemplate = new Map<number, any[]>();
+      for (const tag of allTags) {
+        if (!tagsByTemplate.has(tag.template_id)) {
+          tagsByTemplate.set(tag.template_id, []);
         }
+        let opts = tag.options;
+        if (typeof opts === 'string') {
+          try { opts = JSON.parse(opts); } catch { opts = null; }
+        }
+        tagsByTemplate.get(tag.template_id)!.push({
+          ...tag,
+          is_required: Boolean(tag.is_required),
+          options: opts
+        });
       }
-    });
+
+      for (const t of templates) {
+        t.tags = tagsByTemplate.get(t.id) || [];
+      }
+    } catch (dbErr) {
+      templates = await (prisma as any).documentTemplate.findMany({
+        orderBy: { created_at: 'desc' },
+        include: {
+          tags: {
+            orderBy: { sort_order: 'asc' }
+          }
+        }
+      });
+    }
 
     const formatted = templates.map((t: any) => {
       let parsedMappings = t.mappings;
@@ -281,7 +313,8 @@ router.get('/templates', async (req: AuthRequest, res: Response) => {
 
     return res.json({ success: true, data: serializeBigInt(formatted) });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด', error: error.message });
+    console.error('GET /templates error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการโหลดเทมเพลต', error: error.message });
   }
 });
 
@@ -609,14 +642,40 @@ router.get('/templates/:id/extract-tags', async (req: AuthRequest, res: Response
 router.get('/templates/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const template = await (prisma as any).documentTemplate.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        tags: {
-          orderBy: { sort_order: 'asc' }
-        }
+    const templateId = parseInt(id);
+
+    let template: any = null;
+    try {
+      const rows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT * FROM \`document_templates\` WHERE \`id\` = ? LIMIT 1
+      `, templateId);
+      if (rows && rows.length > 0) {
+        template = rows[0];
+        const tags: any[] = await prisma.$queryRawUnsafe(`
+          SELECT * FROM \`template_tags\` WHERE \`template_id\` = ? ORDER BY \`sort_order\` ASC
+        `, templateId);
+        template.tags = tags.map((t: any) => {
+          let opts = t.options;
+          if (typeof opts === 'string') {
+            try { opts = JSON.parse(opts); } catch { opts = null; }
+          }
+          return {
+            ...t,
+            is_required: Boolean(t.is_required),
+            options: opts
+          };
+        });
       }
-    });
+    } catch {
+      template = await (prisma as any).documentTemplate.findUnique({
+        where: { id: templateId },
+        include: {
+          tags: {
+            orderBy: { sort_order: 'asc' }
+          }
+        }
+      });
+    }
 
     if (!template) {
       return res.status(404).json({ success: false, message: 'ไม่พบเทมเพลต' });

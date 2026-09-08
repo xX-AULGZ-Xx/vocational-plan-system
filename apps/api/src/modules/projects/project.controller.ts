@@ -87,14 +87,38 @@ router.get('/templates', authenticate, async (req: AuthRequest, res: Response) =
 // GET /api/v1/projects/active-proposal-template
 router.get('/active-proposal-template', authenticate, async (req: any, res: any) => {
   try {
-    const template = await (prisma as any).documentTemplate.findFirst({
-      where: { default_type: 'PROPOSAL', is_active: true },
-      include: {
-        tags: {
-          orderBy: { sort_order: 'asc' }
-        }
+    let template: any = null;
+    try {
+      const rows: any[] = await prisma.$queryRawUnsafe(`
+        SELECT * FROM \`document_templates\` WHERE \`default_type\` = 'PROPOSAL' AND \`is_active\` = 1 LIMIT 1
+      `);
+      if (rows && rows.length > 0) {
+        template = rows[0];
+        const tags: any[] = await prisma.$queryRawUnsafe(`
+          SELECT * FROM \`template_tags\` WHERE \`template_id\` = ? ORDER BY \`sort_order\` ASC
+        `, template.id);
+        template.tags = tags.map((t: any) => {
+          let opts = t.options;
+          if (typeof opts === 'string') {
+            try { opts = JSON.parse(opts); } catch { opts = null; }
+          }
+          return {
+            ...t,
+            is_required: Boolean(t.is_required),
+            options: opts
+          };
+        });
       }
-    });
+    } catch {
+      template = await (prisma as any).documentTemplate.findFirst({
+        where: { default_type: 'PROPOSAL', is_active: true },
+        include: {
+          tags: {
+            orderBy: { sort_order: 'asc' }
+          }
+        }
+      });
+    }
 
     if (!template) {
       return res.status(404).json({ success: false, message: 'ไม่พบแม่แบบเริ่มต้นสำหรับการเขียนโครงการ' });
