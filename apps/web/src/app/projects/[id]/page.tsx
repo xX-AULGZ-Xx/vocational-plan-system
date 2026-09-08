@@ -351,8 +351,22 @@ const canApprove =
               )}
             </div>
             <p className="text-xs text-slate-500">
-              สังกัด: {project.department?.name} ({project.department?.division?.name}) • ผู้เสนอ:{' '}
-              {project.leader?.full_name}
+              {(() => {
+                const targetDivName = parsedDynamicData['approver_division_name'] || 
+                                     (parsedDynamicData['approver_position']?.includes('บริหารทรัพยากร') || parsedDynamicData['endorser_position']?.includes('บริหารทรัพยากร') ? 'ฝ่ายบริหารทรัพยากร' : null) ||
+                                     (parsedDynamicData['approver_position']?.includes('วิชาการ') || parsedDynamicData['endorser_position']?.includes('วิชาการ') ? 'ฝ่ายวิชาการ' : null) ||
+                                     (parsedDynamicData['approver_position']?.includes('พัฒนากิจการ') || parsedDynamicData['endorser_position']?.includes('พัฒนากิจการ') ? 'ฝ่ายพัฒนากิจการนักเรียนฯ' : null) ||
+                                     (parsedDynamicData['approver_position']?.includes('แผนงาน') || parsedDynamicData['endorser_position']?.includes('แผนงาน') ? 'ฝ่ายแผนงานและความร่วมมือ' : null) ||
+                                     project.department?.division?.name;
+                
+                const deptName = parsedDynamicData['leader_department_name'] || project.department?.name;
+
+                return (
+                  <>
+                    สังกัด: {deptName} {targetDivName ? `(${targetDivName})` : ''} • ผู้เสนอ: {project.leader?.full_name}
+                  </>
+                );
+              })()}
             </p>
           </div>
         </div>

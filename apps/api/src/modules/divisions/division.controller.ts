@@ -67,6 +67,11 @@ router.get('/:code', async (req: Request, res: Response) => {
               include: {
                 leader: true,
                 budget_items: true,
+                department: {
+                  include: {
+                    division: true,
+                  },
+                },
               },
             },
           },
@@ -76,6 +81,51 @@ router.get('/:code', async (req: Request, res: Response) => {
 
     if (!division) {
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลฝ่าย' });
+    }
+
+    // Also find any project whose approver tags resolve to this division
+    const allOtherProjects = await prisma.project.findMany({
+      where: {
+        department: {
+          division_id: { not: division.id },
+        },
+      },
+      include: {
+        leader: true,
+        budget_items: true,
+        department: {
+          include: {
+            division: true,
+          },
+        },
+      },
+    });
+
+    const { getProjectTargetDivisionId } = require('../approvals/approval.controller');
+    const matchedOtherProjects = [];
+    for (const p of allOtherProjects) {
+      const targetDivId = await getProjectTargetDivisionId(p);
+      if (targetDivId === division.id) {
+        matchedOtherProjects.push(p);
+      }
+    }
+
+    // Combine projects into division's first department or a virtual container
+    const existingDeptProjects = division.departments.flatMap((d) => d.projects);
+    const existingProjectIds = new Set(existingDeptProjects.map((p) => p.id));
+    const extraProjectsToAdd = matchedOtherProjects.filter((p) => !existingProjectIds.has(p.id));
+
+    if (extraProjectsToAdd.length > 0) {
+      if (division.departments.length > 0) {
+        (division.departments[0].projects as any).push(...extraProjectsToAdd);
+      } else {
+        (division.departments as any).push({
+          id: 0,
+          division_id: division.id,
+          name: division.name,
+          projects: extraProjectsToAdd,
+        });
+      }
     }
 
     // Get deputy name from system_settings or User with DEPUTY_DIRECTOR role

@@ -7,7 +7,7 @@ import { notificationService } from '../notifications/notification.service';
 const router = Router();
 
 // Helper to resolve project target division from dynamic_data approver tags or department
-async function getProjectTargetDivisionId(project: any): Promise<number | null> {
+export async function getProjectTargetDivisionId(project: any): Promise<number | null> {
   if (project.dynamic_data) {
     try {
       const parsed = typeof project.dynamic_data === 'string' ? JSON.parse(project.dynamic_data) : project.dynamic_data;
