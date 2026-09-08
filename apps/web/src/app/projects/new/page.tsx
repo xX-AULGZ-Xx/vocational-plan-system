@@ -220,17 +220,34 @@ export default function NewProjectPage() {
     );
 
     const allDepts = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []);
-    let computedDepartmentId = user?.department?.id || (user as any)?.department_id;
+    
+    // STRICT ROUTING: Determine department ONLY from form selections (LEADER_POSITION or APPROVER_DROPDOWN), NEVER from user.department
+    let computedDepartmentId: number | null = null;
 
-    if (matchedDiv && matchedDiv.departments?.length > 0) {
-      // If user belongs to this division, keep user's department, otherwise use first dept of matched division
-      const userDeptInDiv = matchedDiv.departments.find((dept: any) => dept.id === computedDepartmentId);
-      if (!userDeptInDiv) {
-        computedDepartmentId = matchedDiv.departments[0].id;
+    if (dynamicData['leader_department_id']) {
+      computedDepartmentId = parseInt(dynamicData['leader_department_id']);
+    } else if (dynamicData['leader_department_name']) {
+      const d = allDepts.find((dept: any) => dept.name === dynamicData['leader_department_name']);
+      if (d) computedDepartmentId = d.id;
+    } else if (dynamicData['leader_position']) {
+      const leaderPosStr = String(dynamicData['leader_position']);
+      for (const d of allDepts) {
+        if (leaderPosStr.includes(d.name)) {
+          computedDepartmentId = d.id;
+          break;
+        }
       }
-    } else if (!computedDepartmentId && allDepts.length > 0) {
+    }
+
+    if (!computedDepartmentId && matchedDiv && matchedDiv.departments?.length > 0) {
+      computedDepartmentId = matchedDiv.departments[0].id;
+    }
+
+    if (!computedDepartmentId && allDepts.length > 0) {
       computedDepartmentId = allDepts[0].id;
-    } else if (!computedDepartmentId) {
+    }
+
+    if (!computedDepartmentId) {
       computedDepartmentId = 1;
     }
     
@@ -641,7 +658,43 @@ export default function NewProjectPage() {
                       else currentBase = user?.position || 'ครู';
 
                       const formatted = buildPositionTitle(currentBase, selectedDeptName);
-                      handleDynamicChange(key, formatted);
+
+                      // Find selected department to store ID and auto-sync head info
+                      let foundDept: any = null;
+                      let foundDiv: any = null;
+                      for (const div of allDivisions) {
+                        const d = (div.departments || []).find((dept: any) => dept.name === selectedDeptName);
+                        if (d) {
+                          foundDept = d;
+                          foundDiv = div;
+                          break;
+                        }
+                      }
+
+                      setDynamicData(prev => {
+                        const next: Record<string, any> = {
+                          ...prev,
+                          [key]: formatted,
+                          leader_department_name: selectedDeptName,
+                        };
+                        if (foundDept) {
+                          next['leader_department_id'] = foundDept.id;
+                          if (foundDept.head_name) {
+                            next['head_name'] = foundDept.head_name;
+                            const headPos = foundDept.head_position || `หัวหน้า${foundDept.name}`;
+                            next['head_position'] = headPos;
+                            proposalTemplate?.tags?.forEach((t: any) => {
+                              if (t.tag_type === 'HEAD_NAME' || t.tag_name === 'head_name') {
+                                next[t.tag_name] = foundDept.head_name;
+                              }
+                              if (t.tag_type === 'HEAD_POSITION' || t.tag_name === 'head_position') {
+                                next[t.tag_name] = headPos;
+                              }
+                            });
+                          }
+                        }
+                        return next;
+                      });
                     }}
                     className="w-full text-xs rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white py-1.5"
                     defaultValue=""

@@ -377,7 +377,34 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     } = req.body;
 
     const leaderId = BigInt(req.user!.id);
-    const deptId = department_id ? parseInt(department_id) : (req.user!.department_id || 1);
+    let deptId = department_id ? parseInt(department_id) : null;
+
+    if (!deptId && dynamic_data) {
+      try {
+        const parsed = typeof dynamic_data === 'string' ? JSON.parse(dynamic_data) : dynamic_data;
+        if (parsed.leader_department_id) {
+          deptId = parseInt(parsed.leader_department_id);
+        } else if (parsed.leader_department_name) {
+          const d = await prisma.department.findFirst({ where: { name: parsed.leader_department_name } });
+          if (d) deptId = d.id;
+        } else if (parsed.leader_position) {
+          const posStr = String(parsed.leader_position);
+          const allDepts = await prisma.department.findMany();
+          const matched = allDepts.find((d: any) => posStr.includes(d.name));
+          if (matched) deptId = matched.id;
+        } else if (parsed.approver_division_id) {
+          const d = await prisma.department.findFirst({ where: { division_id: parseInt(parsed.approver_division_id) } });
+          if (d) deptId = d.id;
+        }
+      } catch {
+        // ignore parse error
+      }
+    }
+
+    if (!deptId) {
+      const firstDept = await prisma.department.findFirst();
+      deptId = firstDept ? firstDept.id : 1;
+    }
 
     // Calculate total budget
     const totalBudget = budget_items.reduce((sum: number, item: any) => {
