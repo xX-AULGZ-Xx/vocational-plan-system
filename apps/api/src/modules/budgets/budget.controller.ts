@@ -121,10 +121,23 @@ router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
     const remainingBudget = Math.max(0, effectiveAllocated - actualSpent);
     const spendingPercentage = effectiveAllocated > 0 ? (actualSpent / effectiveAllocated) * 100 : 0;
 
+    // 5. Available fiscal years from DB and current system year
+    const dbYearsRaw = await prisma.project.findMany({
+      select: { fiscal_year: true },
+      distinct: ['fiscal_year'],
+      orderBy: { fiscal_year: 'desc' },
+    });
+    const dbYears = dbYearsRaw.map((r) => r.fiscal_year);
+    if (!dbYears.includes(year)) {
+      dbYears.push(year);
+    }
+    dbYears.sort((a, b) => b - a);
+
     return res.json({
       success: true,
       data: serializeBigInt({
         fiscal_year: year,
+        available_years: dbYears,
         total_projects: projects.length,
         metrics: {
           total_allocated: effectiveAllocated,

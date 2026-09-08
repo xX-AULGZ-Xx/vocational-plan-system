@@ -128,15 +128,20 @@ export default function DashboardPage() {
             onChange={(e) => setFiscalYear(parseInt(e.target.value))}
             className="px-3 py-2 text-xs sm:text-sm bg-white/15 hover:bg-white/25 border border-white/20 rounded-theme text-white font-medium outline-none backdrop-blur-sm cursor-pointer"
           >
-            {Array.from({ length: 5 }, (_, i) => {
-              const baseYear = parseInt(currentFiscalYear) || 2569;
-              const y = baseYear + 1 - i;
-              return (
+            {(() => {
+              const settingYear = parseInt(currentFiscalYear) || 2569;
+              const apiYears: number[] = stats?.available_years || [];
+              const yearSet = new Set<number>([settingYear, ...apiYears]);
+              // Also add 1 previous and 1 next year for easy navigation if not exists
+              yearSet.add(settingYear - 1);
+              const sortedYears = Array.from(yearSet).sort((a, b) => b - a);
+
+              return sortedYears.map((y) => (
                 <option key={y} value={y} className="text-slate-900">
-                  ปีงบประมาณ {y} {y === baseYear ? '(ปัจจุบัน)' : ''}
+                  ปีงบประมาณ {y} {y === settingYear ? '(ปัจจุบัน)' : ''}
                 </option>
-              );
-            })}
+              ));
+            })()}
           </select>
 
           {user ? (
