@@ -67,8 +67,15 @@ export default function NewProjectPage() {
 
   useEffect(() => {
     fetchDivisions();
-    fetchProposalTemplate();
-  }, [token, user, directorName, deputyResName, planningHeadName]);
+  }, [token, user]);
+
+  useEffect(() => {
+    if (divisionsData.length > 0) {
+      fetchProposalTemplate(divisionsData);
+    } else {
+      fetchProposalTemplate();
+    }
+  }, [token, user, directorName, deputyResName, planningHeadName, divisionsData]);
 
   const fetchDivisions = async () => {
     try {
@@ -84,7 +91,7 @@ export default function NewProjectPage() {
     }
   };
 
-const fetchProposalTemplate = async () => {
+  const fetchProposalTemplate = async (currentDivisions = divisionsData) => {
     try {
       const res = await fetch('/api/v1/projects/active-proposal-template', {
         headers: { Authorization: `Bearer ${token}` }
@@ -147,46 +154,46 @@ const fetchProposalTemplate = async () => {
            } else if (t.tag_type === 'DEPUTY_STRAT_POSITION' || t.tag_name === 'deputy_strat_position') {
              initial[t.tag_name] = deputyStratPosition || '';
             } else if (t.tag_type === 'APPROVER_DROPDOWN' || t.tag_name === 'approver_name' || t.tag_name === 'approver') {
-               // Find deputy matching user's division directly from divisionsData
-               const userDivId = user?.department?.division_id || (user as any)?.division_id;
-               const matchedDiv = (divisionsData || []).find((d: any) => d.id === userDivId);
-               if (matchedDiv && matchedDiv.deputy_name) {
-                 initial[t.tag_name] = matchedDiv.deputy_name;
-               } else if (userDivId === 1 && deputyAcadName) {
-                 initial[t.tag_name] = deputyAcadName;
-               } else if (userDivId === 2 && deputyResName) {
-                 initial[t.tag_name] = deputyResName;
-               } else if (userDivId === 3 && deputyDevName) {
-                 initial[t.tag_name] = deputyDevName;
-               } else if (userDivId === 4 && deputyStratName) {
-                 initial[t.tag_name] = deputyStratName;
-               } else {
-                 const firstWithDeputy = (divisionsData || []).find((d: any) => !!d.deputy_name);
-                 initial[t.tag_name] = firstWithDeputy?.deputy_name || deputyResName || deputyAcadName || deputyStratName || deputyDevName || '';
-               }
-             } else if (t.tag_type === 'APPROVER_POSITION' || t.tag_name === 'approver_position' || t.tag_name === 'approver_name_position') {
-               const userDivId = user?.department?.division_id || (user as any)?.division_id;
-               const matchedDiv = (divisionsData || []).find((d: any) => d.id === userDivId);
-               if (matchedDiv && matchedDiv.deputy_position) {
-                 initial[t.tag_name] = matchedDiv.deputy_position;
-               } else if (userDivId === 1 && deputyAcadPosition) {
-                 initial[t.tag_name] = deputyAcadPosition;
-               } else if (userDivId === 2 && deputyResPosition) {
-                 initial[t.tag_name] = deputyResPosition;
-               } else if (userDivId === 3 && deputyDevPosition) {
-                 initial[t.tag_name] = deputyDevPosition;
-               } else if (userDivId === 4 && deputyStratPosition) {
-                 initial[t.tag_name] = deputyStratPosition;
-               } else {
-                 const firstWithDeputy = (divisionsData || []).find((d: any) => !!d.deputy_position);
-                 initial[t.tag_name] = firstWithDeputy?.deputy_position || deputyResPosition || deputyAcadPosition || deputyStratPosition || deputyDevPosition || 'รองผู้อำนวยการฝ่าย';
-               }
+              // Find deputy matching user's division directly from currentDivisions
+              const userDivId = user?.department?.division_id || (user as any)?.division_id;
+              const matchedDiv = (currentDivisions || []).find((d: any) => d.id === userDivId);
+              if (matchedDiv && matchedDiv.deputy_name) {
+                initial[t.tag_name] = matchedDiv.deputy_name;
+              } else if (userDivId === 1 && deputyAcadName) {
+                initial[t.tag_name] = deputyAcadName;
+              } else if (userDivId === 2 && deputyResName) {
+                initial[t.tag_name] = deputyResName;
+              } else if (userDivId === 3 && deputyDevName) {
+                initial[t.tag_name] = deputyDevName;
+              } else if (userDivId === 4 && deputyStratName) {
+                initial[t.tag_name] = deputyStratName;
+              } else {
+                const firstWithDeputy = (currentDivisions || []).find((d: any) => !!d.deputy_name);
+                initial[t.tag_name] = firstWithDeputy?.deputy_name || deputyResName || deputyAcadName || deputyStratName || deputyDevName || '';
+              }
+            } else if (t.tag_type === 'APPROVER_POSITION' || t.tag_name === 'approver_position' || t.tag_name === 'approver_name_position') {
+              const userDivId = user?.department?.division_id || (user as any)?.division_id;
+              const matchedDiv = (currentDivisions || []).find((d: any) => d.id === userDivId);
+              if (matchedDiv && matchedDiv.deputy_position) {
+                initial[t.tag_name] = matchedDiv.deputy_position;
+              } else if (userDivId === 1 && deputyAcadPosition) {
+                initial[t.tag_name] = deputyAcadPosition;
+              } else if (userDivId === 2 && deputyResPosition) {
+                initial[t.tag_name] = deputyResPosition;
+              } else if (userDivId === 3 && deputyDevPosition) {
+                initial[t.tag_name] = deputyDevPosition;
+              } else if (userDivId === 4 && deputyStratPosition) {
+                initial[t.tag_name] = deputyStratPosition;
+              } else {
+                const firstWithDeputy = (currentDivisions || []).find((d: any) => !!d.deputy_position);
+                initial[t.tag_name] = firstWithDeputy?.deputy_position || deputyResPosition || deputyAcadPosition || deputyStratPosition || deputyDevPosition || 'รองผู้อำนวยการฝ่าย';
+              }
             } else if (t.tag_type === 'HEAD_NAME' || t.tag_name === 'head_name') {
              // Find current user's department head if available
-             const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (user?.department?.id || (user as any)?.department_id));
+             const userDept = (currentDivisions || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (user?.department?.id || (user as any)?.department_id));
              initial[t.tag_name] = userDept?.head_name || '';
            } else if (t.tag_type === 'HEAD_POSITION' || t.tag_name === 'head_position') {
-             const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (user?.department?.id || (user as any)?.department_id));
+             const userDept = (currentDivisions || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (user?.department?.id || (user as any)?.department_id));
              initial[t.tag_name] = userDept?.head_position || (userDept ? `หัวหน้า${userDept.name}` : 'หัวหน้างาน');
            } else if (t.tag_name === 'fiscal_year') {
              initial[t.tag_name] = currentFiscalYear || String(getCurrentThaiFiscalYear());
@@ -194,7 +201,10 @@ const fetchProposalTemplate = async () => {
              initial[t.tag_name] = '';
            }
         });
-        setDynamicData(initial);
+        setDynamicData(prev => {
+          // Keep already filled user fields if any, or merge initial
+          return Object.keys(prev).length > 0 ? { ...initial, ...prev } : initial;
+        });
       } else {
          console.warn('No active proposal template found.');
       }
