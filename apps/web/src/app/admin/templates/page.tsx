@@ -262,6 +262,7 @@ export default function AdminTemplatesPage() {
       if (data.success) {
         setMsg({ type: 'success', text: 'บันทึกการตั้งค่าตัวแปรเรียบร้อยแล้ว' });
         showAlert.success('บันทึกตัวแปรเรียบร้อยแล้ว');
+        fetchTemplates();
       } else {
         setMsg({ type: 'error', text: data.message || 'บันทึกไม่สำเร็จ' });
         showAlert.error('บันทึกไม่สำเร็จ', data.message || 'เกิดข้อผิดพลาดในการบันทึกตัวแปร');
