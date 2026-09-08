@@ -237,12 +237,22 @@ export default function ProjectSummaryPage() {
           </div>
         );
       case 'DEPUTY_DROPDOWN': {
-        const deputyList = [
-          { name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition },
-          { name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition },
-          { name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition },
-          { name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', division: 'ฝ่ายวิชาการ', position: deputyAcadPosition },
-        ].filter(d => !!d.name);
+        const dynamicDeputies = (typeof divisionsData !== 'undefined' && divisionsData?.length > 0)
+          ? divisionsData.map((div: any) => ({
+              id: div.id,
+              name: div.deputy_name || `รองผู้อำนวยการ${div.name}`,
+              rawName: div.deputy_name || '',
+              division: div.name,
+              code: div.code,
+              position: div.deputy_position || `รองผู้อำนวยการ${div.name}`,
+            }))
+          : [
+              { id: 2, name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', rawName: deputyResName, division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร' },
+              { id: 4, name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', rawName: deputyStratName, division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
+              { id: 3, name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', rawName: deputyDevName, division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
+              { id: 1, name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', rawName: deputyAcadName, division: 'ฝ่ายวิชาการ', position: deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ' },
+            ];
+        const deputyList = dynamicDeputies.filter((d: any) => !!d.name);
 
         return (
           <div key={key} className="col-span-1 lg:col-span-2">
@@ -348,12 +358,22 @@ export default function ProjectSummaryPage() {
         );
       }
       case 'APPROVER_DROPDOWN': {
-        const deputyList = [
-          { name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', rawName: deputyResName, division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร' },
-          { name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', rawName: deputyStratName, division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
-          { name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', rawName: deputyDevName, division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
-          { name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', rawName: deputyAcadName, division: 'ฝ่ายวิชาการ', position: deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ' },
-        ];
+        const dynamicDeputies = (typeof divisionsData !== 'undefined' && divisionsData?.length > 0)
+          ? divisionsData.map((div: any) => ({
+              id: div.id,
+              name: div.deputy_name || `รองผู้อำนวยการ${div.name}`,
+              rawName: div.deputy_name || '',
+              division: div.name,
+              code: div.code,
+              position: div.deputy_position || `รองผู้อำนวยการ${div.name}`,
+            }))
+          : [
+              { id: 2, name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', rawName: deputyResName, division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร' },
+              { id: 4, name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', rawName: deputyStratName, division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
+              { id: 3, name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', rawName: deputyDevName, division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
+              { id: 1, name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', rawName: deputyAcadName, division: 'ฝ่ายวิชาการ', position: deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ' },
+            ];
+        const deputyList = dynamicDeputies;
 
         return (
           <div key={key} className="col-span-1 lg:col-span-2">

@@ -26,8 +26,13 @@ router.get('/', async (req: Request, res: Response) => {
 
     const enriched = divisions.map((div) => {
       const divCodeLower = div.code.toLowerCase();
-      let deputyName = settingsMap.get(`deputy_name_${divCodeLower}`) || '';
-      let deputyPosition = settingsMap.get(`deputy_position_${divCodeLower}`) || `รองผู้อำนวยการ${div.name}`;
+      let deputyName = settingsMap.get(`deputy_name_${divCodeLower}`) || 
+                       settingsMap.get(`deputy_${divCodeLower}_name`) || 
+                       settingsMap.get(`deputy_name_div_${div.id}`) || '';
+      let deputyPosition = settingsMap.get(`deputy_position_${divCodeLower}`) || 
+                           settingsMap.get(`deputy_${divCodeLower}_position`) || 
+                           settingsMap.get(`deputy_pos_div_${div.id}`) || 
+                           `รองผู้อำนวยการ${div.name}`;
 
       if (!deputyName) {
         const deputyUser = deputyUsers.find((u) => u.department?.division_id === div.id);
@@ -38,8 +43,11 @@ router.get('/', async (req: Request, res: Response) => {
       }
 
       const departments = div.departments.map((dept) => {
-        let headName = settingsMap.get(`head_name_dept_${dept.id}`) || '';
-        let headPosition = settingsMap.get(`head_position_dept_${dept.id}`) || `หัวหน้า${dept.name}`;
+        let headName = settingsMap.get(`head_name_dept_${dept.id}`) || 
+                       settingsMap.get(`head_dept_${dept.id}_name`) || '';
+        let headPosition = settingsMap.get(`head_position_dept_${dept.id}`) || 
+                           settingsMap.get(`head_dept_${dept.id}_position`) || 
+                           `หัวหน้า${dept.name}`;
 
         if (!headName) {
           const headUser = headUsers.find((u) => u.department_id === dept.id);
@@ -246,25 +254,39 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     const divCodeLower = (code || division.code).toLowerCase();
     if (deputy_name !== undefined) {
+      const val = String(deputy_name || '');
       await (prisma as any).systemSetting.upsert({
         where: { key: `deputy_name_${divCodeLower}` },
-        update: { value: String(deputy_name || '') },
-        create: {
-          key: `deputy_name_${divCodeLower}`,
-          value: String(deputy_name || ''),
-          description: `ชื่อรองผู้อำนวยการ (${division.name})`,
-        },
+        update: { value: val },
+        create: { key: `deputy_name_${divCodeLower}`, value: val, description: `ชื่อรองผู้อำนวยการ (${division.name})` },
+      });
+      await (prisma as any).systemSetting.upsert({
+        where: { key: `deputy_${divCodeLower}_name` },
+        update: { value: val },
+        create: { key: `deputy_${divCodeLower}_name`, value: val, description: `ชื่อรองผู้อำนวยการ (${division.name})` },
+      });
+      await (prisma as any).systemSetting.upsert({
+        where: { key: `deputy_name_div_${id}` },
+        update: { value: val },
+        create: { key: `deputy_name_div_${id}`, value: val, description: `ชื่อรองผู้อำนวยการ (${division.name})` },
       });
     }
     if (deputy_position !== undefined) {
+      const posVal = String(deputy_position || '');
       await (prisma as any).systemSetting.upsert({
         where: { key: `deputy_position_${divCodeLower}` },
-        update: { value: String(deputy_position || '') },
-        create: {
-          key: `deputy_position_${divCodeLower}`,
-          value: String(deputy_position || ''),
-          description: `ตำแหน่งรองผู้อำนวยการ (${division.name})`,
-        },
+        update: { value: posVal },
+        create: { key: `deputy_position_${divCodeLower}`, value: posVal, description: `ตำแหน่งรองผู้อำนวยการ (${division.name})` },
+      });
+      await (prisma as any).systemSetting.upsert({
+        where: { key: `deputy_${divCodeLower}_position` },
+        update: { value: posVal },
+        create: { key: `deputy_${divCodeLower}_position`, value: posVal, description: `ตำแหน่งรองผู้อำนวยการ (${division.name})` },
+      });
+      await (prisma as any).systemSetting.upsert({
+        where: { key: `deputy_pos_div_${id}` },
+        update: { value: posVal },
+        create: { key: `deputy_pos_div_${id}`, value: posVal, description: `ตำแหน่งรองผู้อำนวยการ (${division.name})` },
       });
     }
 

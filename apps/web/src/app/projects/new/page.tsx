@@ -146,33 +146,41 @@ const fetchProposalTemplate = async () => {
              initial[t.tag_name] = deputyStratName || '';
            } else if (t.tag_type === 'DEPUTY_STRAT_POSITION' || t.tag_name === 'deputy_strat_position') {
              initial[t.tag_name] = deputyStratPosition || '';
-           } else if (t.tag_type === 'APPROVER_DROPDOWN' || t.tag_name === 'approver_name' || t.tag_name === 'approver') {
-              // Find deputy matching user's division
-              const userDivId = user?.department?.division_id || (user as any)?.division_id;
-              if (userDivId === 1 && deputyAcadName) {
-                initial[t.tag_name] = deputyAcadName;
-              } else if (userDivId === 2 && deputyResName) {
-                initial[t.tag_name] = deputyResName;
-              } else if (userDivId === 3 && deputyDevName) {
-                initial[t.tag_name] = deputyDevName;
-              } else if (userDivId === 4 && deputyStratName) {
-                initial[t.tag_name] = deputyStratName;
-              } else {
-                initial[t.tag_name] = deputyResName || deputyAcadName || deputyStratName || deputyDevName || '';
-              }
-            } else if (t.tag_type === 'APPROVER_POSITION' || t.tag_name === 'approver_position' || t.tag_name === 'approver_name_position') {
-              const userDivId = user?.department?.division_id || (user as any)?.division_id;
-              if (userDivId === 1 && deputyAcadPosition) {
-                initial[t.tag_name] = deputyAcadPosition;
-              } else if (userDivId === 2 && deputyResPosition) {
-                initial[t.tag_name] = deputyResPosition;
-              } else if (userDivId === 3 && deputyDevPosition) {
-                initial[t.tag_name] = deputyDevPosition;
-              } else if (userDivId === 4 && deputyStratPosition) {
-                initial[t.tag_name] = deputyStratPosition;
-              } else {
-                initial[t.tag_name] = deputyResPosition || deputyAcadPosition || deputyStratPosition || deputyDevPosition || 'รองผู้อำนวยการฝ่าย';
-              }
+            } else if (t.tag_type === 'APPROVER_DROPDOWN' || t.tag_name === 'approver_name' || t.tag_name === 'approver') {
+               // Find deputy matching user's division directly from divisionsData
+               const userDivId = user?.department?.division_id || (user as any)?.division_id;
+               const matchedDiv = (divisionsData || []).find((d: any) => d.id === userDivId);
+               if (matchedDiv && matchedDiv.deputy_name) {
+                 initial[t.tag_name] = matchedDiv.deputy_name;
+               } else if (userDivId === 1 && deputyAcadName) {
+                 initial[t.tag_name] = deputyAcadName;
+               } else if (userDivId === 2 && deputyResName) {
+                 initial[t.tag_name] = deputyResName;
+               } else if (userDivId === 3 && deputyDevName) {
+                 initial[t.tag_name] = deputyDevName;
+               } else if (userDivId === 4 && deputyStratName) {
+                 initial[t.tag_name] = deputyStratName;
+               } else {
+                 const firstWithDeputy = (divisionsData || []).find((d: any) => !!d.deputy_name);
+                 initial[t.tag_name] = firstWithDeputy?.deputy_name || deputyResName || deputyAcadName || deputyStratName || deputyDevName || '';
+               }
+             } else if (t.tag_type === 'APPROVER_POSITION' || t.tag_name === 'approver_position' || t.tag_name === 'approver_name_position') {
+               const userDivId = user?.department?.division_id || (user as any)?.division_id;
+               const matchedDiv = (divisionsData || []).find((d: any) => d.id === userDivId);
+               if (matchedDiv && matchedDiv.deputy_position) {
+                 initial[t.tag_name] = matchedDiv.deputy_position;
+               } else if (userDivId === 1 && deputyAcadPosition) {
+                 initial[t.tag_name] = deputyAcadPosition;
+               } else if (userDivId === 2 && deputyResPosition) {
+                 initial[t.tag_name] = deputyResPosition;
+               } else if (userDivId === 3 && deputyDevPosition) {
+                 initial[t.tag_name] = deputyDevPosition;
+               } else if (userDivId === 4 && deputyStratPosition) {
+                 initial[t.tag_name] = deputyStratPosition;
+               } else {
+                 const firstWithDeputy = (divisionsData || []).find((d: any) => !!d.deputy_position);
+                 initial[t.tag_name] = firstWithDeputy?.deputy_position || deputyResPosition || deputyAcadPosition || deputyStratPosition || deputyDevPosition || 'รองผู้อำนวยการฝ่าย';
+               }
             } else if (t.tag_type === 'HEAD_NAME' || t.tag_name === 'head_name') {
              // Find current user's department head if available
              const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (user?.department?.id || (user as any)?.department_id));
@@ -319,12 +327,22 @@ const fetchProposalTemplate = async () => {
           </div>
         );
       case 'DEPUTY_DROPDOWN': {
-        const deputyList = [
-          { name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition },
-          { name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition },
-          { name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition },
-          { name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', division: 'ฝ่ายวิชาการ', position: deputyAcadPosition },
-        ].filter(d => !!d.name);
+        const dynamicDeputies = (typeof divisionsData !== 'undefined' && divisionsData?.length > 0)
+          ? divisionsData.map((div: any) => ({
+              id: div.id,
+              name: div.deputy_name || `รองผู้อำนวยการ${div.name}`,
+              rawName: div.deputy_name || '',
+              division: div.name,
+              code: div.code,
+              position: div.deputy_position || `รองผู้อำนวยการ${div.name}`,
+            }))
+          : [
+              { id: 2, name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', rawName: deputyResName, division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร' },
+              { id: 4, name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', rawName: deputyStratName, division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
+              { id: 3, name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', rawName: deputyDevName, division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
+              { id: 1, name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', rawName: deputyAcadName, division: 'ฝ่ายวิชาการ', position: deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ' },
+            ];
+        const deputyList = dynamicDeputies.filter((d: any) => !!d.name);
 
         return (
           <div key={key} className="col-span-1 lg:col-span-2">
@@ -430,12 +448,22 @@ const fetchProposalTemplate = async () => {
         );
       }
       case 'APPROVER_DROPDOWN': {
-        const deputyList = [
-          { name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', rawName: deputyResName, division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร' },
-          { name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', rawName: deputyStratName, division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
-          { name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', rawName: deputyDevName, division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
-          { name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', rawName: deputyAcadName, division: 'ฝ่ายวิชาการ', position: deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ' },
-        ];
+        const dynamicDeputies = (typeof divisionsData !== 'undefined' && divisionsData?.length > 0)
+          ? divisionsData.map((div: any) => ({
+              id: div.id,
+              name: div.deputy_name || `รองผู้อำนวยการ${div.name}`,
+              rawName: div.deputy_name || '',
+              division: div.name,
+              code: div.code,
+              position: div.deputy_position || `รองผู้อำนวยการ${div.name}`,
+            }))
+          : [
+              { id: 2, name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', rawName: deputyResName, division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร' },
+              { id: 4, name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', rawName: deputyStratName, division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' },
+              { id: 3, name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', rawName: deputyDevName, division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนฯ' },
+              { id: 1, name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', rawName: deputyAcadName, division: 'ฝ่ายวิชาการ', position: deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ' },
+            ];
+        const deputyList = dynamicDeputies;
 
         return (
           <div key={key} className="col-span-1 lg:col-span-2">
