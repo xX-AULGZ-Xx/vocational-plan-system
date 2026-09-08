@@ -48,3 +48,15 @@ export function formatThaiBaht(num: number | string): string {
 
   return result;
 }
+
+/**
+ * คำนวณปีงบประมาณไทยปัจจุบัน (พ.ศ.)
+ * - รอบปีงบประมาณไทยเริ่ม 1 ต.ค. (เดือน 10 หรือ index 9) ถึง 30 ก.ย.
+ * - หากเดือน >= 10 (ต.ค. - ธ.ค.) ปีงบประมาณ = ปี พ.ศ. ปัจจุบัน + 1
+ * - หากเดือน < 10 (ม.ค. - ก.ย.) ปีงบประมาณ = ปี พ.ศ. ปัจจุบัน
+ */
+export function getCurrentThaiFiscalYear(date: Date = new Date()): number {
+  const thaiYear = date.getFullYear() + 543;
+  const month = date.getMonth(); // 0 = มกราคม, 9 = ตุลาคม
+  return month >= 9 ? thaiYear + 1 : thaiYear;
+}

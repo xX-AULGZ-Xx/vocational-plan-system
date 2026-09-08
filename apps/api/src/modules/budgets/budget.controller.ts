@@ -4,12 +4,26 @@ import { authenticate, AuthRequest } from '../../middlewares/auth';
 
 const router = Router();
 
+function getThaiFiscalYear(date: Date = new Date()): number {
+  const thaiYear = date.getFullYear() + 543;
+  const month = date.getMonth(); // 0 = Jan, 9 = Oct
+  return month >= 9 ? thaiYear + 1 : thaiYear;
+}
+
 // GET /api/v1/budgets/dashboard-stats
 // Allows public viewing for guest dashboard or authenticated user
 router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
   try {
     const { fiscal_year } = req.query;
-    const year = fiscal_year ? parseInt(fiscal_year as string) : 2569;
+    let year: number;
+    if (fiscal_year) {
+      year = parseInt(fiscal_year as string);
+    } else {
+      const setting = await (prisma as any).systemSetting.findUnique({
+        where: { key: 'current_fiscal_year' },
+      });
+      year = setting?.value ? parseInt(setting.value) : getThaiFiscalYear();
+    }
 
     // 1. Projects in fiscal year
     const projects = await prisma.project.findMany({

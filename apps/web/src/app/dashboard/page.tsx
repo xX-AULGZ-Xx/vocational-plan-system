@@ -22,12 +22,21 @@ import {
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
-  const { collegeName } = useSettings();
+  const { collegeName, currentFiscalYear } = useSettings();
 
-  const [fiscalYear, setFiscalYear] = useState<number>(2569);
+  const [fiscalYear, setFiscalYear] = useState<number>(() => {
+    return parseInt(currentFiscalYear) || 2569;
+  });
   const [stats, setStats] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Sync fiscal year with settings when settings load
+  useEffect(() => {
+    if (currentFiscalYear) {
+      setFiscalYear(parseInt(currentFiscalYear) || 2569);
+    }
+  }, [currentFiscalYear]);
 
   // Filters
   const [selectedStatus, setSelectedStatus] = useState<string>('');
@@ -119,8 +128,15 @@ export default function DashboardPage() {
             onChange={(e) => setFiscalYear(parseInt(e.target.value))}
             className="px-3 py-2 text-xs sm:text-sm bg-white/15 hover:bg-white/25 border border-white/20 rounded-theme text-white font-medium outline-none backdrop-blur-sm cursor-pointer"
           >
-            <option value={2569} className="text-slate-900">ปีงบประมาณ 2569</option>
-            <option value={2568} className="text-slate-900">ปีงบประมาณ 2568</option>
+            {Array.from({ length: 5 }, (_, i) => {
+              const baseYear = parseInt(currentFiscalYear) || 2569;
+              const y = baseYear + 1 - i;
+              return (
+                <option key={y} value={y} className="text-slate-900">
+                  ปีงบประมาณ {y} {y === baseYear ? '(ปัจจุบัน)' : ''}
+                </option>
+              );
+            })}
           </select>
 
           {user ? (

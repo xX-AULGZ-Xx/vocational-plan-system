@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { formatThaiBaht } from '@/lib/bahttext';
+import { formatThaiBaht, getCurrentThaiFiscalYear } from '@/lib/bahttext';
 import {
   FileText,
   Printer,
@@ -253,7 +253,7 @@ export default function A4DocumentPreview({
   const projectTitle = data.title || '....................................................................................................................';
   const leaderName = data.leader_name || '...................................................';
   const leaderPos = data.leader_position || 'ครู';
-  const fiscalYear = data.fiscal_year || 2569;
+  const fiscalYear = data.fiscal_year || getCurrentThaiFiscalYear();
 
   const totalBudget = (data.budget_items || []).reduce((acc, item) => {
     const qty = parseFloat(String(item.quantity)) || 0;

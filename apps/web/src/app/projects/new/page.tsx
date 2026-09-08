@@ -29,9 +29,15 @@ export default function NewProjectPage() {
 
   // System fields
   const [title, setTitle] = useState('');
-  const [fiscalYear, setFiscalYear] = useState(parseInt(currentFiscalYear) || new Date().getFullYear() + 543);
+  const [fiscalYear, setFiscalYear] = useState(() => parseInt(currentFiscalYear) || new Date().getFullYear() + 543);
   const [departmentId, setDepartmentId] = useState('');
   const [totalBudget, setTotalBudget] = useState('0');
+
+  useEffect(() => {
+    if (currentFiscalYear) {
+      setFiscalYear(parseInt(currentFiscalYear) || new Date().getFullYear() + 543);
+    }
+  }, [currentFiscalYear]);
 
   // Dropdowns
   const [divisionsData, setDivisionsData] = useState<any[]>([]);

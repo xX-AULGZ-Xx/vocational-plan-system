@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
 import { showAlert } from '@/lib/sweetalert';
 
 import {
@@ -30,6 +31,7 @@ import {
 export default function MyProjectsPage() {
   const router = useRouter();
   const { token, user } = useAuth();
+  const { currentFiscalYear } = useSettings();
 
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -284,6 +286,26 @@ export default function MyProjectsPage() {
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-theme focus:border-theme-primary outline-none text-sm transition"
             />
           </div>
+        </div>
+
+        <div className="w-full sm:w-auto">
+          <label className="block text-xs font-bold text-slate-700 mb-1.5">ปีงบประมาณ</label>
+          <select
+            value={yearFilter}
+            onChange={(e) => setYearFilter(e.target.value)}
+            className="w-full sm:w-44 px-3 py-2 bg-slate-50 border border-slate-200 rounded-theme text-sm focus:border-theme-primary outline-none cursor-pointer transition"
+          >
+            <option value="ALL">ทุกปีงบประมาณ</option>
+            {Array.from({ length: 5 }, (_, i) => {
+              const baseYear = parseInt(currentFiscalYear) || 2569;
+              const y = baseYear + 1 - i;
+              return (
+                <option key={y} value={String(y)}>
+                  ปีงบประมาณ {y} {y === baseYear ? '(ปัจจุบัน)' : ''}
+                </option>
+              );
+            })}
+          </select>
         </div>
 
         <div className="w-full sm:w-auto">

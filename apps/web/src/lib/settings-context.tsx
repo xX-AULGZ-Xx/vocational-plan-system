@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getCurrentThaiFiscalYear } from './bahttext';
 
 interface SettingsContextType {
   settings: Record<string, string>;
@@ -49,7 +50,7 @@ const defaultContext: SettingsContextType = {
   collegeWebsite: 'www.cic.ac.th',
   directorName: 'นางปิยะพร พูลเพิ่ม',
   directorPosition: 'ผู้อำนวยการวิทยาลัยการอาชีพเชียงราย',
-  currentFiscalYear: '2569',
+  currentFiscalYear: String(getCurrentThaiFiscalYear()),
   isSubmissionOpen: true,
   submissionStartDate: '',
   submissionEndDate: '',
@@ -166,7 +167,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const collegeWebsite = settings.college_website || 'www.cic.ac.th';
   const directorName = settings.director_name || 'นางปิยะพร พูลเพิ่ม';
   const directorPosition = settings.director_position || `ผู้อำนวยการ${collegeName}`;
-  const currentFiscalYear = settings.current_fiscal_year || '2569';
+  const currentFiscalYear = settings.current_fiscal_year || String(getCurrentThaiFiscalYear());
   const isSubmissionOpen = settings.is_submission_open !== 'false';
   const submissionStartDate = settings.submission_start_date || '';
   const submissionEndDate = settings.submission_end_date || '';

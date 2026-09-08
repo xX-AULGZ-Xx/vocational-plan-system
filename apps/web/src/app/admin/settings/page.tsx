@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
+import { getCurrentThaiFiscalYear } from '@/lib/bahttext';
 import AccessDenied from '@/components/common/AccessDenied';
 import {
   Settings,
@@ -47,7 +48,7 @@ export default function AdminSettingsPage() {
     college_phone: '053-774505',
     college_email: 'cic.chiangrai@vec.mail.go.th',
     college_website: 'www.cic.ac.th',
-    current_fiscal_year: '2569',
+    current_fiscal_year: String(getCurrentThaiFiscalYear()),
     is_submission_open: 'true',
     submission_start_date: '',
     submission_end_date: '',
@@ -886,9 +887,9 @@ export default function AdminSettingsPage() {
                   </label>
                   <input
                     type="text"
-                    value={settings.current_fiscal_year || '2569'}
+                    value={settings.current_fiscal_year || String(getCurrentThaiFiscalYear())}
                     onChange={(e) => handleChange('current_fiscal_year', e.target.value)}
-                    placeholder="2569"
+                    placeholder={String(getCurrentThaiFiscalYear())}
                     className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono font-bold"
                   />
                   <p className="text-[11px] text-slate-500 mt-1">ใช้เป็นค่าเริ่มต้นในฟอร์มสร้างโครงการใหม่และการกรองรายงาน</p>

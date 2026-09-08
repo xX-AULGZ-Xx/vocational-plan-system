@@ -85,6 +85,12 @@ const upload = multer({
   },
 });
 
+function getThaiFiscalYear(date: Date = new Date()): number {
+  const thaiYear = date.getFullYear() + 543;
+  const month = date.getMonth(); // 0 = Jan, 9 = Oct
+  return month >= 9 ? thaiYear + 1 : thaiYear;
+}
+
 const DEFAULT_SETTINGS = [
   { key: 'college_logo_url', value: '', description: 'URL หรือเส้นทางไฟล์รูปภาพตราสัญลักษณ์/โลโก้วิทยาลัย' },
   { key: 'college_name', value: 'วิทยาลัยการอาชีพเชียงราย', description: 'ชื่อสถานศึกษาทางการ (ภาษาไทย)' },
@@ -93,7 +99,7 @@ const DEFAULT_SETTINGS = [
   { key: 'college_phone', value: '053-774505', description: 'เบอร์โทรศัพท์สถานศึกษา' },
   { key: 'college_email', value: 'cic.chiangrai@vec.mail.go.th', description: 'อีเมลสถานศึกษา' },
   { key: 'college_website', value: 'www.cic.ac.th', description: 'เว็บไซต์สถานศึกษา' },
-  { key: 'current_fiscal_year', value: '2569', description: 'ปีงบประมาณเริ่มต้น' },
+  { key: 'current_fiscal_year', value: String(getThaiFiscalYear()), description: 'ปีงบประมาณเริ่มต้น' },
   { key: 'is_submission_open', value: 'true', description: 'สถานะเปิด/ปิดการเสนอโครงการ (true/false)' },
   { key: 'submission_start_date', value: '', description: 'วันที่เริ่มต้นเปิดรับข้อเสนอโครงการ' },
   { key: 'submission_end_date', value: '', description: 'วันที่สิ้นสุดการเปิดรับข้อเสนอโครงการ' },
