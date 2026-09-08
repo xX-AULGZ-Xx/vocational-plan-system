@@ -83,6 +83,15 @@ export default function ProjectSummaryPage() {
       const tpl = dataTpl.data;
       setTemplate(tpl);
 
+      // Fetch Divisions
+      try {
+        const resDiv = await fetch('/api/v1/divisions', { headers: { Authorization: `Bearer ${token}` } });
+        const dataDiv = await resDiv.json();
+        if (dataDiv.success) setDivisionsData(dataDiv.data);
+      } catch (e) {
+        console.error(e);
+      }
+
       // Initialize dynamic data
       const initial: Record<string, any> = {};
       const projDynamic = typeof proj.dynamic_data === 'string' 
@@ -107,7 +116,24 @@ export default function ProjectSummaryPage() {
         } else if (t.tag_type === 'LEADER_NAME' || key === 'leader_name') {
            initial[key] = proj.leader?.full_name || user?.full_name || '';
         } else if (t.tag_type === 'LEADER_POSITION' || key === 'leader_position') {
-           initial[key] = proj.leader?.position || user?.position || 'ครู';
+           const userDept = user?.department;
+           if (userDept) {
+             if (user?.role === 'HEAD_DEPT' || (user as any)?.is_head) {
+               initial[key] = userDept.name.startsWith('งาน') || userDept.name.startsWith('แผนก') 
+                 ? `หัวหน้า${userDept.name}` 
+                 : `หัวหน้างาน${userDept.name}`;
+             } else if (user?.position === 'เจ้าหน้าที่') {
+               initial[key] = userDept.name.startsWith('งาน') || userDept.name.startsWith('แผนก')
+                 ? `เจ้าหน้าที่${userDept.name}`
+                 : `เจ้าหน้าที่งาน${userDept.name}`;
+             } else {
+               initial[key] = userDept.name.startsWith('แผนก') 
+                 ? `ครูประจำ${userDept.name}` 
+                 : (userDept.name.startsWith('งาน') ? `ครูผู้ช่วย${userDept.name}` : `ครูประจำแผนกวิชา${userDept.name}`);
+             }
+           } else {
+             initial[key] = proj.leader?.position || user?.position || 'ครู';
+           }
         } else if (t.tag_type === 'DIRECTOR_NAME' || key === 'director_name') {
            initial[key] = directorName || '';
         } else if (t.tag_type === 'DIRECTOR_POSITION' || key === 'director_position') {
@@ -382,47 +408,136 @@ export default function ProjectSummaryPage() {
         );
       }
       case 'LEADER_POSITION': {
-        const standardPositions = ['หัวหน้างาน', 'ผู้ช่วยงาน', 'ครูประจำแผนก', 'เจ้าหน้าที่'];
-        const isCustom = value && !standardPositions.includes(value);
+        const standardBasePositions = [
+          { label: 'หัวหน้างาน', prefix: 'หัวหน้า' },
+          { label: 'ผู้ช่วยงาน', prefix: 'ผู้ช่วย' },
+          { label: 'ครูประจำแผนก / สาขาวิชา', prefix: 'ครูประจำ' },
+          { label: 'หัวหน้าแผนกวิชา / หัวหน้าสาขา', prefix: 'หัวหน้า' },
+          { label: 'เจ้าหน้าที่', prefix: 'เจ้าหน้าที่' },
+        ];
+
+        const allDivisions = typeof divisionsData !== 'undefined' ? divisionsData : [];
+        const userDeptName = user?.department?.name || '';
+
+        const buildPositionTitle = (baseRole: string, dept: string) => {
+          if (!dept) return baseRole;
+          if (!baseRole) return dept;
+
+          if (baseRole === 'หัวหน้างาน') {
+            return dept.startsWith('งาน') ? `หัวหน้า${dept}` : `หัวหน้างาน${dept}`;
+          }
+          if (baseRole === 'ผู้ช่วยงาน') {
+            return dept.startsWith('งาน') ? `ผู้ช่วย${dept}` : `ผู้ช่วยงาน${dept}`;
+          }
+          if (baseRole === 'ครูประจำแผนก / สาขาวิชา' || baseRole === 'ครูประจำแผนก') {
+            return dept.startsWith('แผนก') ? `ครูประจำ${dept}` : (dept.startsWith('งาน') ? `ครูประจำ${dept}` : `ครูประจำแผนกวิชา${dept}`);
+          }
+          if (baseRole === 'หัวหน้าแผนกวิชา / หัวหน้าสาขา' || baseRole === 'หัวหน้าแผนกวิชา') {
+            return dept.startsWith('แผนก') ? `หัวหน้า${dept}` : `หัวหน้าแผนกวิชา${dept}`;
+          }
+          if (baseRole === 'เจ้าหน้าที่') {
+            return dept.startsWith('งาน') || dept.startsWith('แผนก') ? `เจ้าหน้าที่${dept}` : `เจ้าหน้าที่งาน${dept}`;
+          }
+          return `${baseRole}${dept}`;
+        };
 
         return (
-          <div key={key} className="col-span-1">
-            <div className="mb-1 flex items-center justify-between">
-              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
-              <span className="text-[10px] font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                เลือกหรือกรอกตำแหน่ง
+          <div key={key} className="col-span-1 lg:col-span-2 bg-indigo-50/30 p-3.5 rounded-lg border border-indigo-100/80">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-1">
+              <label className="block text-sm font-semibold text-gray-800">
+                {label} {tag.is_required && <span className="text-red-500">*</span>}
+              </label>
+              <span className="text-[11px] font-medium text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded-full border border-indigo-200">
+                ตำแหน่งของผู้รับผิดชอบ / ผู้เสนอโครงการ
               </span>
             </div>
-            {tag.description && <p className="text-xs text-gray-500 mb-1">{tag.description}</p>}
-            <div className="space-y-1.5">
-              <select
-                value={isCustom ? 'OTHER' : (value || '')}
-                onChange={(e) => {
-                  if (e.target.value !== 'OTHER') {
-                    handleDynamicChange(key, e.target.value);
-                  } else {
-                    handleDynamicChange(key, '');
-                  }
-                }}
-                disabled={!isEditing}
-                className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-white"
-              >
-                <option value="">-- เลือกตำแหน่งผู้เสนอโครงการ --</option>
-                {standardPositions.map((pos) => (
-                  <option key={pos} value={pos}>{pos}</option>
-                ))}
-                <option value="OTHER">อื่นๆ (ระบุเอง)</option>
-              </select>
-              {(isCustom || value === '' || !standardPositions.includes(value)) && (
-                <input
-                  type="text"
-                  placeholder="ระบุตำแหน่งผู้เสนอโครงการ..."
-                  value={value || ''}
-                  onChange={(e) => handleDynamicChange(key, e.target.value)}
-                  required={tag.is_required}
-                  className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-slate-50/50 focus:bg-white"
-                />
-              )}
+            {tag.description && <p className="text-xs text-gray-500 mb-2">{tag.description}</p>}
+
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">เลือกตำแหน่งหลัก:</label>
+                  <select
+                    disabled={!isEditing}
+                    onChange={(e) => {
+                      const base = e.target.value;
+                      if (!base) return;
+                      const currentVal = value || '';
+                      let currentDept = '';
+                      for (const div of allDivisions) {
+                        for (const d of div.departments || []) {
+                          if (currentVal.includes(d.name)) {
+                            currentDept = d.name;
+                            break;
+                          }
+                        }
+                        if (currentDept) break;
+                      }
+                      const deptToUse = currentDept || userDeptName;
+                      const formatted = buildPositionTitle(base, deptToUse);
+                      handleDynamicChange(key, formatted);
+                    }}
+                    className="w-full text-xs rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white py-1.5"
+                    defaultValue=""
+                  >
+                    <option value="">-- เลือกตำแหน่งหลักเพื่อรวมข้อความ --</option>
+                    {standardBasePositions.map((pos) => (
+                      <option key={pos.label} value={pos.label}>{pos.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">ใส่งานในฝ่าย / สาขาวิชา / แผนกวิชา:</label>
+                  <select
+                    disabled={!isEditing}
+                    onChange={(e) => {
+                      const selectedDeptName = e.target.value;
+                      if (!selectedDeptName) return;
+                      const currentVal = value || '';
+                      let currentBase = '';
+                      if (currentVal.startsWith('หัวหน้า')) currentBase = 'หัวหน้างาน';
+                      else if (currentVal.startsWith('ผู้ช่วย')) currentBase = 'ผู้ช่วยงาน';
+                      else if (currentVal.startsWith('ครูประจำ')) currentBase = 'ครูประจำแผนก';
+                      else if (currentVal.startsWith('เจ้าหน้าที่')) currentBase = 'เจ้าหน้าที่';
+                      else currentBase = user?.position || 'ครู';
+
+                      const formatted = buildPositionTitle(currentBase, selectedDeptName);
+                      handleDynamicChange(key, formatted);
+                    }}
+                    className="w-full text-xs rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white py-1.5"
+                    defaultValue=""
+                  >
+                    <option value="">-- เลือกงานในฝ่าย / สาขาวิชา --</option>
+                    {allDivisions.map((div: any) => (
+                      <optgroup key={div.id} label={div.name}>
+                        {(div.departments || []).map((dept: any) => (
+                          <option key={dept.id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  ข้อความตำแหน่งเต็ม (สามารถพิมพ์ระบุหรือแก้ไขเพิ่มเติมได้เอง):
+                </label>
+                <div className="relative rounded-md shadow-sm">
+                  <input
+                    type="text"
+                    value={value || ''}
+                    onChange={(e) => handleDynamicChange(key, e.target.value)}
+                    placeholder="เช่น หัวหน้างานวางแผนและงบประมาณ, ครูประจำแผนกวิชาช่างยนต์, เจ้าหน้าที่งานการเงิน"
+                    required={tag.is_required}
+                    disabled={!isEditing}
+                    className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-medium text-gray-900 bg-white px-3 py-2"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         );
