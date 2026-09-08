@@ -885,14 +885,52 @@ export default function AdminSettingsPage() {
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     ปีงบประมาณเริ่มต้น (พ.ศ.) <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={settings.current_fiscal_year || String(getCurrentThaiFiscalYear())}
-                    onChange={(e) => handleChange('current_fiscal_year', e.target.value)}
-                    placeholder={String(getCurrentThaiFiscalYear())}
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono font-bold"
-                  />
-                  <p className="text-[11px] text-slate-500 mt-1">ใช้เป็นค่าเริ่มต้นในฟอร์มสร้างโครงการใหม่และการกรองรายงาน</p>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <input
+                        type="number"
+                        list="fiscal-years-list"
+                        value={settings.current_fiscal_year || String(getCurrentThaiFiscalYear())}
+                        onChange={(e) => handleChange('current_fiscal_year', e.target.value)}
+                        placeholder={String(getCurrentThaiFiscalYear())}
+                        className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono font-bold"
+                      />
+                      <datalist id="fiscal-years-list">
+                        {Array.from({ length: 9 }, (_, i) => {
+                          const base = getCurrentThaiFiscalYear();
+                          const y = base + 2 - i;
+                          return <option key={y} value={y} label={`ปีงบประมาณ ${y}`} />;
+                        })}
+                      </datalist>
+                    </div>
+
+                    {/* Quick year select badges */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <span className="text-[11px] text-slate-500 font-medium mr-1">เลือกปีด่วน:</span>
+                      {Array.from({ length: 6 }, (_, i) => {
+                        const base = getCurrentThaiFiscalYear();
+                        const y = base + 1 - i;
+                        const isSelected = String(settings.current_fiscal_year) === String(y);
+                        return (
+                          <button
+                            key={y}
+                            type="button"
+                            onClick={() => handleChange('current_fiscal_year', String(y))}
+                            className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold border transition ${
+                              isSelected
+                                ? 'bg-blue-900 text-white border-blue-900 shadow-xs'
+                                : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                            }`}
+                          >
+                            {y} {y === base ? '(ปีนี้)' : ''}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    💡 สามารถพิมพ์ระบุปีงบประมาณย้อนหลังหรือปีถัดไปได้อิสระ เพื่อให้ระบบถอยไปจัดการหรือเปิดรับโครงการของปีงบประมาณนั้น
+                  </p>
                 </div>
 
                 {/* Open/Close Toggle */}
