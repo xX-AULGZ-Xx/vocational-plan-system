@@ -662,6 +662,8 @@ export default function AdminTemplatesPage() {
                     { key: 'department', label: 'แผนก/ฝ่าย', type: 'DEPARTMENT_DROPDOWN' },
                     { key: 'leader_name', label: 'ผู้เสนอโครงการ', type: 'LEADER_NAME' },
                     { key: 'leader_position', label: 'ตำแหน่งผู้เสนอโครงการ', type: 'LEADER_POSITION' },
+                    { key: 'head_name', label: 'หัวหน้างาน/หัวหน้าแผนก', type: 'HEAD_NAME' },
+                    { key: 'head_position', label: 'ตำแหน่งหัวหน้างาน', type: 'HEAD_POSITION' },
                     { key: 'director_name', label: 'ชื่อผู้อำนวยการ', type: 'DIRECTOR_NAME' },
                     { key: 'director_position', label: 'ตำแหน่งผู้อำนวยการ', type: 'DIRECTOR_POSITION' },
                     { key: 'deputy_name', label: 'รองผู้อำนวยการฝ่าย', type: 'DEPUTY_DROPDOWN' },
@@ -787,6 +789,11 @@ export default function AdminTemplatesPage() {
                               <optgroup label="ข้อมูลผู้เสนอโครงการ (ดึงอัตโนมัติจาก User)">
                                 <option value="LEADER_NAME">ชื่อผู้เสนอโครงการ (User Full Name)</option>
                                 <option value="LEADER_POSITION">ตำแหน่งผู้เสนอโครงการ (User Position)</option>
+                              </optgroup>
+                              <optgroup label="ข้อมูลหัวหน้างาน / หัวหน้าแผนก (ดึงจากแผนกวิชา)">
+                                <option value="HEAD_NAME">ชื่อหัวหน้างาน / แผนก (Head Name)</option>
+                                <option value="HEAD_POSITION">ตำแหน่งหัวหน้างาน / แผนก (Head Position)</option>
+                                <option value="HEAD_DROPDOWN">ตัวเลือกหัวหน้างาน / แผนก (Head Dropdown)</option>
                               </optgroup>
                               <optgroup label="ข้อมูลผู้บริหารและสถานศึกษา (ดึงจากตั้งค่าระบบ)">
                                 <option value="COLLEGE_NAME">ชื่อสถานศึกษา (College Name)</option>

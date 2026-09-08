@@ -99,6 +99,14 @@ export default function EditProjectPage() {
         // Default auto-fill if empty
         if (!parsedDynamic.leader_name) parsedDynamic.leader_name = user?.full_name || '';
         if (!parsedDynamic.leader_position) parsedDynamic.leader_position = user?.position || 'ครู';
+        if (!parsedDynamic.head_name) {
+          const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
+          if (userDept?.head_name) parsedDynamic.head_name = userDept.head_name;
+        }
+        if (!parsedDynamic.head_position) {
+          const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
+          if (userDept) parsedDynamic.head_position = userDept.head_position || `หัวหน้า${userDept.name}`;
+        }
         if (!parsedDynamic.director_name) parsedDynamic.director_name = directorName || '';
         if (!parsedDynamic.director_position) parsedDynamic.director_position = directorPosition || '';
         if (!parsedDynamic.college_name) parsedDynamic.college_name = collegeName || '';
@@ -340,8 +348,49 @@ const fetchProposalTemplate = async () => {
           </div>
         );
       }
+      case 'HEAD_DROPDOWN': {
+        const allDepts = (typeof divisionsData !== 'undefined' ? divisionsData : []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []);
+        const headList = allDepts.filter((d: any) => !!d.head_name);
+
+        return (
+          <div key={key} className="col-span-1 lg:col-span-2">
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
+              <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                หัวหน้างาน / หัวหน้าแผนก
+              </span>
+            </div>
+            {tag.description && <p className="text-xs text-gray-500 mb-1">{tag.description}</p>}
+            <select
+              value={value || ''}
+              onChange={(e) => {
+                handleDynamicChange(key, e.target.value);
+                const selected = headList.find((d: any) => d.head_name === e.target.value);
+                if (selected) {
+                  if (dynamicData[`${key}_position`] !== undefined || dynamicData['head_position'] !== undefined) {
+                    handleDynamicChange(`${key}_position`, selected.head_position || `หัวหน้า${selected.name}`);
+                    handleDynamicChange('head_position', selected.head_position || `หัวหน้า${selected.name}`);
+                  }
+                }
+              }}
+              disabled={!isEditing}
+              required={tag.is_required}
+              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            >
+              <option value="">-- เลือกหัวหน้างาน / หัวหน้าแผนก --</option>
+              {headList.map((d: any, i: number) => (
+                <option key={i} value={d.head_name}>
+                  {d.head_name} ({d.name})
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      }
       case 'LEADER_NAME':
       case 'LEADER_POSITION':
+      case 'HEAD_NAME':
+      case 'HEAD_POSITION':
       case 'DIRECTOR_NAME':
       case 'DIRECTOR_POSITION':
       case 'COLLEGE_NAME':
