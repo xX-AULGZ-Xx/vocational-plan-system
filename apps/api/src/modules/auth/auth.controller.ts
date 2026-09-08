@@ -313,6 +313,7 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     const headIds: number[] = Array.isArray(head_dept_ids)
       ? head_dept_ids.map((id: any) => parseInt(id))
       : (is_head ? [deptId] : []);
+    const isUserHead = headIds.length > 0 || !!is_head;
 
     // Check existing user to preserve roles like ADMIN, DEPUTY_DIRECTOR, etc.
     const existingUser = await prisma.user.findUnique({ where: { id: userId } });

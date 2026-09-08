@@ -260,7 +260,7 @@ async function ensureTemplateTablesExist() {
         \`id\` int NOT NULL AUTO_INCREMENT,
         \`template_id\` int NOT NULL,
         \`tag_name\` varchar(100) NOT NULL,
-        \`tag_type\` enum('TEXT','LONGTEXT','DATE','BOOLEAN','TABLE_LOOP','IMAGE','CALCULATION','DROPDOWN','DATERANGE','TIMELINE','ALIGNMENT_CHECKLIST','DIVISION_DROPDOWN','DEPARTMENT_DROPDOWN','DIRECTOR_NAME','DIRECTOR_POSITION','DEPUTY_DROPDOWN','DEPUTY_ACAD_NAME','DEPUTY_ACAD_POSITION','DEPUTY_RES_NAME','DEPUTY_RES_POSITION','DEPUTY_DEV_NAME','DEPUTY_DEV_POSITION','DEPUTY_STRAT_NAME','DEPUTY_STRAT_POSITION','LEADER_NAME','LEADER_POSITION','HEAD_NAME','HEAD_POSITION','HEAD_DROPDOWN','APPROVER_DROPDOWN','APPROVER_POSITION','APPROVER_POSITION_DROPDOWN','COLLEGE_NAME') NOT NULL DEFAULT 'TEXT',
+        \`tag_type\` varchar(50) NOT NULL DEFAULT 'TEXT',
         \`label\` varchar(150) DEFAULT NULL,
         \`description\` text DEFAULT NULL,
         \`is_required\` tinyint(1) NOT NULL DEFAULT '0',
@@ -830,11 +830,11 @@ router.put('/templates/:id/tags', async (req: AuthRequest, res: Response) => {
     const tags: any[] = req.body.tags || []; // Array of { id, tag_type, label, sort_order, is_required }
     const templateId = parseInt(id);
 
-    // Make sure MySQL enum column in template_tags contains all new enum values
+    // Make sure MySQL column in template_tags is varchar(50) so new tag types never get truncated
     try {
       await prisma.$executeRawUnsafe(`
         ALTER TABLE \`template_tags\` 
-        MODIFY COLUMN \`tag_type\` enum('TEXT','LONGTEXT','DATE','BOOLEAN','TABLE_LOOP','IMAGE','CALCULATION','DROPDOWN','DATERANGE','TIMELINE','ALIGNMENT_CHECKLIST','DIVISION_DROPDOWN','DEPARTMENT_DROPDOWN','DIRECTOR_NAME','DIRECTOR_POSITION','DEPUTY_DROPDOWN','DEPUTY_ACAD_NAME','DEPUTY_ACAD_POSITION','DEPUTY_RES_NAME','DEPUTY_RES_POSITION','DEPUTY_DEV_NAME','DEPUTY_DEV_POSITION','DEPUTY_STRAT_NAME','DEPUTY_STRAT_POSITION','LEADER_NAME','LEADER_POSITION','HEAD_NAME','HEAD_POSITION','HEAD_DROPDOWN','APPROVER_DROPDOWN','APPROVER_POSITION','APPROVER_POSITION_DROPDOWN','COLLEGE_NAME') NOT NULL DEFAULT 'TEXT'
+        MODIFY COLUMN \`tag_type\` varchar(50) NOT NULL DEFAULT 'TEXT'
       `);
     } catch (alterErr) {
       // Column might already be modified or user has limited DDL permissions
