@@ -668,6 +668,7 @@ export default function AdminTemplatesPage() {
                     { key: 'director_name', label: 'ชื่อผู้อำนวยการ', type: 'DIRECTOR_NAME' },
                     { key: 'director_position', label: 'ตำแหน่งผู้อำนวยการ', type: 'DIRECTOR_POSITION' },
                     { key: 'deputy_name', label: 'รองผู้อำนวยการฝ่าย', type: 'DEPUTY_DROPDOWN' },
+                    { key: 'approver_name', label: 'ผู้เห็นชอบโครงการ', type: 'APPROVER_DROPDOWN' },
                     { key: 'college_name', label: 'ชื่อสถานศึกษา', type: 'COLLEGE_NAME' },
                     { key: 'project_code', label: 'รหัสโครงการ', type: 'TEXT' }
                   ].map(sysTag => (
@@ -800,6 +801,7 @@ export default function AdminTemplatesPage() {
                                 <option value="COLLEGE_NAME">ชื่อสถานศึกษา (College Name)</option>
                                 <option value="DIRECTOR_NAME">ชื่อผู้อำนวยการ (Director Name)</option>
                                 <option value="DIRECTOR_POSITION">ตำแหน่งผู้อำนวยการ (Director Position)</option>
+                                <option value="APPROVER_DROPDOWN">ตัวเลือก ผู้เห็นชอบโครงการ (Approver Dropdown - รอง ผอ. / หัวหน้างาน)</option>
                                 <option value="DEPUTY_DROPDOWN">ตัวเลือก รอง ผอ. 4 ฝ่าย (Deputy Dropdown)</option>
                                 <option value="DEPUTY_ACAD_NAME">ชื่อ รอง ผอ. ฝ่ายวิชาการ</option>
                                 <option value="DEPUTY_ACAD_POSITION">ตำแหน่ง รอง ผอ. ฝ่ายวิชาการ</option>
