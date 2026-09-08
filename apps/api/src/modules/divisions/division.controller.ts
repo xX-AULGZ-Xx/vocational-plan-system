@@ -83,13 +83,8 @@ router.get('/:code', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลฝ่าย' });
     }
 
-    // Also find any project whose approver tags resolve to this division
-    const allOtherProjects = await prisma.project.findMany({
-      where: {
-        department: {
-          division_id: { not: division.id },
-        },
-      },
+    // Load all projects in system with their relations
+    const allProjectsInDb = await prisma.project.findMany({
       include: {
         leader: true,
         budget_items: true,
@@ -102,29 +97,37 @@ router.get('/:code', async (req: Request, res: Response) => {
     });
 
     const { getProjectTargetDivisionId } = require('../approvals/approval.controller');
-    const matchedOtherProjects = [];
-    for (const p of allOtherProjects) {
+    const matchedDivisionProjects: any[] = [];
+    for (const p of allProjectsInDb) {
       const targetDivId = await getProjectTargetDivisionId(p);
       if (targetDivId === division.id) {
-        matchedOtherProjects.push(p);
+        matchedDivisionProjects.push(p);
       }
     }
 
-    // Combine projects into division's first department or a virtual container
-    const existingDeptProjects = division.departments.flatMap((d) => d.projects);
-    const existingProjectIds = new Set(existingDeptProjects.map((p) => p.id));
-    const extraProjectsToAdd = matchedOtherProjects.filter((p) => !existingProjectIds.has(p.id));
+    // Map projects into the division's department structure or virtual container
+    const mappedDepartments = (division.departments || []).map((dept) => {
+      const deptProjects = matchedDivisionProjects.filter((p) => p.department_id === dept.id);
+      return {
+        ...dept,
+        projects: deptProjects,
+      };
+    });
 
-    if (extraProjectsToAdd.length > 0) {
-      if (division.departments.length > 0) {
-        (division.departments[0].projects as any).push(...extraProjectsToAdd);
+    // Any project for this division whose department_id is not among division's departments
+    const deptIdsSet = new Set(division.departments.map((d) => d.id));
+    const unmappedProjects = matchedDivisionProjects.filter((p) => !deptIdsSet.has(p.department_id));
+
+    if (unmappedProjects.length > 0) {
+      if (mappedDepartments.length > 0) {
+        (mappedDepartments[0].projects as any).push(...unmappedProjects);
       } else {
-        (division.departments as any).push({
+        mappedDepartments.push({
           id: 0,
           division_id: division.id,
           name: division.name,
-          projects: extraProjectsToAdd,
-        });
+          projects: unmappedProjects,
+        } as any);
       }
     }
 
@@ -140,6 +143,7 @@ router.get('/:code', async (req: Request, res: Response) => {
 
     const data = {
       ...division,
+      departments: mappedDepartments,
       deputy_name: deputyName,
       deputy_position: deputyPosition,
     };
