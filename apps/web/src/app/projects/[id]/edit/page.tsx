@@ -25,7 +25,23 @@ export default function EditProjectPage() {
   const [isLoadingProject, setIsLoadingProject] = useState(true);
 
   const { user, token } = useAuth();
-  const { currentFiscalYear, isSubmissionOpen, submissionStartDate, submissionEndDate } = useSettings();
+  const {
+    collegeName,
+    directorName,
+    directorPosition,
+    deputyAcadName,
+    deputyAcadPosition,
+    deputyResName,
+    deputyResPosition,
+    deputyDevName,
+    deputyDevPosition,
+    deputyStratName,
+    deputyStratPosition,
+    currentFiscalYear,
+    isSubmissionOpen,
+    submissionStartDate,
+    submissionEndDate
+  } = useSettings();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -69,7 +85,7 @@ export default function EditProjectPage() {
         setDepartmentId(proj.department_id || '');
         setTotalBudget(proj.total_budget || '0');
         
-        let parsedDynamic = {};
+        let parsedDynamic: Record<string, any> = {};
         try {
           let temp = proj.dynamic_data;
           while (typeof temp === 'string') {
@@ -79,6 +95,21 @@ export default function EditProjectPage() {
             parsedDynamic = temp;
           }
         } catch(e){}
+
+        // Default auto-fill if empty
+        if (!parsedDynamic.leader_name) parsedDynamic.leader_name = user?.full_name || '';
+        if (!parsedDynamic.leader_position) parsedDynamic.leader_position = user?.position || 'ครู';
+        if (!parsedDynamic.director_name) parsedDynamic.director_name = directorName || '';
+        if (!parsedDynamic.director_position) parsedDynamic.director_position = directorPosition || '';
+        if (!parsedDynamic.college_name) parsedDynamic.college_name = collegeName || '';
+        if (!parsedDynamic.deputy_acad_name) parsedDynamic.deputy_acad_name = deputyAcadName || '';
+        if (!parsedDynamic.deputy_acad_position) parsedDynamic.deputy_acad_position = deputyAcadPosition || '';
+        if (!parsedDynamic.deputy_res_name) parsedDynamic.deputy_res_name = deputyResName || '';
+        if (!parsedDynamic.deputy_res_position) parsedDynamic.deputy_res_position = deputyResPosition || '';
+        if (!parsedDynamic.deputy_dev_name) parsedDynamic.deputy_dev_name = deputyDevName || '';
+        if (!parsedDynamic.deputy_dev_position) parsedDynamic.deputy_dev_position = deputyDevPosition || '';
+        if (!parsedDynamic.deputy_strat_name) parsedDynamic.deputy_strat_name = deputyStratName || '';
+        if (!parsedDynamic.deputy_strat_position) parsedDynamic.deputy_strat_position = deputyStratPosition || '';
         
         setDynamicData(parsedDynamic);
         
@@ -263,6 +294,80 @@ const fetchProposalTemplate = async () => {
               rows={4}
               required={tag.is_required}
               className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            />
+          </div>
+        );
+      case 'DEPUTY_DROPDOWN': {
+        const deputyList = [
+          { name: deputyResName || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร', division: 'ฝ่ายบริหารทรัพยากร', position: deputyResPosition },
+          { name: deputyStratName || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ', division: 'ฝ่ายแผนงานและความร่วมมือ', position: deputyStratPosition },
+          { name: deputyDevName || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา', division: 'ฝ่ายพัฒนากิจการนักเรียนฯ', position: deputyDevPosition },
+          { name: deputyAcadName || 'รองผู้อำนวยการฝ่ายวิชาการ', division: 'ฝ่ายวิชาการ', position: deputyAcadPosition },
+        ].filter(d => !!d.name);
+
+        return (
+          <div key={key} className="col-span-1 lg:col-span-2">
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
+              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                รองผู้อำนวยการ ๔ ฝ่าย
+              </span>
+            </div>
+            {tag.description && <p className="text-xs text-gray-500 mb-1">{tag.description}</p>}
+            <select
+              value={value || ''}
+              onChange={(e) => {
+                handleDynamicChange(key, e.target.value);
+                const selected = deputyList.find(d => d.name === e.target.value);
+                if (selected) {
+                  if (dynamicData[`${key}_position`] !== undefined || dynamicData['deputy_position'] !== undefined) {
+                    handleDynamicChange(`${key}_position`, selected.position);
+                    handleDynamicChange('deputy_position', selected.position);
+                  }
+                }
+              }}
+              disabled={!isEditing}
+              required={tag.is_required}
+              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            >
+              <option value="">-- เลือกรองผู้อำนวยการประจำฝ่าย --</option>
+              {deputyList.map((d, i) => (
+                <option key={i} value={d.name}>
+                  {d.name} ({d.division})
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      }
+      case 'LEADER_NAME':
+      case 'LEADER_POSITION':
+      case 'DIRECTOR_NAME':
+      case 'DIRECTOR_POSITION':
+      case 'COLLEGE_NAME':
+      case 'DEPUTY_ACAD_NAME':
+      case 'DEPUTY_ACAD_POSITION':
+      case 'DEPUTY_RES_NAME':
+      case 'DEPUTY_RES_POSITION':
+      case 'DEPUTY_DEV_NAME':
+      case 'DEPUTY_DEV_POSITION':
+      case 'DEPUTY_STRAT_NAME':
+      case 'DEPUTY_STRAT_POSITION':
+        return (
+          <div key={key} className="col-span-1">
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
+              <span className="text-[10px] font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                ดึงอัตโนมัติ
+              </span>
+            </div>
+            {tag.description && <p className="text-xs text-gray-500 mb-1">{tag.description}</p>}
+            <input
+              type="text"
+              value={value || ''}
+              onChange={(e) => handleDynamicChange(key, e.target.value)}
+              required={tag.is_required}
+              className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-slate-50/50 focus:bg-white"
             />
           </div>
         );

@@ -657,6 +657,12 @@ export default function AdminTemplatesPage() {
                     { key: 'fiscal_year', label: 'ปีงบประมาณ', type: 'TEXT' },
                     { key: 'total_budget', label: 'งบประมาณรวม', type: 'TEXT' },
                     { key: 'department', label: 'แผนก/ฝ่าย', type: 'DEPARTMENT_DROPDOWN' },
+                    { key: 'leader_name', label: 'ผู้เสนอโครงการ', type: 'LEADER_NAME' },
+                    { key: 'leader_position', label: 'ตำแหน่งผู้เสนอโครงการ', type: 'LEADER_POSITION' },
+                    { key: 'director_name', label: 'ชื่อผู้อำนวยการ', type: 'DIRECTOR_NAME' },
+                    { key: 'director_position', label: 'ตำแหน่งผู้อำนวยการ', type: 'DIRECTOR_POSITION' },
+                    { key: 'deputy_name', label: 'รองผู้อำนวยการฝ่าย', type: 'DEPUTY_DROPDOWN' },
+                    { key: 'college_name', label: 'ชื่อสถานศึกษา', type: 'COLLEGE_NAME' },
                     { key: 'project_code', label: 'รหัสโครงการ', type: 'TEXT' }
                   ].map(sysTag => (
                     <button
@@ -760,19 +766,39 @@ export default function AdminTemplatesPage() {
                               }}
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                             >
-                              <option value="TEXT">ข้อความสั้น (Text)</option>
-                              <option value="LONGTEXT">ข้อความยาว (Textarea)</option>
-                              <option value="DATE">วันที่ (Date)</option>
+                              <optgroup label="ข้อมูลทั่วไปและแบบฟอร์ม">
+                                <option value="TEXT">ข้อความสั้น (Text)</option>
+                                <option value="LONGTEXT">ข้อความยาว (Textarea)</option>
+                                <option value="DATE">วันที่ (Date)</option>
                                 <option value="DATERANGE">ช่วงวันที่ (Start-End Date)</option>
                                 <option value="TIMELINE">ตารางแผนปฏิบัติงาน (Timeline PDCA)</option>
                                 <option value="ALIGNMENT_CHECKLIST">แบบประเมินความสอดคล้อง (Alignment Checklist)</option>
                                 <option value="DIVISION_DROPDOWN">เลือกฝ่าย / กลุ่มงาน (Division)</option>
                                 <option value="DEPARTMENT_DROPDOWN">เลือกแผนกวิชา / งาน (Department)</option>
-                              <option value="BOOLEAN">Checkbox (True/False)</option>
-                              <option value="IMAGE">รูปภาพ (Image)</option>
-                              <option value="TABLE_LOOP">ตาราง/ทำซ้ำ (Table/Loop)</option>
-                              <option value="DROPDOWN">ตัวเลือก (Dropdown)</option>
+                                <option value="BOOLEAN">Checkbox (True/False)</option>
+                                <option value="IMAGE">รูปภาพ (Image)</option>
+                                <option value="TABLE_LOOP">ตาราง/ทำซ้ำ (Table/Loop)</option>
+                                <option value="DROPDOWN">ตัวเลือก (Dropdown)</option>
                                 <option value="CALCULATION">การคำนวน (Calculation)</option>
+                              </optgroup>
+                              <optgroup label="ข้อมูลผู้เสนอโครงการ (ดึงอัตโนมัติจาก User)">
+                                <option value="LEADER_NAME">ชื่อผู้เสนอโครงการ (User Full Name)</option>
+                                <option value="LEADER_POSITION">ตำแหน่งผู้เสนอโครงการ (User Position)</option>
+                              </optgroup>
+                              <optgroup label="ข้อมูลผู้บริหารและสถานศึกษา (ดึงจากตั้งค่าระบบ)">
+                                <option value="COLLEGE_NAME">ชื่อสถานศึกษา (College Name)</option>
+                                <option value="DIRECTOR_NAME">ชื่อผู้อำนวยการ (Director Name)</option>
+                                <option value="DIRECTOR_POSITION">ตำแหน่งผู้อำนวยการ (Director Position)</option>
+                                <option value="DEPUTY_DROPDOWN">ตัวเลือก รอง ผอ. 4 ฝ่าย (Deputy Dropdown)</option>
+                                <option value="DEPUTY_ACAD_NAME">ชื่อ รอง ผอ. ฝ่ายวิชาการ</option>
+                                <option value="DEPUTY_ACAD_POSITION">ตำแหน่ง รอง ผอ. ฝ่ายวิชาการ</option>
+                                <option value="DEPUTY_RES_NAME">ชื่อ รอง ผอ. ฝ่ายบริหารทรัพยากร</option>
+                                <option value="DEPUTY_RES_POSITION">ตำแหน่ง รอง ผอ. ฝ่ายบริหารทรัพยากร</option>
+                                <option value="DEPUTY_DEV_NAME">ชื่อ รอง ผอ. ฝ่ายพัฒนากิจการนักเรียนฯ</option>
+                                <option value="DEPUTY_DEV_POSITION">ตำแหน่ง รอง ผอ. ฝ่ายพัฒนากิจการนักเรียนฯ</option>
+                                <option value="DEPUTY_STRAT_NAME">ชื่อ รอง ผอ. ฝ่ายแผนงานฯ</option>
+                                <option value="DEPUTY_STRAT_POSITION">ตำแหน่ง รอง ผอ. ฝ่ายแผนงานฯ</option>
+                              </optgroup>
                             </select>
                           </div>
 

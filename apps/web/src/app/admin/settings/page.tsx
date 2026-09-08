@@ -1161,44 +1161,161 @@ export default function AdminSettingsPage() {
             </div>
           )}
 
-          {/* Section 3: Executive Info */}
+          {/* Section 3: Executive & Director Info */}
           {(activeTab === 'all' || activeTab === 'director') && (
-            <div className="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
+            <div className="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
               <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
                 <div className="p-1.5 bg-indigo-50 text-indigo-800 rounded-md">
                   <User className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-slate-900 text-sm sm:text-base">๓. ข้อมูลผู้อำนวยการ (ผู้ลงนามขั้นสุดท้าย)</h2>
-                  <p className="text-[11px] sm:text-xs text-slate-500">ข้อมูลผู้บริหารสูงสุดสำหรับลงนามท้ายเอกสารและแบบเสนอโครงการ</p>
+                  <h2 className="font-bold text-slate-900 text-sm sm:text-base">๓. ข้อมูลผู้บริหารและผู้อำนวยการ (Executive & Directors)</h2>
+                  <p className="text-[11px] sm:text-xs text-slate-500">ข้อมูลผู้อำนวยการและรองผู้อำนวยการทั้ง 4 ฝ่าย สำหรับระบบเสนอโครงการและการสร้างเอกสาร Word อัตโนมัติ</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    ชื่อ-นามสกุล ผู้อำนวยการ <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.director_name || ''}
-                    onChange={(e) => handleChange('director_name', e.target.value)}
-                    placeholder="เช่น นางปิยะพร พูลเพิ่ม"
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white"
-                  />
-                </div>
+              {/* ผู้อำนวยการสถานศึกษา */}
+              <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-3">
+                <h3 className="text-xs font-bold text-indigo-950 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                  ผู้อำนวยการสถานศึกษา (ผู้ลงนามขั้นสุดท้าย)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      ชื่อ-นามสกุล ผู้อำนวยการ <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.director_name || ''}
+                      onChange={(e) => handleChange('director_name', e.target.value)}
+                      placeholder="เช่น นางปิยะพร พูลเพิ่ม"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-white"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    ตำแหน่งทางการ <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.director_position || ''}
-                    onChange={(e) => handleChange('director_position', e.target.value)}
-                    placeholder="เช่น ผู้อำนวยการวิทยาลัยการอาชีพเชียงราย"
-                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white"
-                  />
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      ตำแหน่งทางการ <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.director_position || ''}
+                      onChange={(e) => handleChange('director_position', e.target.value)}
+                      placeholder="เช่น ผู้อำนวยการวิทยาลัยการอาชีพเชียงราย"
+                      className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* รองผู้อำนวยการ 4 ฝ่าย */}
+              <div className="space-y-4 pt-2">
+                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                  รองผู้อำนวยการ ๔ ฝ่ายบริหาร
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 1. ฝ่ายบริหารทรัพยากร */}
+                  <div className="p-3.5 bg-slate-50/50 rounded-xl border border-slate-200 space-y-3">
+                    <p className="text-xs font-bold text-slate-800">๑. ฝ่ายบริหารทรัพยากร</p>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-1">ชื่อ-นามสกุล รอง ผอ.</label>
+                      <input
+                        type="text"
+                        value={settings.deputy_res_name || ''}
+                        onChange={(e) => handleChange('deputy_res_name', e.target.value)}
+                        placeholder="เช่น นายสมศักดิ์ มั่นคง"
+                        className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg bg-white outline-none focus:border-blue-900 transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-1">ตำแหน่งทางการ</label>
+                      <input
+                        type="text"
+                        value={settings.deputy_res_position || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร'}
+                        onChange={(e) => handleChange('deputy_res_position', e.target.value)}
+                        placeholder="รองผู้อำนวยการฝ่ายบริหารทรัพยากร"
+                        className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg bg-white outline-none focus:border-blue-900 transition"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 2. ฝ่ายแผนงานและความร่วมมือ */}
+                  <div className="p-3.5 bg-slate-50/50 rounded-xl border border-slate-200 space-y-3">
+                    <p className="text-xs font-bold text-slate-800">๒. ฝ่ายแผนงานและความร่วมมือ / ยุทธศาสตร์</p>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-1">ชื่อ-นามสกุล รอง ผอ.</label>
+                      <input
+                        type="text"
+                        value={settings.deputy_strat_name || ''}
+                        onChange={(e) => handleChange('deputy_strat_name', e.target.value)}
+                        placeholder="เช่น นางสาววาสนา วางแผนดี"
+                        className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg bg-white outline-none focus:border-blue-900 transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-1">ตำแหน่งทางการ</label>
+                      <input
+                        type="text"
+                        value={settings.deputy_strat_position || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ'}
+                        onChange={(e) => handleChange('deputy_strat_position', e.target.value)}
+                        placeholder="รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ"
+                        className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg bg-white outline-none focus:border-blue-900 transition"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3. ฝ่ายพัฒนากิจการนักเรียน นักศึกษา */}
+                  <div className="p-3.5 bg-slate-50/50 rounded-xl border border-slate-200 space-y-3">
+                    <p className="text-xs font-bold text-slate-800">๓. ฝ่ายพัฒนากิจการนักเรียน นักศึกษา</p>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-1">ชื่อ-นามสกุล รอง ผอ.</label>
+                      <input
+                        type="text"
+                        value={settings.deputy_dev_name || ''}
+                        onChange={(e) => handleChange('deputy_dev_name', e.target.value)}
+                        placeholder="เช่น นายธนากร กิจการเด่น"
+                        className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg bg-white outline-none focus:border-blue-900 transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-1">ตำแหน่งทางการ</label>
+                      <input
+                        type="text"
+                        value={settings.deputy_dev_position || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา'}
+                        onChange={(e) => handleChange('deputy_dev_position', e.target.value)}
+                        placeholder="รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา"
+                        className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg bg-white outline-none focus:border-blue-900 transition"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 4. ฝ่ายวิชาการ */}
+                  <div className="p-3.5 bg-slate-50/50 rounded-xl border border-slate-200 space-y-3">
+                    <p className="text-xs font-bold text-slate-800">๔. ฝ่ายวิชาการ</p>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-1">ชื่อ-นามสกุล รอง ผอ.</label>
+                      <input
+                        type="text"
+                        value={settings.deputy_acad_name || ''}
+                        onChange={(e) => handleChange('deputy_acad_name', e.target.value)}
+                        placeholder="เช่น นางสาวพรทิพย์ วิชาการเลิศ"
+                        className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg bg-white outline-none focus:border-blue-900 transition"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-slate-600 mb-1">ตำแหน่งทางการ</label>
+                      <input
+                        type="text"
+                        value={settings.deputy_acad_position || 'รองผู้อำนวยการฝ่ายวิชาการ'}
+                        onChange={(e) => handleChange('deputy_acad_position', e.target.value)}
+                        placeholder="รองผู้อำนวยการฝ่ายวิชาการ"
+                        className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg bg-white outline-none focus:border-blue-900 transition"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

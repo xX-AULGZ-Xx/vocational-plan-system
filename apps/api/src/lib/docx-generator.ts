@@ -63,6 +63,30 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
     throw new Error(`Template not found at ${templatePath}`);
   }
 
+  // Auto-inject settings defaults for executive / college info if not provided in formData
+  try {
+    const sysSettings = await (prisma as any).systemSetting.findMany();
+    const settingsMap = new Map(sysSettings.map((s: any) => [s.key, s.value]));
+
+    const collegeName = settingsMap.get('college_name') || 'วิทยาลัยการอาชีพเชียงราย';
+    const directorName = settingsMap.get('director_name') || 'นางปิยะพร พูลเพิ่ม';
+    const directorPosition = settingsMap.get('director_position') || `ผู้อำนวยการ${collegeName}`;
+
+    if (!formData.college_name) formData.college_name = collegeName;
+    if (!formData.director_name) formData.director_name = directorName;
+    if (!formData.director_position) formData.director_position = directorPosition;
+    if (!formData.deputy_acad_name) formData.deputy_acad_name = settingsMap.get('deputy_acad_name') || '';
+    if (!formData.deputy_acad_position) formData.deputy_acad_position = settingsMap.get('deputy_acad_position') || 'รองผู้อำนวยการฝ่ายวิชาการ';
+    if (!formData.deputy_res_name) formData.deputy_res_name = settingsMap.get('deputy_res_name') || '';
+    if (!formData.deputy_res_position) formData.deputy_res_position = settingsMap.get('deputy_res_position') || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร';
+    if (!formData.deputy_dev_name) formData.deputy_dev_name = settingsMap.get('deputy_dev_name') || '';
+    if (!formData.deputy_dev_position) formData.deputy_dev_position = settingsMap.get('deputy_dev_position') || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา';
+    if (!formData.deputy_strat_name) formData.deputy_strat_name = settingsMap.get('deputy_strat_name') || '';
+    if (!formData.deputy_strat_position) formData.deputy_strat_position = settingsMap.get('deputy_strat_position') || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ';
+  } catch (err) {
+    console.warn('Could not load system settings for docx render fallback:', err);
+  }
+
   // Auto-format dates, date ranges, and boolean checklists
   for (const key of Object.keys(formData)) {
     const val = formData[key];

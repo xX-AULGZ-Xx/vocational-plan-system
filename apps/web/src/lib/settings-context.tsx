@@ -14,6 +14,14 @@ interface SettingsContextType {
   collegeWebsite: string;
   directorName: string;
   directorPosition: string;
+  deputyAcadName: string;
+  deputyAcadPosition: string;
+  deputyResName: string;
+  deputyResPosition: string;
+  deputyDevName: string;
+  deputyDevPosition: string;
+  deputyStratName: string;
+  deputyStratPosition: string;
   currentFiscalYear: string;
   isSubmissionOpen: boolean;
   submissionStartDate: string;
@@ -50,6 +58,14 @@ const defaultContext: SettingsContextType = {
   collegeWebsite: 'www.cic.ac.th',
   directorName: 'นางปิยะพร พูลเพิ่ม',
   directorPosition: 'ผู้อำนวยการวิทยาลัยการอาชีพเชียงราย',
+  deputyAcadName: '',
+  deputyAcadPosition: 'รองผู้อำนวยการฝ่ายวิชาการ',
+  deputyResName: '',
+  deputyResPosition: 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร',
+  deputyDevName: '',
+  deputyDevPosition: 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา',
+  deputyStratName: '',
+  deputyStratPosition: 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ',
   currentFiscalYear: String(getCurrentThaiFiscalYear()),
   isSubmissionOpen: true,
   submissionStartDate: '',
@@ -167,6 +183,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const collegeWebsite = settings.college_website || 'www.cic.ac.th';
   const directorName = settings.director_name || 'นางปิยะพร พูลเพิ่ม';
   const directorPosition = settings.director_position || `ผู้อำนวยการ${collegeName}`;
+  const deputyAcadName = settings.deputy_acad_name || '';
+  const deputyAcadPosition = settings.deputy_acad_position || 'รองผู้อำนวยการฝ่ายวิชาการ';
+  const deputyResName = settings.deputy_res_name || '';
+  const deputyResPosition = settings.deputy_res_position || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร';
+  const deputyDevName = settings.deputy_dev_name || '';
+  const deputyDevPosition = settings.deputy_dev_position || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา';
+  const deputyStratName = settings.deputy_strat_name || '';
+  const deputyStratPosition = settings.deputy_strat_position || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ';
   const currentFiscalYear = settings.current_fiscal_year || String(getCurrentThaiFiscalYear());
   const isSubmissionOpen = settings.is_submission_open !== 'false';
   const submissionStartDate = settings.submission_start_date || '';
@@ -208,6 +232,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         collegeWebsite,
         directorName,
         directorPosition,
+        deputyAcadName,
+        deputyAcadPosition,
+        deputyResName,
+        deputyResPosition,
+        deputyDevName,
+        deputyDevPosition,
+        deputyStratName,
+        deputyStratPosition,
         currentFiscalYear,
         isSubmissionOpen,
         submissionStartDate,
