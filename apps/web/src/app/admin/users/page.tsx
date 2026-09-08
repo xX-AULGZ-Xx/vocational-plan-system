@@ -20,6 +20,8 @@ import {
   Building2,
   Briefcase,
   GraduationCap,
+  Sparkles,
+  User,
   X,
   Save,
   RefreshCw,
@@ -1055,99 +1057,59 @@ export default function AdminUsersPage() {
 
       {/* Modal 1: Create / Edit User */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-blue-100 text-blue-900 rounded-lg">
-                  {editingUser ? <Edit2 className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-8">
+            {/* Modal Header (Green/Theme Brand Header with Sparkles) */}
+            <div
+              className="p-6 text-white text-left relative overflow-hidden"
+              style={{ backgroundColor: 'var(--color-primary, #1e3a8a)' }}
+            >
+              <div className="relative z-10 flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/20">
+                    <Sparkles className="w-6 h-6 text-amber-300 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 text-xs font-semibold border border-amber-400/30 mb-1">
+                      <span>{editingUser ? 'แก้ไขผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}</span>
+                    </div>
+                    <h2 className="text-xl font-bold text-white tracking-tight">
+                      {editingUser ? 'ตั้งค่าข้อมูลโปรไฟล์และหน้าที่ความรับผิดชอบ' : 'สร้างบัญชีผู้ใช้งานใหม่'}
+                    </h2>
+                    <p className="text-xs text-blue-100/90 mt-1 leading-relaxed">
+                      กรุณาระบุชื่อ-นามสกุลจริง ตำแหน่ง และเลือกฝ่าย/งานที่สังกัด (สามารถเลือกได้หลายฝ่ายและหลายงาน) พร้อมติ๊กตำแหน่งหัวหน้างานได้ทันที
+                    </p>
+                  </div>
                 </div>
-                <h3 className="font-bold text-slate-900 text-base">
-                  {editingUser ? 'แก้ไขข้อมูลผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}
-                </h3>
+
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-white/70 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition shrink-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSubmitForm} className="p-6 space-y-5 max-h-[85vh] overflow-y-auto">
-              {/* Username & Password */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Username */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    ชื่อผู้ใช้ (Username) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    disabled={Boolean(editingUser)}
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    placeholder="เช่น somchai.k"
-                    className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition disabled:bg-slate-100 font-mono"
-                  />
-                  {editingUser && <span className="text-[10px] text-slate-400">ชื่อผู้ใช้ไม่สามารถเปลี่ยนได้</span>}
-                </div>
-
-                {/* Password (Optional for Edit) */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {editingUser ? 'รหัสผ่านใหม่ (เว้นว่างได้)' : 'รหัสผ่าน (Password)'}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required={!editingUser && !formData.email}
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder={editingUser ? '••••••••' : 'อย่างน้อย 4 ตัวอักษร'}
-                      className="w-full pl-3 pr-8 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  อีเมลองค์กร / Google Account (เช่น user@cric.ac.th)
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="เช่น somchai@cric.ac.th หรือ somchai@vec.mail.go.th"
-                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
-                />
-              </div>
-
+            <form onSubmit={handleSubmitForm} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
               {/* Full Name */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  ชื่อ-นามสกุล <span className="text-red-500">*</span>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-slate-500" />
+                  <span>ชื่อ - นามสกุลจริง (พร้อมคำนำหน้า เช่น นาย, นาง, นางสาว, ดร.)</span>
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  placeholder="เช่น นายสมชาย เข็มทอง"
-                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
+                  placeholder="เช่น นายสมชาย ใจดี หรือ นางสาวสุภาวดี รักเรียน"
+                  className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-theme-primary focus:border-theme-primary outline-none transition"
                 />
+                <p className="text-[11px] text-slate-400">ชื่อนี้จะปรากฏเป็นชื่อผู้เสนอโครงการในแบบเสนอโครงการและบันทึกข้อความ</p>
               </div>
 
               {/* Personnel Type (ครู / เจ้าหน้าที่) */}
@@ -1388,8 +1350,73 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
+              {/* Account Credentials (Username, Password, Email) */}
+              <div className="pt-2 border-t border-slate-200/80 space-y-3">
+                <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-slate-500" />
+                  <span>ข้อมูลบัญชีผู้ใช้และความปลอดภัย</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Username */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      ชื่อผู้ใช้ (Username) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      disabled={Boolean(editingUser)}
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      placeholder="เช่น somchai.k"
+                      className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition disabled:bg-slate-100 font-mono"
+                    />
+                    {editingUser && <span className="text-[10px] text-slate-400">ชื่อผู้ใช้ไม่สามารถเปลี่ยนได้</span>}
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {editingUser ? 'รหัสผ่านใหม่ (เว้นว่างได้)' : 'รหัสผ่าน (Password)'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required={!editingUser && !formData.email}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        placeholder={editingUser ? '••••••••' : 'อย่างน้อย 4 ตัวอักษร'}
+                        className="w-full pl-3 pr-8 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    อีเมลองค์กร / Google Account (เช่น user@cric.ac.th)
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="เช่น somchai@cric.ac.th หรือ somchai@vec.mail.go.th"
+                    className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
+                  />
+                </div>
+              </div>
+
               {/* Role & Status */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 {/* Role */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
