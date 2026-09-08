@@ -230,14 +230,31 @@ export default function ProjectSummaryPage() {
             <select
               value={value || ''}
               onChange={(e) => {
-                handleDynamicChange(key, e.target.value);
-                const selected = deputyList.find(d => d.name === e.target.value);
-                if (selected) {
-                  if (dynamicData[`${key}_position`] !== undefined || dynamicData['deputy_position'] !== undefined) {
-                    handleDynamicChange(`${key}_position`, selected.position);
-                    handleDynamicChange('deputy_position', selected.position);
+                const selectedVal = e.target.value;
+                const selected = deputyList.find(d => d.name === selectedVal);
+                setDynamicData(prev => {
+                  const next: Record<string, any> = { ...prev, [key]: selectedVal };
+                  if (selected) {
+                    next['approver_position'] = selected.position;
+                    next['approver_name_position'] = selected.position;
+                    next[`${key}_position`] = selected.position;
+                    next['deputy_position'] = selected.position;
+                    template?.tags?.forEach((t: any) => {
+                      if (
+                        t.tag_type === 'APPROVER_POSITION' ||
+                        t.tag_type === 'DEPUTY_POSITION' ||
+                        t.tag_name === 'approver_position' ||
+                        t.tag_name === 'approver_name_position' ||
+                        t.tag_name === 'deputy_position' ||
+                        t.tag_name === `${key}_position` ||
+                        (t.tag_name.includes('approver') && t.tag_name.includes('pos'))
+                      ) {
+                        next[t.tag_name] = selected.position;
+                      }
+                    });
                   }
-                }
+                  return next;
+                });
               }}
               disabled={!isEditing}
               required={tag.is_required}
@@ -269,14 +286,26 @@ export default function ProjectSummaryPage() {
             <select
               value={value || ''}
               onChange={(e) => {
-                handleDynamicChange(key, e.target.value);
+                const selectedVal = e.target.value;
                 const selected = headList.find((d: any) => d.head_name === e.target.value);
-                if (selected) {
-                  if (dynamicData[`${key}_position`] !== undefined || dynamicData['head_position'] !== undefined) {
-                    handleDynamicChange(`${key}_position`, selected.head_position || `หัวหน้า${selected.name}`);
-                    handleDynamicChange('head_position', selected.head_position || `หัวหน้า${selected.name}`);
+                setDynamicData(prev => {
+                  const next: Record<string, any> = { ...prev, [key]: selectedVal };
+                  if (selected) {
+                    const pos = selected.head_position || `หัวหน้า${selected.name}`;
+                    next['head_position'] = pos;
+                    next[`${key}_position`] = pos;
+                    template?.tags?.forEach((t: any) => {
+                      if (
+                        t.tag_type === 'HEAD_POSITION' ||
+                        t.tag_name === 'head_position' ||
+                        t.tag_name === `${key}_position`
+                      ) {
+                        next[t.tag_name] = pos;
+                      }
+                    });
                   }
-                }
+                  return next;
+                });
               }}
               disabled={!isEditing}
               required={tag.is_required}
@@ -313,14 +342,30 @@ export default function ProjectSummaryPage() {
               value={value || ''}
               onChange={(e) => {
                 const selectedVal = e.target.value;
-                handleDynamicChange(key, selectedVal);
                 const selectedDeputy = deputyList.find(d => d.name === selectedVal);
-                if (selectedDeputy) {
-                  // Auto fill all approver position tags
-                  handleDynamicChange('approver_position', selectedDeputy.position);
-                  handleDynamicChange(`${key}_position`, selectedDeputy.position);
-                  handleDynamicChange('deputy_position', selectedDeputy.position);
-                }
+                setDynamicData(prev => {
+                  const next: Record<string, any> = { ...prev, [key]: selectedVal };
+                  if (selectedDeputy) {
+                    next['approver_position'] = selectedDeputy.position;
+                    next['approver_name_position'] = selectedDeputy.position;
+                    next[`${key}_position`] = selectedDeputy.position;
+                    next['deputy_position'] = selectedDeputy.position;
+                    template?.tags?.forEach((t: any) => {
+                      if (
+                        t.tag_type === 'APPROVER_POSITION' ||
+                        t.tag_type === 'DEPUTY_POSITION' ||
+                        t.tag_name === 'approver_position' ||
+                        t.tag_name === 'approver_name_position' ||
+                        t.tag_name === 'deputy_position' ||
+                        t.tag_name === `${key}_position` ||
+                        (t.tag_name.includes('approver') && t.tag_name.includes('pos'))
+                      ) {
+                        next[t.tag_name] = selectedDeputy.position;
+                      }
+                    });
+                  }
+                  return next;
+                });
               }}
               disabled={!isEditing}
               required={tag.is_required}
