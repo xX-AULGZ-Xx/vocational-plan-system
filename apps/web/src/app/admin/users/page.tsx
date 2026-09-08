@@ -17,7 +17,9 @@ import {
   AlertCircle,
   ShieldCheck,
   Building,
+  Building2,
   Briefcase,
+  GraduationCap,
   X,
   Save,
   RefreshCw,
@@ -125,11 +127,47 @@ export default function AdminUsersPage() {
   // Notifications
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Predefined teacher positions
+  const TEACHER_POSITIONS = [
+    'ครู',
+    'ครูผู้ช่วย',
+    'ครูชำนาญการ',
+    'ครูชำนาญการพิเศษ',
+    'ครูเชี่ยวชาญ',
+    'ครูอัตราจ้าง',
+    'ครูพิเศษสอน',
+  ];
+
+  // Predefined staff positions
+  const STAFF_POSITIONS = [
+    'เจ้าหน้าที่',
+    'เจ้าหน้าที่ธุรการ',
+    'เจ้าหน้าที่การเงิน',
+    'เจ้าหน้าที่พัสดุ',
+    'เจ้าหน้าที่งานวางแผนและงบประมาณ',
+    'เจ้าหน้าที่งานวิจัยและนวัตกรรม',
+    'เจ้าหน้าที่งานทะเบียน',
+    'เจ้าหน้าที่งานบุคลากร',
+    'เจ้าหน้าที่งานอาคารสถานที่',
+    'เจ้าหน้าที่ประชาสัมพันธ์',
+    'เจ้าหน้าที่เทคโนโลยีสารสนเทศ',
+    'พนักงานขับรถยนต์',
+    'นักการภารโรง',
+  ];
+
   // User Form Modal State (Create / Edit)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Profile-style Form States
+  const [personnelType, setPersonnelType] = useState<'TEACHER' | 'STAFF'>('TEACHER');
+  const [selectedDivisionIds, setSelectedDivisionIds] = useState<number[]>([]);
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<number[]>([]);
+  const [headDeptIds, setHeadDeptIds] = useState<number[]>([]);
+  const [positionSelect, setPositionSelect] = useState('ครู');
+  const [customPosition, setCustomPosition] = useState('');
 
   const [formData, setFormData] = useState({
     username: '',
@@ -239,17 +277,131 @@ export default function AdminUsersPage() {
     });
   }, [users, searchQuery, selectedRole, selectedDept, selectedStatus]);
 
+  // Handle Switch Personnel Type
+  const handlePersonnelTypeChange = (type: 'TEACHER' | 'STAFF') => {
+    setPersonnelType(type);
+    if (type === 'TEACHER') {
+      setPositionSelect('ครู');
+      setCustomPosition('');
+      const acadDiv = divisions.find((d) => d.code === 'acad' || d.name.includes('วิชาการ'));
+      if (acadDiv) {
+        setSelectedDivisionIds([acadDiv.id]);
+        setSelectedDepartmentIds([]);
+        setHeadDeptIds([]);
+        setFormData((prev) => ({ ...prev, department_id: '', position: 'ครู' }));
+      }
+    } else {
+      setPositionSelect('เจ้าหน้าที่');
+      setCustomPosition('');
+      const resDiv = divisions.find((d) => d.code === 'res' || d.name.includes('บริหาร'));
+      if (resDiv) {
+        setSelectedDivisionIds([resDiv.id]);
+        setSelectedDepartmentIds([]);
+        setHeadDeptIds([]);
+        setFormData((prev) => ({ ...prev, department_id: '', position: 'เจ้าหน้าที่' }));
+      }
+    }
+  };
+
+  // Toggle Division Selection
+  const handleToggleDivision = (divId: number) => {
+    setSelectedDivisionIds((prev) => {
+      let next: number[];
+      if (prev.includes(divId)) {
+        if (prev.length === 1) return prev; // Keep at least 1
+        next = prev.filter((id) => id !== divId);
+      } else {
+        next = [...prev, divId];
+      }
+
+      const validDeptIds = divisions
+        .filter((d) => next.includes(d.id))
+        .flatMap((d) => d.departments.map((dept) => dept.id));
+
+      setSelectedDepartmentIds((curDepts) => {
+        const filtered = curDepts.filter((id) => validDeptIds.includes(id));
+        setFormData((prevForm) => {
+          if (!filtered.includes(Number(prevForm.department_id))) {
+            return { ...prevForm, department_id: filtered.length > 0 ? String(filtered[0]) : '' };
+          }
+          return prevForm;
+        });
+        return filtered;
+      });
+
+      setHeadDeptIds((curHeads) => curHeads.filter((id) => validDeptIds.includes(id)));
+      return next;
+    });
+  };
+
+  // Toggle Department Selection
+  const handleToggleDepartment = (deptId: number) => {
+    setSelectedDepartmentIds((prev) => {
+      let next: number[];
+      if (prev.includes(deptId)) {
+        next = prev.filter((id) => id !== deptId);
+        setHeadDeptIds((heads) => heads.filter((h) => h !== deptId));
+      } else {
+        next = [...prev, deptId];
+      }
+
+      setFormData((prevForm) => {
+        if (next.length > 0) {
+          if (!next.includes(Number(prevForm.department_id))) {
+            return { ...prevForm, department_id: String(next[0]) };
+          }
+        } else {
+          return { ...prevForm, department_id: '' };
+        }
+        return prevForm;
+      });
+
+      return next;
+    });
+  };
+
+  // Toggle Head of Department
+  const handleToggleHeadDept = (deptId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!selectedDepartmentIds.includes(deptId)) {
+      setSelectedDepartmentIds((prev) => [...prev, deptId]);
+      if (!formData.department_id) {
+        setFormData((prev) => ({ ...prev, department_id: String(deptId) }));
+      }
+    }
+
+    setHeadDeptIds((prev) => {
+      const isAlreadyHead = prev.includes(deptId);
+      const next = isAlreadyHead ? prev.filter((id) => id !== deptId) : [...prev, deptId];
+      // Auto suggest HEAD_DEPT role if not executive/admin
+      if (!isAlreadyHead && formData.role === 'TEACHER') {
+        setFormData((f) => ({ ...f, role: 'HEAD_DEPT' }));
+      }
+      return next;
+    });
+  };
+
   // Open Create Modal
   const handleOpenCreate = () => {
     setEditingUser(null);
+    setPersonnelType('TEACHER');
+    setPositionSelect('ครู');
+    setCustomPosition('');
+
+    const acadDiv = divisions.find((d) => d.code === 'acad' || d.name.includes('วิชาการ')) || divisions[0];
+    const initialDivIds = acadDiv ? [acadDiv.id] : [];
+    setSelectedDivisionIds(initialDivIds);
+    setSelectedDepartmentIds([]);
+    setHeadDeptIds([]);
+
     setFormData({
       username: '',
       password: '',
       email: '',
       full_name: '',
-      position: '',
+      position: 'ครู',
       role: 'TEACHER',
-      department_id: allDepartments.length > 0 ? String(allDepartments[0].id) : '',
+      department_id: '',
       is_active: true,
     });
     setShowPassword(false);
@@ -259,12 +411,50 @@ export default function AdminUsersPage() {
   // Open Edit Modal
   const handleOpenEdit = (u: UserItem) => {
     setEditingUser(u);
+
+    // Identify personnel type & position
+    let pType: 'TEACHER' | 'STAFF' = 'TEACHER';
+    let pSelect = 'ครู';
+    let pCustom = '';
+
+    if (u.position) {
+      if (TEACHER_POSITIONS.includes(u.position)) {
+        pType = 'TEACHER';
+        pSelect = u.position;
+      } else if (STAFF_POSITIONS.includes(u.position)) {
+        pType = 'STAFF';
+        pSelect = u.position;
+      } else {
+        pSelect = 'other';
+        pCustom = u.position;
+      }
+    }
+    setPersonnelType(pType);
+    setPositionSelect(pSelect);
+    setCustomPosition(pCustom);
+
+    // Find division and department
+    const dept = allDepartments.find((d) => d.id === u.department_id);
+    if (dept) {
+      setSelectedDivisionIds([dept.division_id]);
+      setSelectedDepartmentIds([dept.id]);
+    } else if (divisions.length > 0) {
+      setSelectedDivisionIds([divisions[0].id]);
+      setSelectedDepartmentIds([]);
+    }
+
+    if (u.role === 'HEAD_DEPT' && u.department_id) {
+      setHeadDeptIds([u.department_id]);
+    } else {
+      setHeadDeptIds([]);
+    }
+
     setFormData({
       username: u.username,
       password: '',
       email: u.email || '',
       full_name: u.full_name,
-      position: u.position || '',
+      position: u.position || (pSelect === 'other' ? pCustom : pSelect),
       role: u.role,
       department_id: u.department_id ? String(u.department_id) : '',
       is_active: u.is_active,
@@ -282,17 +472,21 @@ export default function AdminUsersPage() {
       const url = editingUser ? `/api/v1/admin/users/${editingUser.id}` : '/api/v1/admin/users';
       const method = editingUser ? 'PUT' : 'POST';
 
+      const effectivePosition = positionSelect === 'other' ? customPosition.trim() : positionSelect;
+      const effectiveDeptId = formData.department_id || (selectedDepartmentIds.length > 0 ? selectedDepartmentIds[0] : null);
+
       const payload: any = {
         email: formData.email ? formData.email.trim() : null,
-        full_name: formData.full_name,
-        position: formData.position,
+        full_name: formData.full_name.trim(),
+        position: effectivePosition || null,
         role: formData.role,
-        department_id: formData.department_id ? parseInt(formData.department_id) : null,
+        department_id: effectiveDeptId ? parseInt(String(effectiveDeptId)) : null,
         is_active: formData.is_active,
+        head_dept_ids: headDeptIds,
       };
 
       if (!editingUser) {
-        payload.username = formData.username;
+        payload.username = formData.username.trim();
         payload.password = formData.password;
       } else if (formData.password.trim().length > 0) {
         payload.password = formData.password.trim();
@@ -882,7 +1076,8 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSubmitForm} className="p-6 space-y-4">
+            <form onSubmit={handleSubmitForm} className="p-6 space-y-5 max-h-[85vh] overflow-y-auto">
+              {/* Username & Password */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Username */}
                 <div>
@@ -896,7 +1091,7 @@ export default function AdminUsersPage() {
                     value={formData.username}
                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                     placeholder="เช่น somchai.k"
-                    className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition disabled:bg-slate-100 font-mono"
+                    className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition disabled:bg-slate-100 font-mono"
                   />
                   {editingUser && <span className="text-[10px] text-slate-400">ชื่อผู้ใช้ไม่สามารถเปลี่ยนได้</span>}
                 </div>
@@ -913,7 +1108,7 @@ export default function AdminUsersPage() {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       placeholder={editingUser ? '••••••••' : 'อย่างน้อย 4 ตัวอักษร'}
-                      className="w-full pl-3 pr-8 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition"
+                      className="w-full pl-3 pr-8 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
                     />
                     <button
                       type="button"
@@ -936,7 +1131,7 @@ export default function AdminUsersPage() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="เช่น somchai@cric.ac.th หรือ somchai@vec.mail.go.th"
-                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition"
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
                 />
               </div>
 
@@ -951,22 +1146,249 @@ export default function AdminUsersPage() {
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   placeholder="เช่น นายสมชาย เข็มทอง"
-                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition"
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
                 />
               </div>
 
-              {/* Position */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">ตำแหน่งทางการ</label>
-                <input
-                  type="text"
-                  value={formData.position}
-                  onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                  placeholder="เช่น ครูชำนาญการ, หัวหน้างาน..."
-                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition"
-                />
+              {/* Personnel Type (ครู / เจ้าหน้าที่) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Briefcase className="w-3.5 h-3.5 text-slate-500" />
+                  <span>ประเภทบุคลากร</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handlePersonnelTypeChange('TEACHER')}
+                    className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all ${
+                      personnelType === 'TEACHER'
+                        ? 'bg-blue-50/80 border-blue-500 text-blue-900 shadow-2xs ring-1 ring-blue-500'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                        personnelType === 'TEACHER' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      <GraduationCap className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold">ครู / สายผู้สอน</p>
+                      <p className="text-[10px] text-slate-500">แผนกวิชา / ช่วยงานฝ่าย</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePersonnelTypeChange('STAFF')}
+                    className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all ${
+                      personnelType === 'STAFF'
+                        ? 'bg-teal-50/80 border-teal-500 text-teal-900 shadow-2xs ring-1 ring-teal-500'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                        personnelType === 'STAFF' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      <Building className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold">เจ้าหน้าที่ / สายสนับสนุน</p>
+                      <p className="text-[10px] text-slate-500">งานตามฝ่ายต่างๆ</p>
+                    </div>
+                  </button>
+                </div>
               </div>
 
+              {/* Position Selector */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <span>ตำแหน่งทางการ</span>
+                  <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={positionSelect}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPositionSelect(val);
+                    if (val !== 'other') {
+                      setFormData((prev) => ({ ...prev, position: val }));
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition bg-white"
+                >
+                  {(personnelType === 'TEACHER' ? TEACHER_POSITIONS : STAFF_POSITIONS).map((pos) => (
+                    <option key={pos} value={pos}>
+                      {pos}
+                    </option>
+                  ))}
+                  <option value="other">ระบุตำแหน่งอื่นๆ...</option>
+                </select>
+
+                {positionSelect === 'other' && (
+                  <input
+                    type="text"
+                    required
+                    value={customPosition}
+                    onChange={(e) => {
+                      setCustomPosition(e.target.value);
+                      setFormData((prev) => ({ ...prev, position: e.target.value }));
+                    }}
+                    placeholder="พิมพ์ระบุตำแหน่ง เช่น พนักงานราชการ, ครูพี่เลี้ยง"
+                    className="w-full mt-2 px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition"
+                  />
+                )}
+              </div>
+
+              {/* Division Multi-Select */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                    <span>ฝ่ายงานที่ปฏิบัติหน้าที่ (เลือกได้มากกว่า 1 ฝ่าย)</span>
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] text-theme-primary font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    เลือกแล้ว {selectedDivisionIds.length} ฝ่าย
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {divisions.map((div) => {
+                    const isChecked = selectedDivisionIds.includes(div.id);
+                    return (
+                      <div
+                        key={div.id}
+                        onClick={() => handleToggleDivision(div.id)}
+                        className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition ${
+                          isChecked
+                            ? 'bg-blue-50/90 border-blue-500 text-blue-950 font-bold shadow-2xs ring-1 ring-blue-500'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="w-4 h-4 text-theme-primary rounded border-slate-300 pointer-events-none"
+                          />
+                          <span>{div.name}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono">[{div.code?.toUpperCase()}]</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Departments & Works Selection with Head of Work Checkbox */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <UserCheck className="w-3.5 h-3.5 text-slate-500" />
+                    <span>
+                      {personnelType === 'TEACHER' ? 'แผนกวิชา / งานที่รับผิดชอบ' : 'งานที่รับผิดชอบในฝ่าย'}
+                      <span className="text-red-500 font-bold ml-1">*</span>
+                    </span>
+                  </label>
+                  <span className="text-[11px] text-theme-primary font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    เลือก {selectedDepartmentIds.length} งาน / หัวหน้างาน {headDeptIds.length} งาน
+                  </span>
+                </div>
+
+                <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 max-h-56 overflow-y-auto space-y-3">
+                  {divisions.filter((d) => selectedDivisionIds.includes(d.id)).length === 0 ? (
+                    <div className="text-center py-4 text-slate-400 text-xs">
+                      กรุณาเลือกฝ่ายงานด้านบนเพื่อแสดงรายการงาน/แผนกวิชา
+                    </div>
+                  ) : (
+                    divisions
+                      .filter((d) => selectedDivisionIds.includes(d.id))
+                      .map((div) => (
+                        <div key={div.id} className="space-y-1.5">
+                          <div className="text-[11px] font-bold text-slate-600 bg-slate-200/70 px-2.5 py-1 rounded-md flex items-center justify-between">
+                            <span>📁 {div.name}</span>
+                            <span className="text-[10px] font-mono text-slate-500">[{div.code?.toUpperCase()}]</span>
+                          </div>
+
+                          <div className="space-y-1.5 pl-1">
+                            {div.departments.map((dept) => {
+                              const isChecked = selectedDepartmentIds.includes(dept.id);
+                              const isPrimary = String(formData.department_id) === String(dept.id);
+                              const isHeadOfThisDept = headDeptIds.includes(dept.id);
+
+                              return (
+                                <div
+                                  key={dept.id}
+                                  onClick={() => handleToggleDepartment(dept.id)}
+                                  className={`p-2 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer transition ${
+                                    isChecked
+                                      ? 'bg-white border-blue-400 text-slate-900 font-semibold shadow-2xs'
+                                      : 'bg-white/80 border-slate-200 text-slate-700 hover:bg-white'
+                                  }`}
+                                >
+                                  {/* Left: Department Name */}
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => {}}
+                                      className="w-4 h-4 text-theme-primary rounded border-slate-300 pointer-events-none shrink-0"
+                                    />
+                                    <span className="truncate">{dept.name}</span>
+                                    {isPrimary && (
+                                      <span className="text-[9px] bg-theme-primary text-white px-1.5 py-0.2 rounded font-bold shrink-0">
+                                        งานหลัก
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Right: Actions */}
+                                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center pl-6 sm:pl-0">
+                                    {isChecked && !isPrimary && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setFormData((prev) => ({ ...prev, department_id: String(dept.id) }));
+                                        }}
+                                        className="text-[10px] px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-300 hover:bg-blue-50 hover:text-blue-900 hover:border-blue-300"
+                                      >
+                                        ตั้งเป็นงานหลัก
+                                      </button>
+                                    )}
+
+                                    {/* Head of department toggle button */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleToggleHeadDept(dept.id, e)}
+                                      className={`px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold border transition flex items-center gap-1 ${
+                                        isHeadOfThisDept
+                                          ? 'bg-amber-500 text-white border-amber-600 shadow-xs ring-1 ring-amber-400'
+                                          : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-amber-50 hover:text-amber-900 hover:border-amber-300'
+                                      }`}
+                                      title="ติ๊กเพื่อระบุว่าผู้ใช้นี้ดำรงตำแหน่งหัวหน้าสำหรับงาน/แผนกนี้"
+                                    >
+                                      <ShieldCheck className="w-3.5 h-3.5" />
+                                      <span>{isHeadOfThisDept ? '✓ เป็นหัวหน้างาน' : '+ เป็นหัวหน้างาน'}</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+
+              {/* Role & Status */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Role */}
                 <div>
@@ -977,7 +1399,7 @@ export default function AdminUsersPage() {
                     required
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 transition bg-white"
+                    className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition bg-white"
                   >
                     <option value="TEACHER">ครู / ผู้เสนอโครงการ (TEACHER)</option>
                     <option value="HEAD_DEPT">หัวหน้าแผนก / งาน (HEAD_DEPT)</option>
@@ -988,38 +1410,19 @@ export default function AdminUsersPage() {
                   </select>
                 </div>
 
-                {/* Department */}
+                {/* Status Toggle */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">แผนกวิชา / ฝ่ายสังกัด</label>
-                  <select
-                    value={formData.department_id}
-                    onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
-                    className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 transition bg-white"
-                  >
-                    <option value="">-- ไม่ระบุแผนก --</option>
-                    {allDepartments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        [{d.division_code}] {d.name}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">สถานะการใช้งาน</label>
+                  <label className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer h-[38px]">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_active}
+                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                      className="w-4 h-4 text-theme-primary rounded border-slate-300 focus:ring-theme-primary"
+                    />
+                    <span className="text-xs font-bold text-slate-800">เปิดใช้งานบัญชีนี้ (Active)</span>
+                  </label>
                 </div>
-              </div>
-
-              {/* Status Toggle */}
-              <div className="pt-2">
-                <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="w-4 h-4 text-blue-900 rounded border-slate-300 focus:ring-blue-900"
-                  />
-                  <div>
-                    <span className="text-xs sm:text-sm font-bold text-slate-800 block">เปิดใช้งานบัญชีนี้ (Active)</span>
-                    <span className="text-[11px] text-slate-500">หากปิด บัญชีจะไม่สามารถล็อกอินเข้าสู่ระบบได้</span>
-                  </div>
-                </label>
               </div>
 
               {/* Modal Footer Buttons */}
@@ -1027,14 +1430,14 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                  className="px-4 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={formSubmitting}
-                  className="flex items-center gap-1.5 px-5 py-2 text-xs sm:text-sm font-bold text-white bg-blue-900 hover:bg-blue-800 rounded-lg shadow transition disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-5 py-2 text-xs sm:text-sm font-bold text-white bg-theme-primary hover:bg-theme-primary-hover rounded-xl shadow transition disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>{formSubmitting ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</span>

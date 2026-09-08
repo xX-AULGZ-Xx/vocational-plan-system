@@ -1122,7 +1122,7 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
 // POST /api/v1/admin/users
 router.post('/users', async (req: AuthRequest, res: Response) => {
   try {
-    const { username, password, email, full_name, position, role, department_id, is_active } = req.body;
+    const { username, password, email, full_name, position, role, department_id, is_active, head_dept_ids } = req.body;
 
     if (!username || (!password && !email) || !full_name || !role) {
       return res.status(400).json({
@@ -1168,6 +1168,40 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Update head settings if head_dept_ids provided
+    if (Array.isArray(head_dept_ids) && head_dept_ids.length > 0) {
+      for (const hId of head_dept_ids) {
+        try {
+          const targetDept = await prisma.department.findUnique({ where: { id: parseInt(hId) } });
+          const deptName = targetDept?.name || 'แผนก/งาน';
+
+          await (prisma as any).systemSetting.upsert({
+            where: { key: `head_name_dept_${hId}` },
+            update: { value: full_name.trim() },
+            create: {
+              key: `head_name_dept_${hId}`,
+              value: full_name.trim(),
+              description: `ชื่อหัวหน้า (${deptName})`,
+            },
+          });
+
+          if (position) {
+            await (prisma as any).systemSetting.upsert({
+              where: { key: `head_position_dept_${hId}` },
+              update: { value: position.trim() },
+              create: {
+                key: `head_position_dept_${hId}`,
+                value: position.trim(),
+                description: `ตำแหน่งหัวหน้า (${deptName})`,
+              },
+            });
+          }
+        } catch (headErr) {
+          console.warn(`Failed to update head settings for dept ${hId}:`, headErr);
+        }
+      }
+    }
+
     return res.status(201).json({
       success: true,
       message: `สร้างบัญชีผู้ใช้ "${newUser.full_name}" สำเร็จ`,
@@ -1183,7 +1217,7 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
 router.put('/users/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { full_name, email, position, role, department_id, is_active, password } = req.body;
+    const { full_name, email, position, role, department_id, is_active, password, head_dept_ids } = req.body;
 
     const userId = BigInt(id);
     const existing = await (prisma as any).user.findUnique({
@@ -1225,6 +1259,42 @@ router.put('/users/:id', async (req: AuthRequest, res: Response) => {
         },
       },
     });
+
+    // Update head settings if head_dept_ids provided
+    if (Array.isArray(head_dept_ids) && head_dept_ids.length > 0) {
+      for (const hId of head_dept_ids) {
+        try {
+          const targetDept = await prisma.department.findUnique({ where: { id: parseInt(hId) } });
+          const deptName = targetDept?.name || 'แผนก/งาน';
+          const nameToSet = full_name !== undefined ? full_name.trim() : existing.full_name;
+          const posToSet = position !== undefined ? position.trim() : existing.position;
+
+          await (prisma as any).systemSetting.upsert({
+            where: { key: `head_name_dept_${hId}` },
+            update: { value: nameToSet },
+            create: {
+              key: `head_name_dept_${hId}`,
+              value: nameToSet,
+              description: `ชื่อหัวหน้า (${deptName})`,
+            },
+          });
+
+          if (posToSet) {
+            await (prisma as any).systemSetting.upsert({
+              where: { key: `head_position_dept_${hId}` },
+              update: { value: posToSet },
+              create: {
+                key: `head_position_dept_${hId}`,
+                value: posToSet,
+                description: `ตำแหน่งหัวหน้า (${deptName})`,
+              },
+            });
+          }
+        } catch (headErr) {
+          console.warn(`Failed to update head settings for dept ${hId}:`, headErr);
+        }
+      }
+    }
 
     return res.json({
       success: true,
