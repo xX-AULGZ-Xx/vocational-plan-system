@@ -1274,6 +1274,99 @@ router.post('/settings/test-email', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// GET /api/v1/admin/fiscal-years (List all fiscal years present in DB with project count)
+router.get('/fiscal-years', async (req: AuthRequest, res: Response) => {
+  try {
+    const rawYears = await prisma.project.groupBy({
+      by: ['fiscal_year'],
+      _count: {
+        id: true,
+      },
+      _sum: {
+        total_budget: true,
+        actual_spent: true,
+      },
+      orderBy: {
+        fiscal_year: 'desc',
+      },
+    });
+
+    const yearsList = rawYears.map((r: any) => ({
+      fiscal_year: r.fiscal_year,
+      project_count: r._count?.id || 0,
+      total_budget: Number(r._sum?.total_budget) || 0,
+      actual_spent: Number(r._sum?.actual_spent) || 0,
+    }));
+
+    return res.json({ success: true, data: yearsList });
+  } catch (error: any) {
+    console.error('Get fiscal years error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงรายการปีงบประมาณ', error: error.message });
+  }
+});
+
+// DELETE /api/v1/admin/fiscal-years/:year (Delete all projects and strategic plans for a fiscal year)
+router.delete('/fiscal-years/:year', async (req: AuthRequest, res: Response) => {
+  try {
+    const year = parseInt(req.params.year);
+    if (isNaN(year) || year <= 0) {
+      return res.status(400).json({ success: false, message: 'ระบุปีงบประมาณไม่ถูกต้อง' });
+    }
+
+    // 1. Find all projects in that fiscal year
+    const projects = await prisma.project.findMany({
+      where: { fiscal_year: year },
+      select: { id: true },
+    });
+
+    const projectIds = projects.map((p) => p.id);
+    let deletedProjectsCount = 0;
+
+    if (projectIds.length > 0) {
+      // Clean up child relations
+      await prisma.projectAlignment.deleteMany({
+        where: { project_id: { in: projectIds } },
+      });
+      await prisma.projectBudgetItem.deleteMany({
+        where: { project_id: { in: projectIds } },
+      });
+      await prisma.projectTimeline.deleteMany({
+        where: { project_id: { in: projectIds } },
+      });
+      await prisma.projectApproval.deleteMany({
+        where: { project_id: { in: projectIds } },
+      });
+      await prisma.projectDocument.deleteMany({
+        where: { project_id: { in: projectIds } },
+      });
+
+      // Delete projects
+      const delResult = await prisma.project.deleteMany({
+        where: { fiscal_year: year },
+      });
+      deletedProjectsCount = delResult.count;
+    }
+
+    // 2. Delete strategic plans for that fiscal year
+    const deletedPlans = await prisma.strategicPlan.deleteMany({
+      where: { fiscal_year: year },
+    });
+
+    return res.json({
+      success: true,
+      message: `ลบข้อมูลปีงบประมาณ ${year} เรียบร้อยแล้ว (ลบโครงการ ${deletedProjectsCount} โครงการ, แผนยุทธศาสตร์ ${deletedPlans.count} รายการ)`,
+      data: {
+        fiscal_year: year,
+        deleted_projects_count: deletedProjectsCount,
+        deleted_plans_count: deletedPlans.count,
+      },
+    });
+  } catch (error: any) {
+    console.error('Delete fiscal year error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการลบข้อมูลปีงบประมาณ', error: error.message });
+  }
+});
+
 export default router;
 
 
