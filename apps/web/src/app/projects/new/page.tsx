@@ -129,7 +129,34 @@ const fetchProposalTemplate = async () => {
              initial[t.tag_name] = deputyStratName || '';
            } else if (t.tag_type === 'DEPUTY_STRAT_POSITION' || t.tag_name === 'deputy_strat_position') {
              initial[t.tag_name] = deputyStratPosition || '';
-           } else if (t.tag_type === 'HEAD_NAME' || t.tag_name === 'head_name') {
+           } else if (t.tag_type === 'APPROVER_DROPDOWN' || t.tag_name === 'approver_name' || t.tag_name === 'approver') {
+              // Find deputy matching user's division
+              const userDivId = user?.department?.division_id || (user as any)?.division_id;
+              if (userDivId === 1 && deputyAcadName) {
+                initial[t.tag_name] = deputyAcadName;
+              } else if (userDivId === 2 && deputyResName) {
+                initial[t.tag_name] = deputyResName;
+              } else if (userDivId === 3 && deputyDevName) {
+                initial[t.tag_name] = deputyDevName;
+              } else if (userDivId === 4 && deputyStratName) {
+                initial[t.tag_name] = deputyStratName;
+              } else {
+                initial[t.tag_name] = deputyResName || deputyAcadName || deputyStratName || deputyDevName || '';
+              }
+            } else if (t.tag_type === 'APPROVER_POSITION' || t.tag_name === 'approver_position' || t.tag_name === 'approver_name_position') {
+              const userDivId = user?.department?.division_id || (user as any)?.division_id;
+              if (userDivId === 1 && deputyAcadPosition) {
+                initial[t.tag_name] = deputyAcadPosition;
+              } else if (userDivId === 2 && deputyResPosition) {
+                initial[t.tag_name] = deputyResPosition;
+              } else if (userDivId === 3 && deputyDevPosition) {
+                initial[t.tag_name] = deputyDevPosition;
+              } else if (userDivId === 4 && deputyStratPosition) {
+                initial[t.tag_name] = deputyStratPosition;
+              } else {
+                initial[t.tag_name] = deputyResPosition || deputyAcadPosition || deputyStratPosition || deputyDevPosition || 'รองผู้อำนวยการฝ่าย';
+              }
+            } else if (t.tag_type === 'HEAD_NAME' || t.tag_name === 'head_name') {
              // Find current user's department head if available
              const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (user?.department?.id || (user as any)?.department_id));
              initial[t.tag_name] = userDept?.head_name || '';

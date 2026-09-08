@@ -123,6 +123,24 @@ export default function EditProjectPage() {
         if (!parsedDynamic.deputy_strat_name) parsedDynamic.deputy_strat_name = deputyStratName || '';
         if (!parsedDynamic.deputy_strat_position) parsedDynamic.deputy_strat_position = deputyStratPosition || '';
         
+        // Approver auto fill
+        if (!parsedDynamic.approver_name && !parsedDynamic.approver) {
+          const userDivId = proj.department?.division_id || user?.department?.division_id || (user as any)?.division_id;
+          if (userDivId === 1 && deputyAcadName) parsedDynamic.approver_name = deputyAcadName;
+          else if (userDivId === 2 && deputyResName) parsedDynamic.approver_name = deputyResName;
+          else if (userDivId === 3 && deputyDevName) parsedDynamic.approver_name = deputyDevName;
+          else if (userDivId === 4 && deputyStratName) parsedDynamic.approver_name = deputyStratName;
+          else parsedDynamic.approver_name = deputyResName || deputyAcadName || deputyStratName || deputyDevName || '';
+        }
+        if (!parsedDynamic.approver_position && !parsedDynamic.approver_name_position) {
+          const userDivId = proj.department?.division_id || user?.department?.division_id || (user as any)?.division_id;
+          if (userDivId === 1 && deputyAcadPosition) parsedDynamic.approver_position = deputyAcadPosition;
+          else if (userDivId === 2 && deputyResPosition) parsedDynamic.approver_position = deputyResPosition;
+          else if (userDivId === 3 && deputyDevPosition) parsedDynamic.approver_position = deputyDevPosition;
+          else if (userDivId === 4 && deputyStratPosition) parsedDynamic.approver_position = deputyStratPosition;
+          else parsedDynamic.approver_position = deputyResPosition || deputyAcadPosition || deputyStratPosition || deputyDevPosition || 'รองผู้อำนวยการฝ่าย';
+        }
+        
         setDynamicData(parsedDynamic);
         
         if (proj.budget_items && Array.isArray(proj.budget_items)) {
