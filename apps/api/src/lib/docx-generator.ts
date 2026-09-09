@@ -126,21 +126,54 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
   const content = fs.readFileSync(templatePath, 'binary');
   const zip = new PizZip(content);
 
+  // Helper to coalesce tags that get split across <w:r> runs in Word XML
+  const cleanWordXmlTags = (xml: string): string => {
+    let result = xml;
+    result = result.replace(/<w:proofErr[^>]*\/>/g, '');
+    result = result.replace(/<w:noProof[^>]*\/>/g, '');
+    result = result.replace(/<w:lang[^>]*\/>/g, '');
+
+    // Coalesce split tags: e.g. "{" ... "%activity_image_1%" ... "}" or "{#" ... "objectives" ... "}"
+    // Matches { ... } across XML tags and collapses the inner XML so it becomes a single clean {tag}
+    result = result.replace(/\{([^{}]+)\}/g, (match, inner) => {
+      const stripped = inner.replace(/<[^>]+>/g, '').trim();
+      // Keep docxtemplater syntax clean
+      return `{${stripped}}`;
+    });
+
+    // Also coalesce (( ... )) across XML tags
+    result = result.replace(/\(\(([^()]+)\)\)/g, (match, inner) => {
+      const stripped = inner.replace(/<[^>]+>/g, '').trim();
+      return `((${stripped}))`;
+    });
+
+    // Sanitize accidental double-bracket Thai text
+    result = result.replace(/\{\{\s*จึงเรียนมาเพื่อโปรดทราบ\s*และพิจารณา\s*\}\}/g, 'จึงเรียนมาเพื่อโปรดทราบ และพิจารณา');
+
+    // Convert ((tag)) -> {{tag}}
+    result = result.replace(/\(\(([#^/]?\w+)\)\)/g, '{{$1}}');
+
+    // Convert single bracket tags {tag} / {%image%} / {#loop} / {/loop} -> {{tag}} / {{%image%}} / {{#loop}} / {{/loop}}
+    result = result.replace(/(?<!\{)\{([%#^/]?[\w\d_]+)\}(?!\})/g, '{{$1}}');
+
+    return result;
+  };
+
   if (zip.files['word/document.xml']) {
     let docXml = zip.files['word/document.xml'].asText();
-    docXml = docXml.replace(/<w:proofErr[^>]*\/>/g, '');
-    docXml = docXml.replace(/<w:noProof[^>]*\/>/g, '');
-    // Sanitize accidental double-bracket Thai text
-    docXml = docXml.replace(/\{\{\s*จึงเรียนมาเพื่อโปรดทราบ\s*และพิจารณา\s*\}\}/g, 'จึงเรียนมาเพื่อโปรดทราบ และพิจารณา');
-    
-    // Fix single/triple/multi brackets in Word template
-    // Convert {([%#^/]?\w+)} -> {{$1}} if single bracket was used
-    // (word xml often separates brackets across runs, but let's normalize raw {tag} to {{tag}} if it's not already {{tag}})
-    docXml = docXml.replace(/(?<!\{)\{([%#^/]?\w+)\}(?!\})/g, '{{$1}}');
-    // Convert ((tag)) -> {{tag}} (e.g. ((leader_name)), ((deputy_name)))
-    docXml = docXml.replace(/\(\((\w+)\)\)/g, '{{$1}}');
-
+    docXml = cleanWordXmlTags(docXml);
     zip.file('word/document.xml', docXml);
+  }
+
+  // Also clean headers and footers if any
+  for (const fileName of Object.keys(zip.files)) {
+    if (fileName.startsWith('word/header') || fileName.startsWith('word/footer')) {
+      let headerXml = zip.files[fileName]?.asText();
+      if (headerXml) {
+        headerXml = cleanWordXmlTags(headerXml);
+        zip.file(fileName, headerXml);
+      }
+    }
   }
 
   let imageModule: any = null;

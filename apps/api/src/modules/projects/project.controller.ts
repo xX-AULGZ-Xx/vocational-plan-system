@@ -1458,7 +1458,12 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
     return res.send(buffer);
   } catch (error: any) {
     console.error('Export summary docx error:', error);
-    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการสร้างไฟล์ Word สรุปโครงการ', error: error.message });
+    let detailedMsg = error.message || 'เกิดข้อผิดพลาดในการสร้างไฟล์ Word สรุปโครงการ';
+    if (error.properties && error.properties.errors && Array.isArray(error.properties.errors)) {
+      const subErrors = error.properties.errors.map((e: any) => e.message || e.id || JSON.stringify(e)).join('; ');
+      detailedMsg += ` (${subErrors})`;
+    }
+    return res.status(500).json({ success: false, message: detailedMsg, error: detailedMsg });
   }
 });
 
