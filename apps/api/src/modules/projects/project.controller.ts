@@ -1539,6 +1539,54 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
 
     const finalDurationText = calculatedDurationText || dynamicData.duration_text || '';
 
+    // Resolve System Settings for Deputies & Director
+    let settingsMap = new Map<string, string>();
+    try {
+      const allSettings = await (prisma as any).systemSetting.findMany();
+      settingsMap = new Map<string, string>(allSettings.map((s: any) => [s.key, s.value]));
+    } catch {}
+
+    const divCode = (project.department?.division?.code || '').toLowerCase();
+    const divName = project.department?.division?.name || 'ฝ่ายวิชาการ';
+    
+    // Resolve Deputy of project's division
+    let resolvedDeputyName = dynamicData.deputy_name || settingsMap.get(`deputy_name_${divCode}`) || settingsMap.get(`deputy_${divCode}_name`) || '';
+    let resolvedDeputyPosition = dynamicData.deputy_position || settingsMap.get(`deputy_position_${divCode}`) || settingsMap.get(`deputy_${divCode}_position`) || `รองผู้อำนวยการ${divName}`;
+    
+    // Resolve Deputy of Strategic/Planning (ฝ่ายยุทธศาสตร์และแผนงาน / ฝ่ายแผนงานและความร่วมมือ)
+    let resolvedDeputyStratName = dynamicData.deputy_strat_name || settingsMap.get('deputy_name_strat') || settingsMap.get('deputy_strat_name') || '';
+    let resolvedDirectorName = dynamicData.director_name || settingsMap.get('director_name') || 'นางปิยะพร พูลเพิ่ม';
+
+    // If still empty, try finding user with DEPUTY_DIRECTOR role for this division
+    if (!resolvedDeputyName && project.department?.division_id) {
+      const deputyUser = await prisma.user.findFirst({
+        where: {
+          role: 'DEPUTY_DIRECTOR',
+          department: { division_id: project.department.division_id },
+        },
+      });
+      if (deputyUser) {
+        resolvedDeputyName = deputyUser.full_name;
+        if (deputyUser.position) resolvedDeputyPosition = deputyUser.position;
+      }
+    }
+
+    // If deputy_strat_name still empty, find user in STRAT division
+    if (!resolvedDeputyStratName) {
+      const stratDiv = await prisma.division.findFirst({ where: { code: 'STRAT' } });
+      if (stratDiv) {
+        const deputyStratUser = await prisma.user.findFirst({
+          where: {
+            role: 'DEPUTY_DIRECTOR',
+            department: { division_id: stratDiv.id },
+          },
+        });
+        if (deputyStratUser) {
+          resolvedDeputyStratName = deputyStratUser.full_name;
+        }
+      }
+    }
+
     const formDataForDocx: Record<string, any> = {
       ...dynamicData,
       title: project.title,
@@ -1597,10 +1645,10 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       dissemination_channel: dynamicData.dissemination_channel || 'เว็บไซต์',
       dissemination_other: dynamicData.dissemination_other || '',
       head_dept_name: dynamicData.head_dept_name || '',
-      deputy_name: dynamicData.deputy_name || '',
-      deputy_position: dynamicData.deputy_position || 'รองผู้อำนวยการ',
-      deputy_strat_name: dynamicData.deputy_strat_name || '',
-      director_name: dynamicData.director_name || 'นางปิยะพร พูลเพิ่ม',
+      deputy_name: resolvedDeputyName,
+      deputy_position: resolvedDeputyPosition,
+      deputy_strat_name: resolvedDeputyStratName,
+      director_name: resolvedDirectorName,
       objectives: formattedObjectives,
       timelines: (project.timelines || []).map((t: any, idx: number) => ({
         _index: idx + 1,
