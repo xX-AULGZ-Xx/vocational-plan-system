@@ -1329,14 +1329,27 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
     } else if (Array.isArray(project.objectives) && project.objectives.length > 0) {
       rawObjectives = project.objectives;
     }
+    const extractText = (val: any): string => {
+      if (val === null || val === undefined) return '';
+      let target = val;
+      if (typeof target === 'string' && (target.startsWith('{') || target.startsWith('['))) {
+        try { target = JSON.parse(target); } catch {}
+      }
+      if (typeof target === 'object' && target !== null) {
+        return target.description || target.title || target.name || target.item || target.text || Object.values(target)[0] || '';
+      }
+      return String(target);
+    };
+
     const formattedObjectives = rawObjectives.map((obj: any, idx: number) => {
-      const text = typeof obj === 'object' && obj !== null ? (obj.title || obj.name || obj.item || JSON.stringify(obj)) : String(obj);
+      const text = extractText(obj);
       return {
         _index: idx + 1,
         index: idx + 1,
         item: text,
         name: text,
         title: text,
+        description: text,
       };
     });
 
@@ -1346,13 +1359,14 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       rawProblems = dynamicData.problems_obstacles;
     }
     const formattedProblems = rawProblems.map((p: any, idx: number) => {
-      const text = typeof p === 'object' && p !== null ? (p.title || p.name || p.item || JSON.stringify(p)) : String(p);
+      const text = extractText(p);
       return {
         _index: idx + 1,
         index: idx + 1,
         item: text,
         name: text,
         title: text,
+        description: text,
       };
     });
 
