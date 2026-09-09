@@ -928,18 +928,53 @@ const fetchProposalTemplate = async () => {
       }
       case 'ALIGNMENT_CHECKLIST': {
         const valObj = typeof value === 'object' && value !== null ? value : {};
-        const toggleCheck = (k: string) => {
-          handleDynamicChange(key, { ...valObj, [k]: !valObj[k] });
+        const rawOptionsList = Array.isArray(tag.options) ? tag.options : [];
+        const optionsList = rawOptionsList.map((opt: any, idx: number) => 
+          typeof opt === 'string' ? { key: `chk_${idx}`, label: opt, indent: 0 } : { ...opt, key: opt.key || `chk_${idx}`, indent: opt.indent ?? 0 }
+        );
+
+        const toggleCheck = (targetIdx: number) => {
+          const targetItem = optionsList[targetIdx];
+          if (!targetItem) return;
+
+          const isNowChecked = !valObj[targetItem.key];
+          const newValObj = { ...valObj, [targetItem.key]: isNowChecked };
+
+          if (isNowChecked) {
+            // Traverse upwards to check all ancestor parents
+            let currentIndent = targetItem.indent;
+            for (let i = targetIdx - 1; i >= 0; i--) {
+              const prevItem = optionsList[i];
+              if (prevItem.indent < currentIndent) {
+                newValObj[prevItem.key] = true;
+                currentIndent = prevItem.indent;
+                if (currentIndent === 0) break;
+              }
+            }
+          } else {
+            // If parent unchecked, uncheck all its descendant children
+            const parentIndent = targetItem.indent;
+            for (let i = targetIdx + 1; i < optionsList.length; i++) {
+              const nextItem = optionsList[i];
+              if (nextItem.indent > parentIndent) {
+                newValObj[nextItem.key] = false;
+              } else {
+                break;
+              }
+            }
+          }
+
+          handleDynamicChange(key, newValObj);
         };
-        const optionsList = Array.isArray(tag.options) ? tag.options : [];
-        const CheckItem = ({ k, label, indent }: { k: string; label: string; indent: number }) => {
+
+        const CheckItem = ({ itemIdx, k, label, indent }: { itemIdx: number; k: string; label: string; indent: number }) => {
           let marginClass = "";
           if (indent === 1) marginClass = "ml-6";
           if (indent === 2) marginClass = "ml-12";
           return (
             <div className={`flex items-start space-x-2 ${marginClass}`}>
-              <input type="checkbox" checked={valObj[k] || false} onChange={() => toggleCheck(k)} disabled={!isEditing} className="mt-1 w-4 h-4 text-indigo-600 border border-gray-300 rounded focus:ring-indigo-500 disabled:bg-gray-100" />
-              <label className="text-sm text-gray-700 leading-snug cursor-pointer" onClick={() => { if(isEditing) toggleCheck(k); }}>{label}</label>
+              <input type="checkbox" checked={valObj[k] || false} onChange={() => toggleCheck(itemIdx)} disabled={!isEditing} className="mt-1 w-4 h-4 text-indigo-600 border border-gray-300 rounded focus:ring-indigo-500 disabled:bg-gray-100" />
+              <label className="text-sm text-gray-700 leading-snug cursor-pointer" onClick={() => { if(isEditing) toggleCheck(itemIdx); }}>{label}</label>
             </div>
           );
         };
@@ -951,9 +986,8 @@ const fetchProposalTemplate = async () => {
               {tag.description && <p className="text-xs text-gray-500 mt-0.5">{tag.description}</p>}
             </div>
             <div className="space-y-2">
-              {optionsList.length > 0 ? optionsList.map((opt: any, idx: number) => {
-                const item = typeof opt === 'string' ? { key: `chk_${idx}`, label: opt, indent: 0 } : opt;
-                return <CheckItem key={idx} k={item.key} label={item.label} indent={item.indent} />;
+              {optionsList.length > 0 ? optionsList.map((item: any, idx: number) => {
+                return <CheckItem key={idx} itemIdx={idx} k={item.key} label={item.label} indent={item.indent} />;
               }) : (
                 <div className="text-sm text-gray-500 italic">ไม่มีหัวข้อประเมิน (กรุณาเพิ่มในหน้าจัดการแม่แบบ)</div>
               )}
