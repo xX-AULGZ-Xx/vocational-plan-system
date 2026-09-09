@@ -284,13 +284,22 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
           return [1, 1];
         }
         const customSize = formData[`${tagName}_size`];
-        // Standard column / cell width for fit-w
-        let targetWidth = 260;
-        let maxHeight = 340;
+        
+        // Target dimensions in px for different image types:
+        // - activity_image (2x2 grid in summary template): box is ~1.65 cm (1506855 EMU = 158px width, 1143000 EMU = 120px height)
+        // - cover / header: wider 500px
+        let targetWidth = 155;
+        let maxHeight = 115;
 
-        if (tagName.includes('cover') || tagName.includes('header')) {
+        if (tagName.includes('activity_image') || tagName.includes('activity_pic')) {
+          targetWidth = 155;
+          maxHeight = 115;
+        } else if (tagName.includes('cover') || tagName.includes('header')) {
           targetWidth = 520;
           maxHeight = 350;
+        } else {
+          targetWidth = 240;
+          maxHeight = 180;
         }
 
         if (customSize && Array.isArray(customSize) && customSize.length === 2) {
@@ -298,7 +307,7 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
           maxHeight = customSize[1];
         }
 
-        // Fit width (fit-w) while preserving native aspect ratio
+        // Fit width (fit-w) while preserving native aspect ratio within bounding box
         if (Buffer.isBuffer(img)) {
           const dims = getImageDimensions(img);
           if (dims && dims.width > 0 && dims.height > 0) {
@@ -306,17 +315,17 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
             const scale = targetWidth / dims.width;
             let calculatedHeight = Math.round(dims.height * scale);
             
-            // In case of extremely tall portrait images, cap at maxHeight
+            // If calculated height exceeds the box height, scale down to fit height
             if (calculatedHeight > maxHeight) {
-              const capRatio = maxHeight / calculatedHeight;
-              return [Math.round(targetWidth * capRatio), maxHeight];
+              const heightRatio = maxHeight / dims.height;
+              return [Math.round(dims.width * heightRatio), maxHeight];
             }
 
             return [targetWidth, calculatedHeight];
           }
         }
 
-        return [targetWidth, 180];
+        return [targetWidth, maxHeight];
       }
     });
   } catch (err) {
