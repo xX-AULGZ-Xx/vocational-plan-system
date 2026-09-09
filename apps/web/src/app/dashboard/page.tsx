@@ -317,6 +317,9 @@ export default function DashboardPage() {
               <PieChart className="w-5 h-5 text-teal-600" />
               <h2 className="font-bold text-slate-900 text-base">สัดส่วนตามยุทธศาสตร์สถานศึกษา</h2>
             </div>
+            <span className="text-xs text-teal-700 font-semibold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+              เฉพาะที่ ผอ. อนุมัติแล้ว
+            </span>
           </div>
 
           <div className="space-y-3">

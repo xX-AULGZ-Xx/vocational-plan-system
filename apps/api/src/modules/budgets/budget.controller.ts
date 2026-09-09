@@ -122,8 +122,8 @@ router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
             budget: 0,
           };
         }
-        strategicCounts[indCode].count += 1;
         if (isApproved) {
+          strategicCounts[indCode].count += 1;
           strategicCounts[indCode].budget += budgetNum;
         }
       }
