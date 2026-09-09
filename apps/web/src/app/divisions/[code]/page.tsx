@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { useNotifications } from '@/lib/notification-context';
 import { showAlert } from '@/lib/sweetalert';
 import {
   Building2,
@@ -61,6 +62,16 @@ export default function DivisionPage() {
   useEffect(() => {
     fetchDivisionData();
   }, [code]);
+
+  // Real-time synchronization
+  const { subscribeDataUpdate } = useNotifications();
+
+  useEffect(() => {
+    const unsubscribe = subscribeDataUpdate(() => {
+      fetchDivisionData();
+    });
+    return () => unsubscribe();
+  }, [subscribeDataUpdate, code]);
 
   const handleSaveDeputy = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,7 +150,43 @@ export default function DivisionPage() {
     }))
   ) || []).sort((a: any, b: any) => (b.id > a.id ? 1 : -1));
 
-  const totalBudget = allProjects.reduce((sum: number, p: any) => sum + (Number(p.total_budget) || 0), 0);
+  // Category aggregations
+  const statusStats = {
+    ALL: {
+      count: allProjects.length,
+      budget: allProjects.reduce((sum: number, p: any) => sum + (Number(p.total_budget) || 0), 0),
+    },
+    APPROVED: {
+      count: allProjects.filter((p: any) => p.status === 'approved' || p.status === 'in_progress' || p.status === 'completed').length,
+      budget: allProjects
+        .filter((p: any) => p.status === 'approved' || p.status === 'in_progress' || p.status === 'completed')
+        .reduce((sum: number, p: any) => sum + (Number(p.total_budget) || 0), 0),
+    },
+    PENDING: {
+      count: allProjects.filter((p: any) => ['submitted', 'dept_approved', 'deputy_approved', 'planning_approved'].includes(p.status)).length,
+      budget: allProjects
+        .filter((p: any) => ['submitted', 'dept_approved', 'deputy_approved', 'planning_approved'].includes(p.status))
+        .reduce((sum: number, p: any) => sum + (Number(p.total_budget) || 0), 0),
+    },
+    REVISION: {
+      count: allProjects.filter((p: any) => p.status === 'revision_requested').length,
+      budget: allProjects
+        .filter((p: any) => p.status === 'revision_requested')
+        .reduce((sum: number, p: any) => sum + (Number(p.total_budget) || 0), 0),
+    },
+    REJECT: {
+      count: allProjects.filter((p: any) => p.status === 'rejected').length,
+      budget: allProjects
+        .filter((p: any) => p.status === 'rejected')
+        .reduce((sum: number, p: any) => sum + (Number(p.total_budget) || 0), 0),
+    },
+    DRAFT: {
+      count: allProjects.filter((p: any) => p.status === 'draft').length,
+      budget: allProjects
+        .filter((p: any) => p.status === 'draft')
+        .reduce((sum: number, p: any) => sum + (Number(p.total_budget) || 0), 0),
+    },
+  };
 
   const filteredProjects = allProjects.filter((p: any) => {
     const matchSearch =
@@ -152,14 +199,26 @@ export default function DivisionPage() {
     const matchStatus =
       statusFilter === 'ALL' ||
       (statusFilter === 'DRAFT' && p.status === 'draft') ||
-      (statusFilter === 'PENDING' && (p.status === 'submitted' || p.status === 'dept_approved' || p.status === 'deputy_approved' || p.status === 'planning_approved')) ||
-      (statusFilter === 'APPROVED' && p.status === 'approved') ||
+      (statusFilter === 'PENDING' && ['submitted', 'dept_approved', 'deputy_approved', 'planning_approved'].includes(p.status)) ||
+      (statusFilter === 'APPROVED' && (p.status === 'approved' || p.status === 'in_progress' || p.status === 'completed')) ||
+      (statusFilter === 'REVISION' && p.status === 'revision_requested') ||
       (statusFilter === 'REJECT' && p.status === 'rejected');
 
     return matchSearch && matchStatus;
   });
 
+  const filteredBudget = filteredProjects.reduce((sum: number, p: any) => sum + (Number(p.total_budget) || 0), 0);
+
   const isAdmin = user && user.role === 'ADMIN';
+
+  const filterOptions = [
+    { key: 'ALL', label: 'ทั้งหมด', count: statusStats.ALL.count, budget: statusStats.ALL.budget },
+    { key: 'APPROVED', label: 'อนุมัติแล้ว', count: statusStats.APPROVED.count, budget: statusStats.APPROVED.budget, activeClass: 'text-emerald-700 bg-emerald-50 border-emerald-300' },
+    { key: 'PENDING', label: 'รออนุมัติ', count: statusStats.PENDING.count, budget: statusStats.PENDING.budget, activeClass: 'text-amber-700 bg-amber-50 border-amber-300' },
+    { key: 'REVISION', label: 'ขอแก้ไข', count: statusStats.REVISION.count, budget: statusStats.REVISION.budget, activeClass: 'text-orange-700 bg-orange-50 border-orange-300' },
+    { key: 'REJECT', label: 'ไม่อนุมัติ', count: statusStats.REJECT.count, budget: statusStats.REJECT.budget, activeClass: 'text-rose-700 bg-rose-50 border-rose-300' },
+    { key: 'DRAFT', label: 'แบบร่าง', count: statusStats.DRAFT.count, budget: statusStats.DRAFT.budget, activeClass: 'text-slate-700 bg-slate-100 border-slate-300' },
+  ];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
@@ -182,7 +241,7 @@ export default function DivisionPage() {
           </div>
         </div>
 
-        {/* Right side: Deputy Director Info & Budget */}
+        {/* Right side: Deputy Director Info & Budget Overview */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Deputy Director Card */}
           <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-theme">
@@ -219,42 +278,82 @@ export default function DivisionPage() {
             </div>
           </div>
 
-          {/* Total Budget Card */}
+          {/* Approved Budget Card */}
+          <div className="text-right p-3 bg-emerald-50 border border-emerald-200 rounded-theme">
+            <p className="text-[11px] text-emerald-700 font-medium">งบประมาณที่อนุมัติแล้ว</p>
+            <p className="text-lg font-bold text-emerald-800">
+              {statusStats.APPROVED.budget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} <span className="text-xs font-normal">บาท</span>
+            </p>
+          </div>
+
+          {/* Total Proposed Budget Card */}
           <div className="text-right p-3 bg-theme-primary-light/70 border border-theme-primary/20 rounded-theme">
             <p className="text-[11px] text-slate-500">งบประมาณรวมทั้งฝ่าย</p>
             <p className="text-lg font-bold text-theme-primary">
-              {totalBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} <span className="text-xs font-normal">บาท</span>
+              {statusStats.ALL.budget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} <span className="text-xs font-normal">บาท</span>
             </p>
           </div>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-theme border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <input
-            type="text"
-            placeholder="ค้นหาชื่อโครงการ, รหัส, ผู้รับผิดชอบ..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-theme text-xs focus:border-theme-primary outline-none transition"
-          />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+      {/* Filter & Status Pill Selectors with Budgets */}
+      <div className="bg-white p-4 rounded-theme border border-slate-200 shadow-xs space-y-4">
+        {/* Top bar: Search + Summary indicator */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative w-full sm:w-80">
+            <input
+              type="text"
+              placeholder="ค้นหาชื่อโครงการ, รหัส, ผู้รับผิดชอบ..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-theme text-xs focus:border-theme-primary outline-none transition"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          </div>
+
+          {/* Active Filtered Budget Badge */}
+          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-theme border border-slate-200 text-xs w-full sm:w-auto justify-between sm:justify-start">
+            <span className="text-slate-500 font-medium">
+              แสดง {filteredProjects.length} โครงการ {statusFilter !== 'ALL' && `(สถานะ: ${filterOptions.find(f => f.key === statusFilter)?.label})`} | รวมงบฯ:
+            </span>
+            <span className="font-bold text-theme-primary text-sm">
+              {filteredBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} <span className="text-xs font-normal text-slate-500">บาท</span>
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <label className="text-xs font-bold text-slate-600 shrink-0">สถานะ:</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full sm:w-40 px-3 py-2 bg-slate-50 border border-slate-200 rounded-theme text-xs focus:border-theme-primary outline-none cursor-pointer"
-          >
-            <option value="ALL">ทั้งหมด ({allProjects.length})</option>
-            <option value="PENDING">รออนุมัติ</option>
-            <option value="APPROVED">อนุมัติแล้ว</option>
-            <option value="DRAFT">แบบร่าง</option>
-            <option value="REJECT">ไม่อนุมัติ</option>
-          </select>
+        {/* Status Buttons with Counts & Budget Values */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 pt-2 border-t border-slate-100">
+          {filterOptions.map((opt) => {
+            const isSelected = statusFilter === opt.key;
+            return (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setStatusFilter(opt.key)}
+                className={`flex flex-col p-2.5 rounded-theme border text-left transition relative ${
+                  isSelected
+                    ? 'border-theme-primary bg-theme-primary/5 ring-1 ring-theme-primary shadow-xs'
+                    : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className={`text-xs font-bold ${isSelected ? 'text-theme-primary' : 'text-slate-700'}`}>
+                    {opt.label}
+                  </span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                    isSelected ? 'bg-theme-primary text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {opt.count}
+                  </span>
+                </div>
+                <div className="text-[11px] font-semibold text-slate-500">
+                  {opt.budget.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}{' '}
+                  <span className="text-[9px] font-normal">บ.</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -289,9 +388,13 @@ export default function DivisionPage() {
                       <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                         <FileText className="w-3.5 h-3.5" /> แบบร่าง
                       </span>
-                    ) : p.status === 'approved' ? (
+                    ) : p.status === 'approved' || p.status === 'in_progress' || p.status === 'completed' ? (
                       <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
                         <CheckCircle2 className="w-3.5 h-3.5" /> อนุมัติแล้ว
+                      </span>
+                    ) : p.status === 'revision_requested' ? (
+                      <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
+                        <AlertCircle className="w-3.5 h-3.5" /> ขอแก้ไข
                       </span>
                     ) : p.status === 'rejected' ? (
                       <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700 border border-red-200">
