@@ -284,29 +284,39 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
           return [1, 1];
         }
         const customSize = formData[`${tagName}_size`];
-        let maxW = 240;
-        let maxH = 160;
+        // Standard column / cell width for fit-w
+        let targetWidth = 260;
+        let maxHeight = 340;
 
         if (tagName.includes('cover') || tagName.includes('header')) {
-          maxW = 480;
-          maxH = 260;
+          targetWidth = 520;
+          maxHeight = 350;
         }
 
         if (customSize && Array.isArray(customSize) && customSize.length === 2) {
-          maxW = customSize[0];
-          maxH = customSize[1];
+          targetWidth = customSize[0];
+          maxHeight = customSize[1];
         }
 
-        // Calculate aspect ratio from buffer
+        // Fit width (fit-w) while preserving native aspect ratio
         if (Buffer.isBuffer(img)) {
           const dims = getImageDimensions(img);
           if (dims && dims.width > 0 && dims.height > 0) {
-            const ratio = Math.min(maxW / dims.width, maxH / dims.height);
-            return [Math.round(dims.width * ratio), Math.round(dims.height * ratio)];
+            // Scale based on target width (fit-w)
+            const scale = targetWidth / dims.width;
+            let calculatedHeight = Math.round(dims.height * scale);
+            
+            // In case of extremely tall portrait images, cap at maxHeight
+            if (calculatedHeight > maxHeight) {
+              const capRatio = maxHeight / calculatedHeight;
+              return [Math.round(targetWidth * capRatio), maxHeight];
+            }
+
+            return [targetWidth, calculatedHeight];
           }
         }
 
-        return [maxW, maxH];
+        return [targetWidth, 180];
       }
     });
   } catch (err) {
