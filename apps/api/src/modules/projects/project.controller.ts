@@ -238,7 +238,7 @@ router.get('/', optionalAuthenticate, async (req: AuthRequest, res: Response) =>
           orderBy: { step_order: 'asc' },
         },
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { id: 'desc' },
     });
 
     return res.json({ success: true, data: serializeBigInt(projects) });
@@ -278,7 +278,19 @@ router.get('/execution/tracking', authenticate, async (req: AuthRequest, res: Re
 
     const projects = await prisma.project.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        project_code: true,
+        fiscal_year: true,
+        title: true,
+        department_id: true,
+        leader_id: true,
+        status: true,
+        total_budget: true,
+        actual_spent: true,
+        created_at: true,
+        updated_at: true,
+        dynamic_data: true,
         department: {
           include: {
             division: true,
@@ -294,7 +306,7 @@ router.get('/execution/tracking', authenticate, async (req: AuthRequest, res: Re
         budget_items: true,
         timelines: true,
       },
-      orderBy: [{ fiscal_year: 'desc' }, { updated_at: 'desc' }],
+      orderBy: { id: 'desc' },
     });
 
     return res.json({
