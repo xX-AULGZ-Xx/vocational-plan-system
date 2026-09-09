@@ -132,20 +132,14 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
           ? await prisma.user.findFirst({
               where: {
                 role: Role.DEPUTY_DIRECTOR,
-                OR: [
-                  { department: { division_id: targetDivisionId } },
-                  { division_id: targetDivisionId } as any,
-                ],
+                department: { division_id: targetDivisionId },
               },
             })
           : null) ||
         (await prisma.user.findFirst({
           where: {
             role: Role.DEPUTY_DIRECTOR,
-            OR: [
-              { department: { division_id: project.department?.division_id } },
-              { division_id: project.department?.division_id } as any,
-            ],
+            department: { division_id: project.department?.division_id },
           },
         })) ||
         (await prisma.user.findFirst({
