@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
+import { useNotifications } from '@/lib/notification-context';
 import { showAlert } from '@/lib/sweetalert';
 
 import {
@@ -33,6 +34,7 @@ export default function MyProjectsPage() {
   const router = useRouter();
   const { token, user } = useAuth();
   const { currentFiscalYear } = useSettings();
+  const { subscribeDataUpdate } = useNotifications();
 
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +61,16 @@ export default function MyProjectsPage() {
     fetchMyProjects();
     fetchSummaryTemplates();
   }, [token, projectScope]);
+
+  // Real-time Data Update Listener: Automatically refresh project list when changes occur
+  useEffect(() => {
+    const unsubscribe = subscribeDataUpdate((event) => {
+      if (event.scope === 'PROJECTS' || event.scope === 'APPROVALS') {
+        fetchMyProjects();
+      }
+    });
+    return () => unsubscribe();
+  }, [subscribeDataUpdate, token, projectScope]);
 
   const fetchSummaryTemplates = async () => {
     if (!token) return;

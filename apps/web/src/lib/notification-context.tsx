@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './auth-context';
@@ -16,24 +16,41 @@ export interface NotificationItem {
   created_at: string;
 }
 
+export interface DataUpdateEvent {
+  scope: 'PROJECTS' | 'APPROVALS' | 'SYSTEM';
+  action: 'CREATED' | 'UPDATED' | 'DELETED' | 'SUBMITTED' | 'APPROVED' | 'REVISED' | 'REJECTED';
+  projectId?: string;
+  status?: string;
+  stepOrder?: number;
+  nextStepOrder?: number;
+  leaderId?: string;
+  departmentId?: number;
+  approverId?: string;
+  timestamp: string;
+}
+
 interface NotificationContextType {
   notifications: NotificationItem[];
   unreadCount: number;
   isLoading: boolean;
+  lastDataUpdate: DataUpdateEvent | null;
   fetchNotifications: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
+  subscribeDataUpdate: (callback: (event: DataUpdateEvent) => void) => () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType>({
   notifications: [],
   unreadCount: 0,
   isLoading: false,
+  lastDataUpdate: null,
   fetchNotifications: async () => {},
   markAsRead: async () => {},
   markAllAsRead: async () => {},
   deleteNotification: async () => {},
+  subscribeDataUpdate: () => () => {},
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
@@ -41,7 +58,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [lastDataUpdate, setLastDataUpdate] = useState<DataUpdateEvent | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const dataUpdateListenersRef = useRef<Set<(event: DataUpdateEvent) => void>>(new Set());
+
+  const subscribeDataUpdate = useCallback((callback: (event: DataUpdateEvent) => void) => {
+    dataUpdateListenersRef.current.add(callback);
+    return () => {
+      dataUpdateListenersRef.current.delete(callback);
+    };
+  }, []);
 
   // Play subtle notification audio if supported
   const playNotificationSound = () => {
@@ -137,6 +163,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       }
     });
 
+    eventSource.addEventListener('data_update', (e) => {
+      try {
+        const data = JSON.parse(e.data) as DataUpdateEvent;
+        setLastDataUpdate(data);
+        // Notify all active page subscribers
+        dataUpdateListenersRef.current.forEach((listener) => {
+          try {
+            listener(data);
+          } catch (listenerErr) {
+            console.error('[SSE] Listener error on data_update:', listenerErr);
+          }
+        });
+      } catch (err) {
+        console.error('SSE data_update parse error:', err);
+      }
+    });
+
     eventSource.onerror = (err) => {
       console.warn('[SSE] EventSource error or reconnection attempt:', err);
     };
@@ -213,10 +256,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         notifications,
         unreadCount,
         isLoading,
+        lastDataUpdate,
         fetchNotifications,
         markAsRead,
         markAllAsRead,
         deleteNotification,
+        subscribeDataUpdate,
       }}
     >
       {children}

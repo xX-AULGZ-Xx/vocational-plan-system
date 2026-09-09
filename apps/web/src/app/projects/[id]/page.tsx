@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
+import { useNotifications } from '@/lib/notification-context';
 import { showAlert } from '@/lib/sweetalert';
 import A4DocumentPreview, { ProjectFormData } from '@/components/preview/A4DocumentPreview';
 import ProjectSummaryModal from '@/components/reports/ProjectSummaryModal';
@@ -58,6 +59,7 @@ export default function ProjectDetailPage() {
   const router = useRouter();
   const { user, token } = useAuth();
   const { collegeName } = useSettings();
+  const { subscribeDataUpdate } = useNotifications();
   const projectId = params?.id as string;
 
   const [project, setProject] = useState<any>(null);
@@ -95,6 +97,19 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     fetchProject();
   }, [projectId, token]);
+
+  // Real-time Data Update Listener: Automatically refresh current project when updated or approved
+  useEffect(() => {
+    const unsubscribe = subscribeDataUpdate((event) => {
+      if (
+        (event.scope === 'PROJECTS' || event.scope === 'APPROVALS') &&
+        (!event.projectId || event.projectId === projectId)
+      ) {
+        fetchProject();
+      }
+    });
+    return () => unsubscribe();
+  }, [subscribeDataUpdate, projectId, token]);
 
   const fetchProject = async () => {
     try {

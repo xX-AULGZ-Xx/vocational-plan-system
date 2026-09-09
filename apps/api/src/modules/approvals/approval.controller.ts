@@ -3,6 +3,7 @@ import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, AuthRequest } from '../../middlewares/auth';
 import { ApprovalStatus, ProjectStatus, Role, NotificationType } from '@prisma/client';
 import { notificationService } from '../notifications/notification.service';
+import { sseManager } from '../notifications/sse.manager';
 
 const router = Router();
 
@@ -316,6 +317,19 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       }).catch(err => console.error('Notification error:', err));
     }
 
+    // Broadcast Realtime Data Update to all connected clients
+    try {
+      sseManager.broadcast('data_update', {
+        scope: 'APPROVALS',
+        action: 'APPROVED',
+        projectId: project.id.toString(),
+        stepOrder: approval.step_order,
+        nextStepOrder,
+        approverId: approverId.toString(),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
+
     return {
       success: true,
       message: approval.step_order === 3
@@ -349,6 +363,18 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       linkUrl: `/projects/${project.id}`,
     }).catch(err => console.error('Notification error:', err));
 
+    // Broadcast Realtime Data Update to all connected clients
+    try {
+      sseManager.broadcast('data_update', {
+        scope: 'APPROVALS',
+        action: 'REVISED',
+        projectId: project.id.toString(),
+        stepOrder: approval.step_order,
+        approverId: approverId.toString(),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
+
     return { success: true, message: `ส่งคำขอแก้ไขโครงการ "${project.title}" กลับไปยังผู้เสนอเรียบร้อยแล้ว` };
 
   } else if (action === 'REJECT') {
@@ -376,6 +402,18 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       type: NotificationType.PROJECT_REJECTED,
       linkUrl: `/projects/${project.id}`,
     }).catch(err => console.error('Notification error:', err));
+
+    // Broadcast Realtime Data Update to all connected clients
+    try {
+      sseManager.broadcast('data_update', {
+        scope: 'APPROVALS',
+        action: 'REJECTED',
+        projectId: project.id.toString(),
+        stepOrder: approval.step_order,
+        approverId: approverId.toString(),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
 
     return { success: true, message: `ปฏิเสธโครงการ "${project.title}" เรียบร้อยแล้ว` };
   } else {

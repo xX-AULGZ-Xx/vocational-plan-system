@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
+import { useNotifications } from '@/lib/notification-context';
 import AccessDenied from '@/components/common/AccessDenied';
 import ProjectQuickPreviewModal from '@/components/approvals/ProjectQuickPreviewModal';
 import {
@@ -35,6 +36,7 @@ import {
 export default function ApprovalsPage() {
   const { user, token } = useAuth();
   const { collegeName } = useSettings();
+  const { subscribeDataUpdate } = useNotifications();
 
   // Protect route (Only for roles with approval authority)
   const isApprover = user && ['HEAD_DEPT', 'DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'].includes(user.role);
@@ -88,6 +90,20 @@ export default function ApprovalsPage() {
       fetchRouting();
     }
   }, [currentTab, token]);
+
+  // Real-time Data Update Listener: Automatically refresh inbox/stats/history when data changes
+  useEffect(() => {
+    const unsubscribe = subscribeDataUpdate((event) => {
+      if (event.scope === 'PROJECTS' || event.scope === 'APPROVALS') {
+        fetchInbox();
+        fetchStats();
+        if (currentTab === 'history') {
+          fetchHistory();
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [subscribeDataUpdate, currentTab, token]);
 
   const fetchInbox = async () => {
     setLoading(true);

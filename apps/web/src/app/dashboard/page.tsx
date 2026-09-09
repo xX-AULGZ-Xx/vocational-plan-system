@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
+import { useNotifications } from '@/lib/notification-context';
 import {
   Wallet,
   CheckCircle,
@@ -23,6 +24,7 @@ import {
 export default function DashboardPage() {
   const { user, token } = useAuth();
   const { collegeName, currentFiscalYear } = useSettings();
+  const { subscribeDataUpdate } = useNotifications();
 
   const [fiscalYear, setFiscalYear] = useState<number>(() => {
     return parseInt(currentFiscalYear) || 2569;
@@ -64,6 +66,16 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData();
   }, [fiscalYear, token]);
+
+  // Real-time Data Update Listener: Automatically refresh dashboard stats and project charts
+  useEffect(() => {
+    const unsubscribe = subscribeDataUpdate((event) => {
+      if (event.scope === 'PROJECTS' || event.scope === 'APPROVALS') {
+        fetchData();
+      }
+    });
+    return () => unsubscribe();
+  }, [subscribeDataUpdate, fiscalYear, token]);
 
   const fetchData = async () => {
     setLoading(true);

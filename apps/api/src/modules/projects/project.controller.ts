@@ -8,6 +8,7 @@ import { ApprovalStatus, ProjectStatus, NotificationType } from '@prisma/client'
 import { renderDynamicDocx } from '../../lib/docx-generator';
 import { scanDocxTemplate } from '../../lib/docx-scanner';
 import { notificationService } from '../notifications/notification.service';
+import { sseManager } from '../notifications/sse.manager';
 
 const router = Router();
 
@@ -546,6 +547,19 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Broadcast Realtime Data Update to all connected clients
+    try {
+      sseManager.broadcast('data_update', {
+        scope: 'PROJECTS',
+        action: 'CREATED',
+        projectId: project.id.toString(),
+        status: project.status,
+        leaderId: project.leader_id.toString(),
+        departmentId: project.department_id,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
+
     return res.status(201).json({
       success: true,
       message: 'สร้างโครงการเรียบร้อยแล้ว',
@@ -747,6 +761,19 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Broadcast Realtime Data Update to all connected clients
+    try {
+      sseManager.broadcast('data_update', {
+        scope: 'PROJECTS',
+        action: 'UPDATED',
+        projectId: updatedProject.id.toString(),
+        status: updatedProject.status,
+        leaderId: updatedProject.leader_id.toString(),
+        departmentId: updatedProject.department_id,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
+
     return res.json({
       success: true,
       message: 'บันทึกการแก้ไขเรียบร้อยแล้ว',
@@ -840,6 +867,18 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       where: { id: projectId },
     });
 
+    // Broadcast Realtime Data Update to all connected clients
+    try {
+      sseManager.broadcast('data_update', {
+        scope: 'PROJECTS',
+        action: 'DELETED',
+        projectId: projectId.toString(),
+        leaderId: project.leader_id.toString(),
+        departmentId: project.department_id,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
+
     return res.json({
       success: true,
       message: 'ลบโครงการเรียบร้อยแล้ว',
@@ -931,6 +970,18 @@ router.post('/:id/submit', authenticate, async (req: AuthRequest, res: Response)
         linkUrl: `/approvals`,
       }).catch(err => console.error('Notification dispatch error:', err));
     }
+
+    // Broadcast Realtime Data Update to all connected clients
+    try {
+      sseManager.broadcast('data_update', {
+        scope: 'PROJECTS',
+        action: 'SUBMITTED',
+        projectId: projectId.toString(),
+        leaderId: project.leader_id.toString(),
+        departmentId: project.department_id,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
 
     return res.json({ success: true, message: 'ส่งเสนอโครงการเข้าสู่สายการอนุมัติเรียบร้อยแล้ว' });
   } catch (error: any) {
