@@ -347,11 +347,13 @@ export default function ProjectDetailPage() {
   
   const isDraft = project.status === 'draft';
   const isRejected = project.status === 'rejected';
+  const latestRevisionOrReject = [...(project.approvals || [])].reverse().find((a: any) => a.status === 'REVISION_REQUESTED' || a.status === 'REJECTED');
+  const hasRevisionRequested = isDraft && latestRevisionOrReject?.status === 'REVISION_REQUESTED';
   const isOwnerOrAdmin = user && (user.id === project.leader?.id || user.role === 'ADMIN');
   const canEditProject = isOwnerOrAdmin && (isDraft || isRejected);
   const canDeleteProject = isOwnerOrAdmin && (isDraft || isRejected);
   const canUploadDoc = !isDraft && user && (user.id === project.leader?.id || user.role === 'ADMIN' || user.role === 'PLANNING_OFFICER');
-const canApprove =
+  const canApprove =
     user &&
     pendingApproval &&
     (user.role === 'ADMIN' ||
@@ -488,7 +490,7 @@ const canApprove =
               <span>ดูตัวอย่างเอกสาร</span>
             </button>
 
-            {/* Edit Project Button (for Draft / Rejected) */}
+            {/* Edit Project Button (for Draft / Rejected / Revision) */}
             {canEditProject && (
               <Link
                 href={`/projects/${project.id}/edit`}
@@ -512,7 +514,7 @@ const canApprove =
               </button>
             )}
 
-            {/* If Draft / Rejected: Submit for Approval Button */}
+            {/* If Draft / Rejected / Revision: Submit for Approval Button */}
             {canEditProject && (
               <button
                 onClick={handleSubmitProject}
@@ -521,7 +523,7 @@ const canApprove =
                 title="ยื่นเสนอโครงการเข้าสู่กระบวนการพิจารณาและอนุมัติ"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>{submitting ? 'กำลังส่งโครงการ...' : isRejected ? 'ยื่นเสนอโครงการอีกครั้ง' : 'ยื่นเสนอขออนุมัติโครงการ'}</span>
+                <span>{submitting ? 'กำลังส่งโครงการ...' : (isRejected || hasRevisionRequested) ? 'ยื่นเสนอโครงการอีกครั้ง' : 'ยื่นเสนอขออนุมัติโครงการ'}</span>
               </button>
             )}
 
@@ -573,18 +575,18 @@ const canApprove =
           </div>
         </div>
 
-        {/* Feedback banner if Rejected or Returned for revision */}
+        {/* Feedback banner if Rejected */}
         {isRejected && (
           <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-start justify-between gap-3 shadow-xs">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-bold text-sm text-rose-800">โครงการนี้ไม่ผ่านการอนุมัติ / ขอให้แก้ไข</h4>
+                <h4 className="font-bold text-sm text-rose-800">โครงการนี้ไม่ผ่านการอนุมัติ (ถูกปฏิเสธ)</h4>
                 <p className="text-rose-700 mt-0.5">
                   {(() => {
-                    const latestRejected = [...(project.approvals || [])].reverse().find((a: any) => a.status === 'REJECTED' || a.status === 'REVISION_REQUESTED');
+                    const latestRejected = [...(project.approvals || [])].reverse().find((a: any) => a.status === 'REJECTED');
                     if (latestRejected?.comment) {
-                      return `เหตุผล / ข้อเสนอแนะ: "${latestRejected.comment}"`;
+                      return `เหตุผล: "${latestRejected.comment}"`;
                     }
                     return 'ท่านสามารถคลิก "แก้ไขโครงการ" เพื่อปรับปรุงข้อมูลและยื่นเสนอใหม่ หรือคลิก "ลบโครงการ" ได้';
                   })()}
@@ -604,6 +606,43 @@ const canApprove =
                   className="px-3 py-1.5 bg-white border border-rose-300 hover:bg-rose-100 text-rose-700 font-bold rounded-lg text-xs transition"
                 >
                   ลบโครงการ
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Feedback banner if Revision Requested */}
+        {hasRevisionRequested && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start justify-between gap-3 shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <RotateCcw className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-bold text-sm text-amber-800">โครงการส่งกลับเพื่อขอให้ปรับปรุงแก้ไข</h4>
+                <p className="text-amber-700 mt-0.5">
+                  {(() => {
+                    if (latestRevisionOrReject?.comment) {
+                      return `ข้อเสนอแนะจากผู้อนุมัติ: "${latestRevisionOrReject.comment}"`;
+                    }
+                    return 'กรุณาคลิก "แก้ไขโครงการ" เพื่อปรับปรุงรายละเอียดตามที่ได้รับแจ้ง แล้วกดยื่นเสนอใหม่อีกครั้ง';
+                  })()}
+                </p>
+              </div>
+            </div>
+            {canEditProject && (
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href={`/projects/${project.id}/edit`}
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs transition"
+                >
+                  แก้ไขโครงการ
+                </Link>
+                <button
+                  onClick={handleSubmitProject}
+                  disabled={submitting}
+                  className="px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-lg text-xs transition"
+                >
+                  {submitting ? 'กำลังส่ง...' : 'ยื่นเสนอใหม่'}
                 </button>
               </div>
             )}

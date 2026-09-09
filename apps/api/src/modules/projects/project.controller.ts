@@ -683,6 +683,62 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       });
     });
 
+    // If submitted via PUT (e.g. from edit page or resubmission), ensure Step 1 approval is created/pending
+    if (status === 'submitted') {
+      const deptId = updatedProject.department_id;
+      const headOfDept =
+        (await prisma.user.findFirst({
+          where: {
+            department_id: deptId,
+            role: 'HEAD_DEPT',
+          },
+        })) ||
+        (await prisma.user.findFirst({
+          where: { role: 'HEAD_DEPT' },
+        })) ||
+        (await prisma.user.findFirst({
+          where: { role: 'ADMIN' },
+        }));
+
+      if (headOfDept) {
+        // Find if there is an existing Step 1 approval
+        const existingStep1 = await prisma.projectApproval.findFirst({
+          where: { project_id: projectId, step_order: 1 },
+        });
+
+        if (existingStep1) {
+          await prisma.projectApproval.update({
+            where: { id: existingStep1.id },
+            data: {
+              status: ApprovalStatus.PENDING,
+              approver_id: headOfDept.id,
+              comment: 'ยื่นเสนอโครงการใหม่หลังการแก้ไข รอหัวหน้าแผนก/งานพิจารณา',
+              signed_at: null,
+            },
+          });
+        } else {
+          await prisma.projectApproval.create({
+            data: {
+              project_id: projectId,
+              step_order: 1,
+              approver_id: headOfDept.id,
+              status: ApprovalStatus.PENDING,
+              comment: 'เสนอขออนุมัติโครงการ รอหัวหน้าแผนก/งานพิจารณา',
+            },
+          });
+        }
+
+        // Send notification to Head of Department
+        notificationService.createNotification({
+          userId: headOfDept.id,
+          title: 'มีโครงการใหม่รอพิจารณาอนุมัติ (ขั้นที่ 1)',
+          message: `โครงการ "${updatedProject.title}" ถูกเสนอโดย ${req.user!.full_name} รอการพิจารณาเห็นชอบจากท่าน`,
+          type: NotificationType.PROJECT_SUBMITTED,
+          linkUrl: `/approvals`,
+        }).catch(err => console.error('Notification dispatch error:', err));
+      }
+    }
+
     return res.json({
       success: true,
       message: 'บันทึกการแก้ไขเรียบร้อยแล้ว',
@@ -822,16 +878,32 @@ router.post('/:id/submit', authenticate, async (req: AuthRequest, res: Response)
       }));
 
     if (head) {
-      // Upsert Step 1 approval
-      await prisma.projectApproval.create({
-        data: {
-          project_id: projectId,
-          step_order: 1,
-          approver_id: head.id,
-          status: ApprovalStatus.PENDING,
-          comment: 'เสนอขออนุมัติโครงการตามสายการบังคับบัญชา',
-        },
+      // Find if there is an existing Step 1 approval
+      const existingStep1 = await prisma.projectApproval.findFirst({
+        where: { project_id: projectId, step_order: 1 },
       });
+
+      if (existingStep1) {
+        await prisma.projectApproval.update({
+          where: { id: existingStep1.id },
+          data: {
+            status: ApprovalStatus.PENDING,
+            approver_id: head.id,
+            comment: 'ยื่นเสนอขออนุมัติโครงการใหม่ รอการพิจารณาเห็นชอบ',
+            signed_at: null,
+          },
+        });
+      } else {
+        await prisma.projectApproval.create({
+          data: {
+            project_id: projectId,
+            step_order: 1,
+            approver_id: head.id,
+            status: ApprovalStatus.PENDING,
+            comment: 'เสนอขออนุมัติโครงการตามสายการบังคับบัญชา',
+          },
+        });
+      }
 
       // Send In-app, Real-time SSE & Email Notification to Head of Department
       notificationService.createNotification({
