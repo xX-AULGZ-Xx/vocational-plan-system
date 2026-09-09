@@ -120,11 +120,16 @@ export default function ApprovalsPage() {
     return () => unsubscribe();
   }, [subscribeDataUpdate, currentTab, token]);
 
+  const getAuthToken = () => {
+    return token || (typeof window !== 'undefined' ? (localStorage.getItem('vps_token') || localStorage.getItem('token') || localStorage.getItem('access_token')) : null);
+  };
+
   const fetchInbox = async () => {
     setLoading(true);
     try {
+      const authToken = getAuthToken();
       const headers: any = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
       const res = await fetch('/api/v1/approvals/inbox', { headers });
       const data = await res.json();
@@ -141,8 +146,9 @@ export default function ApprovalsPage() {
   const fetchHistory = async () => {
     setLoadingHistory(true);
     try {
+      const authToken = getAuthToken();
       const headers: any = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
       const res = await fetch('/api/v1/approvals/history', { headers });
       const data = await res.json();
@@ -159,8 +165,9 @@ export default function ApprovalsPage() {
   const fetchTracking = async () => {
     setLoadingTracking(true);
     try {
+      const authToken = getAuthToken();
       const headers: any = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
       const res = await fetch('/api/v1/projects/execution/tracking', { headers });
       const data = await res.json();
@@ -201,8 +208,9 @@ export default function ApprovalsPage() {
 
   const fetchStats = async () => {
     try {
+      const authToken = getAuthToken();
       const headers: any = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
       const res = await fetch('/api/v1/approvals/pipeline-stats', { headers });
       const data = await res.json();
@@ -217,8 +225,9 @@ export default function ApprovalsPage() {
   const fetchRouting = async () => {
     setLoadingRouting(true);
     try {
+      const authToken = getAuthToken();
       const headers: any = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
       const res = await fetch('/api/v1/approvals/routing-flow', { headers });
       const data = await res.json();
@@ -237,11 +246,12 @@ export default function ApprovalsPage() {
     setIsProcessing(true);
 
     try {
+      const authToken = getAuthToken();
       const res = await fetch(`/api/v1/approvals/${selectedApproval.id}/action`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         },
         body: JSON.stringify({
           action: actionType,
