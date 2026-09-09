@@ -135,15 +135,20 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
     result = result.replace(/<w:lang[^>]*\/>/g, '');
 
     // Step 1: Coalesce tags that Word split across multiple <w:t> tags within the same paragraph/run:
-    // e.g. <w:t>{</w:t></w:r><w:r><w:t>title</w:t></w:r><w:r><w:t>}</w:t>
-    // We join contiguous text runs containing unclosed { or ((
-    result = result.replace(/(<w:t[^>]*>)([^<]*\{[^<\}]*)(<\/w:t>[\s\S]*?<w:t[^>]*>)([^<]*\}[^<]*)(<\/w:t>)/g, (match, open1, text1, middle, text2, close2) => {
-      return `${open1}${text1}${text2}${close2}`;
-    });
+    // e.g. <w:t>{</w:t></w:r>...<w:t>title</w:t>...<w:t>}</w:t>
+    for (let iter = 0; iter < 5; iter++) {
+      const prev = result;
+      // Match { without matching } before the next <w:t> close, followed by XML and then the next <w:t>
+      result = result.replace(/(<w:t[^>]*>[^<\}]*?\{[^<\}]*?)<\/w:t>(?:(?!<w:t[^>]*>)[\s\S])*?<w:t[^>]*>([^<]*?)/g, '$1$2');
+      // Match (( without matching )) before next run
+      result = result.replace(/(<w:t[^>]*>[^<\)]*?\(\([^<\)]*?)<\/w:t>(?:(?!<w:t[^>]*>)[\s\S])*?<w:t[^>]*>([^<]*?)/g, '$1$2');
+      if (result === prev) break;
+    }
 
     // Step 2: In individual <w:t> contents, normalize tag formats:
-    // Convert {([%#^/]?\w+)} -> {{$1}}
-    // Convert ((tag)) -> {{tag}}
+    // Normalize:
+    // ((tag)) -> {{tag}}
+    // {tag} / {%tag%} / {#loop} / {/loop} -> {{tag}} / {{%tag%}} / {{#loop}} / {{/loop}}
     result = result.replace(/(<w:t[^>]*>)([\s\S]*?)(<\/w:t>)/g, (match, openTag, textContent, closeTag) => {
       let cleaned = textContent;
       // Sanitize accidental double-bracket Thai text
@@ -152,6 +157,8 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
       cleaned = cleaned.replace(/\(\(([#^/]?\w+)\)\)/g, '{{$1}}');
       // Convert single bracket tags {tag} / {%image%} / {#loop} / {/loop} -> {{tag}} / {{%image%}} / {{#loop}} / {{/loop}}
       cleaned = cleaned.replace(/(?<!\{)\{([%#^/]?[\w\d_]+)\}(?!\})/g, '{{$1}}');
+      // Fix any accidental triple or quadruple curly braces {{{tag}}} -> {{tag}}
+      cleaned = cleaned.replace(/\{{3,}([%#^/]?[\w\d_]+)\}{3,}/g, '{{$1}}');
       return `${openTag}${cleaned}${closeTag}`;
     });
 
