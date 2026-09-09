@@ -262,11 +262,68 @@ export default function NewProjectPage() {
       computedDepartmentId = 1;
     }
     
-    if (!computedTitle) {
-      setErrorMsg('กรุณากรอกชื่อโครงการและแผนกที่รับผิดชอบ');
-      return;
+    // Check required fields validation
+    if (proposalTemplate && Array.isArray(proposalTemplate.tags)) {
+      const missingRequiredTags: { label: string; tag_name: string }[] = [];
+
+      for (const tag of proposalTemplate.tags) {
+        // Skip hidden tags
+        if (tag.options && typeof tag.options === 'object' && !Array.isArray(tag.options) && tag.options.is_hidden) {
+          continue;
+        }
+
+        if (tag.is_required) {
+          const val = dynamicData[tag.tag_name];
+          const tagLabel = tag.label || tag.tag_name;
+
+          if (val === undefined || val === null || val === '') {
+            missingRequiredTags.push({ label: tagLabel, tag_name: tag.tag_name });
+          } else if (typeof val === 'string' && val.trim() === '') {
+            missingRequiredTags.push({ label: tagLabel, tag_name: tag.tag_name });
+          } else if (tag.tag_type === 'DATERANGE') {
+            if (!val || typeof val !== 'object' || !val.start || !val.end) {
+              missingRequiredTags.push({ label: tagLabel, tag_name: tag.tag_name });
+            }
+          } else if (tag.tag_type === 'ALIGNMENT_CHECKLIST') {
+            if (!val || typeof val !== 'object' || !Object.values(val).some(Boolean)) {
+              missingRequiredTags.push({ label: tagLabel, tag_name: tag.tag_name });
+            }
+          } else if (tag.tag_type === 'TABLE_LOOP' && Array.isArray(val)) {
+            const hasValidRow = val.some((row: any) => row && typeof row === 'object' && Object.values(row).some((v: any) => typeof v === 'string' ? v.trim() !== '' : !!v));
+            if (!hasValidRow) {
+              missingRequiredTags.push({ label: tagLabel, tag_name: tag.tag_name });
+            }
+          }
+        }
+      }
+
+      if (missingRequiredTags.length > 0) {
+        const missingListHtml = `
+          <div class="text-left mt-2">
+            <p class="mb-2 text-sm text-gray-700">กรุณากรอกข้อมูลในหัวข้อที่จำเป็นต่อไปนี้ให้ครบถ้วน:</p>
+            <ul class="list-disc pl-5 text-xs text-rose-600 space-y-1">
+              ${missingRequiredTags.map(t => `<li><strong>${t.label}</strong></li>`).join('')}
+            </ul>
+          </div>
+        `;
+
+        showAlert.warning(
+          'กรอกข้อมูลไม่ครบถ้วน',
+          `กรุณากรอกหัวข้อที่จำเป็น (${missingRequiredTags.map(t => t.label).join(', ')}) ให้ครบถ้วน`
+        );
+
+        // Scroll to the first missing field if possible
+        const firstMissing = missingRequiredTags[0];
+        const el = document.getElementById(`field-${firstMissing.tag_name}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        setErrorMsg(`กรุณากรอกข้อมูลที่จำเป็นให้ครบ: ${missingRequiredTags.map(t => t.label).join(', ')}`);
+        return;
+      }
     }
-    
+
     setIsSubmitting(true);
     setErrorMsg('');
     setSuccessMsg('');
@@ -1338,7 +1395,11 @@ export default function NewProjectPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-6">
-              {proposalTemplate.tags && proposalTemplate.tags.filter((t: any) => !(t.options && typeof t.options === 'object' && !Array.isArray(t.options) && t.options.is_hidden)).map((tag: any) => renderTagInput(tag))}
+              {proposalTemplate.tags && proposalTemplate.tags.filter((t: any) => !(t.options && typeof t.options === 'object' && !Array.isArray(t.options) && t.options.is_hidden)).map((tag: any) => (
+                <div key={tag.tag_name} id={`field-${tag.tag_name}`}>
+                  {renderTagInput(tag)}
+                </div>
+              ))}
             </div>
           )}
         </div>
