@@ -1409,6 +1409,11 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
 
     const finalDurationText = calculatedDurationText || dynamicData.duration_text || '';
 
+    console.log('[DEBUG DOCX EXPORT] projectId:', project.id);
+    console.log('[DEBUG DOCX EXPORT] rawStartDate:', rawStartDate, 'rawEndDate:', rawEndDate);
+    console.log('[DEBUG DOCX EXPORT] formattedStartDate:', formattedStartDate, 'formattedEndDate:', formattedEndDate);
+    console.log('[DEBUG DOCX EXPORT] finalDurationText:', finalDurationText);
+
     const formDataForDocx: Record<string, any> = {
       ...dynamicData,
       title: project.title,
