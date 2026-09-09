@@ -30,7 +30,12 @@ import {
   Check,
   Send,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  PlayCircle,
+  Compass,
+  CheckCircle,
+  Calendar,
+  ExternalLink,
 } from 'lucide-react';
 
 export default function ApprovalsPage() {
@@ -45,7 +50,7 @@ export default function ApprovalsPage() {
   }
 
   // Active top tab
-  const [currentTab, setCurrentTab] = useState<'inbox' | 'history' | 'routing'>('inbox');
+  const [currentTab, setCurrentTab] = useState<'inbox' | 'history' | 'tracking' | 'routing'>('inbox');
 
   // Inbox state
   const [inbox, setInbox] = useState<any[]>([]);
@@ -56,6 +61,12 @@ export default function ApprovalsPage() {
   // History state
   const [historyList, setHistoryList] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Post-Approval Execution Tracking state
+  const [trackingList, setTrackingList] = useState<any[]>([]);
+  const [loadingTracking, setLoadingTracking] = useState(false);
+  const [trackingFilterStatus, setTrackingFilterStatus] = useState<string>('ALL');
+  const [updatingTrackingId, setUpdatingTrackingId] = useState<number | null>(null);
 
   // Routing flow state
   const [routingData, setRoutingData] = useState<{ divisions: any[]; approvers: any[] }>({ divisions: [], approvers: [] });
@@ -86,12 +97,14 @@ export default function ApprovalsPage() {
   useEffect(() => {
     if (currentTab === 'history') {
       fetchHistory();
+    } else if (currentTab === 'tracking') {
+      fetchTracking();
     } else if (currentTab === 'routing') {
       fetchRouting();
     }
   }, [currentTab, token]);
 
-  // Real-time Data Update Listener: Automatically refresh inbox/stats/history when data changes
+  // Real-time Data Update Listener: Automatically refresh inbox/stats/history/tracking when data changes
   useEffect(() => {
     const unsubscribe = subscribeDataUpdate((event) => {
       if (event.scope === 'PROJECTS' || event.scope === 'APPROVALS') {
@@ -99,6 +112,8 @@ export default function ApprovalsPage() {
         fetchStats();
         if (currentTab === 'history') {
           fetchHistory();
+        } else if (currentTab === 'tracking') {
+          fetchTracking();
         }
       }
     });
@@ -138,6 +153,49 @@ export default function ApprovalsPage() {
       console.error('Failed to load approvals history', e);
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  const fetchTracking = async () => {
+    setLoadingTracking(true);
+    try {
+      const headers: any = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/v1/projects/execution/tracking', { headers });
+      const data = await res.json();
+      if (data.success) {
+        setTrackingList(data.data);
+      }
+    } catch (e) {
+      console.error('Failed to load execution tracking projects', e);
+    } finally {
+      setLoadingTracking(false);
+    }
+  };
+
+  const handleUpdateExecutionStatus = async (projectId: number, newExecutionStatus: string) => {
+    setUpdatingTrackingId(projectId);
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/execution-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          execution_status: newExecutionStatus,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+
+      setMsg({ type: 'success', text: data.message });
+      fetchTracking();
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'เกิดข้อผิดพลาดในการปรับสถานะ' });
+    } finally {
+      setUpdatingTrackingId(null);
     }
   };
 
@@ -400,6 +458,23 @@ export default function ApprovalsPage() {
           {historyList.length > 0 && (
             <span className="px-2 py-0.5 rounded-full text-[11px] bg-slate-200 text-slate-700">
               {historyList.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setCurrentTab('tracking')}
+          className={`flex items-center gap-2 px-4 py-2.5 border-b-2 text-xs sm:text-sm font-bold transition rounded-t-theme ${
+            currentTab === 'tracking'
+              ? 'border-theme-primary text-theme-primary bg-theme-primary-light'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <PlayCircle className="w-4 h-4" />
+          <span>ติดตามการดำเนินโครงการ (หลัง ผอ. อนุมัติ)</span>
+          {trackingList.length > 0 && (
+            <span className={`px-2 py-0.5 rounded-full text-[11px] ${currentTab === 'tracking' ? 'bg-theme-primary text-white' : 'bg-slate-200 text-slate-700'}`}>
+              {trackingList.length}
             </span>
           )}
         </button>
@@ -743,7 +818,294 @@ export default function ApprovalsPage() {
       )}
 
       {/* ======================================================== */}
-      {/* TAB 3: ROUTING & FLOW OVERVIEW */}
+      {/* TAB: POST-APPROVAL EXECUTION TRACKING (งานแผนงาน) */}
+      {/* ======================================================== */}
+      {currentTab === 'tracking' && (
+        <div className="space-y-4">
+          {/* Sub-status filter / metric chips */}
+          {(() => {
+            const countApproved = trackingList.filter(p => {
+              let dyn = p.dynamic_data;
+              if (typeof dyn === 'string') { try { dyn = JSON.parse(dyn); } catch(e){} }
+              const sub = dyn?.execution_sub_status;
+              return (!sub || sub === 'approved') && p.status !== 'completed';
+            }).length;
+
+            const countPermitted = trackingList.filter(p => {
+              let dyn = p.dynamic_data;
+              if (typeof dyn === 'string') { try { dyn = JSON.parse(dyn); } catch(e){} }
+              return dyn?.execution_sub_status === 'permitted';
+            }).length;
+
+            const countOperating = trackingList.filter(p => {
+              let dyn = p.dynamic_data;
+              if (typeof dyn === 'string') { try { dyn = JSON.parse(dyn); } catch(e){} }
+              return dyn?.execution_sub_status === 'in_progress' || (p.status === 'in_progress' && dyn?.execution_sub_status !== 'permitted');
+            }).length;
+
+            const countCompleted = trackingList.filter(p => {
+              let dyn = p.dynamic_data;
+              if (typeof dyn === 'string') { try { dyn = JSON.parse(dyn); } catch(e){} }
+              return dyn?.execution_sub_status === 'completed' || p.status === 'completed';
+            }).length;
+
+            const stages = [
+              { key: 'ALL', label: 'ทั้งหมด', count: trackingList.length, color: 'border-slate-300 text-slate-700 bg-white' },
+              { key: 'approved', label: '๑. อนุมัติโครงการ', desc: 'ผอ. ลงนามอนุมัติแล้ว', count: countApproved, badgeColor: 'bg-emerald-100 text-emerald-800' },
+              { key: 'permitted', label: '๒. อนุญาตดำเนินโครงการ', desc: 'ออกใบอนุญาต/เริ่มกิจกรรม', count: countPermitted, badgeColor: 'bg-indigo-100 text-indigo-800' },
+              { key: 'in_progress', label: '๓. ดำเนินโครงการ', desc: 'อยู่ระหว่างจัดกิจกรรม', count: countOperating, badgeColor: 'bg-amber-100 text-amber-800' },
+              { key: 'completed', label: '๔. สรุปผลโครงการ', desc: 'ดำเนินงาน & ส่งสรุปแล้ว', count: countCompleted, badgeColor: 'bg-teal-100 text-teal-800' },
+            ];
+
+            const filteredTracking = trackingList.filter(p => {
+              let dyn = p.dynamic_data;
+              if (typeof dyn === 'string') { try { dyn = JSON.parse(dyn); } catch(e){} }
+              const sub = dyn?.execution_sub_status || (p.status === 'completed' ? 'completed' : p.status === 'in_progress' ? 'in_progress' : 'approved');
+
+              if (trackingFilterStatus === 'approved') {
+                return (sub === 'approved' || !dyn?.execution_sub_status) && p.status !== 'completed';
+              }
+              if (trackingFilterStatus === 'permitted') return sub === 'permitted';
+              if (trackingFilterStatus === 'in_progress') return sub === 'in_progress' || (p.status === 'in_progress' && sub !== 'permitted');
+              if (trackingFilterStatus === 'completed') return sub === 'completed' || p.status === 'completed';
+              return true;
+            });
+
+            return (
+              <div className="space-y-4">
+                {/* 4 Execution Stages Pipeline */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                  {stages.map((st) => {
+                    const isActive = trackingFilterStatus === st.key;
+                    return (
+                      <button
+                        key={st.key}
+                        onClick={() => setTrackingFilterStatus(st.key)}
+                        className={`p-3 rounded-theme border text-left transition relative ${
+                          isActive
+                            ? 'bg-theme-primary text-white border-theme-primary shadow-sm'
+                            : 'bg-white text-slate-800 border-slate-200 hover:border-theme-primary'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs font-bold ${isActive ? 'text-white' : 'text-slate-800'}`}>
+                            {st.label}
+                          </span>
+                          <span
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                              isActive
+                                ? 'bg-white text-blue-900'
+                                : st.badgeColor || 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {st.count}
+                          </span>
+                        </div>
+                        {st.desc && (
+                          <p className={`text-[10px] ${isActive ? 'text-blue-100' : 'text-slate-500'}`}>
+                            {st.desc}
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Tracking Header Toolbar */}
+                <div className="bg-white p-4 rounded-theme border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <PlayCircle className="w-5 h-5 text-theme-primary" />
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-sm">
+                        ติดตามความก้าวหน้าและการดำเนินโครงการ (เจ้าหน้าที่งานแผนงาน)
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        บริหารจัดการ ๔ สถานะการดำเนินงานหลัง ผอ. ลงนามอนุมัติ เพื่อควบคุมความก้าวหน้าและรายงานผล
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={fetchTracking}
+                    className="text-xs font-semibold text-theme-primary hover:underline flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" /> รีเฟรชข้อมูล
+                  </button>
+                </div>
+
+                {/* Table of Tracking Projects */}
+                {loadingTracking ? (
+                  <div className="p-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
+                    <div className="animate-spin inline-block w-8 h-8 border-4 border-theme-primary border-t-transparent rounded-full mb-2"></div>
+                    <p className="text-xs">กำลังโหลดข้อมูลการดำเนินโครงการ...</p>
+                  </div>
+                ) : filteredTracking.length === 0 ? (
+                  <div className="bg-white p-12 text-center rounded-xl border border-slate-200 text-slate-500 space-y-2">
+                    <CheckCircle className="w-10 h-10 text-slate-300 mx-auto" />
+                    <p className="text-sm font-semibold text-slate-700">ไม่พบโครงการในหมวดสถานะนี้</p>
+                    <p className="text-xs text-slate-400">ยังไม่มีโครงการที่ตรงกับเงื่อนไขตัวกรองการดำเนินงานที่เลือก</p>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                            <th className="py-3 px-4 w-12 text-center">ลำดับ</th>
+                            <th className="py-3 px-4">รหัส / ชื่อโครงการ</th>
+                            <th className="py-3 px-4">แผนก / ฝ่ายสังกัด</th>
+                            <th className="py-3 px-4 text-right">งบประมาณ</th>
+                            <th className="py-3 px-4 text-center">สถานะการดำเนินงานปัจจุบัน</th>
+                            <th className="py-3 px-4 text-center">เปลี่ยนสถานะ (งานแผนงาน)</th>
+                            <th className="py-3 px-4 text-center w-24">จัดการ</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {filteredTracking.map((p, idx) => {
+                            let dyn = p.dynamic_data;
+                            if (typeof dyn === 'string') { try { dyn = JSON.parse(dyn); } catch(e){} }
+                            const currentSub = dyn?.execution_sub_status || (p.status === 'completed' ? 'completed' : p.status === 'in_progress' ? 'in_progress' : 'approved');
+                            const isUpdating = updatingTrackingId === Number(p.id);
+
+                            return (
+                              <tr key={p.id} className="hover:bg-slate-50 transition">
+                                <td className="py-3.5 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
+                                <td className="py-3.5 px-4 max-w-xs">
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    {p.project_code ? (
+                                      <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-900 border border-blue-200 rounded">
+                                        {p.project_code}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">
+                                        ปี {p.fiscal_year}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <Link
+                                    href={`/projects/${p.id}`}
+                                    className="font-bold text-slate-900 hover:text-theme-primary transition block line-clamp-2"
+                                  >
+                                    {p.title}
+                                  </Link>
+                                  <span className="text-[11px] text-slate-500 block mt-0.5">
+                                    ผู้รับผิดชอบ: {p.leader?.full_name} ({p.leader?.position || 'ครู'})
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-4 text-slate-600">
+                                  <span className="font-semibold text-slate-800 block">{p.department?.name}</span>
+                                  <span className="text-[11px] text-slate-400">{p.department?.division?.name}</span>
+                                </td>
+                                <td className="py-3.5 px-4 text-right font-bold text-slate-900 whitespace-nowrap">
+                                  {Number(p.total_budget || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  {currentSub === 'approved' && (
+                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                      ๑. อนุมัติโครงการ
+                                    </span>
+                                  )}
+                                  {currentSub === 'permitted' && (
+                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 inline-flex items-center gap-1">
+                                      <PlayCircle className="w-3 h-3 text-indigo-600" />
+                                      ๒. อนุญาตดำเนินโครงการ
+                                    </span>
+                                  )}
+                                  {currentSub === 'in_progress' && (
+                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1 animate-pulse">
+                                      <Clock className="w-3 h-3 text-amber-600" />
+                                      ๓. ดำเนินโครงการ
+                                    </span>
+                                  )}
+                                  {currentSub === 'completed' && (
+                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800 border border-teal-200 inline-flex items-center gap-1">
+                                      <CheckSquare className="w-3 h-3 text-teal-600" />
+                                      ๔. สรุปผลโครงการ
+                                    </span>
+                                  )}
+                                  {dyn?.execution_status_updated_at && (
+                                    <span className="block text-[10px] text-slate-400 mt-1">
+                                      อัปเดต: {formatThaiDate(dyn.execution_status_updated_at)}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <div className="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                                    <button
+                                      onClick={() => handleUpdateExecutionStatus(Number(p.id), 'approved')}
+                                      disabled={isUpdating || currentSub === 'approved'}
+                                      className={`px-2 py-1 rounded text-[10px] font-bold transition ${
+                                        currentSub === 'approved'
+                                          ? 'bg-emerald-600 text-white shadow-2xs'
+                                          : 'text-slate-600 hover:bg-white hover:text-emerald-700'
+                                      }`}
+                                      title="เปลี่ยนเป็น: อนุมัติโครงการ"
+                                    >
+                                      อนุมัติ
+                                    </button>
+                                    <button
+                                      onClick={() => handleUpdateExecutionStatus(Number(p.id), 'permitted')}
+                                      disabled={isUpdating || currentSub === 'permitted'}
+                                      className={`px-2 py-1 rounded text-[10px] font-bold transition ${
+                                        currentSub === 'permitted'
+                                          ? 'bg-indigo-600 text-white shadow-2xs'
+                                          : 'text-slate-600 hover:bg-white hover:text-indigo-700'
+                                      }`}
+                                      title="เปลี่ยนเป็น: อนุญาตดำเนินโครงการ"
+                                    >
+                                      อนุญาต
+                                    </button>
+                                    <button
+                                      onClick={() => handleUpdateExecutionStatus(Number(p.id), 'in_progress')}
+                                      disabled={isUpdating || currentSub === 'in_progress'}
+                                      className={`px-2 py-1 rounded text-[10px] font-bold transition ${
+                                        currentSub === 'in_progress'
+                                          ? 'bg-amber-600 text-white shadow-2xs'
+                                          : 'text-slate-600 hover:bg-white hover:text-amber-700'
+                                      }`}
+                                      title="เปลี่ยนเป็น: ดำเนินโครงการ"
+                                    >
+                                      ดำเนินงาน
+                                    </button>
+                                    <button
+                                      onClick={() => handleUpdateExecutionStatus(Number(p.id), 'completed')}
+                                      disabled={isUpdating || currentSub === 'completed'}
+                                      className={`px-2 py-1 rounded text-[10px] font-bold transition ${
+                                        currentSub === 'completed'
+                                          ? 'bg-teal-600 text-white shadow-2xs'
+                                          : 'text-slate-600 hover:bg-white hover:text-teal-700'
+                                      }`}
+                                      title="เปลี่ยนเป็น: สรุปผลโครงการ"
+                                    >
+                                      สรุปผล
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="py-3.5 px-4 text-center">
+                                  <Link
+                                    href={`/projects/${p.id}`}
+                                    className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold inline-flex items-center gap-1 shadow-2xs transition"
+                                  >
+                                    <span>เปิดดู</span>
+                                    <ExternalLink className="w-3 h-3 text-slate-400" />
+                                  </Link>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 4: ROUTING & FLOW OVERVIEW */}
       {/* ======================================================== */}
       {currentTab === 'routing' && (
         <div className="space-y-6">

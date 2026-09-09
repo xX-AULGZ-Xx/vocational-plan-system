@@ -605,6 +605,137 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
+        {/* Post-Approval Execution Stages Tracker & Planning Officer Control */}
+        {['approved', 'in_progress', 'completed'].includes(project.status) && (
+          <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-xs font-bold text-slate-800">สถานะการดำเนินงานโครงการ (หลัง ผอ. อนุมัติ):</span>
+                {(() => {
+                  const sub = parsedDynamicData?.execution_sub_status || (project.status === 'completed' ? 'completed' : project.status === 'in_progress' ? 'in_progress' : 'approved');
+                  if (sub === 'approved') {
+                    return (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        ๑. อนุมัติโครงการ
+                      </span>
+                    );
+                  }
+                  if (sub === 'permitted') {
+                    return (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                        ๒. อนุญาตดำเนินโครงการ
+                      </span>
+                    );
+                  }
+                  if (sub === 'in_progress') {
+                    return (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                        ๓. ดำเนินโครงการ
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200">
+                      ๔. สรุปผลโครงการ
+                    </span>
+                  );
+                })()}
+              </div>
+
+              {parsedDynamicData?.execution_status_updated_at && (
+                <span className="text-[11px] text-slate-400">
+                  อัปเดตล่าสุด: {formatThaiDate(parsedDynamicData.execution_status_updated_at)} โดย {parsedDynamicData.execution_status_updated_by || 'งานแผนงาน'}
+                </span>
+              )}
+            </div>
+
+            {/* Stage Stepper Display */}
+            {(() => {
+              const sub = parsedDynamicData?.execution_sub_status || (project.status === 'completed' ? 'completed' : project.status === 'in_progress' ? 'in_progress' : 'approved');
+              const stages = [
+                { id: 'approved', label: 'อนุมัติโครงการ', num: 1 },
+                { id: 'permitted', label: 'อนุญาตดำเนินโครงการ', num: 2 },
+                { id: 'in_progress', label: 'ดำเนินโครงการ', num: 3 },
+                { id: 'completed', label: 'สรุปผลโครงการ', num: 4 },
+              ];
+              const getIndex = (s: string) => stages.findIndex(x => x.id === s);
+              const currentIdx = getIndex(sub);
+
+              const isPlanner = user && ['PLANNING_OFFICER', 'ADMIN', 'DIRECTOR'].includes(user.role);
+
+              return (
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-1">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1">
+                    {stages.map((st, i) => {
+                      const isCurrent = st.id === sub;
+                      const isPassed = i <= currentIdx;
+                      return (
+                        <div
+                          key={st.id}
+                          className={`p-2 rounded-lg border text-xs flex items-center gap-2 transition ${
+                            isCurrent
+                              ? 'bg-theme-primary text-white border-theme-primary font-bold shadow-xs'
+                              : isPassed
+                              ? 'bg-slate-50 text-slate-700 border-slate-200 font-medium'
+                              : 'bg-white text-slate-400 border-dashed border-slate-200'
+                          }`}
+                        >
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                            isCurrent ? 'bg-white text-theme-primary' : isPassed ? 'bg-theme-primary text-white' : 'bg-slate-200 text-slate-600'
+                          }`}>
+                            {st.num}
+                          </span>
+                          <span className="truncate">{st.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Planning Officer Quick Status Update Action Buttons */}
+                  {isPlanner && (
+                    <div className="flex items-center gap-1.5 self-end md:self-center shrink-0">
+                      <span className="text-[11px] font-bold text-slate-500 mr-1">ปรับสถานะ:</span>
+                      {stages.map(st => (
+                        <button
+                          key={st.id}
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/v1/projects/${project.id}/execution-status`, {
+                                method: 'PATCH',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({ execution_status: st.id }),
+                              });
+                              const data = await res.json();
+                              if (!data.success) throw new Error(data.message);
+                              setActionMsg(data.message);
+                              fetchProject();
+                            } catch (err: any) {
+                              setActionMsg(err.message || 'เกิดข้อผิดพลาด');
+                            }
+                          }}
+                          disabled={sub === st.id}
+                          className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                            sub === st.id
+                              ? 'bg-slate-200 text-slate-400 cursor-default'
+                              : 'bg-slate-100 hover:bg-theme-primary hover:text-white text-slate-700 border border-slate-200'
+                          }`}
+                          title={`เปลี่ยนสถานะเป็น ${st.label}`}
+                        >
+                          {st.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
         {actionMsg && (
           <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-theme text-xs font-medium">
             {actionMsg}

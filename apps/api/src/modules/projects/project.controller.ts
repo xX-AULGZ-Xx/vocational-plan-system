@@ -1439,4 +1439,175 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
   }
 });
 
+// GET /api/v1/projects/execution-tracking (List projects for post-approval tracking)
+router.get('/execution/tracking', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { fiscal_year, search, division_id } = req.query;
+
+    const where: any = {
+      status: {
+        in: [ProjectStatus.approved, ProjectStatus.in_progress, ProjectStatus.completed],
+      },
+    };
+
+    if (fiscal_year) {
+      where.fiscal_year = parseInt(fiscal_year as string);
+    }
+
+    if (division_id) {
+      where.department = { division_id: parseInt(division_id as string) };
+    }
+
+    if (search) {
+      const q = String(search).trim();
+      where.OR = [
+        { title: { contains: q } },
+        { project_code: { contains: q } },
+        { leader: { full_name: { contains: q } } },
+        { department: { name: { contains: q } } },
+      ];
+    }
+
+    const projects = await prisma.project.findMany({
+      where,
+      include: {
+        department: {
+          include: {
+            division: true,
+          },
+        },
+        leader: {
+          select: {
+            id: true,
+            full_name: true,
+            position: true,
+          },
+        },
+        budget_items: true,
+        timelines: true,
+      },
+      orderBy: [{ fiscal_year: 'desc' }, { updated_at: 'desc' }],
+    });
+
+    return res.json({
+      success: true,
+      data: serializeBigInt(projects),
+    });
+  } catch (error: any) {
+    console.error('Execution tracking list error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูลการติดตามโครงการ', error: error.message });
+  }
+});
+
+// PATCH /api/v1/projects/:id/execution-status (Update post-approval execution sub-status)
+router.patch('/:id/execution-status', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { execution_status, note } = req.body;
+    const projectId = BigInt(id);
+
+    const userRole = String(req.user?.role || '');
+    const isPlannerOrAdmin = userRole === 'PLANNING_OFFICER' || userRole === 'ADMIN' || userRole === 'DIRECTOR';
+
+    if (!isPlannerOrAdmin) {
+      return res.status(403).json({ success: false, message: 'เฉพาะเจ้าหน้าที่งานแผนงานหรือผู้ดูแลระบบเท่านั้นที่สามารถปรับสถานะการดำเนินโครงการได้' });
+    }
+
+    const validStatuses = ['approved', 'permitted', 'in_progress', 'completed'];
+    if (!validStatuses.includes(execution_status)) {
+      return res.status(400).json({ success: false, message: 'สถานะไม่ถูกต้อง (ต้องเป็น approved, permitted, in_progress หรือ completed)' });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { leader: true },
+    });
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลโครงการ' });
+    }
+
+    // Map execution sub-status to Prisma ProjectStatus
+    let dbStatus: ProjectStatus = ProjectStatus.approved;
+    if (execution_status === 'completed') {
+      dbStatus = ProjectStatus.completed;
+    } else if (execution_status === 'in_progress' || execution_status === 'permitted') {
+      dbStatus = ProjectStatus.in_progress;
+    } else {
+      dbStatus = ProjectStatus.approved;
+    }
+
+    // Parse and update dynamic_data to store execution_sub_status & timestamps
+    let dynamicDataObj: any = {};
+    if (project.dynamic_data) {
+      try {
+        dynamicDataObj = typeof project.dynamic_data === 'string' ? JSON.parse(project.dynamic_data) : project.dynamic_data;
+      } catch (e) {
+        dynamicDataObj = {};
+      }
+    }
+
+    dynamicDataObj.execution_sub_status = execution_status;
+    dynamicDataObj.execution_status_updated_at = new Date().toISOString();
+    dynamicDataObj.execution_status_updated_by = req.user?.full_name || userRole;
+    if (note) {
+      dynamicDataObj.execution_status_note = note;
+    }
+
+    const updated = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        status: dbStatus,
+        dynamic_data: JSON.stringify(dynamicDataObj) as any,
+      },
+      include: {
+        department: { include: { division: true } },
+        leader: true,
+      },
+    });
+
+    // Notify Project Leader about status update
+    const statusTitles: Record<string, string> = {
+      approved: 'อนุมัติโครงการ',
+      permitted: 'อนุญาตดำเนินโครงการ',
+      in_progress: 'ดำเนินโครงการ',
+      completed: 'สรุปผลโครงการแล้ว',
+    };
+
+    try {
+      await notificationService.createNotification({
+        userId: project.leader_id,
+        title: `📢 อัปเดตสถานะโครงการ: "${project.title}"`,
+        message: `สถานะการดำเนินงานถูกปรับเป็น: "${statusTitles[execution_status] || execution_status}" โดย ${req.user?.full_name || 'งานแผนงาน'}`,
+        type: NotificationType.PROJECT_APPROVED,
+        linkUrl: `/projects/${project.id}`,
+      });
+    } catch (err) {
+      console.error('Execution status notification error:', err);
+    }
+
+    // Broadcast SSE
+    try {
+      sseManager.broadcast('data_update', {
+        scope: 'PROJECTS',
+        action: 'EXECUTION_STATUS_UPDATED',
+        projectId: project.id.toString(),
+        execution_status,
+        status: dbStatus,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
+
+    return res.json({
+      success: true,
+      message: `ปรับสถานะเป็น "${statusTitles[execution_status] || execution_status}" เรียบร้อยแล้ว`,
+      data: serializeBigInt(updated),
+    });
+  } catch (error: any) {
+    console.error('Update execution status error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการปรับสถานะโครงการ', error: error.message });
+  }
+});
+
 export default router;
+
