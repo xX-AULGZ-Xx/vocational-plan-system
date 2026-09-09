@@ -111,6 +111,28 @@ export default function ProjectSummaryPage() {
            initial[key] = proj.department?.name;
         } else if (key === 'project_code') {
            initial[key] = proj.project_code;
+        } else if (key === 'start_date' || key === 'end_date' || key === 'duration_text' || key === 'duration') {
+           const formatThaiDate = (d: any) => {
+             if (!d) return '';
+             const dateObj = new Date(d);
+             if (isNaN(dateObj.getTime())) return String(d);
+             const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+             return `${dateObj.getDate()} ${months[dateObj.getMonth()]} พ.ศ. ${dateObj.getFullYear() + 543}`;
+           };
+           let sDate = '';
+           let eDate = '';
+           if (Array.isArray(proj.timelines) && proj.timelines.length > 0) {
+             const validStart = [...proj.timelines].filter((t: any) => t.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+             const validEnd = [...proj.timelines].filter((t: any) => t.end_date || t.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
+             if (validStart.length > 0) sDate = formatThaiDate(validStart[0].start_date);
+             if (validEnd.length > 0) eDate = formatThaiDate(validEnd[validEnd.length - 1].end_date || validEnd[validEnd.length - 1].start_date);
+           }
+           if (key === 'start_date') initial[key] = projDynamic.start_date || sDate;
+           else if (key === 'end_date') initial[key] = projDynamic.end_date || eDate;
+           else if (key === 'duration_text' || key === 'duration') {
+             const dText = (sDate && eDate) ? (sDate === eDate ? sDate : `${sDate} ถึง ${eDate}`) : (sDate || eDate);
+             initial[key] = projDynamic[key] || dText;
+           }
         } else if (projDynamic[key] !== undefined) {
            initial[key] = projDynamic[key];
         } else if (t.tag_type === 'LEADER_NAME' || key === 'leader_name') {
