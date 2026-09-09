@@ -1370,16 +1370,42 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       };
     });
 
-    const startDate = project.timelines?.[0]?.start_date;
-    const endDate = project.timelines?.[project.timelines.length - 1]?.end_date;
+    // Resolve project start and end dates from timelines or dynamic_data
+    let startDate: any = null;
+    let endDate: any = null;
+
+    if (Array.isArray(project.timelines) && project.timelines.length > 0) {
+      const validTimelines = project.timelines.filter((t: any) => t.start_date);
+      if (validTimelines.length > 0) {
+        startDate = validTimelines[0].start_date;
+        endDate = validTimelines[validTimelines.length - 1].end_date || validTimelines[validTimelines.length - 1].start_date;
+      }
+    }
+    if (!startDate && dynamicData.duration && typeof dynamicData.duration === 'object') {
+      startDate = dynamicData.duration.start;
+      endDate = dynamicData.duration.end;
+    }
+    if (!startDate) {
+      startDate = dynamicData.start_date || dynamicData.real_date_start || project.created_at;
+      endDate = dynamicData.end_date || dynamicData.real_date_end || startDate;
+    }
 
     const totalBudgetNum = Number(project.total_budget || 0);
     const allocatedBudgetNum = Number(dynamicData.allocated_budget || totalBudgetNum);
     const spentBudgetNum = Number(dynamicData.actual_spent || dynamicData.expenditure_performance || project.actual_spent || totalBudgetNum);
 
-    const durationText = startDate && endDate
-      ? (formatThai(startDate) === formatThai(endDate) ? formatThai(startDate) : `${formatThai(startDate)} - ${formatThai(endDate)}`)
-      : formatThai(startDate || new Date());
+    let durationText = '';
+    if (dynamicData.duration_text) {
+      durationText = dynamicData.duration_text;
+    } else if (startDate && endDate) {
+      const startStr = formatThai(startDate);
+      const endStr = formatThai(endDate);
+      durationText = startStr === endStr ? startStr : `${startStr} ถึง ${endStr}`;
+    } else if (startDate) {
+      durationText = formatThai(startDate);
+    } else {
+      durationText = formatThai(new Date());
+    }
 
     const formDataForDocx: Record<string, any> = {
       ...dynamicData,
