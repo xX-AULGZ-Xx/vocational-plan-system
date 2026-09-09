@@ -30,13 +30,31 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
 
   // Sync fiscal year with settings when settings load
   useEffect(() => {
     if (currentFiscalYear) {
-      setFiscalYear(parseInt(currentFiscalYear) || 2569);
+      setFiscalYear(parseInt(currentFiscalYear) || 2570);
     }
   }, [currentFiscalYear]);
+
+  // Load authoritative fiscal years from settings / admin endpoint
+  useEffect(() => {
+    const fetchYears = async () => {
+      try {
+        const headers: any = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch('/api/v1/admin/fiscal-years', { headers });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          const list = data.data.map((item: any) => item.fiscal_year).filter((y: number) => !isNaN(y) && y > 2500);
+          setAvailableYears(list);
+        }
+      } catch (e) {}
+    };
+    fetchYears();
+  }, [token, currentFiscalYear]);
 
   // Filters
   const [selectedStatus, setSelectedStatus] = useState<string>('');
@@ -57,6 +75,9 @@ export default function DashboardPage() {
       const statsData = await statsRes.json();
       if (statsData.success) {
         setStats(statsData.data);
+        if (statsData.data?.available_years && availableYears.length === 0) {
+          setAvailableYears(statsData.data.available_years);
+        }
       }
 
       const projectsRes = await fetch(`/api/v1/projects?fiscal_year=${fiscalYear}`, { headers });
@@ -130,8 +151,8 @@ export default function DashboardPage() {
           >
             {(() => {
               const settingYear = parseInt(currentFiscalYear) || 2570;
-              const apiYears: number[] = stats?.available_years || [];
-              const yearSet = new Set<number>([settingYear, ...apiYears]);
+              const sourceYears = availableYears.length > 0 ? availableYears : (stats?.available_years || [settingYear]);
+              const yearSet = new Set<number>([settingYear, ...sourceYears]);
               const sortedYears = Array.from(yearSet).filter((y) => !isNaN(y) && y > 2500).sort((a, b) => b - a);
 
               return sortedYears.map((y) => (
