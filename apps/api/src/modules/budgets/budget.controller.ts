@@ -137,7 +137,7 @@ router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
         const customYears: number[] = JSON.parse(customYearsSetting.value);
         if (Array.isArray(customYears)) {
           customYears.forEach((y) => {
-            const num = parseInt(y, 10);
+            const num = parseInt(String(y), 10);
             if (!isNaN(num) && num > 2500) yearSet.add(num);
           });
         }
