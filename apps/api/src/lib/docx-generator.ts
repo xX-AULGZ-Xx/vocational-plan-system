@@ -126,7 +126,6 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
   const content = fs.readFileSync(templatePath, 'binary');
   const zip = new PizZip(content);
 
-  // Helper to coalesce tags that get split across <w:r> runs in Word XML
   // Helper to coalesce and clean tags across text runs in Word XML
   const cleanWordXmlTags = (xml: string): string => {
     let result = xml;
@@ -145,22 +144,15 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
       if (result === prev) break;
     }
 
-    // Step 2: In individual <w:t> contents, normalize tag formats:
-    // Normalize:
-    // ((tag)) -> {{tag}}
-    // {tag} / {%tag%} / {#loop} / {/loop} -> {{tag}} / {{%tag%}} / {{#loop}} / {{/loop}}
-    result = result.replace(/(<w:t[^>]*>)([\s\S]*?)(<\/w:t>)/g, (match, openTag, textContent, closeTag) => {
-      let cleaned = textContent;
-      // Sanitize accidental double-bracket Thai text
-      cleaned = cleaned.replace(/\{\{\s*จึงเรียนมาเพื่อโปรดทราบ\s*และพิจารณา\s*\}\}/g, 'จึงเรียนมาเพื่อโปรดทราบ และพิจารณา');
-      // Convert ((tag)) -> {{tag}}
-      cleaned = cleaned.replace(/\(\(([#^/]?\w+)\)\)/g, '{{$1}}');
-      // Convert single bracket tags {tag} / {%image%} / {#loop} / {/loop} -> {{tag}} / {{%image%}} / {{#loop}} / {{/loop}}
-      cleaned = cleaned.replace(/(?<!\{)\{([%#^/]?[\w\d_]+)\}(?!\})/g, '{{$1}}');
-      // Fix any accidental triple or quadruple curly braces {{{tag}}} -> {{tag}}
-      cleaned = cleaned.replace(/\{{3,}([%#^/]?[\w\d_]+)\}{3,}/g, '{{$1}}');
-      return `${openTag}${cleaned}${closeTag}`;
-    });
+    // Step 2: Convert ((tag)) -> {tag}
+    result = result.replace(/\(\(([#^/]?[\w\d_]+)\)\)/g, '{$1}');
+
+    // Step 3: Normalize double brackets {{tag}} -> {tag} to avoid duplicate delimiters
+    result = result.replace(/\{\{\s*([%#^/]?[\w\d_]+)\s*\}\}/g, '{$1}');
+
+    // Step 4: Clean up any remaining {tag} whitespace
+    result = result.replace(/\{\s+([%#^/]?[\w\d_]+)\s*\}/g, '{$1}');
+    result = result.replace(/\{\s*([%#^/]?[\w\d_]+)\s+\}/g, '{$1}');
 
     return result;
   };
@@ -227,6 +219,7 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
   }
 
   const docOptions: any = {
+    delimiters: { start: '{', end: '}' },
     paragraphLoop: true,
     linebreaks: true,
     nullGetter: () => '',
