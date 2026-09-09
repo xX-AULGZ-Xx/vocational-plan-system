@@ -43,6 +43,7 @@ export default function DivisionPage() {
   // Filter & Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [budgetTypeFilter, setBudgetTypeFilter] = useState('ALL');
 
   const fetchDivisionData = () => {
     if (!code) return;
@@ -123,6 +124,56 @@ export default function DivisionPage() {
     }
   };
 
+  // Helper to resolve project budget type from dynamic_data or fallback
+  const getProjectBudgetType = (p: any): { key: string; label: string } => {
+    let d: any = {};
+    if (p.dynamic_data) {
+      if (typeof p.dynamic_data === 'string') {
+        try { d = JSON.parse(p.dynamic_data); } catch {}
+      } else {
+        d = p.dynamic_data;
+      }
+    }
+
+    if (d.is_act_budget_chk === true || d.is_act_budget === true) {
+      return { key: 'ACT', label: 'พ.ร.บ. งบประมาณ' };
+    }
+    if (d.is_routine_job_chk === true || d.is_routine_job === true) {
+      return { key: 'ROUTINE', label: 'ภาระงานปกติ' };
+    }
+    if (d.is_ovec_policy_chk === true || d.is_ovec_policy === true) {
+      return { key: 'OVEC_POLICY', label: 'นโยบาย สอศ.' };
+    }
+    if (d.is_special_no_budget_chk === true || d.is_special_no_budget === true) {
+      return { key: 'SPECIAL_NO_BUDGET', label: 'โครงการพิเศษ ไม่ใช้งบ สอศ.' };
+    }
+
+    const bt = String(d.budget_type || '').trim();
+    if (bt.includes('พ.ร.บ.') || (bt.includes('งบประมาณ') && !bt.includes('รายได้') && !bt.includes('พิเศษ') && !bt.includes('ไม่ใช้'))) {
+      return { key: 'ACT', label: 'พ.ร.บ. งบประมาณ' };
+    }
+    if (bt.includes('ภาระงาน') || bt.includes('ปกติ')) {
+      return { key: 'ROUTINE', label: 'ภาระงานปกติ' };
+    }
+    if (bt.includes('นโยบาย') || bt.includes('สอศ.')) {
+      return { key: 'OVEC_POLICY', label: 'นโยบาย สอศ.' };
+    }
+    if (bt.includes('ไม่ใช้งบ') || bt.includes('โครงการพิเศษ')) {
+      return { key: 'SPECIAL_NO_BUDGET', label: 'โครงการพิเศษ ไม่ใช้งบ สอศ.' };
+    }
+    if (bt.includes('รายได้')) {
+      return { key: 'INCOME', label: 'เงินรายได้สถานศึกษา' };
+    }
+    if (bt.includes('อุดหนุน')) {
+      return { key: 'SUBSIDY', label: 'เงินอุดหนุน' };
+    }
+    if (bt) {
+      return { key: 'OTHER', label: bt };
+    }
+
+    return { key: 'UNSPECIFIED', label: 'ไม่ได้ระบุประเภท' };
+  };
+
   if (loading) {
     return (
       <div className="p-12 text-center text-slate-400">
@@ -144,13 +195,17 @@ export default function DivisionPage() {
 
   // Aggregate projects directly across all departments in the division
   const allProjects = (division.departments?.flatMap((d: any) =>
-    (d.projects || []).map((p: any) => ({
-      ...p,
-      department: p.department || { id: d.id, name: d.name },
-    }))
+    (d.projects || []).map((p: any) => {
+      const bType = getProjectBudgetType(p);
+      return {
+        ...p,
+        department: p.department || { id: d.id, name: d.name },
+        budgetTypeInfo: bType,
+      };
+    })
   ) || []).sort((a: any, b: any) => (b.id > a.id ? 1 : -1));
 
-  // Category aggregations
+  // Category aggregations (Status)
   const statusStats = {
     ALL: {
       count: allProjects.length,
@@ -188,6 +243,15 @@ export default function DivisionPage() {
     },
   };
 
+  // Category aggregations (Budget Types)
+  const budgetTypeOptions = [
+    { key: 'ALL', label: 'ทุกประเภทงบฯ' },
+    { key: 'ACT', label: 'พ.ร.บ. งบประมาณ' },
+    { key: 'ROUTINE', label: 'ภาระงานปกติ' },
+    { key: 'OVEC_POLICY', label: 'นโยบาย สอศ.' },
+    { key: 'SPECIAL_NO_BUDGET', label: 'โครงการพิเศษ ไม่ใช้งบ สอศ.' },
+  ];
+
   const filteredProjects = allProjects.filter((p: any) => {
     const matchSearch =
       !searchQuery.trim() ||
@@ -204,7 +268,11 @@ export default function DivisionPage() {
       (statusFilter === 'REVISION' && p.status === 'revision_requested') ||
       (statusFilter === 'REJECT' && p.status === 'rejected');
 
-    return matchSearch && matchStatus;
+    const matchBudgetType =
+      budgetTypeFilter === 'ALL' ||
+      p.budgetTypeInfo?.key === budgetTypeFilter;
+
+    return matchSearch && matchStatus && matchBudgetType;
   });
 
   const filteredBudget = filteredProjects.reduce((sum: number, p: any) => sum + (Number(p.total_budget) || 0), 0);
@@ -213,11 +281,11 @@ export default function DivisionPage() {
 
   const filterOptions = [
     { key: 'ALL', label: 'ทั้งหมด', count: statusStats.ALL.count, budget: statusStats.ALL.budget },
-    { key: 'APPROVED', label: 'อนุมัติแล้ว', count: statusStats.APPROVED.count, budget: statusStats.APPROVED.budget, activeClass: 'text-emerald-700 bg-emerald-50 border-emerald-300' },
-    { key: 'PENDING', label: 'รออนุมัติ', count: statusStats.PENDING.count, budget: statusStats.PENDING.budget, activeClass: 'text-amber-700 bg-amber-50 border-amber-300' },
-    { key: 'REVISION', label: 'ขอแก้ไข', count: statusStats.REVISION.count, budget: statusStats.REVISION.budget, activeClass: 'text-orange-700 bg-orange-50 border-orange-300' },
-    { key: 'REJECT', label: 'ไม่อนุมัติ', count: statusStats.REJECT.count, budget: statusStats.REJECT.budget, activeClass: 'text-rose-700 bg-rose-50 border-rose-300' },
-    { key: 'DRAFT', label: 'แบบร่าง', count: statusStats.DRAFT.count, budget: statusStats.DRAFT.budget, activeClass: 'text-slate-700 bg-slate-100 border-slate-300' },
+    { key: 'APPROVED', label: 'อนุมัติแล้ว', count: statusStats.APPROVED.count, budget: statusStats.APPROVED.budget },
+    { key: 'PENDING', label: 'รออนุมัติ', count: statusStats.PENDING.count, budget: statusStats.PENDING.budget },
+    { key: 'REVISION', label: 'ขอแก้ไข', count: statusStats.REVISION.count, budget: statusStats.REVISION.budget },
+    { key: 'REJECT', label: 'ไม่อนุมัติ', count: statusStats.REJECT.count, budget: statusStats.REJECT.budget },
+    { key: 'DRAFT', label: 'แบบร่าง', count: statusStats.DRAFT.count, budget: statusStats.DRAFT.budget },
   ];
 
   return (
@@ -298,23 +366,45 @@ export default function DivisionPage() {
 
       {/* Filter & Status Pill Selectors with Budgets */}
       <div className="bg-white p-4 rounded-theme border border-slate-200 shadow-xs space-y-4">
-        {/* Top bar: Search + Summary indicator */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <input
-              type="text"
-              placeholder="ค้นหาชื่อโครงการ, รหัส, ผู้รับผิดชอบ..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-theme text-xs focus:border-theme-primary outline-none transition"
-            />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+        {/* Top bar: Search + Budget Type dropdown + Filtered total badge */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+            {/* Search Input */}
+            <div className="relative flex-1 sm:max-w-xs">
+              <input
+                type="text"
+                placeholder="ค้นหาชื่อโครงการ, รหัส, ผู้รับผิดชอบ..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-theme text-xs focus:border-theme-primary outline-none transition"
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            </div>
+
+            {/* Budget Type Filter Dropdown */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-slate-600 shrink-0 flex items-center gap-1">
+                <Wallet className="w-3.5 h-3.5 text-theme-primary" />
+                <span>ประเภทงบ:</span>
+              </label>
+              <select
+                value={budgetTypeFilter}
+                onChange={(e) => setBudgetTypeFilter(e.target.value)}
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-theme text-xs focus:border-theme-primary outline-none cursor-pointer font-medium text-slate-700"
+              >
+                {budgetTypeOptions.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Active Filtered Budget Badge */}
-          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-theme border border-slate-200 text-xs w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-theme border border-slate-200 text-xs justify-between shrink-0">
             <span className="text-slate-500 font-medium">
-              แสดง {filteredProjects.length} โครงการ {statusFilter !== 'ALL' && `(สถานะ: ${filterOptions.find(f => f.key === statusFilter)?.label})`} | รวมงบฯ:
+              แสดง {filteredProjects.length} โครงการ | รวมงบฯ ตามตัวกรอง:
             </span>
             <span className="font-bold text-theme-primary text-sm">
               {filteredBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} <span className="text-xs font-normal text-slate-500">บาท</span>
@@ -409,6 +499,13 @@ export default function DivisionPage() {
                     {p.fiscal_year && (
                       <span className="text-[11px] text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
                         ปีงบฯ {p.fiscal_year}
+                      </span>
+                    )}
+
+                    {p.budgetTypeInfo && p.budgetTypeInfo.key !== 'UNSPECIFIED' && (
+                      <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 flex items-center gap-1">
+                        <Wallet className="w-3 h-3 text-blue-600" />
+                        <span>{p.budgetTypeInfo.label}</span>
                       </span>
                     )}
                   </div>
