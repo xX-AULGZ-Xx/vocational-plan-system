@@ -5,7 +5,7 @@ import fs from 'fs';
 import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, optionalAuthenticate, AuthRequest } from '../../middlewares/auth';
 import { ApprovalStatus, ProjectStatus, NotificationType } from '@prisma/client';
-import { renderDynamicDocx } from '../../lib/docx-generator';
+import { renderDynamicDocx, resolveTemplateFilePath } from '../../lib/docx-generator';
 import { scanDocxTemplate } from '../../lib/docx-scanner';
 import { notificationService } from '../notifications/notification.service';
 import { sseManager } from '../notifications/sse.manager';
@@ -1296,16 +1296,21 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
     let summaryTpl = templates.find((t: any) =>
       t.default_type === 'FULL_SUMMARY' ||
       t.default_type === 'SUMMARY' ||
-      (t.name && (t.name.includes('สรุป') || t.name.includes('เล่ม'))) ||
-      (t.file_name && (t.file_name.includes('สรุป') || t.file_name.includes('เล่ม')))
+      (t.name && (t.name.includes('สรุป') || t.name.includes('แผ่นเดียว') || t.name.includes('เล่ม'))) ||
+      (t.file_name && (t.file_name.includes('สรุป') || t.file_name.includes('แผ่นเดียว') || t.file_name.includes('เล่ม')))
     );
 
     if (!summaryTpl && templates.length > 0) {
       summaryTpl = templates[0];
     }
 
-    if (!summaryTpl || !fs.existsSync(summaryTpl.file_path)) {
-      return res.status(404).json({ success: false, message: 'ไม่พบไฟล์แม่แบบเล่มสรุปโครงการบนระบบ' });
+    if (!summaryTpl) {
+      return res.status(404).json({ success: false, message: 'ไม่พบไฟล์แม่แบบสรุปโครงการบนระบบ' });
+    }
+
+    const resolvedPath = resolveTemplateFilePath(summaryTpl.file_path);
+    if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ success: false, message: `ไม่พบไฟล์แม่แบบเอกสารที่ตำแหน่ง ${summaryTpl.file_path}` });
     }
 
     // Format helper
@@ -1328,6 +1333,7 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       const text = typeof obj === 'object' && obj !== null ? (obj.title || obj.name || obj.item || JSON.stringify(obj)) : String(obj);
       return {
         _index: idx + 1,
+        index: idx + 1,
         item: text,
         name: text,
         title: text,
@@ -1343,6 +1349,7 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       const text = typeof p === 'object' && p !== null ? (p.title || p.name || p.item || JSON.stringify(p)) : String(p);
       return {
         _index: idx + 1,
+        index: idx + 1,
         item: text,
         name: text,
         title: text,
@@ -1354,7 +1361,11 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
 
     const totalBudgetNum = Number(project.total_budget || 0);
     const allocatedBudgetNum = Number(dynamicData.allocated_budget || totalBudgetNum);
-    const spentBudgetNum = Number(dynamicData.expenditure_performance || project.actual_spent || totalBudgetNum);
+    const spentBudgetNum = Number(dynamicData.actual_spent || dynamicData.expenditure_performance || project.actual_spent || totalBudgetNum);
+
+    const durationText = startDate && endDate
+      ? (formatThai(startDate) === formatThai(endDate) ? formatThai(startDate) : `${formatThai(startDate)} - ${formatThai(endDate)}`)
+      : formatThai(startDate || new Date());
 
     const formDataForDocx: Record<string, any> = {
       ...dynamicData,
@@ -1370,6 +1381,7 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       reporter_position: dynamicData.reporter_position || project.leader?.position || 'ครู',
       doc_date: formatThai(dynamicData.doc_date || new Date()),
       report_date: formatThai(dynamicData.doc_date || new Date()),
+      duration_text: dynamicData.duration_text || durationText,
       subject: dynamicData.subject || (`รายงานผลการดำเนินงานโครงการ ${project.title}`),
       report_subject: dynamicData.report_subject || (`รายงานผลการดำเนินงานการปฏิบัติการ/${project.title}`),
       memo_dept: dynamicData.memo_dept || project.department?.name || '',
@@ -1385,11 +1397,14 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       real_date_end: formatThai(dynamicData.real_date_end || endDate),
       target_quantitative: dynamicData.target_quantitative || (project.target_groups as any)?.quantitative || '',
       target_qualitative: dynamicData.target_qualitative || (project.target_groups as any)?.qualitative || '',
+      activities_summary: dynamicData.activities_summary || dynamicData.key_achievements || (project.timelines?.map((t: any) => t.activity_name).join(', ')) || 'ดำเนินการจัดกิจกรรมตามวัตถุประสงค์และแผนปฏิบัติการที่กำหนด',
+      actual_results: dynamicData.actual_results || dynamicData.key_achievements || dynamicData.actual_result_quantitative || 'การดำเนินงานบรรลุตามวัตถุประสงค์และเป้าหมายที่กำหนดไว้ทุกประการ',
       actual_result_quantitative: dynamicData.actual_result_quantitative || '',
       actual_result_qualitative: dynamicData.actual_result_qualitative || '',
       operation_status: dynamicData.operation_status || 'ดำเนินงานแล้ว',
       total_budget: totalBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
       allocated_budget: allocatedBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
+      actual_spent: spentBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
       expenditure_performance: spentBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
       budget_fund_type: dynamicData.budget_fund_type || 'เงินอุดหนุนโครงการสนับสนุนค่าใช้จ่ายในการจัดการศึกษาตั้งแต่ระดับอนุบาลจนจบการศึกษาขั้นพื้นฐาน',
       spending_status: dynamicData.spending_status || 'ใช้เงินตามแผน',
@@ -1397,16 +1412,19 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       evaluation_rating: dynamicData.evaluation_rating || 'ดีเลิศ',
       project_strengths: dynamicData.project_strengths || '',
       project_weaknesses: dynamicData.project_weaknesses || '',
-      project_suggestions: dynamicData.project_suggestions || '',
+      problems_obstacles: dynamicData.problems_obstacles_text || dynamicData.obstacles_and_solutions || (Array.isArray(dynamicData.problems_obstacles) ? dynamicData.problems_obstacles.join(', ') : (dynamicData.problems_obstacles || '-')),
+      project_suggestions: dynamicData.project_suggestions || dynamicData.summary_notes || '-',
       dissemination_channel: dynamicData.dissemination_channel || 'เว็บไซต์',
       dissemination_other: dynamicData.dissemination_other || '',
       head_dept_name: dynamicData.head_dept_name || '',
       deputy_name: dynamicData.deputy_name || '',
+      deputy_position: dynamicData.deputy_position || 'รองผู้อำนวยการ',
+      deputy_strat_name: dynamicData.deputy_strat_name || '',
       director_name: dynamicData.director_name || 'นางปิยะพร พูลเพิ่ม',
       objectives: formattedObjectives,
-      problems_obstacles: formattedProblems,
       timelines: (project.timelines || []).map((t: any, idx: number) => ({
         _index: idx + 1,
+        index: idx + 1,
         activity_name: t.activity_name,
         start_date: formatThai(t.start_date),
         end_date: formatThai(t.end_date),
@@ -1422,9 +1440,14 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
         unit_price: Number(b.unit_price).toLocaleString('th-TH', { minimumFractionDigits: 2 }),
         total_amount: Number(b.total_amount).toLocaleString('th-TH', { minimumFractionDigits: 2 }),
       })),
+      // Activity images fallbacks
+      activity_image_1: dynamicData.activity_image_1 || '',
+      activity_image_2: dynamicData.activity_image_2 || '',
+      activity_image_3: dynamicData.activity_image_3 || '',
+      activity_image_4: dynamicData.activity_image_4 || '',
     };
 
-    const { buffer } = await renderDynamicDocx(summaryTpl.file_path, formDataForDocx, summaryTpl.tags || []);
+    const { buffer } = await renderDynamicDocx(resolvedPath, formDataForDocx, summaryTpl.tags || []);
 
     const safeTitle = (project.title || 'summary').replace(/[/\\:*?"<>|]/g, '_').slice(0, 40);
     const downloadFileName = 'สรุปผลโครงการ_' + safeTitle + '.docx';

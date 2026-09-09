@@ -136,33 +136,43 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
   }
 
   let imageModule: any = null;
+  // 1x1 transparent PNG fallback buffer
+  const EMPTY_PNG_BUFFER = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
+
   try {
     const ImageModule = require('docxtemplater-image-module-free');
     imageModule = new ImageModule({
       centered: false,
       fileType: "docx",
       getImage: (tagValue: string, tagName: string) => {
-        if (!tagValue) return null;
-        if (tagValue.startsWith('data:image')) {
-          const base64Data = tagValue.replace(/^data:image\/\w+;base64,/, '');
-          return Buffer.from(base64Data, 'base64');
+        if (!tagValue) return EMPTY_PNG_BUFFER;
+        try {
+          if (typeof tagValue === 'string' && tagValue.startsWith('data:image')) {
+            const base64Data = tagValue.replace(/^data:image\/\w+;base64,/, '');
+            return Buffer.from(base64Data, 'base64');
+          }
+          if (typeof tagValue === 'string' && tagValue.startsWith('/storage/documents/')) {
+            const relName = tagValue.replace('/storage/documents/', '');
+            const absPath = path.join(STORAGE_DIR, 'documents', relName);
+            if (fs.existsSync(absPath)) return fs.readFileSync(absPath);
+          }
+          if (typeof tagValue === 'string' && fs.existsSync(tagValue)) {
+            return fs.readFileSync(tagValue);
+          }
+        } catch (err) {
+          console.warn(`Could not read image for tag ${tagName}:`, err);
         }
-        if (typeof tagValue === 'string' && tagValue.startsWith('/storage/documents/')) {
-          const relName = tagValue.replace('/storage/documents/', '');
-          const absPath = path.join(STORAGE_DIR, 'documents', relName);
-          if (fs.existsSync(absPath)) return fs.readFileSync(absPath);
-        }
-        if (fs.existsSync(tagValue)) {
-          return fs.readFileSync(tagValue);
-        }
-        return null;
+        return EMPTY_PNG_BUFFER;
       },
       getSize: (img: any, tagValue: string, tagName: string) => {
+        if (!tagValue || img === EMPTY_PNG_BUFFER) {
+          return [1, 1];
+        }
         const size = formData[`${tagName}_size`];
         if (size && Array.isArray(size) && size.length === 2) {
           return size; // [width, height] in pixels
         }
-        return [200, 200];
+        return [220, 160];
       }
     });
   } catch (err) {
