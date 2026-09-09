@@ -59,16 +59,21 @@ router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
       rejected: 0,
     };
 
-    // 3. Division budget summary (4 divisions)
-    const divisionsList = await prisma.division.findMany();
+    // 3. Division budget summary (4 divisions from DB)
+    const divisionsList = await prisma.division.findMany({ orderBy: { id: 'asc' } });
     const divisionMap = new Map<number, any>(divisionsList.map(d => [d.id, d]));
 
-    const divisionSummary: Record<string, { code: string; name: string; totalBudget: number; spent: number; projectCount: number }> = {
-      ACAD: { code: 'ACAD', name: 'ฝ่ายวิชาการ', totalBudget: 0, spent: 0, projectCount: 0 },
-      RES: { code: 'RES', name: 'ฝ่ายบริหารทรัพยากร', totalBudget: 0, spent: 0, projectCount: 0 },
-      DEV: { code: 'DEV', name: 'ฝ่ายพัฒนากิจการนักเรียนฯ', totalBudget: 0, spent: 0, projectCount: 0 },
-      STRAT: { code: 'STRAT', name: 'ฝ่ายยุทธศาสตร์และแผนงานฯ', totalBudget: 0, spent: 0, projectCount: 0 },
-    };
+    const divisionSummary: Record<string, { code: string; name: string; totalBudget: number; spent: number; projectCount: number }> = {};
+    for (const d of divisionsList) {
+      const codeUpper = d.code.toUpperCase();
+      divisionSummary[codeUpper] = {
+        code: codeUpper,
+        name: d.name,
+        totalBudget: 0,
+        spent: 0,
+        projectCount: 0,
+      };
+    }
 
     // 4. Strategic alignment counts
     const strategicCounts: Record<string, { code: string; description: string; count: number; budget: number }> = {};
