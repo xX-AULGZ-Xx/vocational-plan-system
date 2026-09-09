@@ -108,6 +108,18 @@ router.get('/:projectId/preview-data', authenticate, async (req: AuthRequest, re
         description: a.indicator.description,
         plan_title: a.indicator.plan?.title,
       })),
+      start_date: project.timelines.length > 0 ? formatThaiDate(project.timelines[0].start_date) : formatThaiDate(new Date()),
+      end_date: project.timelines.length > 0 ? formatThaiDate(project.timelines[project.timelines.length - 1].end_date || project.timelines[project.timelines.length - 1].start_date) : formatThaiDate(new Date()),
+      duration_text: project.timelines.length > 0
+        ? (formatThaiDate(project.timelines[0].start_date) === formatThaiDate(project.timelines[project.timelines.length - 1].end_date || project.timelines[project.timelines.length - 1].start_date)
+            ? formatThaiDate(project.timelines[0].start_date)
+            : `${formatThaiDate(project.timelines[0].start_date)} ถึง ${formatThaiDate(project.timelines[project.timelines.length - 1].end_date || project.timelines[project.timelines.length - 1].start_date)}`)
+        : formatThaiDate(new Date()),
+      duration: project.timelines.length > 0
+        ? (formatThaiDate(project.timelines[0].start_date) === formatThaiDate(project.timelines[project.timelines.length - 1].end_date || project.timelines[project.timelines.length - 1].start_date)
+            ? formatThaiDate(project.timelines[0].start_date)
+            : `${formatThaiDate(project.timelines[0].start_date)} ถึง ${formatThaiDate(project.timelines[project.timelines.length - 1].end_date || project.timelines[project.timelines.length - 1].start_date)}`)
+        : formatThaiDate(new Date()),
       timelines: project.timelines.map((t) => ({
         activity_name: t.activity_name,
         start_date: formatThaiDate(t.start_date),
