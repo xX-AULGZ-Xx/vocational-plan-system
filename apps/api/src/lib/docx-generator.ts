@@ -228,6 +228,9 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
   // Auto-resolve dates if present
   const formatThaiDateHelper = (d: any) => {
     if (!d) return '';
+    if (typeof d === 'string' && (d.includes('มกราคม') || d.includes('กุมภาพันธ์') || d.includes('มีนาคม') || d.includes('เมษายน') || d.includes('พฤษภาคม') || d.includes('มิถุนายน') || d.includes('กรกฎาคม') || d.includes('สิงหาคม') || d.includes('กันยายน') || d.includes('ตุลาคม') || d.includes('พฤศจิกายน') || d.includes('ธันวาคม') || d.includes('พ.ศ.'))) {
+      return d;
+    }
     const dateObj = new Date(d);
     if (isNaN(dateObj.getTime())) return String(d);
     const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
@@ -235,8 +238,13 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
   };
 
   if (Array.isArray(formData.timelines) && formData.timelines.length > 0) {
-    const validStartTimelines = formData.timelines.filter((t: any) => t.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-    const validEndTimelines = formData.timelines.filter((t: any) => t.end_date || t.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
+    const parseTimelineDate = (tDate: any) => {
+      if (!tDate) return 0;
+      const d = new Date(tDate);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+    const validStartTimelines = formData.timelines.filter((t: any) => t.start_date).sort((a: any, b: any) => parseTimelineDate(a.start_date) - parseTimelineDate(b.start_date));
+    const validEndTimelines = formData.timelines.filter((t: any) => t.end_date || t.start_date).sort((a: any, b: any) => parseTimelineDate(a.end_date || a.start_date) - parseTimelineDate(b.end_date || b.start_date));
     if (validStartTimelines.length > 0) {
       formData.start_date = formatThaiDateHelper(validStartTimelines[0].start_date);
     }
