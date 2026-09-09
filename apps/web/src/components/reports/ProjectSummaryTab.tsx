@@ -50,8 +50,8 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
   const [summaryData, setSummaryData] = useState({
     actual_spent: project?.actual_spent || parsedDynamic.actual_spent || project?.total_budget || 0,
     operation_status: parsedDynamic.operation_status || 'ดำเนินงานแล้วเสร็จ 100%',
-    activities_summary: parsedDynamic.activities_summary || (project?.timelines?.map((t: any) => t.activity_name).join(', ')) || '',
-    actual_results: parsedDynamic.actual_results || parsedDynamic.key_achievements || '',
+    activities_summary: parsedDynamic.activities_summary || '',
+    actual_results: parsedDynamic.actual_results || '',
     problems_obstacles: parsedDynamic.problems_obstacles_text || parsedDynamic.problems_obstacles || parsedDynamic.obstacles_and_solutions || '',
     project_suggestions: parsedDynamic.project_suggestions || parsedDynamic.summary_notes || '',
     summary_notes: parsedDynamic.summary_notes || '',
