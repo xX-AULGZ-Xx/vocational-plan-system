@@ -1375,8 +1375,8 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
     let rawEndDate: any = null;
 
     if (Array.isArray(project.timelines) && project.timelines.length > 0) {
-      const validStartTimelines = project.timelines.filter((t: any) => t.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-      const validEndTimelines = project.timelines.filter((t: any) => t.end_date || t.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
+      const validStartTimelines = [...project.timelines].filter((t: any) => t.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+      const validEndTimelines = [...project.timelines].filter((t: any) => t.end_date || t.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
       if (validStartTimelines.length > 0) {
         rawStartDate = validStartTimelines[0].start_date;
       }
@@ -1401,18 +1401,13 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
     const spentBudgetNum = Number(dynamicData.actual_spent || dynamicData.expenditure_performance || project.actual_spent || totalBudgetNum);
 
     let calculatedDurationText = '';
-    if (formattedStartDate && formattedEndDate) {
+    if (formattedStartDate && formattedEndDate && formattedStartDate !== '-' && formattedEndDate !== '-') {
       calculatedDurationText = formattedStartDate === formattedEndDate ? formattedStartDate : `${formattedStartDate} ถึง ${formattedEndDate}`;
     } else {
-      calculatedDurationText = formattedStartDate || formattedEndDate || formatThai(new Date());
+      calculatedDurationText = (formattedStartDate !== '-' ? formattedStartDate : '') || (formattedEndDate !== '-' ? formattedEndDate : '') || formatThai(new Date());
     }
 
     const finalDurationText = calculatedDurationText || dynamicData.duration_text || '';
-
-    console.log('[DEBUG DOCX EXPORT] projectId:', project.id);
-    console.log('[DEBUG DOCX EXPORT] rawStartDate:', rawStartDate, 'rawEndDate:', rawEndDate);
-    console.log('[DEBUG DOCX EXPORT] formattedStartDate:', formattedStartDate, 'formattedEndDate:', formattedEndDate);
-    console.log('[DEBUG DOCX EXPORT] finalDurationText:', finalDurationText);
 
     const formDataForDocx: Record<string, any> = {
       ...dynamicData,
