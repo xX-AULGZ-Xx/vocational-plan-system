@@ -1007,11 +1007,14 @@ router.post('/:id/documents', authenticate, uploadDoc.single('file'), async (req
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลโครงการ' });
     }
 
-    if (project.status === 'draft') {
-      return res.status(400).json({
-        success: false,
-        message: 'โครงการยังอยู่ในสถานะแบบร่าง (Draft) ไม่สามารถอัปโหลดไฟล์แนบได้ กรุณาเสนอโครงการก่อน',
-      });
+    // Check permissions to attach documents
+    const isOwner = project.leader_id === BigInt(req.user!.id);
+    const userRole = String(req.user?.role || '');
+    const isAdminOrPlanner = userRole === 'ADMIN' || userRole === 'PLANNING_OFFICER' || userRole === 'DIRECTOR';
+    const isApprover = userRole === 'HEAD_DEPT' || userRole === 'DEPUTY_DIRECTOR';
+
+    if (!isOwner && !isAdminOrPlanner && !isApprover) {
+      return res.status(403).json({ success: false, message: 'คุณไม่มีสิทธิ์แนบไฟล์ในโครงการนี้' });
     }
 
     if (!req.file) {
@@ -1143,7 +1146,7 @@ router.delete('/:id/documents/:docId', authenticate, async (req: AuthRequest, re
 });
 
 // GET /api/v1/projects/documents/:docId/download
-router.get('/documents/:docId/download', authenticate, async (req: AuthRequest, res: Response) => {
+router.get('/documents/:docId/download', optionalAuthenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { docId } = req.params;
     const doc = await prisma.projectDocument.findUnique({
@@ -1157,6 +1160,37 @@ router.get('/documents/:docId/download', authenticate, async (req: AuthRequest, 
     return res.download(doc.file_path, doc.file_name);
   } catch (error: any) {
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดาวน์โหลดเอกสาร', error: error.message });
+  }
+});
+
+// GET /api/v1/projects/documents/:docId/view (Inline preview for PDF and images)
+router.get('/documents/:docId/view', optionalAuthenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { docId } = req.params;
+    const doc = await prisma.projectDocument.findUnique({
+      where: { id: BigInt(docId) },
+    });
+
+    if (!doc || !fs.existsSync(doc.file_path)) {
+      return res.status(404).json({ success: false, message: 'ไม่พบไฟล์เอกสารบนระบบ' });
+    }
+
+    const ext = path.extname(doc.file_path).toLowerCase();
+    let contentType = 'application/octet-stream';
+    if (ext === '.pdf') contentType = 'application/pdf';
+    else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+    else if (ext === '.png') contentType = 'image/png';
+    else if (ext === '.gif') contentType = 'image/gif';
+    else if (ext === '.webp') contentType = 'image/webp';
+    else if (ext === '.docx') contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    else if (ext === '.doc') contentType = 'application/msword';
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.file_name)}"`);
+    const stream = fs.createReadStream(doc.file_path);
+    return stream.pipe(res);
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการเปิดดูเอกสาร', error: error.message });
   }
 });
 
