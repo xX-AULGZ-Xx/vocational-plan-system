@@ -1371,37 +1371,40 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
     });
 
     // Resolve project start and end dates from timelines or dynamic_data
-    let startDate: any = null;
-    let endDate: any = null;
+    let rawStartDate: any = null;
+    let rawEndDate: any = null;
 
     if (Array.isArray(project.timelines) && project.timelines.length > 0) {
-      const validTimelines = project.timelines.filter((t: any) => t.start_date);
-      if (validTimelines.length > 0) {
-        startDate = validTimelines[0].start_date;
-        endDate = validTimelines[validTimelines.length - 1].end_date || validTimelines[validTimelines.length - 1].start_date;
+      const validStartTimelines = project.timelines.filter((t: any) => t.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+      const validEndTimelines = project.timelines.filter((t: any) => t.end_date || t.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
+      if (validStartTimelines.length > 0) {
+        rawStartDate = validStartTimelines[0].start_date;
+      }
+      if (validEndTimelines.length > 0) {
+        rawEndDate = validEndTimelines[validEndTimelines.length - 1].end_date || validEndTimelines[validEndTimelines.length - 1].start_date;
       }
     }
-    if (!startDate && dynamicData.duration && typeof dynamicData.duration === 'object') {
-      startDate = dynamicData.duration.start;
-      endDate = dynamicData.duration.end;
+    if (!rawStartDate && dynamicData.duration && typeof dynamicData.duration === 'object') {
+      rawStartDate = dynamicData.duration.start;
+      rawEndDate = dynamicData.duration.end;
     }
-    if (!startDate) {
-      startDate = dynamicData.start_date || dynamicData.real_date_start || project.created_at;
-      endDate = dynamicData.end_date || dynamicData.real_date_end || startDate;
+    if (!rawStartDate) {
+      rawStartDate = dynamicData.start_date || dynamicData.real_date_start || project.created_at;
+      rawEndDate = dynamicData.end_date || dynamicData.real_date_end || rawStartDate;
     }
+
+    const formattedStartDate = formatThai(rawStartDate);
+    const formattedEndDate = formatThai(rawEndDate || rawStartDate);
 
     const totalBudgetNum = Number(project.total_budget || 0);
     const allocatedBudgetNum = Number(dynamicData.allocated_budget || totalBudgetNum);
     const spentBudgetNum = Number(dynamicData.actual_spent || dynamicData.expenditure_performance || project.actual_spent || totalBudgetNum);
+
     let calculatedDurationText = '';
-    if (startDate && endDate) {
-      const startStr = formatThai(startDate);
-      const endStr = formatThai(endDate);
-      calculatedDurationText = startStr === endStr ? startStr : `${startStr} ถึง ${endStr}`;
-    } else if (startDate) {
-      calculatedDurationText = formatThai(startDate);
+    if (formattedStartDate && formattedEndDate) {
+      calculatedDurationText = formattedStartDate === formattedEndDate ? formattedStartDate : `${formattedStartDate} ถึง ${formattedEndDate}`;
     } else {
-      calculatedDurationText = formatThai(new Date());
+      calculatedDurationText = formattedStartDate || formattedEndDate || formatThai(new Date());
     }
 
     const finalDurationText = dynamicData.duration_text || calculatedDurationText;
@@ -1420,6 +1423,8 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       reporter_position: dynamicData.reporter_position || project.leader?.position || 'ครู',
       doc_date: formatThai(dynamicData.doc_date || new Date()),
       report_date: formatThai(dynamicData.doc_date || new Date()),
+      start_date: formattedStartDate,
+      end_date: formattedEndDate,
       duration_text: finalDurationText,
       duration: finalDurationText,
       subject: dynamicData.subject || (`รายงานผลการดำเนินงานโครงการ ${project.title}`),
@@ -1431,10 +1436,8 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       qa_standard: dynamicData.qa_standard || 'มาตรฐานที่ ๑ คุณลักษณะของผู้สำเร็จการศึกษาอาชีวศึกษาที่พึงประสงค์',
       qa_issue: dynamicData.qa_issue || '๑.๑ ด้านความรู้ ความสามารถ และทักษะการปฏิบัติงาน',
       qa_aspect: dynamicData.qa_aspect || 'ด้านสมรรถนะวิชาชีพและเทคโนโลยี',
-      start_date: formatThai(startDate),
-      end_date: formatThai(endDate),
-      real_date_start: formatThai(dynamicData.real_date_start || startDate),
-      real_date_end: formatThai(dynamicData.real_date_end || endDate),
+      real_date_start: formatThai(dynamicData.real_date_start || rawStartDate),
+      real_date_end: formatThai(dynamicData.real_date_end || rawEndDate || rawStartDate),
       target_quantitative: dynamicData.target_quantitative || (project.target_groups as any)?.quantitative || '',
       target_qualitative: dynamicData.target_qualitative || (project.target_groups as any)?.qualitative || '',
       activities_summary: dynamicData.activities_summary || dynamicData.key_achievements || (project.timelines?.map((t: any) => t.activity_name).join(', ')) || 'ดำเนินการจัดกิจกรรมตามวัตถุประสงค์และแผนปฏิบัติการที่กำหนด',
