@@ -3,8 +3,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getCurrentThaiFiscalYear } from './bahttext';
 
+interface DivisionInfo {
+  id: number;
+  name: string;
+  code: string;
+  deputy_name?: string;
+  deputy_position?: string;
+  departments?: any[];
+}
+
 interface SettingsContextType {
   settings: Record<string, string>;
+  divisions: DivisionInfo[];
   collegeLogoUrl: string;
   collegeName: string;
   collegeNameEn: string;
@@ -51,6 +61,7 @@ interface SettingsContextType {
 
 const defaultContext: SettingsContextType = {
   settings: {},
+  divisions: [],
   collegeLogoUrl: '',
   collegeName: 'วิทยาลัยการอาชีพเชียงราย',
   collegeNameEn: 'Chiangrai Industrial And Community Education College',
@@ -139,20 +150,33 @@ const applyThemeCss = (primary: string, primaryHover: string, accent: string, fo
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [divisions, setDivisions] = useState<DivisionInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/v1/admin/settings');
-      const data = await res.json();
+      const [settingsRes, divisionsRes] = await Promise.all([
+        fetch('/api/v1/admin/settings'),
+        fetch('/api/v1/divisions'),
+      ]);
+
+      const data = await settingsRes.json();
       if (data.success && data.data) {
         setSettings(data.data);
         try {
           localStorage.setItem('app_system_settings', JSON.stringify(data.data));
         } catch (e) {}
       }
+
+      const divData = await divisionsRes.json();
+      if (divData.success && Array.isArray(divData.data)) {
+        setDivisions(divData.data);
+        try {
+          localStorage.setItem('app_divisions', JSON.stringify(divData.data));
+        } catch (e) {}
+      }
     } catch (e) {
-      console.warn('Failed to fetch system settings:', e);
+      console.warn('Failed to fetch system settings/divisions:', e);
     } finally {
       setIsLoading(false);
     }
@@ -172,6 +196,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           parsed.theme_font_family || 'Prompt',
           parsed.theme_border_radius || 'md'
         );
+      }
+      const cachedDivs = localStorage.getItem('app_divisions');
+      if (cachedDivs) {
+        setDivisions(JSON.parse(cachedDivs));
       }
     } catch (e) {}
 
@@ -229,6 +257,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     <SettingsContext.Provider
       value={{
         settings,
+        divisions,
         collegeLogoUrl,
         collegeName,
         collegeNameEn,

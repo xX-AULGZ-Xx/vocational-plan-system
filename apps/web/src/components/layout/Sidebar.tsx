@@ -30,7 +30,7 @@ interface SidebarProps {
 export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const { themeSidebarStyle, themePrimaryColor, collegeLogoUrl, collegeName, developerInfo } = useSettings();
+  const { themeSidebarStyle, themePrimaryColor, collegeLogoUrl, collegeName, developerInfo, divisions } = useSettings();
 
   const shortName = collegeName?.replace('วิทยาลัยการอาชีพ', 'วก.').replace('วิทยาลัยอาชีวศึกษา', 'วอศ.').replace('วิทยาลัยเทคนิค', 'วท.') || 'วก.';
 
@@ -47,12 +47,32 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
     { name: 'การแจ้งเตือน', href: '/notifications', icon: Clock, roles: ['TEACHER', 'HEAD_DEPT', 'DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'] },
   ];
 
-  const allDivisionNav = [
+  // Dynamic division navigation based on system settings / database
+  const getDivisionIcon = (code: string) => {
+    switch (code?.toLowerCase()) {
+      case 'acad': return BookOpen;
+      case 'res': return Building2;
+      case 'dev': return Users;
+      case 'strat': return Compass;
+      default: return Building2;
+    }
+  };
+
+  const defaultDivisionList = [
     { name: 'ฝ่ายวิชาการ', href: '/divisions/acad', code: 'acad', icon: BookOpen },
     { name: 'ฝ่ายบริหารทรัพยากร', href: '/divisions/res', code: 'res', icon: Building2 },
-    { name: 'ฝ่ายพัฒนากิจการฯ', href: '/divisions/dev', code: 'dev', icon: Users },
+    { name: 'ฝ่ายพัฒนากิจการนักเรียน นักศึกษา', href: '/divisions/dev', code: 'dev', icon: Users },
     { name: 'ฝ่ายแผนงานและความร่วมมือ', href: '/divisions/strat', code: 'strat', icon: Compass },
   ];
+
+  const allDivisionNav = (divisions && divisions.length > 0)
+    ? divisions.map((d) => ({
+        name: d.name,
+        href: `/divisions/${d.code.toLowerCase()}`,
+        code: d.code.toLowerCase(),
+        icon: getDivisionIcon(d.code),
+      }))
+    : defaultDivisionList;
 
   const allAdminNav = [
     { name: 'จัดการผู้ใช้งาน', href: '/admin/users', icon: Users, roles: ['ADMIN'] },
