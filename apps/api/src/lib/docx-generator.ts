@@ -186,17 +186,35 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
       getImage: (tagValue: string, tagName: string) => {
         if (!tagValue) return EMPTY_PNG_BUFFER;
         try {
-          if (typeof tagValue === 'string' && tagValue.startsWith('data:image')) {
-            const base64Data = tagValue.replace(/^data:image\/\w+;base64,/, '');
-            return Buffer.from(base64Data, 'base64');
-          }
-          if (typeof tagValue === 'string' && tagValue.startsWith('/storage/documents/')) {
-            const relName = tagValue.replace('/storage/documents/', '');
-            const absPath = path.join(STORAGE_DIR, 'documents', relName);
-            if (fs.existsSync(absPath)) return fs.readFileSync(absPath);
-          }
-          if (typeof tagValue === 'string' && fs.existsSync(tagValue)) {
-            return fs.readFileSync(tagValue);
+          if (typeof tagValue === 'string') {
+            const trimmed = tagValue.trim();
+            // 1. Base64 Data URL or raw base64
+            if (trimmed.startsWith('data:image')) {
+              const base64Data = trimmed.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '').replace(/\s/g, '');
+              return Buffer.from(base64Data, 'base64');
+            }
+            if (/^[A-Za-z0-9+/=]{100,}$/.test(trimmed)) {
+              return Buffer.from(trimmed, 'base64');
+            }
+            // 2. Relative or local storage path
+            if (trimmed.startsWith('/storage/documents/')) {
+              const relName = trimmed.replace('/storage/documents/', '');
+              const absPath = path.join(STORAGE_DIR, 'documents', relName);
+              if (fs.existsSync(absPath)) return fs.readFileSync(absPath);
+            }
+            if (trimmed.startsWith('/api/v1/projects/documents/')) {
+              // Extract document id if URL was passed
+              const docIdMatch = trimmed.match(/\/documents\/(\d+)\//);
+              if (docIdMatch) {
+                // Look up in documents dir by prefix if possible or direct path
+                const possibleFiles = fs.existsSync(path.join(STORAGE_DIR, 'documents')) ? fs.readdirSync(path.join(STORAGE_DIR, 'documents')) : [];
+                const matched = possibleFiles.find(f => f.startsWith(docIdMatch[1]) || f.includes(docIdMatch[1]));
+                if (matched) return fs.readFileSync(path.join(STORAGE_DIR, 'documents', matched));
+              }
+            }
+            if (fs.existsSync(trimmed)) {
+              return fs.readFileSync(trimmed);
+            }
           }
         } catch (err) {
           console.warn(`Could not read image for tag ${tagName}:`, err);
