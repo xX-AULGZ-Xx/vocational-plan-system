@@ -2,6 +2,8 @@ FROM node:20-slim AS base
 
 # Install LibreOffice, Thai fonts, fontconfig, and build tools for PDF conversion
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
     libreoffice \
     libreoffice-writer \
     fonts-thai-tlwg \

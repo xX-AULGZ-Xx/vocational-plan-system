@@ -885,42 +885,56 @@ export default function SystemUpdatePage() {
       {/* TAB 4: SERVER CLI GUIDE */}
       {activeTab === 'cli' && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-5">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <Terminal className="w-5 h-5 text-indigo-600" />
-              <span>คำสั่งอัปเดตผ่านเซิร์ฟเวอร์ Linux / aaPanel / SSH</span>
+              <span>คำสั่งอัปเดตผ่านเซิร์ฟเวอร์ Linux / aaPanel / SSH (แนะนำสำหรับ Docker)</span>
             </h2>
             <p className="text-sm text-slate-600">
-              สำหรับผู้ดูแลระบบที่ต้องการสั่งอัปเดตโดยตรงบนเซิร์ฟเวอร์จาก GitHub Repository:
+              หากต้องการอัปเดตระบบและคอมไพล์ใหม่ 100% (Clean Build) สามารถใช้คำสั่งด้านล่างนี้ผ่าน Terminal:
             </p>
 
-            {/* Script 1: tools/update.sh */}
+            {/* Script 1: update.sh */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                <span>1. รันสคริปต์อัปเดตอัตโนมัติ (tools/update.sh):</span>
+                <span>วิธีที่ 1: รันสคริปต์อัปเดตอัตโนมัติ (แนะนำ สะดวกและปลอดภัย):</span>
               </div>
               <div className="bg-slate-900 text-slate-200 p-4 rounded-xl font-mono text-xs overflow-x-auto space-y-1 shadow-inner">
                 <div className="text-emerald-400"># เข้าไปยังไดเรกทอรีโปรเจกต์</div>
-                <div>cd /www/wwwroot/vocational-plan-system</div>
-                <div className="text-emerald-400 mt-2"># ให้สิทธิ์และรันคำสั่งอัปเดต</div>
-                <div>chmod +x tools/update.sh</div>
-                <div>./tools/update.sh</div>
+                <div>cd /www/wwwroot/plan.cric.ac.th</div>
+                <div className="text-emerald-400 mt-2"># สั่งรันคำสั่งอัปเดตอัตโนมัติ (ดึงโค้ด + Clean Rebuild + รีสตาร์ทระบบ)</div>
+                <div>bash update.sh</div>
               </div>
             </div>
 
-            {/* Script 2: Docker Compose */}
-            <div className="space-y-2 pt-3">
+            {/* Script 2: Docker Compose Clean Rebuild */}
+            <div className="space-y-2 pt-2">
               <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                <span>2. หรือสั่งอัปเดตผ่าน Git & Docker Compose โดยตรง:</span>
+                <span>วิธีที่ 2: รันคำสั่ง Docker แบบ Clean Build (No-Cache):</span>
               </div>
               <div className="bg-slate-900 text-slate-200 p-4 rounded-xl font-mono text-xs overflow-x-auto space-y-1 shadow-inner">
-                <div className="text-emerald-400"># ดึงโค้ดจาก https://github.com/xX-AULGZ-Xx/vocational-plan-system.git</div>
+                <div className="text-emerald-400"># 1. ดึงโค้ดเวอร์ชันล่าสุดจาก GitHub</div>
                 <div>git pull origin main</div>
-                <div className="text-emerald-400 mt-1"># Rebuild Container</div>
-                <div>docker compose up -d --build</div>
-                <div className="text-emerald-400 mt-1"># ตรวจสอบสถานะการทำงาน</div>
+                <div className="text-emerald-400 mt-1"># 2. ปิด Container เดิม</div>
+                <div>docker compose down</div>
+                <div className="text-emerald-400 mt-1"># 3. บังคับ Rebuild หน้าเว็บและระบบใหม่ 100% โดยไม่ใช้ Cache เดิม</div>
+                <div>docker compose build --no-cache</div>
+                <div className="text-emerald-400 mt-1"># 4. เริ่มการทำงานระบบในโหมด Background</div>
+                <div>docker compose up -d</div>
+                <div className="text-emerald-400 mt-1"># 5. ตรวจสอบสถานะการทำงาน</div>
                 <div>docker compose ps</div>
               </div>
+            </div>
+
+            {/* Troubleshooting Note */}
+            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+              <p className="font-bold flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                <span>คำแนะนำหลังจากการอัปเดต:</span>
+              </p>
+              <p>
+                หลังจากอัปเดตสำเร็จแล้ว หากเปิดหน้าเว็บแล้วยังเห็นหน้าตาเดิม ให้กด <strong>Ctrl + F5</strong> (หรือ <strong>Ctrl + Shift + R</strong>) บนเบราว์เซอร์ เพื่อล้าง Browser Cache ของ Next.js
+              </p>
             </div>
           </div>
         </div>

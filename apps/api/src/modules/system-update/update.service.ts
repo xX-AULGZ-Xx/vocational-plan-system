@@ -567,20 +567,26 @@ export class UpdateService {
       // Step 3: Git Pull directly from GitHub
       emit('code_sync', `กำลังดึงโค้ดล่าสุดจาก GitHub (${GITHUB_CLONE_URL})...`, 65);
       try {
-        // Ensure remote origin points to user repo
-        try {
-          await execAsync(`git remote set-url origin ${GITHUB_CLONE_URL}`, { cwd: ROOT_DIR });
-        } catch (e) {}
+        const hostDir = path.join(ROOT_DIR, 'host_config');
+        const targetDirs = [ROOT_DIR];
+        if (fs.existsSync(hostDir)) {
+          targetDirs.push(hostDir);
+        }
 
-        const gitPull = await execAsync('git pull origin main --no-rebase', { cwd: ROOT_DIR }).catch(async () => {
-          return await execAsync('git pull origin master --no-rebase', { cwd: ROOT_DIR });
-        });
+        let pulledCommit = '';
+        for (const dir of targetDirs) {
+          try {
+            await execAsync(`git remote set-url origin ${GITHUB_CLONE_URL}`, { cwd: dir });
+            await execAsync('git fetch --all --prune', { cwd: dir });
+            await execAsync('git reset --hard origin/main', { cwd: dir }).catch(async () => {
+              return await execAsync('git pull origin main --no-rebase', { cwd: dir });
+            });
+            const hash = await execAsync('git rev-parse --short HEAD', { cwd: dir }).then((r) => r.stdout.trim()).catch(() => '');
+            if (hash) pulledCommit = hash;
+          } catch (e) {}
+        }
 
-        const newCommitHash = await execAsync('git rev-parse --short HEAD', { cwd: ROOT_DIR })
-          .then((r) => r.stdout.trim())
-          .catch(() => 'latest');
-
-        emit('code_sync', `ดึงโค้ดจาก GitHub สำเร็จ (Commit: ${newCommitHash}) - ${gitPull.stdout.slice(0, 70).replace(/[\r\n]+/g, ' ')}`, 75);
+        emit('code_sync', `ดึงโค้ดจาก GitHub สำเร็จ ${pulledCommit ? `(Commit: ${pulledCommit})` : ''}`, 75);
       } catch (gitErr: any) {
         emit('code_sync', `การซิงค์ Git: ${gitErr.message.slice(0, 100)}`, 75);
       }
@@ -590,6 +596,7 @@ export class UpdateService {
       emit('db_migration', 'กำลังตรวจสอบและปรับปรุงโครงสร้างฐานข้อมูล (Prisma)...', 85);
       try {
         await execAsync('npx prisma generate', { cwd: path.join(ROOT_DIR, 'apps/api') });
+        await execAsync('npx prisma db push --skip-generate --accept-data-loss', { cwd: path.join(ROOT_DIR, 'apps/api') }).catch(() => {});
       } catch (prismaErr) {}
       await sleep(600);
 
