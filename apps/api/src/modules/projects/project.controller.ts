@@ -247,6 +247,66 @@ router.get('/', optionalAuthenticate, async (req: AuthRequest, res: Response) =>
   }
 });
 
+// GET /api/v1/projects/execution/tracking (List projects for post-approval tracking)
+router.get('/execution/tracking', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { fiscal_year, search, division_id } = req.query;
+
+    const where: any = {
+      status: {
+        in: [ProjectStatus.approved, ProjectStatus.in_progress, ProjectStatus.completed],
+      },
+    };
+
+    if (fiscal_year) {
+      where.fiscal_year = parseInt(fiscal_year as string);
+    }
+
+    if (division_id) {
+      where.department = { division_id: parseInt(division_id as string) };
+    }
+
+    if (search) {
+      const q = String(search).trim();
+      where.OR = [
+        { title: { contains: q } },
+        { project_code: { contains: q } },
+        { leader: { full_name: { contains: q } } },
+        { department: { name: { contains: q } } },
+      ];
+    }
+
+    const projects = await prisma.project.findMany({
+      where,
+      include: {
+        department: {
+          include: {
+            division: true,
+          },
+        },
+        leader: {
+          select: {
+            id: true,
+            full_name: true,
+            position: true,
+          },
+        },
+        budget_items: true,
+        timelines: true,
+      },
+      orderBy: [{ fiscal_year: 'desc' }, { updated_at: 'desc' }],
+    });
+
+    return res.json({
+      success: true,
+      data: serializeBigInt(projects),
+    });
+  } catch (error: any) {
+    console.error('Execution tracking list error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูลการติดตามโครงการ', error: error.message });
+  }
+});
+
 // GET /api/v1/projects/:id
 
 router.get('/:id', optionalAuthenticate, async (req: AuthRequest, res: Response) => {
@@ -1572,66 +1632,6 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       detailedMsg += ` (${subErrors})`;
     }
     return res.status(500).json({ success: false, message: detailedMsg, error: detailedMsg });
-  }
-});
-
-// GET /api/v1/projects/execution-tracking (List projects for post-approval tracking)
-router.get('/execution/tracking', authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const { fiscal_year, search, division_id } = req.query;
-
-    const where: any = {
-      status: {
-        in: [ProjectStatus.approved, ProjectStatus.in_progress, ProjectStatus.completed],
-      },
-    };
-
-    if (fiscal_year) {
-      where.fiscal_year = parseInt(fiscal_year as string);
-    }
-
-    if (division_id) {
-      where.department = { division_id: parseInt(division_id as string) };
-    }
-
-    if (search) {
-      const q = String(search).trim();
-      where.OR = [
-        { title: { contains: q } },
-        { project_code: { contains: q } },
-        { leader: { full_name: { contains: q } } },
-        { department: { name: { contains: q } } },
-      ];
-    }
-
-    const projects = await prisma.project.findMany({
-      where,
-      include: {
-        department: {
-          include: {
-            division: true,
-          },
-        },
-        leader: {
-          select: {
-            id: true,
-            full_name: true,
-            position: true,
-          },
-        },
-        budget_items: true,
-        timelines: true,
-      },
-      orderBy: [{ fiscal_year: 'desc' }, { updated_at: 'desc' }],
-    });
-
-    return res.json({
-      success: true,
-      data: serializeBigInt(projects),
-    });
-  } catch (error: any) {
-    console.error('Execution tracking list error:', error);
-    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูลการติดตามโครงการ', error: error.message });
   }
 });
 
