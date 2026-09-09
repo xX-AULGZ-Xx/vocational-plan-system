@@ -121,16 +121,13 @@ router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
     const remainingBudget = Math.max(0, effectiveAllocated - actualSpent);
     const spendingPercentage = effectiveAllocated > 0 ? (actualSpent / effectiveAllocated) * 100 : 0;
 
-    // 5. Available fiscal years from DB, settings, and custom_fiscal_years
+    // 5. Available fiscal years from DB projects, settings, and custom_fiscal_years
     const dbYearsRaw = await prisma.project.findMany({
       select: { fiscal_year: true },
       distinct: ['fiscal_year'],
       orderBy: { fiscal_year: 'desc' },
     });
     const yearSet = new Set<number>(dbYearsRaw.map((r) => r.fiscal_year));
-    yearSet.add(year);
-    yearSet.add(year + 1);
-    yearSet.add(year - 1);
 
     try {
       const customYearsSetting = await prisma.systemSetting.findUnique({
@@ -138,17 +135,20 @@ router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
       });
       if (customYearsSetting?.value) {
         const customYears: number[] = JSON.parse(customYearsSetting.value);
-        customYears.forEach((y) => yearSet.add(y));
+        if (Array.isArray(customYears)) {
+          customYears.forEach((y) => {
+            const num = parseInt(y, 10);
+            if (!isNaN(num) && num > 2500) yearSet.add(num);
+          });
+        }
       }
       const currentSetting = await prisma.systemSetting.findUnique({
         where: { key: 'current_fiscal_year' },
       });
       if (currentSetting?.value) {
         const cYear = parseInt(currentSetting.value, 10);
-        if (!isNaN(cYear)) {
+        if (!isNaN(cYear) && cYear > 2500) {
           yearSet.add(cYear);
-          yearSet.add(cYear + 1);
-          yearSet.add(cYear - 1);
         }
       }
     } catch {}

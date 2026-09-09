@@ -129,14 +129,9 @@ export default function DashboardPage() {
             className="px-3 py-2 text-xs sm:text-sm bg-white/15 hover:bg-white/25 border border-white/20 rounded-theme text-white font-medium outline-none backdrop-blur-sm cursor-pointer"
           >
             {(() => {
-              const settingYear = parseInt(currentFiscalYear) || 2569;
+              const settingYear = parseInt(currentFiscalYear) || 2570;
               const apiYears: number[] = stats?.available_years || [];
               const yearSet = new Set<number>([settingYear, ...apiYears]);
-              // Add adjacent future and past years for easy navigation
-              yearSet.add(settingYear + 2);
-              yearSet.add(settingYear + 1);
-              yearSet.add(settingYear - 1);
-              yearSet.add(settingYear - 2);
               const sortedYears = Array.from(yearSet).filter((y) => !isNaN(y) && y > 2500).sort((a, b) => b - a);
 
               return sortedYears.map((y) => (
