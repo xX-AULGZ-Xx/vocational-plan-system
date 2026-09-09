@@ -132,6 +132,14 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
     docXml = docXml.replace(/<w:noProof[^>]*\/>/g, '');
     // Sanitize accidental double-bracket Thai text
     docXml = docXml.replace(/\{\{\s*จึงเรียนมาเพื่อโปรดทราบ\s*และพิจารณา\s*\}\}/g, 'จึงเรียนมาเพื่อโปรดทราบ และพิจารณา');
+    
+    // Fix single/triple/multi brackets in Word template
+    // Convert {([%#^/]?\w+)} -> {{$1}} if single bracket was used
+    // (word xml often separates brackets across runs, but let's normalize raw {tag} to {{tag}} if it's not already {{tag}})
+    docXml = docXml.replace(/(?<!\{)\{([%#^/]?\w+)\}(?!\})/g, '{{$1}}');
+    // Convert ((tag)) -> {{tag}} (e.g. ((leader_name)), ((deputy_name)))
+    docXml = docXml.replace(/\(\((\w+)\)\)/g, '{{$1}}');
+
     zip.file('word/document.xml', docXml);
   }
 
@@ -323,13 +331,21 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
     }
   }
 
-  const doc = new Docxtemplater(zip, docOptions);
-  doc.render(formData);
-
-  const buf = doc.getZip().generate({
-    type: 'nodebuffer',
-    compression: 'DEFLATE',
-  });
+  let buf: Buffer;
+  try {
+    const doc = new Docxtemplater(zip, docOptions);
+    doc.render(formData);
+    buf = doc.getZip().generate({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+    });
+  } catch (renderError: any) {
+    console.error('Docxtemplater render error details:', renderError);
+    if (renderError.properties && renderError.properties.errors) {
+      console.error('Docxtemplater sub-errors:', JSON.stringify(renderError.properties.errors, null, 2));
+    }
+    throw renderError;
+  }
 
   const safeTitle = (formData.title || 'document').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 50);
   const outFileName = `exported_${safeTitle}_${Date.now()}.docx`;
