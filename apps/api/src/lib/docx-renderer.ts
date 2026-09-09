@@ -174,6 +174,19 @@ export async function renderDocxToHtml(templateId: number | null, formData: any)
     date: todayThaiFull,
     today: todayThaiFull,
     start_date: startDateThai,
+    end_date: (formData.timelines && formData.timelines.length > 0)
+      ? formatThaiDate(formData.timelines[formData.timelines.length - 1].end_date || formData.timelines[formData.timelines.length - 1].start_date)
+      : startDateThai,
+    duration_text: (formData.timelines && formData.timelines.length > 0)
+      ? (startDateThai === formatThaiDate(formData.timelines[formData.timelines.length - 1].end_date || formData.timelines[formData.timelines.length - 1].start_date)
+          ? startDateThai
+          : `${startDateThai} ถึง ${formatThaiDate(formData.timelines[formData.timelines.length - 1].end_date || formData.timelines[formData.timelines.length - 1].start_date)}`)
+      : startDateThai,
+    duration: (formData.timelines && formData.timelines.length > 0)
+      ? (startDateThai === formatThaiDate(formData.timelines[formData.timelines.length - 1].end_date || formData.timelines[formData.timelines.length - 1].start_date)
+          ? startDateThai
+          : `${startDateThai} ถึง ${formatThaiDate(formData.timelines[formData.timelines.length - 1].end_date || formData.timelines[formData.timelines.length - 1].start_date)}`)
+      : startDateThai,
     location_full: locationFull,
     location: locationFull,
 
