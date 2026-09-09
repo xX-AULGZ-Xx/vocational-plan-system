@@ -230,17 +230,33 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
         },
       });
 
-      // 3. Create next step approval if applicable
+      // 3. Create or reset next step approval if applicable
       if (nextStepOrder && nextApproverId) {
-        await tx.projectApproval.create({
-          data: {
-            project_id: project.id,
-            step_order: nextStepOrder,
-            approver_id: nextApproverId,
-            status: ApprovalStatus.PENDING,
-            comment: nextComment,
-          },
+        const existingNextStep = await tx.projectApproval.findFirst({
+          where: { project_id: project.id, step_order: nextStepOrder },
         });
+
+        if (existingNextStep) {
+          await tx.projectApproval.update({
+            where: { id: existingNextStep.id },
+            data: {
+              approver_id: nextApproverId,
+              status: ApprovalStatus.PENDING,
+              comment: nextComment,
+              signed_at: null,
+            },
+          });
+        } else {
+          await tx.projectApproval.create({
+            data: {
+              project_id: project.id,
+              step_order: nextStepOrder,
+              approver_id: nextApproverId,
+              status: ApprovalStatus.PENDING,
+              comment: nextComment,
+            },
+          });
+        }
       }
     });
 

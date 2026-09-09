@@ -701,6 +701,14 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         }));
 
       if (headOfDept) {
+        // Clean up any subsequent steps (step 2, 3, 4) from previous approval cycles to reset flow cleanly
+        await prisma.projectApproval.deleteMany({
+          where: {
+            project_id: projectId,
+            step_order: { gt: 1 },
+          },
+        });
+
         // Find if there is an existing Step 1 approval
         const existingStep1 = await prisma.projectApproval.findFirst({
           where: { project_id: projectId, step_order: 1 },
@@ -878,6 +886,14 @@ router.post('/:id/submit', authenticate, async (req: AuthRequest, res: Response)
       }));
 
     if (head) {
+      // Clean up any subsequent steps (step 2, 3, 4) from previous approval cycles to reset flow cleanly
+      await prisma.projectApproval.deleteMany({
+        where: {
+          project_id: projectId,
+          step_order: { gt: 1 },
+        },
+      });
+
       // Find if there is an existing Step 1 approval
       const existingStep1 = await prisma.projectApproval.findFirst({
         where: { project_id: projectId, step_order: 1 },
