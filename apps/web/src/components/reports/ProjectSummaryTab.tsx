@@ -104,8 +104,8 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
         });
       }
 
-      const data = await res.json();
-      if (data.success) {
+      const data = await res.json().catch(() => ({ success: false, message: 'การตอบสนองจากเซิร์ฟเวอร์ไม่ถูกต้อง' }));
+      if (res.ok && data.success) {
         showAlert.success('บันทึกข้อมูลสำเร็จ', 'บันทึกข้อมูลสรุปผลการดำเนินงานโครงการเรียบร้อยแล้ว');
         if (onProjectUpdated) onProjectUpdated();
       } else {

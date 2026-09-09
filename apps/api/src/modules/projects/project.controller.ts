@@ -1254,6 +1254,54 @@ router.get('/:id/summary-template-scan', async (req: any, res: Response) => {
   }
 });
 
+// PATCH /api/v1/projects/:id/summary (Update project summary notes, actual spent, and dynamic_data)
+router.patch('/:id/summary', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const projectId = BigInt(id);
+
+    const existingProject = await prisma.project.findUnique({
+      where: { id: projectId },
+    });
+
+    if (!existingProject) {
+      return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลโครงการ' });
+    }
+
+    const { dynamic_data, actual_spent } = req.body;
+
+    let updatedDynamicData: any = {};
+    if (dynamic_data !== undefined) {
+      if (typeof dynamic_data === 'string') {
+        try {
+          updatedDynamicData = JSON.parse(dynamic_data);
+        } catch {
+          updatedDynamicData = dynamic_data;
+        }
+      } else {
+        updatedDynamicData = dynamic_data;
+      }
+    }
+
+    const updated = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        ...(dynamic_data !== undefined ? { dynamic_data: typeof dynamic_data === 'string' ? dynamic_data : JSON.stringify(dynamic_data) } : {}),
+        ...(actual_spent !== undefined ? { actual_spent: Number(actual_spent) || 0 } : {}),
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: 'บันทึกข้อมูลสรุปผลโครงการเรียบร้อยแล้ว',
+      data: serializeBigInt(updated),
+    });
+  } catch (error: any) {
+    console.error('Update summary error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกสรุปโครงการ', error: error.message });
+  }
+});
+
 // GET /api/v1/projects/:id/export-summary-docx (Download project summary report as DOCX)
 router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
   try {
