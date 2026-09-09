@@ -237,18 +237,18 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
   if (Array.isArray(formData.timelines) && formData.timelines.length > 0) {
     const validStartTimelines = formData.timelines.filter((t: any) => t.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
     const validEndTimelines = formData.timelines.filter((t: any) => t.end_date || t.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
-    if (validStartTimelines.length > 0 && !formData.start_date) {
+    if (validStartTimelines.length > 0) {
       formData.start_date = formatThaiDateHelper(validStartTimelines[0].start_date);
     }
-    if (validEndTimelines.length > 0 && !formData.end_date) {
+    if (validEndTimelines.length > 0) {
       formData.end_date = formatThaiDateHelper(validEndTimelines[validEndTimelines.length - 1].end_date || validEndTimelines[validEndTimelines.length - 1].start_date);
     }
-  }
-
-  if (formData.start_date && formData.end_date && !formData.duration_text) {
+    if (formData.start_date && formData.end_date) {
+      formData.duration_text = formData.start_date === formData.end_date ? formData.start_date : `${formData.start_date} ถึง ${formData.end_date}`;
+      formData.duration = formData.duration_text;
+    }
+  } else if (formData.start_date && formData.end_date && !formData.duration_text) {
     formData.duration_text = formData.start_date === formData.end_date ? formData.start_date : `${formData.start_date} ถึง ${formData.end_date}`;
-  }
-  if (formData.duration_text && !formData.duration) {
     formData.duration = formData.duration_text;
   }
 

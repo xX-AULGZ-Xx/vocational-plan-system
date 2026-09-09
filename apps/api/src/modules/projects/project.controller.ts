@@ -1407,7 +1407,7 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       calculatedDurationText = formattedStartDate || formattedEndDate || formatThai(new Date());
     }
 
-    const finalDurationText = dynamicData.duration_text || calculatedDurationText;
+    const finalDurationText = calculatedDurationText || dynamicData.duration_text || '';
 
     const formDataForDocx: Record<string, any> = {
       ...dynamicData,
