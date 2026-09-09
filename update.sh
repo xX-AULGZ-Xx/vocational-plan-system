@@ -13,7 +13,14 @@ echo "  Automated System Updater & Maintenance Tool"
 echo "======================================================================"
 
 # 1. Check Directory
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+    PROJECT_ROOT="$SCRIPT_DIR"
+elif [ -f "$(dirname "$SCRIPT_DIR")/docker-compose.yml" ]; then
+    PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+else
+    PROJECT_ROOT="$SCRIPT_DIR"
+fi
 cd "$PROJECT_ROOT"
 
 echo "[1/5] 📁 ไดเรกทอรีโปรเจกต์: $PROJECT_ROOT"
