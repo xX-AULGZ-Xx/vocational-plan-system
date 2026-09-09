@@ -145,14 +145,23 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
     }
 
     // Step 2: Convert ((tag)) -> {tag}
-    result = result.replace(/\(\(([#^/]?[\w\d_]+)\)\)/g, '{$1}');
+    result = result.replace(/\(\(([#^/%]?[\w\d_]+%?)\)\)/g, (m, p1) => {
+      const cleanedTag = p1.startsWith('%') && p1.endsWith('%') ? p1.slice(0, -1) : p1;
+      return `{${cleanedTag}}`;
+    });
 
     // Step 3: Normalize double brackets {{tag}} -> {tag} to avoid duplicate delimiters
-    result = result.replace(/\{\{\s*([%#^/]?[\w\d_]+)\s*\}\}/g, '{$1}');
+    result = result.replace(/\{\{\s*([#^/%]?[\w\d_]+%?)\s*\}\}/g, (m, p1) => {
+      const cleanedTag = p1.startsWith('%') && p1.endsWith('%') ? p1.slice(0, -1) : p1;
+      return `{${cleanedTag}}`;
+    });
 
-    // Step 4: Clean up any remaining {tag} whitespace
-    result = result.replace(/\{\s+([%#^/]?[\w\d_]+)\s*\}/g, '{$1}');
-    result = result.replace(/\{\s*([%#^/]?[\w\d_]+)\s+\}/g, '{$1}');
+    // Step 4: Normalize {%tag%} -> {%tag}
+    result = result.replace(/\{\s*(%[\w\d_]+)%\s*\}/g, '{$1}');
+
+    // Step 5: Clean up any remaining {tag} whitespace
+    result = result.replace(/\{\s+([#^/%]?[\w\d_]+)\s*\}/g, '{$1}');
+    result = result.replace(/\{\s*([#^/%]?[\w\d_]+)\s+\}/g, '{$1}');
 
     return result;
   };
