@@ -187,10 +187,61 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
   // 1x1 transparent PNG fallback buffer
   const EMPTY_PNG_BUFFER = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
 
+  // Helper to extract native width and height from PNG, JPEG, GIF buffer
+  const getImageDimensions = (buf: Buffer): { width: number; height: number } | null => {
+    if (!buf || buf.length < 10) return null;
+    try {
+      // PNG
+      if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) {
+        if (buf.length >= 24) {
+          const width = buf.readUInt32BE(16);
+          const height = buf.readUInt32BE(20);
+          if (width > 0 && height > 0) return { width, height };
+        }
+      }
+      // GIF
+      if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46) {
+        if (buf.length >= 10) {
+          const width = buf.readUInt16LE(6);
+          const height = buf.readUInt16LE(8);
+          if (width > 0 && height > 0) return { width, height };
+        }
+      }
+      // JPEG
+      if (buf[0] === 0xFF && buf[1] === 0xD8) {
+        let offset = 2;
+        while (offset < buf.length - 8) {
+          if (buf[offset] !== 0xFF) {
+            offset++;
+            continue;
+          }
+          const marker = buf[offset + 1];
+          if (marker === 0xD8 || marker === 0xD9 || (marker >= 0xD0 && marker <= 0xD7)) {
+            offset += 2;
+            continue;
+          }
+          if (offset + 4 > buf.length) break;
+          const len = buf.readUInt16BE(offset + 2);
+          if ((marker >= 0xC0 && marker <= 0xC3) || (marker >= 0xC5 && marker <= 0xC7) || (marker >= 0xC9 && marker <= 0xCB) || (marker >= 0xCD && marker <= 0xCF)) {
+            if (offset + 9 <= buf.length) {
+              const height = buf.readUInt16BE(offset + 5);
+              const width = buf.readUInt16BE(offset + 7);
+              if (width > 0 && height > 0) return { width, height };
+            }
+          }
+          offset += 2 + len;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  };
+
   try {
     const ImageModule = require('docxtemplater-image-module-free');
     imageModule = new ImageModule({
-      centered: false,
+      centered: true,
       fileType: "docx",
       getImage: (tagValue: string, tagName: string) => {
         if (!tagValue) return EMPTY_PNG_BUFFER;
@@ -232,11 +283,30 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
         if (!tagValue || img === EMPTY_PNG_BUFFER) {
           return [1, 1];
         }
-        const size = formData[`${tagName}_size`];
-        if (size && Array.isArray(size) && size.length === 2) {
-          return size;
+        const customSize = formData[`${tagName}_size`];
+        let maxW = 240;
+        let maxH = 160;
+
+        if (tagName.includes('cover') || tagName.includes('header')) {
+          maxW = 480;
+          maxH = 260;
         }
-        return [220, 160];
+
+        if (customSize && Array.isArray(customSize) && customSize.length === 2) {
+          maxW = customSize[0];
+          maxH = customSize[1];
+        }
+
+        // Calculate aspect ratio from buffer
+        if (Buffer.isBuffer(img)) {
+          const dims = getImageDimensions(img);
+          if (dims && dims.width > 0 && dims.height > 0) {
+            const ratio = Math.min(maxW / dims.width, maxH / dims.height);
+            return [Math.round(dims.width * ratio), Math.round(dims.height * ratio)];
+          }
+        }
+
+        return [maxW, maxH];
       }
     });
   } catch (err) {

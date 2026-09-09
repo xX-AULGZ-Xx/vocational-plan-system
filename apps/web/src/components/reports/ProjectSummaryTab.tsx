@@ -326,8 +326,8 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
                     <div key={num} className="border-2 border-dashed border-slate-200 rounded-xl p-2.5 text-center bg-slate-50/50 hover:bg-slate-50 transition relative group flex flex-col justify-between">
                       <div className="text-[11px] font-bold text-slate-700 mb-1.5">ภาพกิจกรรมที่ {num}</div>
                       {imgVal ? (
-                        <div className="relative aspect-4/3 rounded-lg overflow-hidden border border-slate-200 bg-white mb-2 shadow-2xs">
-                          <img src={imgVal} alt={`Activity ${num}`} className="w-full h-full object-cover" />
+                        <div className="relative aspect-4/3 rounded-lg overflow-hidden border border-slate-200 bg-slate-900/5 mb-2 shadow-2xs flex items-center justify-center">
+                          <img src={imgVal} alt={`Activity ${num}`} className="w-full h-full object-contain" />
                           <button
                             type="button"
                             onClick={() => handleChange(fieldKey, '')}
