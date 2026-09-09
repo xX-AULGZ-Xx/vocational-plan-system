@@ -37,9 +37,17 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
   const [summaryData, setSummaryData] = useState({
     actual_spent: project?.actual_spent || parsedDynamic.actual_spent || project?.total_budget || 0,
     operation_status: parsedDynamic.operation_status || 'ดำเนินงานแล้วเสร็จ 100%',
+    activities_summary: parsedDynamic.activities_summary || (project?.timelines?.map((t: any) => t.activity_name).join(', ')) || '',
+    actual_results: parsedDynamic.actual_results || parsedDynamic.key_achievements || '',
+    problems_obstacles: parsedDynamic.problems_obstacles_text || parsedDynamic.problems_obstacles || parsedDynamic.obstacles_and_solutions || '',
+    project_suggestions: parsedDynamic.project_suggestions || parsedDynamic.summary_notes || '',
     summary_notes: parsedDynamic.summary_notes || '',
     key_achievements: parsedDynamic.key_achievements || '',
     obstacles_and_solutions: parsedDynamic.obstacles_and_solutions || '',
+    activity_image_1: parsedDynamic.activity_image_1 || '',
+    activity_image_2: parsedDynamic.activity_image_2 || '',
+    activity_image_3: parsedDynamic.activity_image_3 || '',
+    activity_image_4: parsedDynamic.activity_image_4 || '',
   });
 
   const handleChange = (field: string, value: any) => {
@@ -285,26 +293,106 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
               </div>
             </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">ปัญหา อุปสรรค และแนวทางแก้ไข</label>
-              <textarea
-                rows={3}
-                value={summaryData.obstacles_and_solutions}
-                onChange={(e) => handleChange('obstacles_and_solutions', e.target.value)}
-                placeholder="ระบุปัญหา อุปสรรค หรือข้อเสนอแนะในการดำเนินงาน (ถ้ามี)"
-                className="w-full px-3 py-2 border border-slate-300 rounded-theme outline-none focus:border-theme-primary transition"
-              />
+            {/* 4 Activity Images Upload / Preview Section */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <label className="block font-bold text-slate-800 text-xs">
+                ภาพกิจกรรมโครงการ (๔ รูปภาพสำหรับแม่แบบสรุปโครงการ)
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map((num) => {
+                  const fieldKey = `activity_image_${num}` as keyof typeof summaryData;
+                  const imgVal = summaryData[fieldKey];
+                  return (
+                    <div key={num} className="border-2 border-dashed border-slate-200 rounded-xl p-2.5 text-center bg-slate-50/50 hover:bg-slate-50 transition relative group">
+                      <div className="text-[11px] font-bold text-slate-700 mb-1.5">ภาพกิจกรรมที่ {num}</div>
+                      {imgVal ? (
+                        <div className="relative aspect-4/3 rounded-lg overflow-hidden border border-slate-200 bg-white mb-2 shadow-2xs">
+                          <img src={imgVal} alt={`Activity ${num}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => handleChange(fieldKey, '')}
+                            className="absolute top-1 right-1 p-1 bg-rose-600/80 hover:bg-rose-700 text-white rounded-full text-[10px] transition shadow-xs"
+                            title="ลบรูปภาพ"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="aspect-4/3 flex flex-col items-center justify-center border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-theme-primary hover:bg-white transition mb-2">
+                          <span className="text-2xl text-slate-400 mb-1">+</span>
+                          <span className="text-[10px] text-slate-500 font-medium">คลิกอัปโหลดรูป</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  handleChange(fieldKey, ev.target?.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">หมายเหตุ / สรุปผลเพิ่มเติม</label>
-              <textarea
-                rows={2}
-                value={summaryData.summary_notes}
-                onChange={(e) => handleChange('summary_notes', e.target.value)}
-                placeholder="ระบุหมายเหตุหรือข้อความสรุปเพิ่มเติม"
-                className="w-full px-3 py-2 border border-slate-300 rounded-theme outline-none focus:border-theme-primary transition"
-              />
+            {/* 4 Summary Columns (Matching DOCX Table) */}
+            <div className="pt-2 border-t border-slate-100 space-y-4">
+              <h4 className="font-bold text-slate-800 text-xs">ตารางสรุปผลการดำเนินงาน ๔ ช่อง (ตามแบบฟอร์ม Word)</h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">๑. กิจกรรมดำเนินการ (activities_summary)</label>
+                  <textarea
+                    rows={3}
+                    value={summaryData.activities_summary}
+                    onChange={(e) => handleChange('activities_summary', e.target.value)}
+                    placeholder="เช่น ๑. ประชุมวางแผน ๒. ดำเนินการจัดอบรมเชิงปฏิบัติการ ๓. สรุปและประเมินผล"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-theme outline-none focus:border-theme-primary transition"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">๒. ผลที่ได้รับ (actual_results)</label>
+                  <textarea
+                    rows={3}
+                    value={summaryData.actual_results}
+                    onChange={(e) => handleChange('actual_results', e.target.value)}
+                    placeholder="เช่น นักเรียนนักศึกษาเข้าร่วมครบตามเป้าหมาย มีความรู้และทักษะตามมาตรฐาน"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-theme outline-none focus:border-theme-primary transition"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">๓. ปัญหา-อุปสรรค (problems_obstacles)</label>
+                  <textarea
+                    rows={3}
+                    value={summaryData.problems_obstacles}
+                    onChange={(e) => handleChange('problems_obstacles', e.target.value)}
+                    placeholder="ระบุปัญหา อุปสรรค หรือข้อติดขัดในการดำเนินงาน (ถ้ามี)"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-theme outline-none focus:border-theme-primary transition"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">๔. ข้อเสนอแนะ (project_suggestions)</label>
+                  <textarea
+                    rows={3}
+                    value={summaryData.project_suggestions}
+                    onChange={(e) => handleChange('project_suggestions', e.target.value)}
+                    placeholder="ระบุข้อเสนอแนะสำหรับการจัดกิจกรรมหรือโครงการในครั้งต่อไป"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-theme outline-none focus:border-theme-primary transition"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end pt-3 border-t border-slate-100">
