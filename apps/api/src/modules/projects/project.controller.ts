@@ -1393,19 +1393,18 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
     const totalBudgetNum = Number(project.total_budget || 0);
     const allocatedBudgetNum = Number(dynamicData.allocated_budget || totalBudgetNum);
     const spentBudgetNum = Number(dynamicData.actual_spent || dynamicData.expenditure_performance || project.actual_spent || totalBudgetNum);
-
-    let durationText = '';
-    if (dynamicData.duration_text) {
-      durationText = dynamicData.duration_text;
-    } else if (startDate && endDate) {
+    let calculatedDurationText = '';
+    if (startDate && endDate) {
       const startStr = formatThai(startDate);
       const endStr = formatThai(endDate);
-      durationText = startStr === endStr ? startStr : `${startStr} ถึง ${endStr}`;
+      calculatedDurationText = startStr === endStr ? startStr : `${startStr} ถึง ${endStr}`;
     } else if (startDate) {
-      durationText = formatThai(startDate);
+      calculatedDurationText = formatThai(startDate);
     } else {
-      durationText = formatThai(new Date());
+      calculatedDurationText = formatThai(new Date());
     }
+
+    const finalDurationText = dynamicData.duration_text || calculatedDurationText;
 
     const formDataForDocx: Record<string, any> = {
       ...dynamicData,
@@ -1421,7 +1420,8 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       reporter_position: dynamicData.reporter_position || project.leader?.position || 'ครู',
       doc_date: formatThai(dynamicData.doc_date || new Date()),
       report_date: formatThai(dynamicData.doc_date || new Date()),
-      duration_text: dynamicData.duration_text || durationText,
+      duration_text: finalDurationText,
+      duration: finalDurationText,
       subject: dynamicData.subject || (`รายงานผลการดำเนินงานโครงการ ${project.title}`),
       report_subject: dynamicData.report_subject || (`รายงานผลการดำเนินงานการปฏิบัติการ/${project.title}`),
       memo_dept: dynamicData.memo_dept || project.department?.name || '',
