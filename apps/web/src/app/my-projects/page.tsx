@@ -391,23 +391,23 @@ export default function MyProjectsPage() {
                 {/* Actions */}
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
                   {(p.status === 'draft' || p.status === 'rejected') && (
-                    <>
-                      <Link
-                        href={`/projects/${p.id}/edit`}
-                        className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-theme border border-amber-200 transition"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>แก้ไขโครงการ</span>
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteProject(p)}
-                        className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-theme border border-red-200 transition"
-                        title="ลบโครงการ"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>ลบโครงการ</span>
-                      </button>
-                    </>
+                    <Link
+                      href={`/projects/${p.id}/edit`}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-theme border border-amber-200 transition"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>แก้ไขโครงการ</span>
+                    </Link>
+                  )}
+                  {(user?.role === 'ADMIN' || p.status === 'draft' || p.status === 'rejected') && (
+                    <button
+                      onClick={() => handleDeleteProject(p)}
+                      className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-theme border border-red-200 transition"
+                      title="ลบโครงการ"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>ลบโครงการ</span>
+                    </button>
                   )}
                   {isApproved && summaryTemplates.length > 0 && (
                     <div className="relative">

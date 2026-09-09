@@ -809,12 +809,13 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     // Permission check: only leader or admin can delete
-    if (project.leader_id !== BigInt(req.user!.id) && req.user!.role !== 'ADMIN') {
+    const isAdmin = req.user!.role === 'ADMIN';
+    if (project.leader_id !== BigInt(req.user!.id) && !isAdmin) {
       return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์ในการลบโครงการนี้' });
     }
 
-    // Status check: draft and rejected status can be deleted
-    if (project.status !== 'draft' && project.status !== 'rejected') {
+    // Status check: non-admin can only delete draft and rejected status; admin can delete any status
+    if (!isAdmin && project.status !== 'draft' && project.status !== 'rejected') {
       return res.status(400).json({
         success: false,
         message: 'สามารถลบได้เฉพาะโครงการที่เป็นแบบร่าง (Draft) หรือไม่ได้รับการอนุมัติ (Rejected) เท่านั้น',
@@ -841,7 +842,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     return res.json({
       success: true,
-      message: 'ลบโครงการแบบร่างเรียบร้อยแล้ว',
+      message: 'ลบโครงการเรียบร้อยแล้ว',
     });
   } catch (error: any) {
     console.error('Delete project error:', error);

@@ -350,8 +350,9 @@ export default function ProjectDetailPage() {
   const latestRevisionOrReject = [...(project.approvals || [])].reverse().find((a: any) => a.status === 'REVISION_REQUESTED' || a.status === 'REJECTED');
   const hasRevisionRequested = isDraft && latestRevisionOrReject?.status === 'REVISION_REQUESTED';
   const isOwnerOrAdmin = user && (user.id === project.leader?.id || user.role === 'ADMIN');
+  const isAdmin = user?.role === 'ADMIN';
   const canEditProject = isOwnerOrAdmin && (isDraft || isRejected);
-  const canDeleteProject = isOwnerOrAdmin && (isDraft || isRejected);
+  const canDeleteProject = isAdmin || (isOwnerOrAdmin && (isDraft || isRejected));
   const canUploadDoc = !isDraft && user && (user.id === project.leader?.id || user.role === 'ADMIN' || user.role === 'PLANNING_OFFICER');
   const canApprove =
     user &&
