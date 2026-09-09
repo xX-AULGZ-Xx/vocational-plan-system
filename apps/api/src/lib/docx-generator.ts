@@ -127,34 +127,33 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
   const zip = new PizZip(content);
 
   // Helper to coalesce tags that get split across <w:r> runs in Word XML
+  // Helper to coalesce and clean tags across text runs in Word XML
   const cleanWordXmlTags = (xml: string): string => {
     let result = xml;
     result = result.replace(/<w:proofErr[^>]*\/>/g, '');
     result = result.replace(/<w:noProof[^>]*\/>/g, '');
     result = result.replace(/<w:lang[^>]*\/>/g, '');
 
-    // Coalesce split tags: e.g. "{" ... "%activity_image_1%" ... "}" or "{#" ... "objectives" ... "}"
-    // Matches { ... } across XML tags and collapses the inner XML so it becomes a single clean {tag}
-    result = result.replace(/\{([^{}]+)\}/g, (match, inner) => {
-      const stripped = inner.replace(/<[^>]+>/g, '').trim();
-      // Keep docxtemplater syntax clean
-      return `{${stripped}}`;
+    // Step 1: Coalesce tags that Word split across multiple <w:t> tags within the same paragraph/run:
+    // e.g. <w:t>{</w:t></w:r><w:r><w:t>title</w:t></w:r><w:r><w:t>}</w:t>
+    // We join contiguous text runs containing unclosed { or ((
+    result = result.replace(/(<w:t[^>]*>)([^<]*\{[^<\}]*)(<\/w:t>[\s\S]*?<w:t[^>]*>)([^<]*\}[^<]*)(<\/w:t>)/g, (match, open1, text1, middle, text2, close2) => {
+      return `${open1}${text1}${text2}${close2}`;
     });
 
-    // Also coalesce (( ... )) across XML tags
-    result = result.replace(/\(\(([^()]+)\)\)/g, (match, inner) => {
-      const stripped = inner.replace(/<[^>]+>/g, '').trim();
-      return `((${stripped}))`;
-    });
-
-    // Sanitize accidental double-bracket Thai text
-    result = result.replace(/\{\{\s*จึงเรียนมาเพื่อโปรดทราบ\s*และพิจารณา\s*\}\}/g, 'จึงเรียนมาเพื่อโปรดทราบ และพิจารณา');
-
+    // Step 2: In individual <w:t> contents, normalize tag formats:
+    // Convert {([%#^/]?\w+)} -> {{$1}}
     // Convert ((tag)) -> {{tag}}
-    result = result.replace(/\(\(([#^/]?\w+)\)\)/g, '{{$1}}');
-
-    // Convert single bracket tags {tag} / {%image%} / {#loop} / {/loop} -> {{tag}} / {{%image%}} / {{#loop}} / {{/loop}}
-    result = result.replace(/(?<!\{)\{([%#^/]?[\w\d_]+)\}(?!\})/g, '{{$1}}');
+    result = result.replace(/(<w:t[^>]*>)([\s\S]*?)(<\/w:t>)/g, (match, openTag, textContent, closeTag) => {
+      let cleaned = textContent;
+      // Sanitize accidental double-bracket Thai text
+      cleaned = cleaned.replace(/\{\{\s*จึงเรียนมาเพื่อโปรดทราบ\s*และพิจารณา\s*\}\}/g, 'จึงเรียนมาเพื่อโปรดทราบ และพิจารณา');
+      // Convert ((tag)) -> {{tag}}
+      cleaned = cleaned.replace(/\(\(([#^/]?\w+)\)\)/g, '{{$1}}');
+      // Convert single bracket tags {tag} / {%image%} / {#loop} / {/loop} -> {{tag}} / {{%image%}} / {{#loop}} / {{/loop}}
+      cleaned = cleaned.replace(/(?<!\{)\{([%#^/]?[\w\d_]+)\}(?!\})/g, '{{$1}}');
+      return `${openTag}${cleaned}${closeTag}`;
+    });
 
     return result;
   };
