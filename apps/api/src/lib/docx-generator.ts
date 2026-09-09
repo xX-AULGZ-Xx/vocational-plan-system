@@ -228,13 +228,13 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
   // Auto-resolve dates if present
   const formatThaiDateHelper = (d: any) => {
     if (!d) return '';
-    if (typeof d === 'string' && (d.includes('มกราคม') || d.includes('กุมภาพันธ์') || d.includes('มีนาคม') || d.includes('เมษายน') || d.includes('พฤษภาคม') || d.includes('มิถุนายน') || d.includes('กรกฎาคม') || d.includes('สิงหาคม') || d.includes('กันยายน') || d.includes('ตุลาคม') || d.includes('พฤศจิกายน') || d.includes('ธันวาคม') || d.includes('พ.ศ.'))) {
-      return d;
+    if (typeof d === 'string' && (d.includes('มกราคม') || d.includes('กุมภาพันธ์') || d.includes('มีนาคม') || d.includes('เมษายน') || d.includes('พฤษภาคม') || d.includes('มิถุนายน') || d.includes('กรกฎาคม') || d.includes('สิงหาคม') || d.includes('กันยายน') || d.includes('ตุลาคม') || d.includes('พฤศจิกายน') || d.includes('ธันวาคม'))) {
+      return d.replace(/พ\.ศ\.\s*/g, '');
     }
     const dateObj = new Date(d);
-    if (isNaN(dateObj.getTime())) return String(d);
+    if (isNaN(dateObj.getTime())) return String(d).replace(/พ\.ศ\.\s*/g, '');
     const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-    return `${dateObj.getDate()} ${months[dateObj.getMonth()]} พ.ศ. ${dateObj.getFullYear() + 543}`;
+    return `${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear() + 543}`;
   };
 
   if (Array.isArray(formData.timelines) && formData.timelines.length > 0) {

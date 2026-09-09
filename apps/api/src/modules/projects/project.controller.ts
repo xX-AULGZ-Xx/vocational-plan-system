@@ -1317,9 +1317,11 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
     const formatThai = (d: any) => {
       if (!d) return '-';
       const dateObj = new Date(d);
-      if (isNaN(dateObj.getTime())) return String(d);
+      if (isNaN(dateObj.getTime())) {
+        return String(d).replace(/พ\.ศ\.\s*/g, '');
+      }
       const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-      return `${dateObj.getDate()} ${months[dateObj.getMonth()]} พ.ศ. ${dateObj.getFullYear() + 543}`;
+      return `${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear() + 543}`;
     };
 
     // Format objectives list
