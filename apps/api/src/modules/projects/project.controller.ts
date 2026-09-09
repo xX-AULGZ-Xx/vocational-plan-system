@@ -1384,13 +1384,21 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
         rawEndDate = validEndTimelines[validEndTimelines.length - 1].end_date || validEndTimelines[validEndTimelines.length - 1].start_date;
       }
     }
-    if (!rawStartDate && dynamicData.duration && typeof dynamicData.duration === 'object') {
-      rawStartDate = dynamicData.duration.start;
-      rawEndDate = dynamicData.duration.end;
+    
+    // Check if dynamicData has duration or any DATERANGE object
+    if (!rawStartDate && dynamicData) {
+      for (const [key, val] of Object.entries(dynamicData)) {
+        if (val && typeof val === 'object' && !Array.isArray(val) && ((val as any).start || (val as any).startDate || (val as any).start_date)) {
+          rawStartDate = (val as any).start || (val as any).startDate || (val as any).start_date;
+          rawEndDate = (val as any).end || (val as any).endDate || (val as any).end_date || rawStartDate;
+          break;
+        }
+      }
     }
+
     if (!rawStartDate) {
-      rawStartDate = dynamicData.start_date || dynamicData.real_date_start || project.created_at;
-      rawEndDate = dynamicData.end_date || dynamicData.real_date_end || rawStartDate;
+      rawStartDate = dynamicData.start_date || dynamicData.real_date_start || dynamicData.project_start_date || project.created_at;
+      rawEndDate = dynamicData.end_date || dynamicData.real_date_end || dynamicData.project_end_date || rawStartDate;
     }
 
     const formattedStartDate = formatThai(rawStartDate);
