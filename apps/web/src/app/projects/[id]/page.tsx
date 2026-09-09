@@ -424,79 +424,16 @@ export default function ProjectDetailPage() {
 
           {/* Approval Actions or Print or Project Summary */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Approved Project: Summary Hub with Options (Booklet & One-Page) */}
+            {/* Approved Project: One-Page Summary Button */}
             {project.status === 'approved' && (
-              <div className="relative">
-                <div className="flex items-center">
-                  <button
-                    onClick={() => setShowSummaryModal(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-l-xl bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 hover:brightness-110 text-white shadow-sm transition"
-                    title="เปิดศูนย์สรุปผลโครงการ (เลือกดูแบบรูปเล่ม หรือ สรุปแผ่นเดียว)"
-                  >
-                    <Sparkles className="w-4 h-4 text-amber-300" />
-                    <span>สรุปโครงการ</span>
-                  </button>
-                  <button
-                    onClick={() => setShowSummaryDropdown(!showSummaryDropdown)}
-                    className="px-2 py-2 text-xs font-bold rounded-r-xl bg-blue-950 hover:bg-slate-900 text-white border-l border-blue-800 shadow-sm transition"
-                    title="ตัวเลือกการสรุปโครงการ"
-                  >
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Dropdown Options */}
-                {showSummaryDropdown && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 space-y-1">
-                    <p className="px-3 py-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100">
-                      รูปแบบการสรุปโครงการ
-                    </p>
-
-                    <button
-                      onClick={() => {
-                        setShowSummaryDropdown(false);
-                        setShowSummaryModal(true);
-                      }}
-                      className="w-full flex items-start gap-2.5 p-2.5 rounded-lg text-left hover:bg-blue-50 text-slate-800 transition group"
-                    >
-                      <div className="p-1.5 rounded-md bg-blue-100 text-blue-900 group-hover:bg-blue-900 group-hover:text-white transition mt-0.5">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-900">๑. สรุปแผ่นเดียว (One-Page)</p>
-                        <p className="text-[10px] text-slate-500">Executive Summary กระชับ ๑ หน้า A4</p>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowSummaryDropdown(false);
-                        setShowSummaryModal(true);
-                      }}
-                      className="w-full flex items-start gap-2.5 p-2.5 rounded-lg text-left hover:bg-indigo-50 text-slate-800 transition group"
-                    >
-                      <div className="p-1.5 rounded-md bg-indigo-100 text-indigo-900 group-hover:bg-indigo-900 group-hover:text-white transition mt-0.5">
-                        <BookOpen className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-900">๒. สรุปแบบรูปเล่ม (Full Booklet)</p>
-                        <p className="text-[10px] text-slate-500">รายงานผลการดำเนินงานฉบับสมบูรณ์พร้อมหน้าปก</p>
-                      </div>
-                    </button>
-
-                    <div className="border-t border-slate-100 pt-1 mt-1">
-                      <a
-                        href={`/api/v1/projects/${project.id}/export-summary-docx`}
-                        download
-                        className="w-full flex items-center gap-2 p-2 rounded-lg text-left hover:bg-slate-100 text-xs font-bold text-blue-900 transition"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>ดาวน์โหลดไฟล์ Word (.docx)</span>
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={() => setShowSummaryModal(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-theme bg-gradient-to-r from-theme-primary via-indigo-900 to-theme-primary-hover hover:brightness-110 text-white shadow-sm transition"
+                title="เปิดเอกสารสรุปผลโครงการแผ่นเดียว (One-Page Executive Summary)"
+              >
+                <FileText className="w-4 h-4 text-amber-300" />
+                <span>สรุปผลโครงการ (แผ่นเดียว)</span>
+              </button>
             )}
 
             {/* Preview Document Button (Download / View DOCX) */}

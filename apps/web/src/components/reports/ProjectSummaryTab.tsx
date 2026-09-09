@@ -306,19 +306,7 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
             }`}
           >
             <FileText className="w-3.5 h-3.5 text-theme-primary" />
-            <span>๑. สรุปแผ่นเดียว (One-Page)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveView('full_booklet')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-theme text-xs font-bold transition ${
-              activeView === 'full_booklet'
-                ? 'bg-white text-theme-primary shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5 text-theme-primary" />
-            <span>๒. สรุปแบบรูปเล่ม (Full Booklet)</span>
+            <span>ตัวอย่างเอกสารสรุปแผ่นเดียว (One-Page)</span>
           </button>
         </div>
 
@@ -1104,21 +1092,12 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
 
       {activeView !== 'form' && (
         <div className="bg-slate-200/60 p-4 sm:p-8 rounded-2xl border border-slate-200 flex justify-center overflow-x-auto print:bg-white print:p-0 print:border-none">
-          {activeView === 'one_page' ? (
-            <OnePageSummaryReport
-              project={mergedProjectForPreview}
-              collegeName={collegeName}
-              directorName={directorName}
-              directorPosition={directorPosition}
-            />
-          ) : (
-            <FullBookletReport
-              project={mergedProjectForPreview}
-              collegeName={collegeName}
-              directorName={directorName}
-              directorPosition={directorPosition}
-            />
-          )}
+          <OnePageSummaryReport
+            project={mergedProjectForPreview}
+            collegeName={collegeName}
+            directorName={directorName}
+            directorPosition={directorPosition}
+          />
         </div>
       )}
     </div>
