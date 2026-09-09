@@ -132,9 +132,12 @@ export default function DashboardPage() {
               const settingYear = parseInt(currentFiscalYear) || 2569;
               const apiYears: number[] = stats?.available_years || [];
               const yearSet = new Set<number>([settingYear, ...apiYears]);
-              // Also add 1 previous and 1 next year for easy navigation if not exists
+              // Add adjacent future and past years for easy navigation
+              yearSet.add(settingYear + 2);
+              yearSet.add(settingYear + 1);
               yearSet.add(settingYear - 1);
-              const sortedYears = Array.from(yearSet).sort((a, b) => b - a);
+              yearSet.add(settingYear - 2);
+              const sortedYears = Array.from(yearSet).filter((y) => !isNaN(y) && y > 2500).sort((a, b) => b - a);
 
               return sortedYears.map((y) => (
                 <option key={y} value={y} className="text-slate-900">

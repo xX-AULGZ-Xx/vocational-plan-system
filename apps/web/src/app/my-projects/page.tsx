@@ -298,9 +298,9 @@ export default function MyProjectsPage() {
             className="w-full sm:w-44 px-3 py-2 bg-slate-50 border border-slate-200 rounded-theme text-sm focus:border-theme-primary outline-none cursor-pointer transition"
           >
             <option value="ALL">ทุกปีงบประมาณ</option>
-            {Array.from({ length: 5 }, (_, i) => {
+            {Array.from({ length: 6 }, (_, i) => {
               const baseYear = parseInt(currentFiscalYear) || 2569;
-              const y = baseYear + 1 - i;
+              const y = baseYear + 2 - i;
               return (
                 <option key={y} value={String(y)}>
                   ปีงบประมาณ {y} {y === baseYear ? '(ปัจจุบัน)' : ''}
