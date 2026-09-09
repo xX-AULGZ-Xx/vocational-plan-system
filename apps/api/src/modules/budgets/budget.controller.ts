@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, AuthRequest } from '../../middlewares/auth';
+import { getProjectTargetDivisionId } from '../approvals/approval.controller';
 
 const router = Router();
 
@@ -59,6 +60,9 @@ router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
     };
 
     // 3. Division budget summary (4 divisions)
+    const divisionsList = await prisma.division.findMany();
+    const divisionMap = new Map<number, any>(divisionsList.map(d => [d.id, d]));
+
     const divisionSummary: Record<string, { code: string; name: string; totalBudget: number; spent: number; projectCount: number }> = {
       ACAD: { code: 'ACAD', name: 'ฝ่ายวิชาการ', totalBudget: 0, spent: 0, projectCount: 0 },
       RES: { code: 'RES', name: 'ฝ่ายบริหารทรัพยากร', totalBudget: 0, spent: 0, projectCount: 0 },
@@ -90,13 +94,22 @@ router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
         statusCounts[p.status] = 1;
       }
 
-      const divCode = p.department?.division?.code?.toUpperCase();
-      if (divCode && divisionSummary[divCode]) {
-        if (isApproved || isSubmitted) {
-          divisionSummary[divCode].totalBudget += budgetNum;
-          divisionSummary[divCode].spent += spentNum;
+      // Resolve division code (via dynamic target division or department division)
+      let resolvedDivCode = p.department?.division?.code?.toUpperCase();
+      const targetDivId = await getProjectTargetDivisionId(p);
+      if (targetDivId && divisionMap.has(targetDivId)) {
+        resolvedDivCode = divisionMap.get(targetDivId)?.code?.toUpperCase() || resolvedDivCode;
+      }
+
+      if (resolvedDivCode && divisionSummary[resolvedDivCode]) {
+        // Strict business rule: Only count budget and spent for 4 divisions when project is APPROVED by Director
+        if (isApproved) {
+          divisionSummary[resolvedDivCode].totalBudget += budgetNum;
+          divisionSummary[resolvedDivCode].spent += spentNum;
         }
-        divisionSummary[divCode].projectCount += 1;
+        if (isApproved || isSubmitted) {
+          divisionSummary[resolvedDivCode].projectCount += 1;
+        }
       }
 
       for (const al of p.alignments) {
@@ -110,14 +123,14 @@ router.get('/dashboard-stats', async (req: AuthRequest, res: Response) => {
           };
         }
         strategicCounts[indCode].count += 1;
-        if (isApproved || isSubmitted) {
+        if (isApproved) {
           strategicCounts[indCode].budget += budgetNum;
         }
       }
     }
 
-    // Display budget: if approved budget exists use it, otherwise show total proposed budget from active workflow
-    const effectiveAllocated = totalAllocated > 0 ? totalAllocated : totalProposed;
+    // Display budget: only approved budget for allocated total
+    const effectiveAllocated = totalAllocated;
     const remainingBudget = Math.max(0, effectiveAllocated - actualSpent);
     const spendingPercentage = effectiveAllocated > 0 ? (actualSpent / effectiveAllocated) * 100 : 0;
 

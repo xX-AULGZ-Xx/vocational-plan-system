@@ -199,12 +199,12 @@ export default function DashboardPage() {
         {/* Total Allocated */}
         <div className="bg-white p-5 rounded-theme border border-slate-200 shadow-sm flex items-start justify-between">
           <div className="space-y-1">
-            <p className="text-xs font-medium text-slate-500">งบประมาณรวมตามแผน</p>
+            <p className="text-xs font-medium text-slate-500">งบประมาณรวมตามแผน (อนุมัติแล้ว)</p>
             <h2 className="text-2xl font-bold text-slate-900 font-mono">
               {stats?.metrics?.total_allocated?.toLocaleString('th-TH', { minimumFractionDigits: 2 }) || '0.00'}
             </h2>
             <p className="text-xs text-slate-400">
-              บาท {stats?.metrics?.approved_budget > 0 ? '(อนุมัติแล้ว)' : '(เสนอขออนุมัติ)'} • {stats?.total_projects || 0} โครงการ
+              บาท (เฉพาะโครงการที่ ผอ. อนุมัติแล้ว) • {stats?.status_counts?.approved || 0} โครงการ
             </p>
           </div>
           <div className="p-3 bg-theme-primary-light text-theme-primary rounded-theme">
@@ -269,7 +269,7 @@ export default function DashboardPage() {
               <BarChart3 className="w-5 h-5 text-theme-primary" />
               <h2 className="font-bold text-slate-900 text-base">การจัดสรรงบประมาณจำแนกตาม 4 ฝ่ายบริหาร</h2>
             </div>
-            <span className="text-xs text-slate-400">ภาพรวมโครงการ</span>
+            <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">เฉพาะที่ ผอ. อนุมัติแล้ว</span>
           </div>
 
           <div className="space-y-4">
