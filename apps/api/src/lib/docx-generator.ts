@@ -203,10 +203,8 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
               if (fs.existsSync(absPath)) return fs.readFileSync(absPath);
             }
             if (trimmed.startsWith('/api/v1/projects/documents/')) {
-              // Extract document id if URL was passed
               const docIdMatch = trimmed.match(/\/documents\/(\d+)\//);
               if (docIdMatch) {
-                // Look up in documents dir by prefix if possible or direct path
                 const possibleFiles = fs.existsSync(path.join(STORAGE_DIR, 'documents')) ? fs.readdirSync(path.join(STORAGE_DIR, 'documents')) : [];
                 const matched = possibleFiles.find(f => f.startsWith(docIdMatch[1]) || f.includes(docIdMatch[1]));
                 if (matched) return fs.readFileSync(path.join(STORAGE_DIR, 'documents', matched));
@@ -227,7 +225,7 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
         }
         const size = formData[`${tagName}_size`];
         if (size && Array.isArray(size) && size.length === 2) {
-          return size; // [width, height] in pixels
+          return size;
         }
         return [220, 160];
       }
