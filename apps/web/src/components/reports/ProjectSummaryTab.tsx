@@ -10,7 +10,11 @@ import {
   Download,
   Save,
   Sparkles,
-  Edit3
+  Edit3,
+  Paperclip,
+  Image as ImageIcon,
+  Check,
+  X
 } from 'lucide-react';
 
 interface ProjectSummaryTabProps {
@@ -24,6 +28,15 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
   const [activeView, setActiveView] = useState<'preview' | 'edit'>('preview');
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [selectingImageSlot, setSelectingImageSlot] = useState<number | null>(null);
+
+  const imageDocuments = useMemo(() => {
+    if (!Array.isArray(project?.documents)) return [];
+    return project.documents.filter((doc: any) => {
+      const ext = (doc.file_type || '').toLowerCase();
+      return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) || (doc.file_name && /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.file_name));
+    });
+  }, [project?.documents]);
 
   const parsedDynamic = useMemo(() => {
     if (!project?.dynamic_data) return {};
@@ -295,15 +308,22 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
 
             {/* 4 Activity Images Upload / Preview Section */}
             <div className="space-y-2 pt-2 border-t border-slate-100">
-              <label className="block font-bold text-slate-800 text-xs">
-                ภาพกิจกรรมโครงการ (๔ รูปภาพสำหรับแม่แบบสรุปโครงการ)
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block font-bold text-slate-800 text-xs">
+                  ภาพกิจกรรมโครงการ (๔ รูปภาพสำหรับแม่แบบสรุปโครงการ)
+                </label>
+                {imageDocuments.length > 0 && (
+                  <span className="text-[11px] text-theme-primary font-medium">
+                    (พบรูปภาพในแท็บไฟล์แนบ {imageDocuments.length} ภาพ)
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[1, 2, 3, 4].map((num) => {
                   const fieldKey = `activity_image_${num}` as keyof typeof summaryData;
                   const imgVal = summaryData[fieldKey];
                   return (
-                    <div key={num} className="border-2 border-dashed border-slate-200 rounded-xl p-2.5 text-center bg-slate-50/50 hover:bg-slate-50 transition relative group">
+                    <div key={num} className="border-2 border-dashed border-slate-200 rounded-xl p-2.5 text-center bg-slate-50/50 hover:bg-slate-50 transition relative group flex flex-col justify-between">
                       <div className="text-[11px] font-bold text-slate-700 mb-1.5">ภาพกิจกรรมที่ {num}</div>
                       {imgVal ? (
                         <div className="relative aspect-4/3 rounded-lg overflow-hidden border border-slate-200 bg-white mb-2 shadow-2xs">
@@ -318,25 +338,38 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
                           </button>
                         </div>
                       ) : (
-                        <label className="aspect-4/3 flex flex-col items-center justify-center border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-theme-primary hover:bg-white transition mb-2">
-                          <span className="text-2xl text-slate-400 mb-1">+</span>
-                          <span className="text-[10px] text-slate-500 font-medium">คลิกอัปโหลดรูป</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (ev) => {
-                                  handleChange(fieldKey, ev.target?.result as string);
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                        </label>
+                        <div className="space-y-1.5 mb-1">
+                          <label className="aspect-4/3 flex flex-col items-center justify-center border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-theme-primary hover:bg-white transition">
+                            <span className="text-xl text-slate-400 mb-0.5">+</span>
+                            <span className="text-[10px] text-slate-600 font-bold">อัปโหลดรูปใหม่</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    handleChange(fieldKey, ev.target?.result as string);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+
+                          {imageDocuments.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectingImageSlot(num)}
+                              className="w-full py-1 px-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-[10px] font-bold border border-blue-200 flex items-center justify-center gap-1 transition"
+                            >
+                              <Paperclip className="w-3 h-3" />
+                              <span>เลือกจากไฟล์แนบ</span>
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
@@ -427,6 +460,90 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
             directorName={directorName}
             directorPosition={directorPosition}
           />
+        </div>
+      )}
+
+      {/* Modal for selecting image from attachments */}
+      {selectingImageSlot !== null && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Paperclip className="w-5 h-5 text-theme-primary" />
+                <h3 className="font-bold text-sm text-slate-800">
+                  เลือกรูปภาพจากแท็บไฟล์แนบ (สำหรับภาพกิจกรรมที่ {selectingImageSlot})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectingImageSlot(null)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {imageDocuments.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <ImageIcon className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                <p className="text-xs font-semibold text-slate-600">ยังไม่มีไฟล์รูปภาพในแท็บไฟล์แนบ</p>
+                <p className="text-[11px] text-slate-400 mt-1">ท่านสามารถอัปโหลดรูปภาพใหม่ลงในช่องได้โดยตรง</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto p-1">
+                {imageDocuments.map((doc: any) => {
+                  const docUrl = `/api/v1/projects/documents/${doc.id}/download`;
+                  return (
+                    <div
+                      key={doc.id}
+                      onClick={async () => {
+                        try {
+                          // Fetch and convert to base64 data URL so Word template can render it seamlessly
+                          const res = await fetch(docUrl);
+                          const blob = await res.blob();
+                          const reader = new FileReader();
+                          reader.onload = (e) => {
+                            handleChange(`activity_image_${selectingImageSlot}`, e.target?.result as string);
+                            setSelectingImageSlot(null);
+                          };
+                          reader.readAsDataURL(blob);
+                        } catch (err) {
+                          console.error('Error loading attachment image:', err);
+                          handleChange(`activity_image_${selectingImageSlot}`, docUrl);
+                          setSelectingImageSlot(null);
+                        }
+                      }}
+                      className="group cursor-pointer border border-slate-200 hover:border-theme-primary rounded-xl overflow-hidden bg-slate-50 hover:bg-white transition flex flex-col p-2 text-left shadow-2xs hover:shadow-md"
+                    >
+                      <div className="aspect-4/3 rounded-lg overflow-hidden bg-slate-200 mb-2 relative">
+                        <img
+                          src={docUrl}
+                          alt={doc.file_name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                        />
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-700 line-clamp-1 group-hover:text-theme-primary" title={doc.file_name}>
+                        {doc.file_name}
+                      </p>
+                      <span className="text-[10px] text-slate-400 uppercase mt-0.5">
+                        {doc.file_type || 'IMAGE'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex justify-end pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setSelectingImageSlot(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
