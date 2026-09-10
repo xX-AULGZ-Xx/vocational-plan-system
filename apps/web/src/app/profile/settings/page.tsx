@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
@@ -32,6 +32,19 @@ import {
   GraduationCap,
   ShieldCheck,
   UserCheck,
+  ZoomIn,
+  ZoomOut,
+  Move,
+  RotateCw,
+  AlignCenter,
+  Maximize2,
+  Sliders,
+  Crop,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft as ArrowLeftIcon,
+  ArrowRight as ArrowRightIcon,
+  RefreshCw,
 } from 'lucide-react';
 
 interface Department {
@@ -101,6 +114,17 @@ export default function ProfileSettingsPage() {
   const [signatureImg, setSignatureImg] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
 
+  // Avatar Reposition & Crop State
+  const [rawAvatarImage, setRawAvatarImage] = useState<string | null>(null);
+  const [avatarZoom, setAvatarZoom] = useState<number>(1);
+  const [avatarOffsetX, setAvatarOffsetX] = useState<number>(0);
+  const [avatarOffsetY, setAvatarOffsetY] = useState<number>(0);
+  const [avatarRotation, setAvatarRotation] = useState<number>(0);
+  const [isDraggingAvatar, setIsDraggingAvatar] = useState<boolean>(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const avatarCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const avatarImgRef = useRef<HTMLImageElement | null>(null);
+
   // Password Form State
   const [passwordData, setPasswordData] = useState({
     current_password: '',
@@ -147,6 +171,9 @@ export default function ProfileSettingsPage() {
         setEmail(u.email || '');
         setSignatureImg(u.signature_img || '');
         setAvatarUrl(u.avatar_url || '');
+        if (u.avatar_url) {
+          setRawAvatarImage(u.avatar_url);
+        }
 
         if (u.position) {
           if (TEACHER_POSITIONS.includes(u.position)) {
@@ -220,7 +247,7 @@ export default function ProfileSettingsPage() {
     setSelectedDivisionIds((prev) => {
       let next: number[];
       if (prev.includes(divId)) {
-        if (prev.length === 1) return prev; // Keep at least 1
+        if (prev.length === 1) return prev;
         next = prev.filter((id) => id !== divId);
       } else {
         next = [...prev, divId];
@@ -285,6 +312,120 @@ export default function ProfileSettingsPage() {
         return [...prev, deptId];
       }
     });
+  };
+
+  // -------------------------------------------------------------
+  // Avatar Canvas Cropper & Repositioning Logic
+  // -------------------------------------------------------------
+  const renderAvatarToCanvas = useCallback(() => {
+    const canvas = avatarCanvasRef.current;
+    if (!canvas || !rawAvatarImage) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = rawAvatarImage;
+    img.onload = () => {
+      avatarImgRef.current = img;
+      const size = canvas.width; // e.g. 300x300
+      ctx.clearRect(0, 0, size, size);
+
+      // Background fill
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, size, size);
+
+      ctx.save();
+      // Move to center of canvas
+      ctx.translate(size / 2, size / 2);
+      ctx.rotate((avatarRotation * Math.PI) / 180);
+      ctx.scale(avatarZoom, avatarZoom);
+
+      // Calculate aspect ratio covering
+      const imgAspect = img.width / img.height;
+      let drawW = size;
+      let drawH = size;
+
+      if (imgAspect > 1) {
+        drawW = size * imgAspect;
+        drawH = size;
+      } else {
+        drawW = size;
+        drawH = size / imgAspect;
+      }
+
+      // Draw image with offset
+      ctx.drawImage(
+        img,
+        -drawW / 2 + avatarOffsetX,
+        -drawH / 2 + avatarOffsetY,
+        drawW,
+        drawH
+      );
+
+      ctx.restore();
+    };
+  }, [rawAvatarImage, avatarZoom, avatarOffsetX, avatarOffsetY, avatarRotation]);
+
+  useEffect(() => {
+    if (rawAvatarImage && activeTab === 'avatar') {
+      renderAvatarToCanvas();
+    }
+  }, [rawAvatarImage, avatarZoom, avatarOffsetX, avatarOffsetY, avatarRotation, activeTab, renderAvatarToCanvas]);
+
+  // Apply crop from canvas to avatarUrl
+  const handleApplyCroppedAvatar = () => {
+    const canvas = avatarCanvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png', 0.95);
+    setAvatarUrl(dataUrl);
+    showAlert.success('ปรับตำแหน่งเรียบร้อย', 'รูปภาพของคุณได้รับการตัดและปรับมุมมองแล้ว อย่าลืมกดบันทึกรูปโปรไฟล์');
+  };
+
+  // Mouse / Touch Drag handlers for Avatar canvas
+  const handleAvatarMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDraggingAvatar(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleAvatarMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDraggingAvatar) return;
+    const deltaX = e.clientX - dragStart.x;
+    const deltaY = e.clientY - dragStart.y;
+    setAvatarOffsetX((prev) => Math.max(-200, Math.min(200, prev + deltaX * (1 / avatarZoom))));
+    setAvatarOffsetY((prev) => Math.max(-200, Math.min(200, prev + deltaY * (1 / avatarZoom))));
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleAvatarMouseUp = () => {
+    setIsDraggingAvatar(false);
+  };
+
+  const handleAvatarTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 1) {
+      setIsDraggingAvatar(true);
+      setDragStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    }
+  };
+
+  const handleAvatarTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDraggingAvatar || e.touches.length !== 1) return;
+    const deltaX = e.touches[0].clientX - dragStart.x;
+    const deltaY = e.touches[0].clientY - dragStart.y;
+    setAvatarOffsetX((prev) => Math.max(-200, Math.min(200, prev + deltaX * (1 / avatarZoom))));
+    setAvatarOffsetY((prev) => Math.max(-200, Math.min(200, prev + deltaY * (1 / avatarZoom))));
+    setDragStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+  };
+
+  const handleAvatarTouchEnd = () => {
+    setIsDraggingAvatar(false);
+  };
+
+  const resetAvatarPosition = () => {
+    setAvatarZoom(1);
+    setAvatarOffsetX(0);
+    setAvatarOffsetY(0);
+    setAvatarRotation(0);
   };
 
   const handleUpdateProfile = async (e?: React.FormEvent) => {
@@ -445,13 +586,16 @@ export default function ProfileSettingsPage() {
   const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      showAlert.error('ไฟล์มีขนาดใหญ่เกินไป', 'กรุณาอัปโหลดรูปภาพขนาดไม่เกิน 2MB');
+    if (file.size > 5 * 1024 * 1024) {
+      showAlert.error('ไฟล์มีขนาดใหญ่เกินไป', 'กรุณาอัปโหลดรูปภาพขนาดไม่เกิน 5MB');
       return;
     }
     const reader = new FileReader();
     reader.onload = () => {
-      setAvatarUrl(reader.result as string);
+      const res = reader.result as string;
+      setRawAvatarImage(res);
+      setAvatarUrl(res);
+      resetAvatarPosition();
     };
     reader.readAsDataURL(file);
   };
@@ -472,12 +616,12 @@ export default function ProfileSettingsPage() {
   };
 
   const avatarPresets = [
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=300&auto=format&fit=crop&q=80',
   ];
 
   const getRoleLabel = (role?: string) => {
@@ -622,7 +766,7 @@ export default function ProfileSettingsPage() {
           }`}
         >
           <Camera className={`w-4 h-4 ${activeTab === 'avatar' ? 'text-theme-primary' : 'text-slate-400'}`} />
-          <span>รูปภาพโปรไฟล์</span>
+          <span>รูปภาพโปรไฟล์ & ปรับตำแหน่ง</span>
         </button>
 
         <button
@@ -974,54 +1118,260 @@ export default function ProfileSettingsPage() {
         </div>
       )}
 
-      {/* TAB 2: Avatar Photo */}
+      {/* TAB 2: Avatar Photo & Position / Zoom Adjuster */}
       {activeTab === 'avatar' && (
         <div className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6 animate-in fade-in duration-150">
-          <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
-            <div className="p-2 rounded-theme bg-theme-primary-light text-theme-primary">
-              <Camera className="w-5 h-5" />
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-theme bg-theme-primary-light text-theme-primary">
+                <Camera className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="font-bold text-sm sm:text-base text-slate-900">รูปภาพประจำตัว & ปรับตำแหน่ง (Avatar Position Adjuster)</h2>
+                <p className="text-[11px] text-slate-500">อัปโหลด ซูมเข้า-ออก ลากเลื่อนตำแหน่ง และตัดรูปภาพให้สวยงามพอดีกรอบ</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-bold text-sm sm:text-base text-slate-900">รูปภาพประจำตัว (Avatar Picture)</h2>
-              <p className="text-[11px] text-slate-500">เลือกรูปภาพเพื่อแสดงผลใน Navbar และโปรไฟล์ของคุณ</p>
-            </div>
+            {rawAvatarImage && (
+              <button
+                type="button"
+                onClick={resetAvatarPosition}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-theme transition"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>รีเซ็ตตำแหน่ง</span>
+              </button>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-            {/* Current Preview */}
-            <div className="flex flex-col items-center p-6 bg-slate-50 rounded-theme border border-slate-200/80 space-y-3">
-              <span className="text-xs font-bold text-slate-700">ตัวอย่างรูปปัจจุบัน</span>
-              <div className="relative">
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt={fullName}
-                    referrerPolicy="no-referrer"
-                    className="w-28 h-28 rounded-theme object-cover border-2 border-theme-primary shadow-md"
-                  />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Interactive Image Repositioning / Cropping Canvas Pad */}
+            <div className="lg:col-span-7 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Move className="w-4 h-4 text-theme-primary" />
+                  <span>ลากเมาส์หรือนิ้วบนรูปภาพเพื่อเลื่อนตำแหน่ง (Drag & Position)</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  X: {Math.round(avatarOffsetX)}px, Y: {Math.round(avatarOffsetY)}px
+                </span>
+              </div>
+
+              {/* Canvas viewport */}
+              <div className="relative border-2 border-dashed border-slate-300 hover:border-theme-primary rounded-theme bg-slate-900/5 p-4 flex flex-col items-center justify-center transition">
+                {rawAvatarImage ? (
+                  <div className="relative group cursor-grab active:cursor-grabbing select-none overflow-hidden rounded-2xl shadow-md border-2 border-theme-primary">
+                    <canvas
+                      ref={avatarCanvasRef}
+                      width={320}
+                      height={320}
+                      onMouseDown={handleAvatarMouseDown}
+                      onMouseMove={handleAvatarMouseMove}
+                      onMouseUp={handleAvatarMouseUp}
+                      onMouseLeave={handleAvatarMouseUp}
+                      onTouchStart={handleAvatarTouchStart}
+                      onTouchMove={handleAvatarTouchMove}
+                      onTouchEnd={handleAvatarTouchEnd}
+                      className="bg-white touch-none max-w-full h-auto"
+                    />
+
+                    {/* Overlay Grid / Visual Circular Guide */}
+                    <div className="absolute inset-0 pointer-events-none border border-white/40 rounded-full m-3 ring-1 ring-black/20" />
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                      <div className="bg-black/60 text-white text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 backdrop-blur-xs">
+                        <Move className="w-3 h-3" />
+                        <span>คลิกค้างแล้วลากเพื่อขยับ</span>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="w-28 h-28 rounded-theme bg-slate-900 text-white flex items-center justify-center font-bold text-4xl shadow-md">
-                    {fullName?.charAt(0) || 'U'}
+                  <div className="py-12 text-center text-slate-400 space-y-2">
+                    <Camera className="w-12 h-12 mx-auto opacity-30" />
+                    <p className="text-xs font-bold text-slate-600">ยังไม่มีการเลือกรูปภาพ</p>
+                    <p className="text-[11px]">กรุณาอัปโหลดรูปภาพหรือเลือกจากตัวอย่างด้านล่าง</p>
                   </div>
                 )}
               </div>
-              <p className="text-[10px] text-slate-400 text-center">
-                จะแสดงผลในแถบเมนูบน และระบบอนุมัติโครงการ
-              </p>
+
+              {/* Interactive Controls (Zoom, Move, Rotate) */}
+              {rawAvatarImage && (
+                <div className="p-4 bg-slate-50 rounded-theme border border-slate-200/80 space-y-3 text-xs">
+                  {/* Zoom Slider */}
+                  <div className="flex items-center gap-3">
+                    <ZoomOut className="w-4 h-4 text-slate-400 shrink-0" />
+                    <div className="flex-1">
+                      <div className="flex justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ซูมขยายภาพ (Zoom Scale)</span>
+                        <span className="font-mono text-theme-primary">{avatarZoom.toFixed(1)}x</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.8"
+                        max="3.0"
+                        step="0.05"
+                        value={avatarZoom}
+                        onChange={(e) => setAvatarZoom(parseFloat(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-theme-primary"
+                      />
+                    </div>
+                    <ZoomIn className="w-4 h-4 text-slate-400 shrink-0" />
+                  </div>
+
+                  {/* Horizontal & Vertical Positioning Sliders */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <div className="flex justify-between text-[10px] font-bold text-slate-600 mb-1">
+                        <span>ตำแหน่งแนวนอน (X)</span>
+                        <span className="font-mono">{Math.round(avatarOffsetX)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-150"
+                        max="150"
+                        step="1"
+                        value={avatarOffsetX}
+                        onChange={(e) => setAvatarOffsetX(parseInt(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-theme-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-[10px] font-bold text-slate-600 mb-1">
+                        <span>ตำแหน่งแนวตั้ง (Y)</span>
+                        <span className="font-mono">{Math.round(avatarOffsetY)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-150"
+                        max="150"
+                        step="1"
+                        value={avatarOffsetY}
+                        onChange={(e) => setAvatarOffsetY(parseInt(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-theme-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick Direction & Rotation Buttons */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-slate-500 mr-1">ปุ่มปรับด่วน:</span>
+                      <button
+                        type="button"
+                        onClick={() => setAvatarOffsetY((prev) => prev - 15)}
+                        className="p-1.5 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-slate-700"
+                        title="เลื่อนขึ้น"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAvatarOffsetY((prev) => prev + 15)}
+                        className="p-1.5 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-slate-700"
+                        title="เลื่อนลง"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAvatarOffsetX((prev) => prev - 15)}
+                        className="p-1.5 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-slate-700"
+                        title="เลื่อนซ้าย"
+                      >
+                        <ArrowLeftIcon className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAvatarOffsetX((prev) => prev + 15)}
+                        className="p-1.5 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-slate-700"
+                        title="เลื่อนขวา"
+                      >
+                        <ArrowRightIcon className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAvatarOffsetX(0);
+                          setAvatarOffsetY(0);
+                        }}
+                        className="px-2 py-1 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-700"
+                      >
+                        กึ่งกลาง
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setAvatarRotation((prev) => (prev + 90) % 360)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-700"
+                    >
+                      <RotateCw className="w-3 h-3 text-theme-primary" />
+                      <span>หมุน 90°</span>
+                    </button>
+                  </div>
+
+                  {/* Apply Crop Button */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleApplyCroppedAvatar}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme font-bold text-xs shadow-sm transition active:scale-95"
+                    >
+                      <Crop className="w-4 h-4" />
+                      <span>ตัดและนำมุมมองนี้ไปใช้ (Apply Viewport Crop)</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Upload & Presets */}
-            <div className="md:col-span-2 space-y-5">
+            {/* Right Column: Upload, Presets, and Live Navbar / Profile Preview */}
+            <div className="lg:col-span-5 space-y-5">
+              {/* Preview in Navbar & Profile */}
+              <div className="p-5 bg-slate-50 rounded-theme border border-slate-200/80 space-y-4">
+                <span className="text-xs font-bold text-slate-800 block">ตัวอย่างการแสดงผลจริงในระบบ (Live Preview)</span>
+                
+                <div className="flex items-center justify-around gap-4 py-2">
+                  {/* Circular Preview (Navbar) */}
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-theme-primary shadow-sm bg-white">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center font-bold text-lg">
+                          {fullName?.charAt(0) || 'U'}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium">แถบเมนู Navbar</span>
+                  </div>
+
+                  {/* Rounded Square Preview (Profile Card) */}
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="w-20 h-20 rounded-theme overflow-hidden border-2 border-theme-primary shadow-md bg-white">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-900 text-white flex items-center justify-center font-bold text-2xl">
+                          {fullName?.charAt(0) || 'U'}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium">หน้าโปรไฟล์ Profile</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Upload Image File */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-2">
-                  อัปโหลดรูปภาพจากอุปกรณ์ (Upload Image File)
+                  อัปโหลดไฟล์รูปภาพใหม่ (Upload Photo)
                 </label>
-                <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 hover:border-theme-primary rounded-theme cursor-pointer bg-slate-50/50 hover:bg-theme-primary-light/40 transition group">
-                  <Upload className="w-6 h-6 text-slate-400 group-hover:text-theme-primary mb-2 transition" />
+                <label className="flex flex-col items-center justify-center p-5 border-2 border-dashed border-slate-300 hover:border-theme-primary rounded-theme cursor-pointer bg-slate-50/50 hover:bg-theme-primary-light/40 transition group">
+                  <Upload className="w-6 h-6 text-slate-400 group-hover:text-theme-primary mb-1.5 transition" />
                   <span className="text-xs font-bold text-slate-700 group-hover:text-theme-primary">
-                    คลิกเพื่อเลือกไฟล์รูปภาพ (JPG, PNG, WebP)
+                    เลือกรูปภาพจากเครื่อง (JPG, PNG, WebP)
                   </span>
-                  <span className="text-[10px] text-slate-400 mt-0.5">ขนาดไม่เกิน 2MB</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">ขนาดไม่เกิน 5MB</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -1031,30 +1381,40 @@ export default function ProfileSettingsPage() {
                 </label>
               </div>
 
+              {/* Image URL Direct Input */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   หรือระบุลิงก์รูปภาพโดยตรง (Image URL)
                 </label>
                 <input
                   type="text"
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
+                  value={rawAvatarImage || avatarUrl}
+                  onChange={(e) => {
+                    setRawAvatarImage(e.target.value);
+                    setAvatarUrl(e.target.value);
+                    resetAvatarPosition();
+                  }}
                   placeholder="https://example.com/avatar.jpg"
                   className="w-full px-4 py-2.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary transition bg-slate-50/50 focus:bg-white text-xs"
                 />
               </div>
 
+              {/* Preset Avatars */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-2">
                   หรือเลือกจากภาพตัวอย่าง (Preset Avatars)
                 </label>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2.5">
                   {avatarPresets.map((preset, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => setAvatarUrl(preset)}
-                      className={`relative w-12 h-12 rounded-theme overflow-hidden border-2 transition ${
+                      onClick={() => {
+                        setRawAvatarImage(preset);
+                        setAvatarUrl(preset);
+                        resetAvatarPosition();
+                      }}
+                      className={`relative w-11 h-11 rounded-theme overflow-hidden border-2 transition ${
                         avatarUrl === preset ? 'border-theme-primary ring-2 ring-theme-primary/30 scale-105' : 'border-slate-200 hover:border-slate-400'
                       }`}
                     >
@@ -1069,7 +1429,10 @@ export default function ProfileSettingsPage() {
                   {avatarUrl && (
                     <button
                       type="button"
-                      onClick={() => setAvatarUrl('')}
+                      onClick={() => {
+                        setRawAvatarImage(null);
+                        setAvatarUrl('');
+                      }}
                       className="px-3 py-1.5 rounded-theme border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 text-[11px] font-bold transition flex items-center gap-1"
                     >
                       <Eraser className="w-3.5 h-3.5" />
@@ -1079,12 +1442,13 @@ export default function ProfileSettingsPage() {
                 </div>
               </div>
 
+              {/* Save All Profile button */}
               <div className="pt-4 border-t border-slate-100 flex justify-end">
                 <button
                   type="button"
                   onClick={() => handleUpdateProfile()}
                   disabled={savingProfile}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>{savingProfile ? 'กำลังบันทึก...' : 'บันทึกรูปโปรไฟล์'}</span>
