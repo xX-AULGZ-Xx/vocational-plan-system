@@ -385,9 +385,9 @@ export default function SystemUpdatePage() {
   };
 
   return (
-    <div className="space-y-6 pb-16 animate-in fade-in duration-200">
+    <div className="space-y-6 pb-16">
       {/* Header Banner with GitHub Repo Link Styled with System Theme */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-theme-gradient p-6 sm:p-7 rounded-theme text-white shadow-xl transition-all duration-300">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-theme-gradient p-6 sm:p-7 rounded-theme text-white shadow-xl">
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 text-white border border-white/20 rounded-full text-xs font-semibold backdrop-blur-sm">
             <GitBranch className="w-3.5 h-3.5" />

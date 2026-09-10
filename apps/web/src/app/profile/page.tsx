@@ -209,9 +209,9 @@ export default function ProfileDashboardPage() {
   const roleInfo = getRoleBadge(user?.role);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-20 animate-in fade-in duration-200">
+    <div className="max-w-7xl mx-auto space-y-6 pb-20">
       {/* 1. Header Profile Banner Styled with System Theme */}
-      <div className="relative overflow-hidden bg-theme-gradient text-white rounded-theme p-6 sm:p-8 shadow-xl transition-all duration-300">
+      <div className="relative overflow-hidden bg-theme-gradient text-white rounded-theme p-6 sm:p-8 shadow-xl">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-72 h-72 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           {/* User Profile Details */}
@@ -425,7 +425,7 @@ export default function ProfileDashboardPage() {
 
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-150">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left 2 Cols: Recent Projects & Visual Progress */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white p-6 rounded-theme border border-slate-200 shadow-2xs space-y-4">
@@ -664,7 +664,7 @@ export default function ProfileDashboardPage() {
 
       {/* TAB 2: MY PROJECTS (โครงการของฉัน) */}
       {activeTab === 'projects' && (
-        <div className="bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-2xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
               <h2 className="font-black text-slate-900 text-base">รายการโครงการของฉัน</h2>
@@ -796,7 +796,7 @@ export default function ProfileDashboardPage() {
 
       {/* TAB 3: PROJECT PROGRESS (ความคืบหน้าโครงการ) */}
       {activeTab === 'progress' && (
-        <div className="bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-2xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
             <div>
               <h2 className="font-black text-slate-900 text-base">ความคืบหน้าการพิจารณาและอนุมัติโครงการ</h2>
@@ -910,7 +910,7 @@ export default function ProfileDashboardPage() {
 
       {/* TAB 4: PROJECT STATUS (สถานะโครงการ) */}
       {activeTab === 'status' && (
-        <div className="bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-2xs space-y-6">
           <div>
             <h2 className="font-black text-slate-900 text-base">การจัดกลุ่มตามสถานะโครงการ</h2>
             <p className="text-xs text-slate-500">สรุปความพร้อมและสถานะการดำเนินงานของแต่ละโครงการ</p>

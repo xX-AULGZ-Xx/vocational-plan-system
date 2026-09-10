@@ -291,7 +291,7 @@ export default function DivisionPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
       {/* Top Banner */}
-      <div className="relative overflow-hidden bg-theme-gradient text-white rounded-theme p-6 sm:p-7 shadow-lg transition-all duration-300">
+      <div className="relative overflow-hidden bg-theme-gradient text-white rounded-theme p-6 sm:p-7 shadow-lg">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="flex items-center gap-4">

@@ -677,9 +677,9 @@ export default function ProfileSettingsPage() {
   const activeDivisionsWithDepts = divisions.filter((d) => selectedDivisionIds.includes(d.id));
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20 animate-in fade-in duration-200">
+    <div className="max-w-5xl mx-auto space-y-6 pb-20">
       {/* Top Banner & User Card Styled with System Gradient */}
-      <div className="relative overflow-hidden bg-theme-gradient text-white rounded-theme p-6 sm:p-8 shadow-xl transition-all duration-300">
+      <div className="relative overflow-hidden bg-theme-gradient text-white rounded-theme p-6 sm:p-8 shadow-xl">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
@@ -826,7 +826,7 @@ export default function ProfileSettingsPage() {
 
       {/* TAB 1: General Info, Personnel Type, Positions, Multi-Division, Multi-Department with Head Toggle */}
       {activeTab === 'info' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-150">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <form onSubmit={handleUpdateProfile} className="md:col-span-2 bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-sm space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
@@ -1148,7 +1148,7 @@ export default function ProfileSettingsPage() {
 
       {/* TAB 2: Avatar Photo & Position / Zoom Adjuster */}
       {activeTab === 'avatar' && (
-        <div className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="p-2 rounded-theme bg-theme-primary-light text-theme-primary">
@@ -1489,7 +1489,7 @@ export default function ProfileSettingsPage() {
 
       {/* TAB 3: Digital Signature */}
       {activeTab === 'signature' && (
-        <div className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
             <div className="p-2 rounded-theme bg-emerald-50 text-emerald-600">
               <FileSignature className="w-5 h-5" />
@@ -1605,7 +1605,7 @@ export default function ProfileSettingsPage() {
 
       {/* TAB 4: Security & Password */}
       {activeTab === 'security' && (
-        <form onSubmit={handleChangePassword} className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6 max-w-2xl animate-in fade-in duration-150">
+        <form onSubmit={handleChangePassword} className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6 max-w-2xl">
           <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
             <div className="p-2 rounded-theme bg-amber-50 text-amber-600">
               <Lock className="w-5 h-5" />
