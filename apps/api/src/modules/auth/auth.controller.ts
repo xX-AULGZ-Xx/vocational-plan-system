@@ -291,53 +291,52 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     const userId = BigInt(req.user!.id);
     const { full_name, position, department_id, signature_img, avatar_url, email, role, is_head, head_dept_ids } = req.body;
 
-    if (!full_name || !full_name.trim()) {
-      return res.status(400).json({ success: false, message: 'กรุณาระบุชื่อ-นามสกุล' });
-    }
-
-    if (!department_id) {
-      return res.status(400).json({ success: false, message: 'กรุณาเลือกแผนกวิชาหรือฝ่ายงานที่สังกัด' });
-    }
-
-    const deptId = parseInt(String(department_id));
-    const deptExists = await prisma.department.findUnique({
-      where: { id: deptId },
-      include: { division: true },
-    });
-
-    if (!deptExists) {
-      return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลแผนกวิชาหรือฝ่ายงานที่ระบุ' });
-    }
-
-    // Determine if user is head of any department
-    const headIds: number[] = Array.isArray(head_dept_ids)
-      ? head_dept_ids.map((id: any) => parseInt(id))
-      : (is_head ? [deptId] : []);
-    const isUserHead = headIds.length > 0 || !!is_head;
-
-    // Check existing user to preserve roles like ADMIN, DIRECTOR, etc.
+    // Check existing user first
     const existingUser = await prisma.user.findUnique({ where: { id: userId } });
     if (!existingUser) {
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลผู้ใช้ในระบบ' });
     }
 
+    const effectiveDeptId = department_id ? parseInt(String(department_id)) : (existingUser.department_id || null);
+
+    if (existingUser.role !== 'ADMIN' && !effectiveDeptId) {
+      return res.status(400).json({ success: false, message: 'กรุณาเลือกแผนกวิชาหรือฝ่ายงานที่สังกัด' });
+    }
+
+    let deptExists = null;
+    if (effectiveDeptId) {
+      deptExists = await prisma.department.findUnique({
+        where: { id: effectiveDeptId },
+        include: { division: true },
+      });
+      if (!deptExists && existingUser.role !== 'ADMIN') {
+        return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลแผนกวิชาหรือฝ่ายงานที่ระบุ' });
+      }
+    }
+
+    // Determine if user is head of any department
+    const headIds: number[] = Array.isArray(head_dept_ids)
+      ? head_dept_ids.map((id: any) => parseInt(id))
+      : (is_head && effectiveDeptId ? [effectiveDeptId] : []);
+    const isUserHead = headIds.length > 0 || !!is_head;
+
     const updateData: any = {
-      full_name: full_name.trim(),
-      position: position ? position.trim() : 'ครูผู้สอน',
-      department_id: deptId,
+      full_name: full_name ? full_name.trim() : existingUser.full_name,
+      position: position !== undefined ? (position ? position.trim() : null) : existingUser.position,
+      department_id: effectiveDeptId && deptExists ? effectiveDeptId : (existingUser.role === 'ADMIN' ? effectiveDeptId : null),
       is_profile_completed: true,
     };
 
-    if (email && email.trim()) {
-      updateData.email = email.trim();
+    if (email !== undefined) {
+      updateData.email = email && email.trim() ? email.trim() : null;
     }
 
     if (avatar_url !== undefined) {
       updateData.avatar_url = avatar_url;
     }
 
-    if (existingUser.role === 'ADMIN' || existingUser.role === 'DIRECTOR' || existingUser.role === 'DEPUTY_DIRECTOR') {
-      // Keep executive/admin roles intact
+    if (existingUser.role === 'ADMIN' || existingUser.role === 'DIRECTOR' || existingUser.role === 'DEPUTY_DIRECTOR' || existingUser.role === 'PLANNING_OFFICER') {
+      // Keep executive/admin/planning officer roles intact
     } else if (isUserHead) {
       updateData.role = 'HEAD_DEPT';
     } else {

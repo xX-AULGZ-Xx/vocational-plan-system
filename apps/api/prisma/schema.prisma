@@ -70,10 +70,10 @@ model User {
   password_hash String?           @db.VarChar(255)
   email         String?           @unique @db.VarChar(100)
   google_id     String?           @unique @db.VarChar(100)
-  avatar_url    String?           @db.VarChar(500)
+  avatar_url    String?           @db.LongText
   full_name     String            @db.VarChar(150)
   position      String?           @db.VarChar(100)
-  signature_img String?           @db.VarChar(255)
+  signature_img String?           @db.LongText
   role          Role              @default(TEACHER)
   is_active     Boolean           @default(true)
   is_profile_completed Boolean     @default(false)
