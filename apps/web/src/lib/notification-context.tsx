@@ -181,7 +181,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
 
     eventSource.onerror = (err) => {
-      console.warn('[SSE] EventSource error or reconnection attempt:', err);
+      // If EventSource fails due to 401 Unauthorized or broken connection, close and do not loop endlessly
+      if (eventSource.readyState === EventSource.CLOSED) {
+        console.warn('[SSE] EventSource connection closed.');
+      } else {
+        console.warn('[SSE] EventSource error or reconnection attempt:', err);
+      }
     };
 
     return () => {
