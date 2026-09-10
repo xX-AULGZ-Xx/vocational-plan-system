@@ -303,8 +303,10 @@ export default function MyProjectsPage() {
         </div>
 
         <div className="w-full sm:w-auto">
-          <label className="block text-xs font-bold text-slate-700 mb-1.5">ปีงบประมาณ</label>
+          <label htmlFor="yearFilterSelect" className="block text-xs font-bold text-slate-700 mb-1.5">ปีงบประมาณ</label>
           <select
+            id="yearFilterSelect"
+            aria-label="เลือกปีงบประมาณ"
             value={yearFilter}
             onChange={(e) => setYearFilter(e.target.value)}
             className="w-full sm:w-44 px-3 py-2 bg-slate-50 border border-slate-200 rounded-theme text-sm focus:border-theme-primary outline-none cursor-pointer transition"

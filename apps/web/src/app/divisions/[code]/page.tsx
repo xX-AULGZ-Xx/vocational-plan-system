@@ -376,6 +376,7 @@ export default function DivisionPage() {
             <div className="relative flex-1 sm:max-w-xs">
               <input
                 type="text"
+                aria-label="ค้นหาชื่อโครงการ, รหัส, ผู้รับผิดชอบ"
                 placeholder="ค้นหาชื่อโครงการ, รหัส, ผู้รับผิดชอบ..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -386,11 +387,13 @@ export default function DivisionPage() {
 
             {/* Budget Type Filter Dropdown */}
             <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-slate-600 shrink-0 flex items-center gap-1">
+              <label htmlFor="budgetTypeFilter" className="text-xs font-bold text-slate-600 shrink-0 flex items-center gap-1">
                 <Wallet className="w-3.5 h-3.5 text-theme-primary" />
                 <span>ประเภทงบ:</span>
               </label>
               <select
+                id="budgetTypeFilter"
+                aria-label="ประเภทงบประมาณ"
                 value={budgetTypeFilter}
                 onChange={(e) => setBudgetTypeFilter(e.target.value)}
                 className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-theme text-xs focus:border-theme-primary outline-none cursor-pointer font-medium text-slate-700"

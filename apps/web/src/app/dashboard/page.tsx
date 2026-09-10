@@ -157,6 +157,7 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-3">
           <select
+            aria-label="เลือกปีงบประมาณ"
             value={fiscalYear}
             onChange={(e) => setFiscalYear(parseInt(e.target.value))}
             className="px-3 py-2 text-xs sm:text-sm bg-white/15 hover:bg-white/25 border border-white/20 rounded-theme text-white font-medium outline-none backdrop-blur-sm cursor-pointer"
@@ -359,6 +360,7 @@ export default function DashboardPage() {
           <div className="flex flex-wrap items-center gap-3">
             <input
               type="text"
+              aria-label="ค้นหาโครงการ"
               placeholder="ค้นหาชื่อโครงการ, รหัส, ผู้รับผิดชอบ..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -366,6 +368,7 @@ export default function DashboardPage() {
             />
 
             <select
+              aria-label="เลือกฝ่ายบริหาร"
               value={selectedDivision}
               onChange={(e) => setSelectedDivision(e.target.value)}
               className="px-3 py-1.5 text-xs border border-slate-300 rounded-theme outline-none cursor-pointer focus:border-theme-primary transition"
@@ -378,6 +381,7 @@ export default function DashboardPage() {
             </select>
 
             <select
+              aria-label="เลือกสถานะโครงการ"
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="px-3 py-1.5 text-xs border border-slate-300 rounded-theme outline-none cursor-pointer focus:border-theme-primary transition"
