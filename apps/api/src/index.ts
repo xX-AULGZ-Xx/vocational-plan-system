@@ -74,11 +74,16 @@ app.use((req: Request, res: Response) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
 
+import { exec } from 'child_process';
 import { prisma } from './lib/prisma';
 
-// Auto-sync database tables (e.g. document_templates, template_tags, settings) and column types on startup
+// Auto-sync database tables and column types on startup safely
 async function autoSyncDatabase() {
   try {
+    if (!process.env.DATABASE_URL) {
+      console.log('ℹ️ DATABASE_URL not set yet. Skipping initial autoSyncDatabase.');
+      return;
+    }
     await prisma.$executeRawUnsafe(`ALTER TABLE users MODIFY COLUMN avatar_url LONGTEXT NULL;`);
     await prisma.$executeRawUnsafe(`ALTER TABLE users MODIFY COLUMN signature_img LONGTEXT NULL;`);
     console.log('✅ Users table columns (avatar_url, signature_img) verified as LONGTEXT.');
@@ -86,13 +91,17 @@ async function autoSyncDatabase() {
     console.warn('⚠️ Column alter notice:', sqlErr?.message || sqlErr);
   }
 
-  exec('npx prisma db push --skip-generate', { cwd: path.resolve(__dirname, '..') }, (err, stdout, stderr) => {
-    if (err) {
-      console.warn('⚠️ Auto-db schema sync notice:', stderr || err.message);
-    } else {
-      console.log('✅ Database schema verified & synchronized.');
-    }
-  });
+  try {
+    exec('npx prisma db push --skip-generate', { cwd: path.resolve(__dirname, '..') }, (err, stdout, stderr) => {
+      if (err) {
+        console.warn('⚠️ Auto-db schema sync notice:', stderr || err.message);
+      } else {
+        console.log('✅ Database schema verified & synchronized.');
+      }
+    });
+  } catch (execErr: any) {
+    console.warn('⚠️ Prisma db push launch error:', execErr?.message || execErr);
+  }
 }
 
 app.listen(PORT, () => {
