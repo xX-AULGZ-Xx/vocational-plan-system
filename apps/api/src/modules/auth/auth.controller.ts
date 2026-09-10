@@ -426,6 +426,45 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
   }
 });
 
+// PUT /api/v1/auth/password (Change current user password)
+router.put('/password', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = BigInt(req.user!.id);
+    const { current_password, new_password } = req.body;
+
+    if (!new_password || new_password.length < 6) {
+      return res.status(400).json({ success: false, message: 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้ในระบบ' });
+    }
+
+    if (user.password_hash) {
+      if (!current_password) {
+        return res.status(400).json({ success: false, message: 'กรุณากรอกรหัสผ่านปัจจุบัน' });
+      }
+      const isMatch = await bcrypt.compare(current_password, user.password_hash);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' });
+      }
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(new_password, salt);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password_hash },
+    });
+
+    return res.json({ success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน', error: error.message });
+  }
+});
+
 // GET /api/v1/auth/users (for selecting approvers or project leaders)
 router.get('/users', authenticate, async (req: AuthRequest, res: Response) => {
   try {
