@@ -264,12 +264,16 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
 
         <div className={`p-3 rounded-theme border text-xs mt-6 transition-colors ${
           isLightSidebar
-            ? 'bg-slate-50 border-slate-200 text-slate-500'
-            : 'bg-slate-800/60 border-slate-700/50 text-slate-400'
+            ? 'bg-slate-50 border-slate-200 text-slate-600'
+            : 'bg-slate-800/80 border-slate-700/80 text-slate-300'
         }`}>
-          <div className={`font-semibold mb-1 flex items-center justify-between ${isLightSidebar ? 'text-slate-800' : 'text-slate-200'}`}>
+          <div className={`font-semibold mb-1 flex items-center justify-between ${isLightSidebar ? 'text-slate-900' : 'text-slate-100'}`}>
             <span>ข้อมูลผู้พัฒนา</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-theme-primary/10 text-theme-primary font-mono font-bold">v1.0</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
+              isLightSidebar
+                ? 'bg-slate-200 text-slate-800'
+                : 'bg-slate-700 text-slate-200'
+            }`}>v1.0</span>
           </div>
           <p className="text-[11px] leading-relaxed">
             {developerInfo || 'พัฒนาระบบโดย งานส่งเสริมการวิจัย นวัตกรรม และสิ่งประดิษฐ์ ร่วมกับ งานศูนย์ข้อมูลสารสนเทศ'}
