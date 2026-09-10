@@ -52,6 +52,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const savedToken = localStorage.getItem('vps_token');
     const savedUser = localStorage.getItem('vps_user');
     if (savedToken) {
+      // If token is abnormally large (e.g. > 4000 characters from legacy base64 image in payload), purge or ignore
+      if (savedToken.length > 4000) {
+        console.warn('Detected legacy oversized token, resetting session to prevent 431 header error');
+        localStorage.removeItem('vps_token');
+        localStorage.removeItem('vps_user');
+        window.location.href = '/login';
+        return;
+      }
+
       setToken(savedToken);
       if (savedUser) {
         try {
@@ -63,9 +72,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       fetch('/api/v1/auth/me', {
         headers: { Authorization: `Bearer ${savedToken}` },
       })
-        .then((res) => res.json())
+        .then((res) => {
+          if (res.status === 431) {
+            localStorage.removeItem('vps_token');
+            localStorage.removeItem('vps_user');
+            window.location.href = '/login';
+            return;
+          }
+          return res.json();
+        })
         .then((data) => {
-          if (data.success && data.user) {
+          if (data && data.success && data.user) {
             setUser(data.user);
             localStorage.setItem('vps_user', JSON.stringify(data.user));
           }
