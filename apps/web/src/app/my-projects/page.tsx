@@ -413,16 +413,26 @@ export default function MyProjectsPage() {
                       <span>แก้ไขโครงการ</span>
                     </Link>
                   )}
-                  {(user?.role === 'ADMIN' || p.status === 'draft' || p.status === 'rejected') && (
-                    <button
-                      onClick={() => handleDeleteProject(p)}
-                      className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-theme border border-red-200 transition"
-                      title="ลบโครงการ"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>ลบโครงการ</span>
-                    </button>
-                  )}
+                  {(() => {
+                    const isAtOrPastDirectorStage =
+                      p.status === 'planning_approved' ||
+                      p.status === 'approved' ||
+                      p.status === 'in_progress' ||
+                      p.status === 'completed' ||
+                      p.approvals?.some((a: any) => a.step_order === 4 && (a.status === 'APPROVED' || a.status === 'PENDING'));
+                    const canDelete = !isAtOrPastDirectorStage && (user?.role === 'ADMIN' || p.status === 'draft' || p.status === 'rejected');
+                    if (!canDelete) return null;
+                    return (
+                      <button
+                        onClick={() => handleDeleteProject(p)}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-theme border border-red-200 transition"
+                        title="ลบโครงการ"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>ลบโครงการ</span>
+                      </button>
+                    );
+                  })()}
                   {isApproved && summaryTemplates.length > 0 && (
                     <div className="relative">
                       <button

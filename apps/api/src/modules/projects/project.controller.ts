@@ -900,11 +900,31 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      include: { documents: true },
+      include: {
+        documents: true,
+        approvals: {
+          orderBy: { step_order: 'asc' },
+        },
+      },
     });
 
     if (!project) {
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลโครงการ' });
+    }
+
+    // Check if project has reached or passed Director stage (step 4 / planning_approved or later)
+    const isAtOrPastDirectorStage =
+      project.status === 'planning_approved' ||
+      project.status === 'approved' ||
+      project.status === 'in_progress' ||
+      project.status === 'completed' ||
+      project.approvals?.some((a: any) => a.step_order === 4 && (a.status === 'APPROVED' || a.status === 'PENDING'));
+
+    if (isAtOrPastDirectorStage) {
+      return res.status(400).json({
+        success: false,
+        message: 'ไม่สามารถลบโครงการที่อยู่ในหรือผ่านขั้นตอนการพิจารณาของผู้อำนวยการแล้วได้',
+      });
     }
 
     // Permission check: only leader or admin can delete
@@ -913,7 +933,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์ในการลบโครงการนี้' });
     }
 
-    // Status check: non-admin can only delete draft and rejected status; admin can delete any status
+    // Status check: non-admin can only delete draft and rejected status; admin can delete any status (except Director stage and beyond, blocked above)
     if (!isAdmin && project.status !== 'draft' && project.status !== 'rejected') {
       return res.status(400).json({
         success: false,

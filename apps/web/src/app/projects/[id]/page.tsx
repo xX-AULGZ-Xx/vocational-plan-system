@@ -369,8 +369,18 @@ export default function ProjectDetailPage() {
   const hasRevisionRequested = isDraft && latestRevisionOrReject?.status === 'REVISION_REQUESTED';
   const isOwnerOrAdmin = user && (user.id === project.leader?.id || user.role === 'ADMIN');
   const isAdmin = user?.role === 'ADMIN';
-  const canEditProject = isOwnerOrAdmin && (isDraft || isRejected);
-  const canDeleteProject = isAdmin || (isOwnerOrAdmin && (isDraft || isRejected));
+
+  // Check if project has reached or passed Director approval stage (Step 4 / planning_approved / approved / completed)
+  const isAtOrPastDirectorStage =
+    project.status === 'planning_approved' ||
+    project.status === 'approved' ||
+    project.status === 'in_progress' ||
+    project.status === 'completed' ||
+    (pendingApproval && pendingApproval.step_order >= 4) ||
+    project.approvals?.some((a: any) => a.step_order === 4 && (a.status === 'APPROVED' || a.status === 'PENDING'));
+
+  const canEditProject = isOwnerOrAdmin && (isDraft || isRejected) && !isAtOrPastDirectorStage;
+  const canDeleteProject = !isAtOrPastDirectorStage && (isAdmin || (isOwnerOrAdmin && (isDraft || isRejected)));
   const canUploadDoc = user && (user.id === project.leader?.id || user.role === 'ADMIN' || user.role === 'PLANNING_OFFICER');
   const canApprove =
     user &&
@@ -557,12 +567,14 @@ export default function ProjectDetailPage() {
                 >
                   แก้ไขโครงการ
                 </Link>
-                <button
-                  onClick={handleDeleteProject}
-                  className="px-3 py-1.5 bg-white border border-rose-300 hover:bg-rose-100 text-rose-700 font-bold rounded-lg text-xs transition"
-                >
-                  ลบโครงการ
-                </button>
+                {canDeleteProject && (
+                  <button
+                    onClick={handleDeleteProject}
+                    className="px-3 py-1.5 bg-white border border-rose-300 hover:bg-rose-100 text-rose-700 font-bold rounded-lg text-xs transition"
+                  >
+                    ลบโครงการ
+                  </button>
+                )}
               </div>
             )}
           </div>
