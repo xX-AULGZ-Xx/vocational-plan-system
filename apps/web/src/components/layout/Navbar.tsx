@@ -288,7 +288,7 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
                   >
                     {user.full_name?.charAt(0) || 'U'}
                   </div>
-                  <div className="text-left hidden lg:block max-w-[130px]">
+                  <div className="text-left hidden sm:block max-w-[170px] lg:max-w-[200px]">
                     <div className="text-xs font-bold text-slate-800 leading-tight truncate">{user.full_name}</div>
                     <div className="text-[10px] text-slate-500 leading-tight truncate">
                       {user.email || user.department?.name || 'บัญชีผู้ใช้'}

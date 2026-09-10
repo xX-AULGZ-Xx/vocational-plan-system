@@ -205,10 +205,9 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                       style={
                         active
                           ? {
-                              backgroundColor: isLightSidebar ? '#f1f5f9' : '#1e293b',
-                              color: 'var(--color-accent, #0d9488)',
-                              borderLeftWidth: '3px',
-                              borderLeftColor: 'var(--color-accent, #0d9488)',
+                              backgroundColor: 'var(--color-primary, #1e3a8a)',
+                              color: '#ffffff',
+                              boxShadow: '0 4px 12px color-mix(in srgb, var(--color-primary, #1e3a8a) 40%, transparent)',
                             }
                           : {}
                       }
@@ -216,7 +215,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                         active ? '' : inactiveDivision
                       }`}
                     >
-                      <Icon className="w-3.5 h-3.5" />
+                      <Icon className={`w-3.5 h-3.5 ${active ? 'text-white' : ''}`} />
                       <span>{item.name}</span>
                     </Link>
                   );

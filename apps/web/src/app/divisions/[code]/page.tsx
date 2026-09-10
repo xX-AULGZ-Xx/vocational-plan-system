@@ -291,75 +291,78 @@ export default function DivisionPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
       {/* Top Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-theme border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-theme bg-theme-primary text-white flex items-center justify-center shadow-md shrink-0">
-            <Icon className="w-7 h-7" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold text-slate-900">{division.name}</h1>
-              <span className="px-2.5 py-0.5 rounded-theme font-mono font-bold text-xs bg-theme-primary-light text-theme-primary border border-theme-primary/20">
-                {division.code}
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              โครงการทั้งหมดในฝ่าย {allProjects.length} รายการ
-            </p>
-          </div>
-        </div>
-
-        {/* Right side: Deputy Director Info & Budget Overview */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Deputy Director Card */}
-          <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200/80 rounded-theme">
-            <div className="w-10 h-10 rounded-theme bg-theme-primary-light text-theme-primary flex items-center justify-center border border-theme-primary/20 shrink-0">
-              <UserCheck className="w-5 h-5" />
+      <div className="relative overflow-hidden bg-theme-gradient text-white rounded-theme p-6 sm:p-7 shadow-lg transition-all duration-300">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-theme bg-white/15 text-white flex items-center justify-center shadow-md shrink-0 border border-white/20 backdrop-blur-sm">
+              <Icon className="w-7 h-7" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <p className="text-[11px] font-semibold text-slate-400">รองผู้อำนวยการประจำฝ่าย</p>
-                {isAdmin && (
-                  <button
-                    onClick={() => {
-                      setDeputyName(division.deputy_name || '');
-                      setDeputyPosition(division.deputy_position || `รองผู้อำนวยการ${division.name}`);
-                      setShowDeputyModal(true);
-                    }}
-                    className="p-1 text-slate-400 hover:text-theme-primary hover:bg-theme-primary-light rounded transition"
-                    title="แก้ไขชื่อรองผู้อำนวยการ"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                  </button>
-                )}
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">{division.name}</h1>
+                <span className="px-2.5 py-0.5 rounded-full font-mono font-bold text-xs bg-white/20 text-white border border-white/30 backdrop-blur-sm">
+                  {division.code}
+                </span>
               </div>
-              <p className="text-xs font-bold text-slate-800">
-                {division.deputy_name || (
-                  <span className="text-slate-400 font-normal italic">
-                    {isAdmin ? 'ยังไม่ได้ระบุ (คลิกดินสอเพื่อเพิ่ม)' : 'ยังไม่ได้ระบุชื่อ'}
-                  </span>
-                )}
+              <p className="text-xs text-white/80 mt-1">
+                โครงการทั้งหมดในฝ่าย {allProjects.length} รายการ • รวมงบประมาณเสนอ {statusStats.ALL.budget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
               </p>
-              {division.deputy_name && division.deputy_position && (
-                <p className="text-[10px] text-slate-500">{division.deputy_position}</p>
-              )}
             </div>
           </div>
 
-          {/* Approved Budget Card */}
-          <div className="text-right p-3 bg-emerald-50 border border-emerald-200 rounded-theme">
-            <p className="text-[11px] text-emerald-700 font-medium">งบประมาณที่อนุมัติแล้ว</p>
-            <p className="text-lg font-bold text-emerald-800">
-              {statusStats.APPROVED.budget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} <span className="text-xs font-normal">บาท</span>
-            </p>
-          </div>
+          {/* Right side: Deputy Director Info & Budget Overview */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Deputy Director Card */}
+            <div className="flex items-center gap-3 px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-theme backdrop-blur-sm">
+              <div className="w-9 h-9 rounded-theme bg-white/20 text-white flex items-center justify-center border border-white/20 shrink-0">
+                <UserCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[10px] font-semibold text-white/70">รองผู้อำนวยการประจำฝ่าย</p>
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        setDeputyName(division.deputy_name || '');
+                        setDeputyPosition(division.deputy_position || `รองผู้อำนวยการ${division.name}`);
+                        setShowDeputyModal(true);
+                      }}
+                      className="p-1 text-white/80 hover:text-white hover:bg-white/20 rounded transition"
+                      title="แก้ไขชื่อรองผู้อำนวยการ"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs font-bold text-white truncate max-w-[160px]">
+                  {division.deputy_name || (
+                    <span className="text-white/60 font-normal italic">
+                      {isAdmin ? 'ยังไม่ได้ระบุ (คลิกเพื่อแก้ไข)' : 'ยังไม่ได้ระบุชื่อ'}
+                    </span>
+                  )}
+                </p>
+                {division.deputy_name && division.deputy_position && (
+                  <p className="text-[9px] text-white/70 truncate max-w-[160px]">{division.deputy_position}</p>
+                )}
+              </div>
+            </div>
 
-          {/* Total Proposed Budget Card */}
-          <div className="text-right p-3 bg-theme-primary-light/70 border border-theme-primary/20 rounded-theme">
-            <p className="text-[11px] text-slate-500">งบประมาณรวมทั้งฝ่าย</p>
-            <p className="text-lg font-bold text-theme-primary">
-              {statusStats.ALL.budget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} <span className="text-xs font-normal">บาท</span>
-            </p>
+            {/* Approved Budget Card */}
+            <div className="px-3.5 py-2.5 bg-emerald-500/20 border border-emerald-300/30 rounded-theme backdrop-blur-sm text-right">
+              <p className="text-[10px] text-emerald-100 font-medium">งบประมาณที่อนุมัติแล้ว</p>
+              <p className="text-base sm:text-lg font-bold text-white">
+                {statusStats.APPROVED.budget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} <span className="text-xs font-normal text-emerald-200">บาท</span>
+              </p>
+            </div>
+
+            {/* Total Proposed Budget Card */}
+            <div className="px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-theme backdrop-blur-sm text-right">
+              <p className="text-[10px] text-white/70">งบประมาณรวมทั้งฝ่าย</p>
+              <p className="text-base sm:text-lg font-bold text-white">
+                {statusStats.ALL.budget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} <span className="text-xs font-normal text-white/70">บาท</span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
