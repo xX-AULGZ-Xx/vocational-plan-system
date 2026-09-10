@@ -133,6 +133,8 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                   <img
                     src={collegeLogoUrl}
                     alt={collegeName}
+                    width={32}
+                    height={32}
                     className="w-full h-full object-contain"
                   />
                 </div>

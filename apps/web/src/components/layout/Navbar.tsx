@@ -135,6 +135,8 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
               <img
                 src={collegeLogoUrl}
                 alt={collegeName}
+                width={40}
+                height={40}
                 className="w-full h-full object-contain"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
