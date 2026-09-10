@@ -289,7 +289,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
 router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = BigInt(req.user!.id);
-    const { full_name, position, department_id, signature_img, role, is_head, head_dept_ids } = req.body;
+    const { full_name, position, department_id, signature_img, avatar_url, email, role, is_head, head_dept_ids } = req.body;
 
     if (!full_name || !full_name.trim()) {
       return res.status(400).json({ success: false, message: 'กรุณาระบุชื่อ-นามสกุล' });
@@ -315,7 +315,7 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
       : (is_head ? [deptId] : []);
     const isUserHead = headIds.length > 0 || !!is_head;
 
-    // Check existing user to preserve roles like ADMIN, DEPUTY_DIRECTOR, etc.
+    // Check existing user to preserve roles like ADMIN, DIRECTOR, etc.
     const existingUser = await prisma.user.findUnique({ where: { id: userId } });
     if (!existingUser) {
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลผู้ใช้ในระบบ' });
@@ -327,6 +327,14 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
       department_id: deptId,
       is_profile_completed: true,
     };
+
+    if (email && email.trim()) {
+      updateData.email = email.trim();
+    }
+
+    if (avatar_url !== undefined) {
+      updateData.avatar_url = avatar_url;
+    }
 
     if (existingUser.role === 'ADMIN' || existingUser.role === 'DIRECTOR' || existingUser.role === 'DEPUTY_DIRECTOR') {
       // Keep executive/admin roles intact
