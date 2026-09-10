@@ -193,18 +193,28 @@ export default function ProfilePage() {
       {/* Header Banner */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="relative group">
+          <div className="relative group shrink-0">
             {profileData.avatar_url ? (
               <img
                 src={profileData.avatar_url}
                 alt={profileData.full_name}
+                referrerPolicy="no-referrer"
                 className="w-16 h-16 rounded-full object-cover border-2 border-theme-primary shadow-sm"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  target.style.display = 'none';
+                  const fallback = target.nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
+                }}
               />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-2xl shadow-sm">
-                {profileData.full_name?.charAt(0) || 'U'}
-              </div>
-            )}
+            ) : null}
+            <div
+              className={`w-16 h-16 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-2xl shadow-sm ${
+                profileData.avatar_url ? 'hidden' : ''
+              }`}
+            >
+              {profileData.full_name?.charAt(0) || 'U'}
+            </div>
           </div>
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">

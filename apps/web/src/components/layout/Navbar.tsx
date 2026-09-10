@@ -271,24 +271,22 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
                       src={user.avatar_url}
                       alt={user.full_name}
                       referrerPolicy="no-referrer"
-                      crossOrigin="anonymous"
                       className="w-8 h-8 rounded-full object-cover border border-slate-300 shadow-xs flex-shrink-0 group-hover:scale-105 transition"
                       onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                        const parent = (e.target as HTMLElement).parentElement;
-                        if (parent && !parent.querySelector('.user-avatar-fallback')) {
-                          const fallback = document.createElement('div');
-                          fallback.className = 'user-avatar-fallback w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-xs flex-shrink-0';
-                          fallback.innerText = user.full_name?.charAt(0) || 'U';
-                          parent.prepend(fallback);
-                        }
+                        const target = e.currentTarget;
+                        target.style.display = 'none';
+                        const fallback = target.nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
                       }}
                     />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-xs flex-shrink-0 group-hover:scale-105 transition">
-                      {user.full_name?.charAt(0) || 'U'}
-                    </div>
-                  )}
+                  ) : null}
+                  <div
+                    className={`w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-xs flex-shrink-0 group-hover:scale-105 transition ${
+                      user.avatar_url ? 'hidden' : ''
+                    }`}
+                  >
+                    {user.full_name?.charAt(0) || 'U'}
+                  </div>
                   <div className="text-left hidden lg:block max-w-[130px]">
                     <div className="text-xs font-bold text-slate-800 leading-tight truncate">{user.full_name}</div>
                     <div className="text-[10px] text-slate-500 leading-tight truncate">
@@ -303,17 +301,29 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 space-y-1">
                     {/* Header in dropdown */}
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
-                      {user.avatar_url ? (
-                        <img
-                          src={user.avatar_url}
-                          alt={user.full_name}
-                          className="w-10 h-10 rounded-full object-cover border border-slate-300 shadow-2xs"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-2xs">
+                      <div className="relative shrink-0">
+                        {user.avatar_url ? (
+                          <img
+                            src={user.avatar_url}
+                            alt={user.full_name}
+                            referrerPolicy="no-referrer"
+                            className="w-10 h-10 rounded-full object-cover border border-slate-300 shadow-2xs"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className={`w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-2xs ${
+                            user.avatar_url ? 'hidden' : ''
+                          }`}
+                        >
                           {user.full_name?.charAt(0) || 'U'}
                         </div>
-                      )}
+                      </div>
                       <div className="overflow-hidden">
                         <p className="text-xs font-bold text-slate-900 truncate">{user.full_name}</p>
                         <p className="text-[10px] text-slate-500 truncate">{user.email || user.username}</p>
