@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
 import AccessDenied from '@/components/common/AccessDenied';
 import {
   ArrowUpCircle,
@@ -119,6 +120,7 @@ interface ProgressLog {
 
 export default function SystemUpdatePage() {
   const { user, token } = useAuth();
+  const { collegeName } = useSettings();
 
   if (user && user.role !== 'ADMIN') {
     return <AccessDenied requiredRole="ผู้ดูแลระบบ (ADMIN)" />;
@@ -383,22 +385,22 @@ export default function SystemUpdatePage() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header Banner with GitHub Repo Link */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 p-6 rounded-2xl text-white shadow-xl">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full text-xs font-semibold">
+    <div className="space-y-6 pb-16 animate-in fade-in duration-200">
+      {/* Header Banner with GitHub Repo Link Styled with System Theme */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-theme-gradient p-6 sm:p-7 rounded-theme text-white shadow-xl transition-all duration-300">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 text-white border border-white/20 rounded-full text-xs font-semibold backdrop-blur-sm">
             <GitBranch className="w-3.5 h-3.5" />
-            GitHub Repository Sync & Updater
+            <span>GitHub Repository Sync & Updater</span>
           </div>
-          <h1 className="text-2xl font-black tracking-tight">ศูนย์ควบคุมการอัปเดตและสำรองระบบ</h1>
-          <p className="text-sm text-slate-300 flex items-center gap-2 flex-wrap">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight">ศูนย์ควบคุมการอัปเดตและสำรองระบบ</h1>
+          <p className="text-xs sm:text-sm text-white/90 flex items-center gap-2 flex-wrap">
             <span>เชื่อมโยงกับ GitHub:</span>
             <a
               href={updateInfo?.repoUrl || 'https://github.com/xX-AULGZ-Xx/vocational-plan-system'}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 font-mono text-xs text-blue-300 hover:text-white bg-white/10 px-2.5 py-0.5 rounded-md transition"
+              className="inline-flex items-center gap-1 font-mono text-xs text-white bg-white/15 hover:bg-white/25 px-2.5 py-0.5 rounded-theme transition backdrop-blur-xs"
             >
               <span>xX-AULGZ-Xx/vocational-plan-system</span>
               <ExternalLink className="w-3 h-3" />
@@ -410,9 +412,9 @@ export default function SystemUpdatePage() {
           <button
             onClick={handleCheckUpdate}
             disabled={checkingUpdate || loading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-xl text-sm font-medium transition backdrop-blur-xs border border-white/15"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white text-slate-900 hover:bg-slate-100 active:scale-95 rounded-theme text-xs sm:text-sm font-bold transition shadow-md"
           >
-            <RefreshCw className={`w-4 h-4 ${checkingUpdate ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 text-theme-primary ${checkingUpdate ? 'animate-spin' : ''}`} />
             <span>{checkingUpdate ? 'กำลังตรวจ GitHub...' : 'ตรวจสอบจาก GitHub'}</span>
           </button>
         </div>
@@ -421,18 +423,18 @@ export default function SystemUpdatePage() {
       {/* Alert Notification */}
       {alertInfo && (
         <div
-          className={`p-4 rounded-xl flex items-center justify-between gap-3 text-sm font-medium border ${
+          className={`p-4 rounded-theme flex items-center justify-between gap-3 text-sm font-medium border ${
             alertInfo.type === 'success'
               ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
               : alertInfo.type === 'error'
               ? 'bg-rose-50 text-rose-800 border-rose-200'
-              : 'bg-blue-50 text-blue-800 border-blue-200'
+              : 'bg-theme-primary-light text-slate-900 border-theme-primary/20'
           }`}
         >
           <div className="flex items-center gap-2.5">
             {alertInfo.type === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}
             {alertInfo.type === 'error' && <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />}
-            {alertInfo.type === 'info' && <Sparkles className="w-5 h-5 text-blue-600 shrink-0" />}
+            {alertInfo.type === 'info' && <Sparkles className="w-5 h-5 text-theme-primary shrink-0" />}
             <span>{alertInfo.message}</span>
           </div>
           <button onClick={() => setAlertInfo(null)} className="text-xs opacity-60 hover:opacity-100">
@@ -444,7 +446,7 @@ export default function SystemUpdatePage() {
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Version & Git Status */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white p-5 rounded-theme border border-slate-200 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">สถานะ Git / เวอร์ชัน</span>
             <span
@@ -460,7 +462,7 @@ export default function SystemUpdatePage() {
           <div className="my-3">
             <div className="text-xl font-black text-slate-900 flex items-center gap-2">
               <span>v{systemInfo?.appVersion || '1.0.0'}</span>
-              <span className="text-xs font-mono px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md">
+              <span className="text-xs font-mono px-2 py-0.5 bg-theme-primary-light text-theme-primary rounded-md font-bold">
                 {systemInfo?.git?.commitHash || 'unknown'}
               </span>
             </div>
@@ -472,14 +474,14 @@ export default function SystemUpdatePage() {
         </div>
 
         {/* Card 2: Database Status */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white p-5 rounded-theme border border-slate-200 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">ฐานข้อมูล (Database)</span>
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
           </div>
           <div className="my-3">
             <div className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <Database className="w-5 h-5 text-indigo-600" />
+              <Database className="w-5 h-5 text-theme-primary" />
               <span>MySQL Online</span>
             </div>
             <div className="text-xs text-slate-500 mt-0.5">
@@ -490,7 +492,7 @@ export default function SystemUpdatePage() {
         </div>
 
         {/* Card 3: Memory & Uptime */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white p-5 rounded-theme border border-slate-200 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">ประสิทธิภาพเซิร์ฟเวอร์</span>
             <Cpu className="w-4 h-4 text-slate-400" />
@@ -499,9 +501,9 @@ export default function SystemUpdatePage() {
             <div className="text-xl font-bold text-slate-900">
               RAM: {systemInfo?.memory.usedMb || 0} / {systemInfo?.memory.totalMb || 0} MB
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
+            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
               <div
-                className="bg-blue-600 h-1.5 rounded-full"
+                className="bg-theme-primary h-1.5 rounded-full"
                 style={{ width: `${systemInfo?.memory.usagePercent || 20}%` }}
               />
             </div>
@@ -512,7 +514,7 @@ export default function SystemUpdatePage() {
         </div>
 
         {/* Card 4: Backup Status */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white p-5 rounded-theme border border-slate-200 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">สำรองข้อมูล (Backups)</span>
             <FileArchive className="w-4 h-4 text-slate-400" />
@@ -528,7 +530,7 @@ export default function SystemUpdatePage() {
           <button
             onClick={handleCreateBackup}
             disabled={creatingBackup}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-700 text-left flex items-center gap-1"
+            className="text-xs font-semibold text-theme-primary hover:underline text-left flex items-center gap-1"
           >
             <Download className="w-3.5 h-3.5" />
             <span>{creatingBackup ? 'กำลังสำรองข้อมูล...' : 'กดสำรองข้อมูลทันที'}</span>
@@ -536,53 +538,53 @@ export default function SystemUpdatePage() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-6">
+      {/* Modern Navigation Tabs Styled with Theme */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 backdrop-blur-sm rounded-theme border border-slate-200/80 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('update')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'update'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <ArrowUpCircle className="w-4 h-4" />
+          <ArrowUpCircle className={`w-4 h-4 ${activeTab === 'update' ? 'text-theme-primary' : 'text-slate-400'}`} />
           <span>ตรวจสอบและอัปเดตระบบ</span>
         </button>
 
         <button
           onClick={() => setActiveTab('commits')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'commits'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <GitCommit className="w-4 h-4" />
+          <GitCommit className={`w-4 h-4 ${activeTab === 'commits' ? 'text-theme-primary' : 'text-slate-400'}`} />
           <span>ประวัติ GitHub Commits ({updateInfo?.recentCommits?.length || 0})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('backups')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'backups'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <FileArchive className="w-4 h-4" />
+          <FileArchive className={`w-4 h-4 ${activeTab === 'backups' ? 'text-theme-primary' : 'text-slate-400'}`} />
           <span>ประวัติการสำรองข้อมูล ({backups.length})</span>
         </button>
 
         <button
           onClick={() => setActiveTab('cli')}
-          className={`pb-3 text-sm font-bold flex items-center gap-2 border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'cli'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <Terminal className="w-4 h-4" />
+          <Terminal className={`w-4 h-4 ${activeTab === 'cli' ? 'text-theme-primary' : 'text-slate-400'}`} />
           <span>คำสั่งอัปเดตผ่านเซิร์ฟเวอร์ (CLI)</span>
         </button>
       </div>
@@ -591,30 +593,30 @@ export default function SystemUpdatePage() {
       {activeTab === 'update' && (
         <div className="space-y-6">
           {/* 1-Click Update Banner Card */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
+          <div className="bg-white rounded-theme p-6 border border-slate-200 shadow-2xs space-y-6">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-slate-900">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">
                     GitHub Remote: xX-AULGZ-Xx/vocational-plan-system
                   </h2>
                   <a
                     href="https://github.com/xX-AULGZ-Xx/vocational-plan-system"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline flex items-center gap-0.5"
+                    className="text-xs text-theme-primary hover:underline flex items-center gap-0.5"
                   >
                     <span>ดูบน GitHub</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
-                <p className="text-sm text-slate-600">
+                <p className="text-xs sm:text-sm text-slate-600">
                   {updateInfo?.releaseNotes || 'ซิงค์ซอร์สโค้ดและปรับปรุงระบบล่าสุดจาก GitHub Repository'}
                 </p>
                 {updateInfo?.latestCommit && (
                   <div className="text-xs text-slate-500 pt-1 flex items-center gap-2">
                     <span className="font-semibold">Commit ล่าสุด:</span>
-                    <span className="font-mono bg-slate-100 text-slate-800 px-2 py-0.5 rounded">
+                    <span className="font-mono bg-theme-primary-light text-theme-primary px-2 py-0.5 rounded font-bold">
                       {updateInfo.latestCommit.shortSha}
                     </span>
                     <span>- {updateInfo.latestCommit.message}</span>
@@ -626,7 +628,7 @@ export default function SystemUpdatePage() {
                 <button
                   onClick={() => setShowConfirmModal(true)}
                   disabled={updating}
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition active:scale-95 disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-3 bg-theme-primary hover:bg-theme-primary-hover text-white font-bold rounded-theme shadow-md transition active:scale-95 disabled:opacity-50 text-xs sm:text-sm"
                 >
                   <PlayCircle className="w-5 h-5" />
                   <span>{updating ? 'กำลังดึงโค้ดจาก GitHub...' : 'ดึงโค้ดและอัปเดตจาก GitHub (1-Click Update)'}</span>
@@ -636,7 +638,7 @@ export default function SystemUpdatePage() {
 
             {/* Live Update Progress Console */}
             {(updating || logs.length > 0) && (
-              <div className="bg-slate-900 rounded-xl p-5 text-white font-mono text-xs space-y-4 shadow-inner">
+              <div className="bg-slate-900 rounded-theme p-5 text-white font-mono text-xs space-y-4 shadow-inner">
                 <div className="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-2">
                   <div className="flex items-center gap-2">
                     <Terminal className="w-4 h-4 text-emerald-400" />
@@ -677,8 +679,8 @@ export default function SystemUpdatePage() {
 
             {/* Recent GitHub Commits preview on Update Tab */}
             <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <GitCommit className="w-4 h-4 text-indigo-600" />
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <GitCommit className="w-4 h-4 text-theme-primary" />
                 <span>รายการ Commits ล่าสุดบน GitHub (xX-AULGZ-Xx/vocational-plan-system)</span>
               </h3>
 
@@ -686,10 +688,10 @@ export default function SystemUpdatePage() {
                 {updateInfo?.recentCommits?.slice(0, 5).map((commit, idx) => (
                   <div
                     key={commit.sha || idx}
-                    className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between gap-4"
+                    className="p-3 bg-slate-50 border border-slate-200/80 rounded-theme flex items-center justify-between gap-4"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+                      <span className="font-mono text-xs font-bold text-theme-primary bg-theme-primary-light border border-theme-primary/20 px-2 py-0.5 rounded">
                         {commit.shortSha}
                       </span>
                       <span className="text-xs font-medium text-slate-800">{commit.message}</span>
@@ -701,7 +703,7 @@ export default function SystemUpdatePage() {
                         href={commit.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-0.5"
+                        className="text-theme-primary hover:underline font-semibold flex items-center gap-0.5"
                       >
                         <span>GitHub</span>
                         <ExternalLink className="w-3 h-3" />
@@ -714,7 +716,7 @@ export default function SystemUpdatePage() {
           </div>
 
           {/* Maintenance Mode Configuration Card */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+          <div className="bg-white rounded-theme p-6 border border-slate-200 shadow-2xs space-y-4">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -744,7 +746,7 @@ export default function SystemUpdatePage() {
                 value={maintenanceMsg}
                 onChange={(e) => setMaintenanceMsg(e.target.value)}
                 placeholder="เช่น ระบบกำลังปิดปรับปรุงชั่วคราวเพื่ออัปเดตเวอร์ชันใหม่ กรุณารอสักครู่..."
-                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-theme text-sm focus:border-theme-primary focus:outline-hidden"
               />
             </div>
 
@@ -752,7 +754,7 @@ export default function SystemUpdatePage() {
               <button
                 onClick={handleSaveMaintenance}
                 disabled={savingMaintenance}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition disabled:opacity-50"
+                className="px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme text-xs font-bold transition disabled:opacity-50 shadow-xs"
               >
                 {savingMaintenance ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า Maintenance'}
               </button>
@@ -763,11 +765,11 @@ export default function SystemUpdatePage() {
 
       {/* TAB 2: GITHUB COMMITS LIST */}
       {activeTab === 'commits' && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white rounded-theme p-6 border border-slate-200 shadow-2xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <GitCommit className="w-5 h-5 text-indigo-600" />
+                <GitCommit className="w-5 h-5 text-theme-primary" />
                 <span>ประวัติ Commits ทั้งหมดจาก GitHub</span>
               </h2>
               <p className="text-xs text-slate-500">
@@ -779,7 +781,7 @@ export default function SystemUpdatePage() {
               href="https://github.com/xX-AULGZ-Xx/vocational-plan-system/commits/main"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition"
+              className="flex items-center gap-1.5 px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs transition"
             >
               <span>เปิดดูบน GitHub</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -791,7 +793,7 @@ export default function SystemUpdatePage() {
               <div key={commit.sha} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2.5">
-                    <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-md">
+                    <span className="font-mono text-xs font-bold text-theme-primary bg-theme-primary-light border border-theme-primary/20 px-2.5 py-0.5 rounded-md">
                       {commit.shortSha}
                     </span>
                     <span className="text-sm font-bold text-slate-900">{commit.message}</span>
@@ -807,7 +809,7 @@ export default function SystemUpdatePage() {
                   href={commit.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 shrink-0"
+                  className="text-xs text-theme-primary hover:underline font-semibold flex items-center gap-1 shrink-0"
                 >
                   <span>ดูการเปลี่ยนแปลง</span>
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -820,7 +822,7 @@ export default function SystemUpdatePage() {
 
       {/* TAB 3: BACKUPS MANAGEMENT */}
       {activeTab === 'backups' && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
+        <div className="bg-white rounded-theme p-6 border border-slate-200 shadow-2xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
               <h2 className="text-lg font-bold text-slate-900">ประวัติชุดสำรองข้อมูล (Backup Snapshots)</h2>
@@ -832,7 +834,7 @@ export default function SystemUpdatePage() {
             <button
               onClick={handleCreateBackup}
               disabled={creatingBackup}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
+              className="flex items-center gap-2 px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs transition"
             >
               <Download className="w-4 h-4" />
               <span>{creatingBackup ? 'กำลังสร้าง Backup...' : 'สร้างไฟล์สำรองเดี๋ยวนี้'}</span>
@@ -861,7 +863,7 @@ export default function SystemUpdatePage() {
                   {backups.map((b) => (
                     <tr key={b.id} className="hover:bg-slate-50">
                       <td className="py-3.5 px-4 font-mono font-bold text-slate-900 flex items-center gap-2">
-                        <FileArchive className="w-4 h-4 text-indigo-500" />
+                        <FileArchive className="w-4 h-4 text-theme-primary" />
                         <span>{b.filename}</span>
                       </td>
                       <td className="py-3.5 px-4">v{b.version}</td>
@@ -885,9 +887,9 @@ export default function SystemUpdatePage() {
       {/* TAB 4: SERVER CLI GUIDE */}
       {activeTab === 'cli' && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-5">
+          <div className="bg-white rounded-theme p-6 border border-slate-200 shadow-2xs space-y-5">
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Terminal className="w-5 h-5 text-indigo-600" />
+              <Terminal className="w-5 h-5 text-theme-primary" />
               <span>คำสั่งอัปเดตผ่านเซิร์ฟเวอร์ Linux / aaPanel / SSH (แนะนำสำหรับ Docker)</span>
             </h2>
             <p className="text-sm text-slate-600">
@@ -897,37 +899,36 @@ export default function SystemUpdatePage() {
             {/* Script 1: update.sh */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                <span>วิธีที่ 1: รันสคริปต์อัปเดตอัตโนมัติ (แนะนำ สะดวกและปลอดภัย):</span>
+                <span>วิธีที่ 1: รันคำสั่งอัปเดตบนเซิร์ฟเวอร์ (ดึงโค้ด + Restart Container):</span>
               </div>
-              <div className="bg-slate-900 text-slate-200 p-4 rounded-xl font-mono text-xs overflow-x-auto space-y-1 shadow-inner">
+              <div className="bg-slate-900 text-slate-200 p-4 rounded-theme font-mono text-xs overflow-x-auto space-y-1 shadow-inner">
                 <div className="text-emerald-400"># เข้าไปยังไดเรกทอรีโปรเจกต์</div>
-                <div>cd /www/wwwroot/plan.cric.ac.th</div>
-                <div className="text-emerald-400 mt-2"># สั่งรันคำสั่งอัปเดตอัตโนมัติ (ดึงโค้ด + Clean Rebuild + รีสตาร์ทระบบ)</div>
-                <div>bash update.sh</div>
+                <div>cd /www/wwwroot/vocational-plan-system</div>
+                <div className="text-emerald-400 mt-2"># ดึงโค้ดล่าสุดจาก GitHub และรีสตาร์ท Service</div>
+                <div>git pull origin main</div>
+                <div>docker compose -f docker-compose.hostnet.yml restart</div>
               </div>
             </div>
 
             {/* Script 2: Docker Compose Clean Rebuild */}
             <div className="space-y-2 pt-2">
               <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                <span>วิธีที่ 2: รันคำสั่ง Docker แบบ Clean Build (No-Cache):</span>
+                <span>วิธีที่ 2: รันคำสั่ง Docker แบบ Clean Build (กรณีต้องการคอมไพล์ใหม่ทั้งหมด):</span>
               </div>
-              <div className="bg-slate-900 text-slate-200 p-4 rounded-xl font-mono text-xs overflow-x-auto space-y-1 shadow-inner">
-                <div className="text-emerald-400"># 1. ดึงโค้ดเวอร์ชันล่าสุดจาก GitHub</div>
+              <div className="bg-slate-900 text-slate-200 p-4 rounded-theme font-mono text-xs overflow-x-auto space-y-1 shadow-inner">
+                <div className="text-emerald-400"># 1. เข้าโฟลเดอร์โปรเจกต์และดึงโค้ดล่าสุด</div>
+                <div>cd /www/wwwroot/vocational-plan-system</div>
                 <div>git pull origin main</div>
-                <div className="text-emerald-400 mt-1"># 2. ปิด Container เดิม</div>
-                <div>docker compose down</div>
-                <div className="text-emerald-400 mt-1"># 3. บังคับ Rebuild หน้าเว็บและระบบใหม่ 100% โดยไม่ใช้ Cache เดิม</div>
-                <div>docker compose build --no-cache</div>
-                <div className="text-emerald-400 mt-1"># 4. เริ่มการทำงานระบบในโหมด Background</div>
-                <div>docker compose up -d</div>
-                <div className="text-emerald-400 mt-1"># 5. ตรวจสอบสถานะการทำงาน</div>
-                <div>docker compose ps</div>
+                <div className="text-emerald-400 mt-1"># 2. ปิดและ Rebuild Containers</div>
+                <div>docker compose -f docker-compose.hostnet.yml down</div>
+                <div>docker compose -f docker-compose.hostnet.yml build --no-cache</div>
+                <div className="text-emerald-400 mt-1"># 3. เริ่มการทำงานระบบในโหมด Background</div>
+                <div>docker compose -f docker-compose.hostnet.yml up -d</div>
               </div>
             </div>
 
             {/* Troubleshooting Note */}
-            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+            <div className="p-4 bg-amber-50 rounded-theme border border-amber-200 text-xs text-amber-900 space-y-1">
               <p className="font-bold flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-amber-600" />
                 <span>คำแนะนำหลังจากการอัปเดต:</span>
@@ -943,25 +944,25 @@ export default function SystemUpdatePage() {
       {/* Confirmation Modal */}
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
-            <div className="flex items-center gap-3 text-indigo-600">
+          <div className="bg-white rounded-theme max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div className="flex items-center gap-3 text-theme-primary">
               <GitPullRequest className="w-7 h-7" />
               <h3 className="text-lg font-black text-slate-900">ยืนยันการดึงโค้ดและอัปเดตจาก GitHub?</h3>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
               ระบบจะทำการเปิด <strong>Maintenance Mode</strong> ชั่วคราว และดึงโค้ดล่าสุดจาก Repository:{' '}
-              <strong className="text-indigo-700">https://github.com/xX-AULGZ-Xx/vocational-plan-system.git</strong>{' '}
+              <strong className="text-theme-primary font-bold">https://github.com/xX-AULGZ-Xx/vocational-plan-system.git</strong>{' '}
               พร้อมอัปเดตโครงสร้างฐานข้อมูล
             </p>
 
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
+            <div className="p-3.5 bg-slate-50 rounded-theme border border-slate-200 text-xs space-y-2">
               <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-800">
                 <input
                   type="checkbox"
                   checked={createBackupBeforeUpdate}
                   onChange={(e) => setCreateBackupBeforeUpdate(e.target.checked)}
-                  className="rounded-sm text-blue-600 focus:ring-blue-500"
+                  className="rounded-sm text-theme-primary focus:ring-theme-primary"
                 />
                 <span>สำรองข้อมูล Snapshot อัตโนมัติก่อนเริ่มอัปเดต (แนะนำ)</span>
               </label>
@@ -970,13 +971,13 @@ export default function SystemUpdatePage() {
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-theme transition"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={handleStartUpdate}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition"
+                className="px-5 py-2.5 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-md transition"
               >
                 ยืนยันและเริ่มอัปเดตจาก GitHub
               </button>
