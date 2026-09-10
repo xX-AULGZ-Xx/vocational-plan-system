@@ -144,7 +144,20 @@ export default function ProfileSettingsPage() {
 
   useEffect(() => {
     fetchProfileAndMetadata();
-  }, []);
+  }, [token]);
+
+  // Sync initial user state if available
+  useEffect(() => {
+    if (user) {
+      if (!fullName && user.full_name) setFullName(user.full_name);
+      if (!email && user.email) setEmail(user.email);
+      if (!avatarUrl && user.avatar_url) {
+        setAvatarUrl(user.avatar_url);
+        setRawAvatarImage(user.avatar_url);
+      }
+      if (!signatureImg && (user as any).signature_img) setSignatureImg((user as any).signature_img);
+    }
+  }, [user]);
 
   const fetchProfileAndMetadata = async () => {
     setLoading(true);
@@ -167,12 +180,12 @@ export default function ProfileSettingsPage() {
 
       if (profileJson.success && profileJson.user) {
         const u = profileJson.user;
-        setFullName(u.full_name || '');
-        setEmail(u.email || '');
-        setSignatureImg(u.signature_img || '');
-        setAvatarUrl(u.avatar_url || '');
-        if (u.avatar_url) {
-          setRawAvatarImage(u.avatar_url);
+        setFullName(u.full_name || user?.full_name || user?.username || '');
+        setEmail(u.email || user?.email || '');
+        setSignatureImg(u.signature_img || (user as any)?.signature_img || '');
+        setAvatarUrl(u.avatar_url || user?.avatar_url || '');
+        if (u.avatar_url || user?.avatar_url) {
+          setRawAvatarImage(u.avatar_url || user?.avatar_url);
         }
 
         if (u.position) {
@@ -206,6 +219,11 @@ export default function ProfileSettingsPage() {
             setHeadDeptIds([deptId]);
           }
         }
+      } else if (user) {
+        setFullName(user.full_name || user.username || '');
+        setEmail(user.email || '');
+        setAvatarUrl(user.avatar_url || '');
+        if (user.avatar_url) setRawAvatarImage(user.avatar_url);
       }
     } catch (err: any) {
       console.error('Error fetching profile:', err);
@@ -428,21 +446,20 @@ export default function ProfileSettingsPage() {
     setAvatarRotation(0);
   };
 
-  const handleUpdateProfile = async (e?: React.FormEvent) => {
+  const handleUpdateProfile = async (e?: React.FormEvent, customSuccessMsg?: string) => {
     if (e) e.preventDefault();
-    if (!fullName.trim()) {
+    
+    // Determine effective full name
+    const effectiveFullName = fullName.trim() || user?.full_name || user?.username || '';
+    if (!effectiveFullName) {
       showAlert.error('กรุณากรอกชื่อ-นามสกุลจริง', 'ชื่อ-นามสกุลจำเป็นสำหรับการออกเอกสารราชการ');
       return;
     }
 
-    const effectivePosition = position === 'other' ? customPosition.trim() : position;
-    if (!effectivePosition) {
-      showAlert.error('กรุณาระบุตำแหน่ง', 'โปรดเลือกหรือกรอกตำแหน่งทางการของคุณ');
-      return;
-    }
+    const effectivePosition = position === 'other' ? customPosition.trim() : (position || user?.position || 'ครูผู้สอน');
 
-    const effectiveDeptId = selectedDepartmentId || (selectedDepartmentIds.length > 0 ? selectedDepartmentIds[0] : null);
-    if (!effectiveDeptId) {
+    const effectiveDeptId = selectedDepartmentId || (selectedDepartmentIds.length > 0 ? selectedDepartmentIds[0] : (user?.department_id || null));
+    if (user?.role !== 'ADMIN' && !effectiveDeptId) {
       showAlert.error(
         'กรุณาเลือกงานที่รับผิดชอบ',
         personnelType === 'TEACHER'
@@ -461,10 +478,10 @@ export default function ProfileSettingsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          full_name: fullName.trim(),
-          email: email.trim(),
+          full_name: effectiveFullName,
+          email: email.trim() || user?.email || '',
           position: effectivePosition,
-          department_id: Number(effectiveDeptId),
+          department_id: effectiveDeptId ? Number(effectiveDeptId) : null,
           is_head: headDeptIds.length > 0,
           head_dept_ids: headDeptIds,
           signature_img: signatureImg,
@@ -474,7 +491,7 @@ export default function ProfileSettingsPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        showAlert.success('บันทึกสำเร็จ', 'อัปเดตข้อมูลการตั้งค่าโปรไฟล์เรียบร้อยแล้ว');
+        showAlert.success('บันทึกสำเร็จ', customSuccessMsg || 'อัปเดตข้อมูลการตั้งค่าโปรไฟล์เรียบร้อยแล้ว');
         if (data.token && data.user) {
           login(data.token, data.user);
         }
@@ -1446,7 +1463,7 @@ export default function ProfileSettingsPage() {
               <div className="pt-4 border-t border-slate-100 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => handleUpdateProfile()}
+                  onClick={() => handleUpdateProfile(undefined, 'บันทึกรูปโปรไฟล์เรียบร้อยแล้ว')}
                   disabled={savingProfile}
                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
                 >
@@ -1562,7 +1579,7 @@ export default function ProfileSettingsPage() {
               <div className="pt-3 border-t border-slate-100 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => handleUpdateProfile()}
+                  onClick={() => handleUpdateProfile(undefined, 'บันทึกลายเซ็นดิจิทัลเรียบร้อยแล้ว')}
                   disabled={savingProfile}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
                 >
