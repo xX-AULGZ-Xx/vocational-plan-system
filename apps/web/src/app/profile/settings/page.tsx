@@ -217,8 +217,8 @@ export default function ProfileSettingsPage() {
           }
         }
 
-        const deptId = u.department?.id ? Number(u.department.id) : (u.department_id ? Number(u.department_id) : null);
-        const divId = u.department?.division_id ? Number(u.department.division_id) : (u.division_id ? Number(u.division_id) : null);
+        const deptId = u.department?.id ? Number(u.department.id) : ((u as any).department_id ? Number((u as any).department_id) : null);
+        const divId = u.department?.division_id ? Number(u.department.division_id) : ((u as any).division_id ? Number((u as any).division_id) : null);
 
         if (divId) {
           setSelectedDivisionIds([divId]);
@@ -469,7 +469,7 @@ export default function ProfileSettingsPage() {
 
     const effectivePosition = position === 'other' ? customPosition.trim() : (position || user?.position || 'ครูผู้สอน');
 
-    const effectiveDeptId = selectedDepartmentId || (selectedDepartmentIds.length > 0 ? selectedDepartmentIds[0] : (user?.department_id || null));
+    const effectiveDeptId = selectedDepartmentId || (selectedDepartmentIds.length > 0 ? selectedDepartmentIds[0] : (user?.department?.id || (user as any)?.department_id || null));
     if (user?.role !== 'ADMIN' && !effectiveDeptId) {
       showAlert.error(
         'กรุณาเลือกงานที่รับผิดชอบ',
