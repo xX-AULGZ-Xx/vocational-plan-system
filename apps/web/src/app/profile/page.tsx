@@ -36,7 +36,7 @@ import {
 export default function ProfileDashboardPage() {
   const router = useRouter();
   const { user, token } = useAuth();
-  const { collegeName } = useSettings();
+  const { collegeName, themePrimaryColor, themeAccentColor } = useSettings();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'progress' | 'status'>('overview');
   const [projects, setProjects] = useState<any[]>([]);
@@ -99,8 +99,8 @@ export default function ProfileDashboardPage() {
       case 'PENDING_HEAD_DEPT':
         return {
           label: 'รอหัวหน้าแผนก/งาน',
-          bg: 'bg-blue-50 text-blue-700 border-blue-200',
-          dot: 'bg-blue-500',
+          bg: 'bg-sky-50 text-sky-700 border-sky-200',
+          dot: 'bg-sky-500',
           icon: Clock,
         };
       case 'WAITING_PLANNING':
@@ -154,7 +154,6 @@ export default function ProfileDashboardPage() {
   };
 
   const getProgressSteps = (status: string) => {
-    // 4 Approval levels
     const steps = [
       { id: 1, name: 'เสนอโครงการ (แผนก/งาน)', key: 'DEPT' },
       { id: 2, name: 'ตรวจสอบงบ & รหัส (งานแผนงาน)', key: 'PLANNING' },
@@ -189,7 +188,7 @@ export default function ProfileDashboardPage() {
   // Metrics calculation
   const totalProjects = projects.length;
   const approvedProjects = projects.filter((p) => p.status === 'APPROVED').length;
-  const pendingProjects = projects.filter((p) => p.status && p.status.startsWith('WAITING') || p.status?.startsWith('PENDING')).length;
+  const pendingProjects = projects.filter((p) => p.status && (p.status.startsWith('WAITING') || p.status.startsWith('PENDING'))).length;
   const draftOrRevisionProjects = projects.filter((p) => p.status === 'DRAFT' || p.status === 'RETURNED' || p.status === 'REVISION').length;
   const totalBudget = projects.reduce((sum, p) => sum + (Number(p.total_budget) || Number(p.budget) || 0), 0);
   const approvalRate = totalProjects > 0 ? Math.round((approvedProjects / totalProjects) * 100) : 0;
@@ -211,9 +210,9 @@ export default function ProfileDashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20 animate-in fade-in duration-200">
-      {/* 1. Header Profile Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-72 h-72 bg-theme-primary/20 rounded-full blur-3xl pointer-events-none" />
+      {/* 1. Header Profile Banner Styled with System Theme */}
+      <div className="relative overflow-hidden bg-theme-gradient text-white rounded-theme p-6 sm:p-8 shadow-xl transition-all duration-300">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-72 h-72 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           {/* User Profile Details */}
           <div className="flex items-center gap-5">
@@ -223,7 +222,7 @@ export default function ProfileDashboardPage() {
                   src={user.avatar_url}
                   alt={user.full_name}
                   referrerPolicy="no-referrer"
-                  className="w-20 h-20 rounded-2xl object-cover border-2 border-white/20 shadow-md ring-4 ring-white/10"
+                  className="w-20 h-20 rounded-theme object-cover border-2 border-white/30 shadow-md ring-4 ring-white/10"
                   onError={(e) => {
                     const target = e.currentTarget;
                     target.style.display = 'none';
@@ -233,7 +232,7 @@ export default function ProfileDashboardPage() {
                 />
               ) : null}
               <div
-                className={`w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-bold text-3xl shadow-md border-2 border-white/20 ring-4 ring-white/10 ${
+                className={`w-20 h-20 rounded-theme bg-white/20 text-white flex items-center justify-center font-bold text-3xl shadow-md border-2 border-white/30 ring-4 ring-white/10 backdrop-blur-sm ${
                   user?.avatar_url ? 'hidden' : ''
                 }`}
               >
@@ -246,30 +245,30 @@ export default function ProfileDashboardPage() {
                 <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                   {user?.full_name || user?.username}
                 </h1>
-                <span className="px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/15 text-blue-200 border border-white/10 backdrop-blur-sm">
+                <span className="px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/20 text-white border border-white/20 backdrop-blur-sm">
                   {roleInfo.label}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-300 flex flex-wrap items-center gap-2">
+              <p className="text-xs sm:text-sm text-white/90 flex flex-wrap items-center gap-2">
                 <span className="flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-blue-400" />
+                  <Mail className="w-3.5 h-3.5 text-white/80" />
                   {user?.email || 'ยังไม่ได้ระบุอีเมล'}
                 </span>
                 {user?.position && (
                   <>
-                    <span className="text-slate-500">•</span>
-                    <span className="text-slate-200 font-medium">{user.position}</span>
+                    <span className="text-white/40">•</span>
+                    <span className="text-white font-medium">{user.position}</span>
                   </>
                 )}
                 {user?.department?.name && (
                   <>
-                    <span className="text-slate-500">•</span>
-                    <span className="text-blue-300 font-medium">{user.department.name}</span>
+                    <span className="text-white/40">•</span>
+                    <span className="text-white/95 font-medium underline underline-offset-2">{user.department.name}</span>
                   </>
                 )}
               </p>
-              <p className="text-[11px] text-slate-400">
-                สังกัดสถานศึกษา: <span className="text-slate-200 font-medium">{collegeName}</span>
+              <p className="text-[11px] text-white/70">
+                สังกัดสถานศึกษา: <span className="text-white font-medium">{collegeName}</span>
               </p>
             </div>
           </div>
@@ -278,14 +277,14 @@ export default function ProfileDashboardPage() {
           <div className="flex flex-wrap items-center gap-2.5 self-stretch md:self-auto justify-end">
             <Link
               href="/profile/settings"
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-theme-primary hover:bg-theme-primary-hover active:scale-95 rounded-xl transition shadow-md shadow-theme-primary/20"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-900 bg-white hover:bg-slate-100 active:scale-95 rounded-theme transition shadow-md"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="w-4 h-4 text-theme-primary" />
               <span>ตั้งค่าโปรไฟล์ & ลายเซ็น</span>
             </Link>
             <Link
               href="/projects/new"
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-100 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl transition border border-white/10 backdrop-blur-sm"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-theme-accent hover:brightness-110 active:scale-95 rounded-theme transition shadow-md"
             >
               <PlusCircle className="w-4 h-4" />
               <span>เสนอโครงการใหม่</span>
@@ -299,7 +298,7 @@ export default function ProfileDashboardPage() {
                   router.push('/dashboard');
                 }
               }}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/15 rounded-xl transition border border-white/10"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-theme transition border border-white/15 backdrop-blur-sm"
               title="ย้อนกลับ"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -311,10 +310,10 @@ export default function ProfileDashboardPage() {
 
       {/* 2. Key Metrics & KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <div className="bg-white p-4 sm:p-5 rounded-theme border border-slate-200/80 shadow-2xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold">โครงการทั้งหมด</span>
-            <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+            <div className="p-2 rounded-theme bg-theme-primary-light text-theme-primary">
               <FileText className="w-4 h-4" />
             </div>
           </div>
@@ -322,10 +321,10 @@ export default function ProfileDashboardPage() {
           <p className="text-[11px] text-slate-400 mt-0.5">โครงการที่คุณเป็นผู้รับผิดชอบ</p>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <div className="bg-white p-4 sm:p-5 rounded-theme border border-slate-200/80 shadow-2xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold">อนุมัติแล้ว</span>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+            <div className="p-2 rounded-theme bg-emerald-50 text-emerald-600">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
@@ -333,10 +332,10 @@ export default function ProfileDashboardPage() {
           <p className="text-[11px] text-slate-400 mt-0.5">คิดเป็น {approvalRate}% ของทั้งหมด</p>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <div className="bg-white p-4 sm:p-5 rounded-theme border border-slate-200/80 shadow-2xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold">อยู่ระหว่างรออนุมัติ</span>
-            <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+            <div className="p-2 rounded-theme bg-amber-50 text-amber-600">
               <Clock className="w-4 h-4" />
             </div>
           </div>
@@ -344,10 +343,10 @@ export default function ProfileDashboardPage() {
           <p className="text-[11px] text-slate-400 mt-0.5">กำลังอยู่ในขั้นตอนการพิจารณา</p>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <div className="bg-white p-4 sm:p-5 rounded-theme border border-slate-200/80 shadow-2xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
             <span className="text-xs font-bold">แบบร่าง / ส่งกลับแก้ไข</span>
-            <div className="p-2 rounded-xl bg-rose-50 text-rose-600">
+            <div className="p-2 rounded-theme bg-rose-50 text-rose-600">
               <RotateCcw className="w-4 h-4" />
             </div>
           </div>
@@ -355,24 +354,24 @@ export default function ProfileDashboardPage() {
           <p className="text-[11px] text-slate-400 mt-0.5">รอการปรับปรุงหรือส่งเสนอ</p>
         </div>
 
-        <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 sm:p-5 rounded-2xl shadow-sm">
-          <div className="flex items-center justify-between text-blue-100 mb-2">
+        <div className="col-span-2 lg:col-span-1 bg-theme-gradient text-white p-4 sm:p-5 rounded-theme shadow-sm">
+          <div className="flex items-center justify-between text-white/90 mb-2">
             <span className="text-xs font-bold">งบประมาณรวม</span>
-            <div className="p-2 rounded-xl bg-white/20 text-white backdrop-blur-xs">
+            <div className="p-2 rounded-theme bg-white/20 text-white backdrop-blur-xs">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
           <p className="text-xl sm:text-2xl font-black truncate">฿{totalBudget.toLocaleString()}</p>
-          <p className="text-[11px] text-blue-200 mt-0.5">รวมทุกโครงการของคุณ</p>
+          <p className="text-[11px] text-white/80 mt-0.5">รวมทุกโครงการของคุณ</p>
         </div>
       </div>
 
       {/* 3. Navigation Tabs */}
-      <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 backdrop-blur-sm rounded-2xl border border-slate-200/80 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 backdrop-blur-sm rounded-theme border border-slate-200/80 overflow-x-auto no-scrollbar">
         <button
           type="button"
           onClick={() => setActiveTab('overview')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'overview'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -385,7 +384,7 @@ export default function ProfileDashboardPage() {
         <button
           type="button"
           onClick={() => setActiveTab('projects')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'projects'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -398,7 +397,7 @@ export default function ProfileDashboardPage() {
         <button
           type="button"
           onClick={() => setActiveTab('progress')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'progress'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -411,7 +410,7 @@ export default function ProfileDashboardPage() {
         <button
           type="button"
           onClick={() => setActiveTab('status')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'status'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -429,7 +428,7 @@ export default function ProfileDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-150">
           {/* Left 2 Cols: Recent Projects & Visual Progress */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="bg-white p-6 rounded-theme border border-slate-200 shadow-2xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
                   <Sparkles className="w-4 h-4 text-theme-primary" />
@@ -457,7 +456,7 @@ export default function ProfileDashboardPage() {
                   <p className="text-xs text-slate-400 mt-1 mb-4">เริ่มต้นสร้างข้อเสนอโครงการแรกของคุณ</p>
                   <Link
                     href="/projects/new"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-theme-primary text-white text-xs font-bold rounded-xl shadow-xs"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs transition"
                   >
                     <PlusCircle className="w-4 h-4" />
                     <span>สร้างโครงการใหม่</span>
@@ -467,13 +466,12 @@ export default function ProfileDashboardPage() {
                 <div className="divide-y divide-slate-100">
                   {projects.slice(0, 5).map((p) => {
                     const statusInfo = getStatusBadge(p.status);
-                    const StatusIcon = statusInfo.icon;
                     return (
                       <div key={p.id} className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between gap-4 group">
                         <div className="space-y-1 overflow-hidden">
                           <div className="flex items-center gap-2">
                             {p.project_code && (
-                              <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                              <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-theme-primary-light text-theme-primary">
                                 {p.project_code}
                               </span>
                             )}
@@ -495,7 +493,7 @@ export default function ProfileDashboardPage() {
                           </span>
                           <Link
                             href={`/projects/${p.id}`}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-theme-primary hover:bg-blue-50 transition"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-theme-primary hover:bg-theme-primary-light transition"
                             title="เปิดดูโครงการ"
                           >
                             <ChevronRight className="w-4 h-4" />
@@ -509,7 +507,7 @@ export default function ProfileDashboardPage() {
             </div>
 
             {/* Quick Status Distribution */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="bg-white p-6 rounded-theme border border-slate-200 shadow-2xs space-y-4">
               <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-theme-primary" />
                 <span>สัดส่วนสถานะโครงการ</span>
@@ -565,7 +563,7 @@ export default function ProfileDashboardPage() {
           {/* Right Col: Personal Account Card & Signature Preview */}
           <div className="space-y-6">
             {/* Account Card */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+            <div className="bg-white p-6 rounded-theme border border-slate-200 shadow-2xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <User className="w-4 h-4 text-theme-primary" />
@@ -605,7 +603,7 @@ export default function ProfileDashboardPage() {
             </div>
 
             {/* Digital Signature Card */}
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+            <div className="bg-white p-6 rounded-theme border border-slate-200 shadow-2xs space-y-3">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <FileSignature className="w-4 h-4 text-emerald-600" />
@@ -619,7 +617,7 @@ export default function ProfileDashboardPage() {
                 </Link>
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center min-h-[100px]">
+              <div className="p-4 bg-slate-50 rounded-theme border border-slate-100 flex items-center justify-center min-h-[100px]">
                 {user?.signature_img ? (
                   <div className="text-center space-y-1">
                     <img
@@ -643,21 +641,21 @@ export default function ProfileDashboardPage() {
               </p>
             </div>
 
-            {/* Settings Jump Banner */}
-            <div className="bg-gradient-to-br from-slate-900 to-blue-950 p-5 rounded-2xl text-white space-y-3 shadow-md">
+            {/* Settings Jump Banner Styled with System Gradient */}
+            <div className="bg-theme-gradient p-5 rounded-theme text-white space-y-3 shadow-md">
               <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-blue-400" />
+                <Settings className="w-5 h-5 text-white" />
                 <h4 className="font-bold text-xs">การตั้งค่าโปรไฟล์และรหัสผ่าน</h4>
               </div>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
+              <p className="text-[11px] text-white/80 leading-relaxed">
                 คุณสามารถปรับเปลี่ยนรูปโปรไฟล์, วาดลายเซ็นดิจิทัล, เปลี่ยนชื่อ-สังกัด และเปลี่ยนรหัสผ่านได้ที่หน้าการตั้งค่า
               </p>
               <Link
                 href="/profile/settings"
-                className="inline-flex items-center gap-2 w-full justify-center px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-xl transition shadow-xs"
+                className="inline-flex items-center gap-2 w-full justify-center px-4 py-2 bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold rounded-theme transition shadow-xs"
               >
                 <span>ไปยังหน้า Profile Settings</span>
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 text-theme-primary" />
               </Link>
             </div>
           </div>
@@ -666,7 +664,7 @@ export default function ProfileDashboardPage() {
 
       {/* TAB 2: MY PROJECTS (โครงการของฉัน) */}
       {activeTab === 'projects' && (
-        <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
             <div>
               <h2 className="font-black text-slate-900 text-base">รายการโครงการของฉัน</h2>
@@ -682,14 +680,14 @@ export default function ProfileDashboardPage() {
                   placeholder="ค้นหาชื่อ หรือ รหัสโครงการ..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-theme-primary w-52 sm:w-64"
+                  className="pl-9 pr-4 py-2 border border-slate-200 rounded-theme text-xs outline-none focus:border-theme-primary w-52 sm:w-64"
                 />
               </div>
 
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-theme-primary bg-white text-slate-700"
+                className="px-3 py-2 border border-slate-200 rounded-theme text-xs font-semibold outline-none focus:border-theme-primary bg-white text-slate-700"
               >
                 <option value="ALL">ทุกสถานะ</option>
                 <option value="APPROVED">อนุมัติแล้ว</option>
@@ -699,7 +697,7 @@ export default function ProfileDashboardPage() {
 
               <Link
                 href="/projects/new"
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs transition"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>สร้างโครงการ</span>
@@ -764,14 +762,14 @@ export default function ProfileDashboardPage() {
                           <div className="flex items-center justify-center gap-1.5">
                             <Link
                               href={`/projects/${p.id}`}
-                              className="px-2.5 py-1 text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                              className="px-2.5 py-1 text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-theme transition"
                             >
                               ดูเอกสาร
                             </Link>
                             {(p.status === 'DRAFT' || p.status === 'RETURNED' || p.status === 'REVISION') && (
                               <Link
                                 href={`/projects/${p.id}/edit`}
-                                className="px-2.5 py-1 text-[11px] font-bold text-theme-primary bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                                className="px-2.5 py-1 text-[11px] font-bold text-theme-primary bg-theme-primary-light hover:brightness-95 rounded-theme transition"
                               >
                                 แก้ไข
                               </Link>
@@ -779,7 +777,7 @@ export default function ProfileDashboardPage() {
                             {p.status === 'APPROVED' && (
                               <Link
                                 href={`/projects/${p.id}/summary`}
-                                className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition"
+                                className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-theme transition"
                               >
                                 สรุปผล
                               </Link>
@@ -798,7 +796,7 @@ export default function ProfileDashboardPage() {
 
       {/* TAB 3: PROJECT PROGRESS (ความคืบหน้าโครงการ) */}
       {activeTab === 'progress' && (
-        <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
             <div>
               <h2 className="font-black text-slate-900 text-base">ความคืบหน้าการพิจารณาและอนุมัติโครงการ</h2>
@@ -823,12 +821,12 @@ export default function ProfileDashboardPage() {
                 const { steps, currentStep, isApproved, isReturned } = getProgressSteps(p.status);
 
                 return (
-                  <div key={p.id} className="p-5 rounded-2xl border border-slate-200 hover:border-slate-300 transition bg-slate-50/40 hover:bg-white space-y-4">
+                  <div key={p.id} className="p-5 rounded-theme border border-slate-200 hover:border-slate-300 transition bg-slate-50/40 hover:bg-white space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           {p.project_code && (
-                            <span className="font-mono text-xs font-black px-2 py-0.5 rounded bg-blue-100 text-blue-900">
+                            <span className="font-mono text-xs font-black px-2 py-0.5 rounded bg-theme-primary-light text-theme-primary">
                               {p.project_code}
                             </span>
                           )}
@@ -850,7 +848,7 @@ export default function ProfileDashboardPage() {
                         </span>
                         <Link
                           href={`/projects/${p.id}`}
-                          className="p-2 text-slate-500 hover:text-theme-primary bg-white border border-slate-200 rounded-xl transition shadow-2xs"
+                          className="p-2 text-slate-500 hover:text-theme-primary bg-white border border-slate-200 rounded-theme transition shadow-2xs"
                           title="เปิดดูโครงการ"
                         >
                           <ArrowUpRight className="w-4 h-4" />
@@ -864,18 +862,17 @@ export default function ProfileDashboardPage() {
                         {steps.map((s) => {
                           const isDone = isApproved || currentStep > s.id;
                           const isCurrent = !isApproved && currentStep === s.id;
-                          const isPending = !isApproved && currentStep < s.id;
 
                           return (
                             <div
                               key={s.id}
-                              className={`p-3 rounded-xl border transition text-xs flex items-center gap-2.5 ${
+                              className={`p-3 rounded-theme border transition text-xs flex items-center gap-2.5 ${
                                 isDone
                                   ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
                                   : isCurrent
                                   ? isReturned
                                     ? 'bg-rose-50 border-rose-200 text-rose-900 ring-2 ring-rose-200'
-                                    : 'bg-blue-50 border-blue-200 text-blue-950 ring-2 ring-theme-primary/20'
+                                    : 'bg-theme-primary-light border-theme-primary/30 text-slate-900 ring-2 ring-theme-primary/20'
                                   : 'bg-white border-slate-200 text-slate-400 opacity-60'
                               }`}
                             >
@@ -913,7 +910,7 @@ export default function ProfileDashboardPage() {
 
       {/* TAB 4: PROJECT STATUS (สถานะโครงการ) */}
       {activeTab === 'status' && (
-        <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
           <div>
             <h2 className="font-black text-slate-900 text-base">การจัดกลุ่มตามสถานะโครงการ</h2>
             <p className="text-xs text-slate-500">สรุปความพร้อมและสถานะการดำเนินงานของแต่ละโครงการ</p>
@@ -922,7 +919,7 @@ export default function ProfileDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
             {/* 1. Approved Column */}
             <div className="space-y-3">
-              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-emerald-950">
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-theme flex items-center justify-between text-emerald-950">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                   <span className="font-bold text-xs">อนุมัติเสร็จสิ้น</span>
@@ -936,7 +933,7 @@ export default function ProfileDashboardPage() {
                 {projects
                   .filter((p) => p.status === 'APPROVED')
                   .map((p) => (
-                    <div key={p.id} className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-emerald-300 shadow-2xs space-y-2 transition group">
+                    <div key={p.id} className="p-3.5 bg-white rounded-theme border border-slate-200 hover:border-emerald-300 shadow-2xs space-y-2 transition group">
                       <div className="flex items-start justify-between gap-2">
                         <Link href={`/projects/${p.id}`} className="font-bold text-xs text-slate-900 group-hover:text-theme-primary line-clamp-2">
                           {p.name_th}
@@ -956,7 +953,7 @@ export default function ProfileDashboardPage() {
 
             {/* 2. In Review / Pending Column */}
             <div className="space-y-3">
-              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between text-amber-950">
+              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-theme flex items-center justify-between text-amber-950">
                 <div className="flex items-center gap-2">
                   <Clock className="w-5 h-5 text-amber-600" />
                   <span className="font-bold text-xs">อยู่ระหว่างรออนุมัติ</span>
@@ -970,7 +967,7 @@ export default function ProfileDashboardPage() {
                 {projects
                   .filter((p) => p.status?.startsWith('WAITING') || p.status?.startsWith('PENDING'))
                   .map((p) => (
-                    <div key={p.id} className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-amber-300 shadow-2xs space-y-2 transition group">
+                    <div key={p.id} className="p-3.5 bg-white rounded-theme border border-slate-200 hover:border-amber-300 shadow-2xs space-y-2 transition group">
                       <div className="flex items-start justify-between gap-2">
                         <Link href={`/projects/${p.id}`} className="font-bold text-xs text-slate-900 group-hover:text-theme-primary line-clamp-2">
                           {p.name_th}
@@ -990,7 +987,7 @@ export default function ProfileDashboardPage() {
 
             {/* 3. Draft / Revision Column */}
             <div className="space-y-3">
-              <div className="p-3.5 bg-slate-100 border border-slate-200 rounded-2xl flex items-center justify-between text-slate-900">
+              <div className="p-3.5 bg-slate-100 border border-slate-200 rounded-theme flex items-center justify-between text-slate-900">
                 <div className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-slate-600" />
                   <span className="font-bold text-xs">แบบร่าง / ส่งกลับแก้ไข</span>
@@ -1004,7 +1001,7 @@ export default function ProfileDashboardPage() {
                 {projects
                   .filter((p) => p.status === 'DRAFT' || p.status === 'RETURNED' || p.status === 'REVISION')
                   .map((p) => (
-                    <div key={p.id} className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-rose-300 shadow-2xs space-y-2 transition group">
+                    <div key={p.id} className="p-3.5 bg-white rounded-theme border border-slate-200 hover:border-rose-300 shadow-2xs space-y-2 transition group">
                       <div className="flex items-start justify-between gap-2">
                         <Link href={`/projects/${p.id}`} className="font-bold text-xs text-slate-900 group-hover:text-theme-primary line-clamp-2">
                           {p.name_th}

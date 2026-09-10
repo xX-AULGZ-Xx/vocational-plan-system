@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { useSettings } from '@/lib/settings-context';
 import { showAlert } from '@/lib/sweetalert';
 import {
   User,
@@ -32,6 +33,7 @@ import {
 export default function ProfileSettingsPage() {
   const router = useRouter();
   const { user, token, login } = useAuth();
+  const { collegeName } = useSettings();
   const [activeTab, setActiveTab] = useState<'info' | 'avatar' | 'signature' | 'security'>('info');
   const [departments, setDepartments] = useState<any[]>([]);
   const [divisions, setDivisions] = useState<any[]>([]);
@@ -218,7 +220,7 @@ export default function ProfileSettingsPage() {
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#0f172a'; // Deep Navy / Slate 900
+    ctx.strokeStyle = '#0f172a';
     ctx.lineTo(clientX - rect.left, clientY - rect.top);
     ctx.stroke();
   };
@@ -304,9 +306,9 @@ export default function ProfileSettingsPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20 animate-in fade-in duration-200">
-      {/* Top Banner & User Card */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-theme-primary/20 rounded-full blur-3xl pointer-events-none" />
+      {/* Top Banner & User Card Styled with System Gradient */}
+      <div className="relative overflow-hidden bg-theme-gradient text-white rounded-theme p-6 sm:p-8 shadow-xl transition-all duration-300">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
             <div className="relative shrink-0 group">
@@ -315,7 +317,7 @@ export default function ProfileSettingsPage() {
                   src={profileData.avatar_url}
                   alt={profileData.full_name}
                   referrerPolicy="no-referrer"
-                  className="w-20 h-20 rounded-2xl object-cover border-2 border-white/20 shadow-md ring-4 ring-white/10"
+                  className="w-20 h-20 rounded-theme object-cover border-2 border-white/30 shadow-md ring-4 ring-white/10"
                   onError={(e) => {
                     const target = e.currentTarget;
                     target.style.display = 'none';
@@ -325,7 +327,7 @@ export default function ProfileSettingsPage() {
                 />
               ) : null}
               <div
-                className={`w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-bold text-3xl shadow-md border-2 border-white/20 ring-4 ring-white/10 ${
+                className={`w-20 h-20 rounded-theme bg-white/20 text-white flex items-center justify-center font-bold text-3xl shadow-md border-2 border-white/30 ring-4 ring-white/10 backdrop-blur-sm ${
                   profileData.avatar_url ? 'hidden' : ''
                 }`}
               >
@@ -334,34 +336,36 @@ export default function ProfileSettingsPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab('avatar')}
-                className="absolute -bottom-2 -right-2 p-1.5 rounded-lg bg-theme-primary text-white shadow-md hover:bg-theme-primary-hover transition"
+                className="absolute -bottom-2 -right-2 p-1.5 rounded-theme bg-white text-slate-900 shadow-md hover:bg-slate-100 transition"
                 title="เปลี่ยนรูปโปรไฟล์"
               >
-                <Camera className="w-3.5 h-3.5" />
+                <Camera className="w-3.5 h-3.5 text-theme-primary" />
               </button>
             </div>
 
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                   {profileData.full_name || user?.username}
                 </h1>
-                <span className="px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/15 text-blue-200 border border-white/10 backdrop-blur-sm">
+                <span className="px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/20 text-white border border-white/20 backdrop-blur-sm">
                   {getRoleLabel(user?.role)}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-300 flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-blue-400" />
-                <span>{profileData.email || user?.email || 'ยังไม่ได้ระบุอีเมล'}</span>
+              <p className="text-xs sm:text-sm text-white/90 flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-white/80" />
+                  {profileData.email || user?.email || 'ยังไม่ได้ระบุอีเมล'}
+                </span>
                 {profileData.position && (
                   <>
-                    <span className="text-slate-500">•</span>
-                    <span className="text-slate-300 font-medium">{profileData.position}</span>
+                    <span className="text-white/40">•</span>
+                    <span className="text-white font-medium">{profileData.position}</span>
                   </>
                 )}
               </p>
-              <p className="text-[11px] text-slate-400">
-                บัญชีผู้ใช้งาน: <span className="font-mono text-slate-200 font-semibold">{user?.username}</span>
+              <p className="text-[11px] text-white/70">
+                บัญชีผู้ใช้งาน: <span className="font-mono text-white font-semibold">{user?.username}</span>
               </p>
             </div>
           </div>
@@ -370,9 +374,9 @@ export default function ProfileSettingsPage() {
             <button
               type="button"
               onClick={() => router.push('/profile')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-theme-primary hover:bg-theme-primary-hover rounded-xl transition shadow-sm"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-900 bg-white hover:bg-slate-100 rounded-theme transition shadow-sm"
             >
-              <User className="w-4 h-4" />
+              <User className="w-4 h-4 text-theme-primary" />
               <span>ดูหน้าโปรไฟล์</span>
             </button>
             <button
@@ -384,7 +388,7 @@ export default function ProfileSettingsPage() {
                   router.push('/dashboard');
                 }
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-200 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-xl transition border border-white/10 backdrop-blur-sm"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-theme transition border border-white/15 backdrop-blur-sm"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>ย้อนกลับ</span>
@@ -393,12 +397,12 @@ export default function ProfileSettingsPage() {
         </div>
       </div>
 
-      {/* Modern Navigation Tabs */}
-      <div className="flex items-center gap-2 p-1.5 bg-slate-100/80 backdrop-blur-sm rounded-2xl border border-slate-200/80 overflow-x-auto no-scrollbar">
+      {/* Modern Navigation Tabs Styled with Theme */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-100/80 backdrop-blur-sm rounded-theme border border-slate-200/80 overflow-x-auto no-scrollbar">
         <button
           type="button"
           onClick={() => setActiveTab('info')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'info'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -411,7 +415,7 @@ export default function ProfileSettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('avatar')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'avatar'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -424,7 +428,7 @@ export default function ProfileSettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('signature')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'signature'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -437,7 +441,7 @@ export default function ProfileSettingsPage() {
         <button
           type="button"
           onClick={() => setActiveTab('security')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
             activeTab === 'security'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -451,10 +455,10 @@ export default function ProfileSettingsPage() {
       {/* TAB 1: General Info & Department */}
       {activeTab === 'info' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-150">
-          <form onSubmit={handleUpdateProfile} className="md:col-span-2 bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+          <form onSubmit={handleUpdateProfile} className="md:col-span-2 bg-white p-6 sm:p-7 rounded-theme border border-slate-200 shadow-sm space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-blue-50 text-theme-primary">
+                <div className="p-2 rounded-theme bg-theme-primary-light text-theme-primary">
                   <User className="w-5 h-5" />
                 </div>
                 <div>
@@ -474,7 +478,7 @@ export default function ProfileSettingsPage() {
                   value={profileData.full_name}
                   onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
                   placeholder="เช่น นายสมชาย ใจดี"
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-slate-50/50 focus:bg-white text-sm"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-slate-50/50 focus:bg-white text-sm"
                   required
                 />
               </div>
@@ -489,7 +493,7 @@ export default function ProfileSettingsPage() {
                     value={profileData.position}
                     onChange={(e) => setProfileData({ ...profileData, position: e.target.value })}
                     placeholder="เช่น ครู คศ.๒, หัวหน้างาน..."
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-slate-50/50 focus:bg-white text-sm"
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-slate-50/50 focus:bg-white text-sm"
                     required
                   />
                 </div>
@@ -503,7 +507,7 @@ export default function ProfileSettingsPage() {
                     value={profileData.email}
                     onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
                     placeholder="name@cric.ac.th"
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-slate-50/50 focus:bg-white text-sm"
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-slate-50/50 focus:bg-white text-sm"
                   />
                 </div>
               </div>
@@ -515,7 +519,7 @@ export default function ProfileSettingsPage() {
                 <select
                   value={profileData.department_id}
                   onChange={(e) => setProfileData({ ...profileData, department_id: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-white text-sm"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-white text-sm"
                   required
                 >
                   <option value="">-- กรุณาเลือกแผนก/ฝ่ายงาน --</option>
@@ -541,7 +545,7 @@ export default function ProfileSettingsPage() {
               <button
                 type="submit"
                 disabled={savingProfile}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50 active:scale-95"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50 active:scale-95"
               >
                 <Save className="w-4 h-4" />
                 <span>{savingProfile ? 'กำลังบันทึก...' : 'บันทึกข้อมูลส่วนตัว'}</span>
@@ -551,21 +555,21 @@ export default function ProfileSettingsPage() {
 
           {/* Right Info Card */}
           <div className="space-y-4">
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50/40 p-6 rounded-2xl border border-blue-100/80 space-y-3">
-              <div className="flex items-center gap-2 font-bold text-blue-950 text-sm">
+            <div className="bg-theme-primary-light p-6 rounded-theme border border-theme-primary/20 space-y-3">
+              <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
                 <Shield className="w-4 h-4 text-theme-primary" />
                 <span>สิทธิ์การใช้งาน (RBAC)</span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                คุณเข้าสู่ระบบด้วยสิทธิ์ <strong className="text-blue-950 font-bold">{getRoleLabel(user?.role)}</strong>
+                คุณเข้าสู่ระบบด้วยสิทธิ์ <strong className="text-slate-900 font-bold">{getRoleLabel(user?.role)}</strong>
               </p>
-              <div className="pt-2 border-t border-blue-200/50 text-[11px] text-slate-500 space-y-1">
+              <div className="pt-2 border-t border-theme-primary/20 text-[11px] text-slate-600 space-y-1">
                 <p>• สามารถสร้างและเสนอโครงการตามแผนกที่สังกัด</p>
                 <p>• เข้าถึงระบบติดตามและสรุปผลโครงการ</p>
               </div>
             </div>
 
-            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-2">
+            <div className="bg-slate-50 p-5 rounded-theme border border-slate-200 text-xs text-slate-500 space-y-2">
               <p className="font-bold text-slate-700 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                 <span>คำแนะนำการตั้งค่า</span>
@@ -580,9 +584,9 @@ export default function ProfileSettingsPage() {
 
       {/* TAB 2: Avatar Photo */}
       {activeTab === 'avatar' && (
-        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6 animate-in fade-in duration-150">
           <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
+            <div className="p-2 rounded-theme bg-theme-primary-light text-theme-primary">
               <Camera className="w-5 h-5" />
             </div>
             <div>
@@ -593,7 +597,7 @@ export default function ProfileSettingsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
             {/* Current Preview */}
-            <div className="flex flex-col items-center p-6 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+            <div className="flex flex-col items-center p-6 bg-slate-50 rounded-theme border border-slate-200/80 space-y-3">
               <span className="text-xs font-bold text-slate-700">ตัวอย่างรูปปัจจุบัน</span>
               <div className="relative">
                 {profileData.avatar_url ? (
@@ -601,10 +605,10 @@ export default function ProfileSettingsPage() {
                     src={profileData.avatar_url}
                     alt={profileData.full_name}
                     referrerPolicy="no-referrer"
-                    className="w-28 h-28 rounded-2xl object-cover border-2 border-theme-primary shadow-md"
+                    className="w-28 h-28 rounded-theme object-cover border-2 border-theme-primary shadow-md"
                   />
                 ) : (
-                  <div className="w-28 h-28 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-4xl shadow-md">
+                  <div className="w-28 h-28 rounded-theme bg-slate-900 text-white flex items-center justify-center font-bold text-4xl shadow-md">
                     {profileData.full_name?.charAt(0) || 'U'}
                   </div>
                 )}
@@ -620,7 +624,7 @@ export default function ProfileSettingsPage() {
                 <label className="block text-xs font-bold text-slate-700 mb-2">
                   อัปโหลดรูปภาพจากอุปกรณ์ (Upload Image File)
                 </label>
-                <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 hover:border-theme-primary rounded-2xl cursor-pointer bg-slate-50/50 hover:bg-blue-50/30 transition group">
+                <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 hover:border-theme-primary rounded-theme cursor-pointer bg-slate-50/50 hover:bg-theme-primary-light/40 transition group">
                   <Upload className="w-6 h-6 text-slate-400 group-hover:text-theme-primary mb-2 transition" />
                   <span className="text-xs font-bold text-slate-700 group-hover:text-theme-primary">
                     คลิกเพื่อเลือกไฟล์รูปภาพ (JPG, PNG, WebP)
@@ -644,7 +648,7 @@ export default function ProfileSettingsPage() {
                   value={profileData.avatar_url}
                   onChange={(e) => setProfileData({ ...profileData, avatar_url: e.target.value })}
                   placeholder="https://example.com/avatar.jpg"
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition bg-slate-50/50 focus:bg-white text-xs"
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary transition bg-slate-50/50 focus:bg-white text-xs"
                 />
               </div>
 
@@ -658,7 +662,7 @@ export default function ProfileSettingsPage() {
                       key={idx}
                       type="button"
                       onClick={() => setProfileData({ ...profileData, avatar_url: preset })}
-                      className={`relative w-12 h-12 rounded-xl overflow-hidden border-2 transition ${
+                      className={`relative w-12 h-12 rounded-theme overflow-hidden border-2 transition ${
                         profileData.avatar_url === preset ? 'border-theme-primary ring-2 ring-theme-primary/30 scale-105' : 'border-slate-200 hover:border-slate-400'
                       }`}
                     >
@@ -674,7 +678,7 @@ export default function ProfileSettingsPage() {
                     <button
                       type="button"
                       onClick={() => setProfileData({ ...profileData, avatar_url: '' })}
-                      className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 text-[11px] font-bold transition flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-theme border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 text-[11px] font-bold transition flex items-center gap-1"
                     >
                       <Eraser className="w-3.5 h-3.5" />
                       <span>รีเซ็ตเป็นตัวย่อ</span>
@@ -688,7 +692,7 @@ export default function ProfileSettingsPage() {
                   type="button"
                   onClick={() => handleUpdateProfile()}
                   disabled={savingProfile}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>{savingProfile ? 'กำลังบันทึก...' : 'บันทึกรูปโปรไฟล์'}</span>
@@ -701,9 +705,9 @@ export default function ProfileSettingsPage() {
 
       {/* TAB 3: Digital Signature */}
       {activeTab === 'signature' && (
-        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6 animate-in fade-in duration-150">
+        <div className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6 animate-in fade-in duration-150">
           <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+            <div className="p-2 rounded-theme bg-emerald-50 text-emerald-600">
               <FileSignature className="w-5 h-5" />
             </div>
             <div>
@@ -725,14 +729,14 @@ export default function ProfileSettingsPage() {
                 <button
                   type="button"
                   onClick={clearSignatureCanvas}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg transition"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-2.5 py-1 rounded-theme transition"
                 >
                   <Eraser className="w-3 h-3" />
                   <span>ล้างลายเซ็น</span>
                 </button>
               </div>
 
-              <div className="relative border-2 border-dashed border-slate-300 rounded-2xl p-2 bg-slate-50/50 hover:bg-white transition flex items-center justify-center">
+              <div className="relative border-2 border-dashed border-slate-300 rounded-theme p-2 bg-slate-50/50 hover:bg-white transition flex items-center justify-center">
                 <canvas
                   ref={sigCanvasRef}
                   width={420}
@@ -744,7 +748,7 @@ export default function ProfileSettingsPage() {
                   onTouchStart={startDrawing}
                   onTouchMove={draw}
                   onTouchEnd={stopDrawing}
-                  className="bg-white rounded-xl shadow-inner w-full cursor-crosshair touch-none border border-slate-200"
+                  className="bg-white rounded-theme shadow-inner w-full cursor-crosshair touch-none border border-slate-200"
                 />
                 {!hasDrawn && (
                   <div className="absolute pointer-events-none text-slate-400 text-xs flex flex-col items-center gap-1">
@@ -762,7 +766,7 @@ export default function ProfileSettingsPage() {
             <div className="space-y-4">
               <div>
                 <span className="text-xs font-bold text-slate-700 block mb-2">ตัวอย่างลายเซ็นปัจจุบัน</span>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-center min-h-[140px]">
+                <div className="p-4 bg-slate-50 rounded-theme border border-slate-200/80 flex items-center justify-center min-h-[140px]">
                   {profileData.signature_img ? (
                     <div className="flex flex-col items-center gap-2">
                       <img
@@ -787,7 +791,7 @@ export default function ProfileSettingsPage() {
                 <label className="block text-xs font-bold text-slate-700 mb-2">
                   หรืออัปโหลดไฟล์รูปภาพลายเซ็น (PNG พื้นหลังโปร่งใส แนะนำ)
                 </label>
-                <label className="flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-300 hover:border-theme-primary rounded-xl cursor-pointer bg-white hover:bg-slate-50 transition text-xs font-semibold text-slate-700 shadow-2xs">
+                <label className="flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-300 hover:border-theme-primary rounded-theme cursor-pointer bg-white hover:bg-slate-50 transition text-xs font-semibold text-slate-700 shadow-2xs">
                   <Upload className="w-4 h-4 text-theme-primary" />
                   <span>เลือกไฟล์รูปลายเซ็นจากเครื่อง</span>
                   <input
@@ -804,7 +808,7 @@ export default function ProfileSettingsPage() {
                   type="button"
                   onClick={() => handleUpdateProfile()}
                   disabled={savingProfile}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
                   <span>{savingProfile ? 'กำลังบันทึก...' : 'บันทึกลายเซ็น'}</span>
@@ -817,115 +821,101 @@ export default function ProfileSettingsPage() {
 
       {/* TAB 4: Security & Password */}
       {activeTab === 'security' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-150">
-          <form onSubmit={handleChangePassword} className="md:col-span-2 bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-rose-50 text-rose-600">
-                <Lock className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="font-bold text-sm sm:text-base text-slate-900">เปลี่ยนรหัสผ่าน (Change Password)</h2>
-                <p className="text-[11px] text-slate-500">ตั้งรหัสผ่านใหม่เพื่อความปลอดภัยของบัญชีผู้ใช้งาน</p>
-              </div>
+        <form onSubmit={handleChangePassword} className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6 max-w-2xl animate-in fade-in duration-150">
+          <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
+            <div className="p-2 rounded-theme bg-amber-50 text-amber-600">
+              <Lock className="w-5 h-5" />
             </div>
-
-            <div className="space-y-4 text-xs font-sans">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1.5">รหัสผ่านปัจจุบัน (Current Password)</label>
-                <div className="relative">
-                  <input
-                    type={showPassword.current ? 'text' : 'password'}
-                    value={passwordData.current_password}
-                    onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                    placeholder="••••••••"
-                    className="w-full pl-4 pr-10 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition text-sm"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">รหัสผ่านใหม่ (New Password)</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword.new ? 'text' : 'password'}
-                      value={passwordData.new_password}
-                      onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                      placeholder="อย่างน้อย 6 ตัวอักษร"
-                      className="w-full pl-4 pr-10 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">ยืนยันรหัสผ่านใหม่</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword.confirm ? 'text' : 'password'}
-                      value={passwordData.confirm_password}
-                      onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                      placeholder="พิมพ์รหัสผ่านใหม่อีกครั้ง"
-                      className="w-full pl-4 pr-10 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex justify-end">
-              <button
-                type="submit"
-                disabled={savingPassword}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-md transition disabled:opacity-50 active:scale-95"
-              >
-                <Key className="w-4 h-4" />
-                <span>{savingPassword ? 'กำลังเปลี่ยนรหัสผ่าน...' : 'อัปเดตรหัสผ่านใหม่'}</span>
-              </button>
-            </div>
-          </form>
-
-          {/* Right Security Advice */}
-          <div className="space-y-4">
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-xs space-y-3">
-              <div className="flex items-center gap-1.5 font-bold text-slate-800 text-sm">
-                <Shield className="w-4 h-4 text-emerald-600" />
-                <span>ความปลอดภัยของบัญชี</span>
-              </div>
-              <ul className="text-[11px] text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
-                <li>ใช้รหัสผ่านที่มีความยาวอย่างน้อย 6-8 ตัวอักษร</li>
-                <li>ผสมผสานระหว่างตัวอักษรพิมพ์เล็ก พิมพ์ใหญ่ และตัวเลข</li>
-                <li>ไม่ควรใช้รหัสผ่านเดียวกับอีเมลส่วนตัว</li>
-                <li>หากใช้งานคอมพิวเตอร์สาธารณะ อย่าลืมกดออกจากระบบทุกครั้ง</li>
-              </ul>
+            <div>
+              <h2 className="font-bold text-sm sm:text-base text-slate-900">เปลี่ยนรหัสผ่าน (Change Password)</h2>
+              <p className="text-[11px] text-slate-500">กำหนดรหัสผ่านใหม่เพื่อความปลอดภัยในการเข้าใช้งานระบบ</p>
             </div>
           </div>
-        </div>
+
+          <div className="space-y-4 text-xs">
+            <div>
+              <label className="block font-bold text-slate-700 mb-1.5">
+                รหัสผ่านปัจจุบัน <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword.current ? 'text' : 'password'}
+                  value={passwordData.current_password}
+                  onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                  placeholder="กรอกรหัสผ่านเดิมของคุณ"
+                  className="w-full px-4 py-2.5 pr-10 border border-slate-300 rounded-theme outline-none focus:border-theme-primary text-sm"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((p) => ({ ...p, current: !p.current }))}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1.5">
+                รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร) <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword.new ? 'text' : 'password'}
+                  value={passwordData.new_password}
+                  onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                  placeholder="กรอกรหัสผ่านใหม่"
+                  className="w-full px-4 py-2.5 pr-10 border border-slate-300 rounded-theme outline-none focus:border-theme-primary text-sm"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((p) => ({ ...p, new: !p.new }))}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-700 mb-1.5">
+                ยืนยันรหัสผ่านใหม่อีกครั้ง <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword.confirm ? 'text' : 'password'}
+                  value={passwordData.confirm_password}
+                  onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                  placeholder="กรอกรหัสผ่านใหม่อีกครั้ง"
+                  className="w-full px-4 py-2.5 pr-10 border border-slate-300 rounded-theme outline-none focus:border-theme-primary text-sm"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((p) => ({ ...p, confirm: !p.confirm }))}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-[11px] text-slate-400">หลังเปลี่ยนรหัสผ่านสามารถใช้งานต่อได้ทันที</span>
+            <button
+              type="submit"
+              disabled={savingPassword}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
+            >
+              <Key className="w-4 h-4" />
+              <span>{savingPassword ? 'กำลังเปลี่ยนรหัส...' : 'อัปเดตรหัสผ่านใหม่'}</span>
+            </button>
+          </div>
+        </form>
       )}
     </div>
   );
 }
-
