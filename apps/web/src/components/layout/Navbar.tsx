@@ -19,6 +19,7 @@ import {
   Award,
   Menu,
   X,
+  Settings,
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
@@ -334,14 +335,24 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
                     </div>
 
                     <div className="py-1">
-                      {/* Link to Profile Page */}
+                      {/* Link to Profile & My Projects Dashboard */}
                       <Link
                         href="/profile"
                         onClick={() => setShowUserMenu(false)}
                         className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition group"
                       >
                         <UserIcon className="w-4 h-4 text-slate-400 group-hover:text-theme-primary transition" />
-                        <span>ข้อมูลส่วนตัว & เปลี่ยนรหัสผ่าน</span>
+                        <span>โปรไฟล์ & โครงการของฉัน</span>
+                      </Link>
+
+                      {/* Link to Profile Settings */}
+                      <Link
+                        href="/profile/settings"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition group"
+                      >
+                        <Settings className="w-4 h-4 text-slate-400 group-hover:text-theme-primary transition" />
+                        <span>ตั้งค่าโปรไฟล์ & ลายเซ็น</span>
                       </Link>
 
                       {/* Link to My Projects */}
@@ -351,7 +362,7 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
                         className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition group"
                       >
                         <FileText className="w-4 h-4 text-slate-400 group-hover:text-theme-primary transition" />
-                        <span>โครงการของฉัน</span>
+                        <span>จัดการโครงการ (My Projects)</span>
                       </Link>
 
                       {/* Admin Settings link if admin */}

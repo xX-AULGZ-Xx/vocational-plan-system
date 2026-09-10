@@ -1,319 +1,227 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { showAlert } from '@/lib/sweetalert';
+import { useSettings } from '@/lib/settings-context';
 import {
   User,
   Mail,
   Building,
   Briefcase,
   Shield,
-  Key,
-  Save,
+  FileText,
+  Clock,
   CheckCircle2,
-  Lock,
-  FileSignature,
-  Camera,
-  Award,
-  ArrowLeft,
+  AlertCircle,
+  XCircle,
+  ChevronRight,
   Sparkles,
-  Eraser,
-  Upload,
-  Check,
-  Phone,
-  HelpCircle,
+  ArrowLeft,
+  Settings,
+  PlusCircle,
+  Search,
+  Filter,
+  TrendingUp,
+  BarChart3,
+  Layers,
+  FileSignature,
+  DollarSign,
+  ArrowUpRight,
   ExternalLink,
-  Eye,
-  EyeOff
+  RotateCcw
 } from 'lucide-react';
 
-export default function ProfilePage() {
+export default function ProfileDashboardPage() {
   const router = useRouter();
-  const { user, token, login } = useAuth();
-  const [activeTab, setActiveTab] = useState<'info' | 'avatar' | 'signature' | 'security'>('info');
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [divisions, setDivisions] = useState<any[]>([]);
+  const { user, token } = useAuth();
+  const { collegeName } = useSettings();
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'progress' | 'status'>('overview');
+  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [savingPassword, setSavingPassword] = useState(false);
-
-  // Profile Form State
-  const [profileData, setProfileData] = useState({
-    full_name: '',
-    email: '',
-    position: '',
-    department_id: '',
-    signature_img: '',
-    avatar_url: '',
-  });
-
-  // Password Form State
-  const [passwordData, setPasswordData] = useState({
-    current_password: '',
-    new_password: '',
-    confirm_password: '',
-  });
-  const [showPassword, setShowPassword] = useState({
-    current: false,
-    new: false,
-    confirm: false,
-  });
-
-  // Canvas Signature pad state
-  const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [hasDrawn, setHasDrawn] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   useEffect(() => {
-    fetchProfileAndMetadata();
-  }, []);
+    fetchProfileProjects();
+  }, [token]);
 
-  const fetchProfileAndMetadata = async () => {
+  const fetchProfileProjects = async () => {
+    if (!token) return;
     setLoading(true);
     try {
-      const [profileRes, deptRes, divRes] = await Promise.all([
-        fetch('/api/v1/auth/me', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
-        fetch('/api/v1/departments'),
-        fetch('/api/v1/divisions'),
-      ]);
-
-      const profileJson = await profileRes.json();
-      const deptJson = await deptRes.json();
-      const divJson = await divRes.json();
-
-      if (profileJson.success && profileJson.user) {
-        const u = profileJson.user;
-        setProfileData({
-          full_name: u.full_name || '',
-          email: u.email || '',
-          position: u.position || '',
-          department_id: u.department?.id ? String(u.department.id) : (u.department_id ? String(u.department_id) : ''),
-          signature_img: u.signature_img || '',
-          avatar_url: u.avatar_url || '',
-        });
+      const res = await fetch('/api/v1/projects?my_projects=true', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setProjects(data.data);
+      } else if (Array.isArray(data)) {
+        setProjects(data);
       }
-
-      if (deptJson.success && Array.isArray(deptJson.data)) {
-        setDepartments(deptJson.data);
-      }
-      if (divJson.success && Array.isArray(divJson.data)) {
-        setDivisions(divJson.data);
-      }
-    } catch (err: any) {
-      console.error('Error fetching profile:', err);
+    } catch (err) {
+      console.error('Error fetching profile projects:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdateProfile = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!profileData.full_name.trim()) {
-      showAlert.error('กรุณากรอกชื่อ-นามสกุล', 'ชื่อ-นามสกุลจำเป็นสำหรับการออกเอกสารราชการ');
-      return;
-    }
-    if (!profileData.department_id) {
-      showAlert.error('กรุณาเลือกแผนก/ฝ่ายงาน', 'จำเป็นต้องระบุสังกัดในการบริหารโครงการ');
-      return;
-    }
-
-    setSavingProfile(true);
-    try {
-      const res = await fetch('/api/v1/auth/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(profileData),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showAlert.success('บันทึกสำเร็จ', 'อัปเดตข้อมูลโปรไฟล์ส่วนตัวเรียบร้อยแล้ว');
-        if (data.token && data.user) {
-          login(data.token, data.user);
-        }
-      } else {
-        showAlert.error('บันทึกไม่สำเร็จ', data.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-      }
-    } catch (err: any) {
-      showAlert.error('เกิดข้อผิดพลาด', err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passwordData.new_password.length < 6) {
-      showAlert.error('รหัสผ่านสั้นเกินไป', 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 6 ตัวอักษร');
-      return;
-    }
-    if (passwordData.new_password !== passwordData.confirm_password) {
-      showAlert.error('รหัสผ่านไม่ตรงกัน', 'กรุณากรอกรหัสผ่านใหม่และการยืนยันให้ตรงกัน');
-      return;
-    }
-
-    setSavingPassword(true);
-    try {
-      const res = await fetch('/api/v1/auth/password', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          current_password: passwordData.current_password,
-          new_password: passwordData.new_password,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showAlert.success('เปลี่ยนรหัสผ่านสำเร็จ', 'รหัสผ่านใหม่ของคุณได้รับการอัปเดตแล้ว');
-        setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
-      } else {
-        showAlert.error('เปลี่ยนรหัสผ่านไม่สำเร็จ', data.message || 'รหัสผ่านปัจจุบันไม่ถูกต้อง');
-      }
-    } catch (err: any) {
-      showAlert.error('เกิดข้อผิดพลาด', err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
-    } finally {
-      setSavingPassword(false);
-    }
-  };
-
-  // --- Signature Pad Methods ---
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = sigCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    setIsDrawing(true);
-    setHasDrawn(true);
-    const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-    ctx.beginPath();
-    ctx.moveTo(clientX - rect.left, clientY - rect.top);
-  };
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const canvas = sigCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#0f172a'; // Deep Navy / Slate 900
-    ctx.lineTo(clientX - rect.left, clientY - rect.top);
-    ctx.stroke();
-  };
-
-  const stopDrawing = () => {
-    if (!isDrawing) return;
-    setIsDrawing(false);
-    const canvas = sigCanvasRef.current;
-    if (canvas) {
-      const dataUrl = canvas.toDataURL('image/png');
-      setProfileData((prev) => ({ ...prev, signature_img: dataUrl }));
-    }
-  };
-
-  const clearSignatureCanvas = () => {
-    const canvas = sigCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setHasDrawn(false);
-  };
-
-  // Avatar file upload (Data URL)
-  const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      showAlert.error('ไฟล์มีขนาดใหญ่เกินไป', 'กรุณาอัปโหลดรูปภาพขนาดไม่เกิน 2MB');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setProfileData((prev) => ({ ...prev, avatar_url: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Signature file upload
-  const handleSignatureFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      showAlert.error('ไฟล์มีขนาดใหญ่เกินไป', 'กรุณาอัปโหลดรูปภาพขนาดไม่เกิน 2MB');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setProfileData((prev) => ({ ...prev, signature_img: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const avatarPresets = [
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
-  ];
-
-  const getRoleLabel = (role?: string) => {
+  const getRoleBadge = (role?: string) => {
     switch (role) {
-      case 'ADMIN': return 'ผู้ดูแลระบบ (System Admin)';
-      case 'DIRECTOR': return 'ผู้อำนวยการสถานศึกษา';
-      case 'DEPUTY_DIRECTOR': return 'รองผู้อำนวยการสถานศึกษา';
-      case 'PLANNING_OFFICER': return 'เจ้าหน้าที่งานวางแผนและงบประมาณ';
-      case 'HEAD_DEPT': return 'หัวหน้าแผนกวิชา / หัวหน้างาน';
+      case 'ADMIN':
+        return { label: 'ผู้ดูแลระบบ (Admin)', bg: 'bg-amber-100 text-amber-900 border-amber-300' };
+      case 'DIRECTOR':
+        return { label: 'ผู้อำนวยการสถานศึกษา', bg: 'bg-rose-100 text-rose-900 border-rose-300' };
+      case 'PLANNING_OFFICER':
+        return { label: 'เจ้าหน้าที่งานวางแผนและงบประมาณ', bg: 'bg-indigo-100 text-indigo-900 border-indigo-300' };
+      case 'DEPUTY_DIRECTOR':
+        return { label: 'รองผู้อำนวยการสถานศึกษา', bg: 'bg-purple-100 text-purple-900 border-purple-300' };
+      case 'HEAD_DEPT':
+        return { label: 'หัวหน้าแผนกวิชา / หัวหน้างาน', bg: 'bg-blue-100 text-blue-900 border-blue-300' };
       case 'TEACHER':
-      default: return 'ครูผู้สอน / ผู้รับผิดชอบโครงการ';
+      default:
+        return { label: 'ครูผู้สอน / ผู้เสนอโครงการ', bg: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
     }
   };
 
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto p-16 text-center text-slate-400">
-        <div className="w-10 h-10 border-3 border-theme-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm font-medium">กำลังโหลดข้อมูลโปรไฟล์ส่วนตัว...</p>
-      </div>
-    );
-  }
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+        return {
+          label: 'อนุมัติแล้ว',
+          bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          dot: 'bg-emerald-500',
+          icon: CheckCircle2,
+        };
+      case 'WAITING_HEAD_DEPT':
+      case 'PENDING_HEAD_DEPT':
+        return {
+          label: 'รอหัวหน้าแผนก/งาน',
+          bg: 'bg-blue-50 text-blue-700 border-blue-200',
+          dot: 'bg-blue-500',
+          icon: Clock,
+        };
+      case 'WAITING_PLANNING':
+      case 'PENDING_PLANNING':
+        return {
+          label: 'รองานแผนงานฯ',
+          bg: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+          dot: 'bg-indigo-500',
+          icon: Clock,
+        };
+      case 'WAITING_DEPUTY':
+      case 'PENDING_DEPUTY':
+        return {
+          label: 'รอรองผู้อำนวยการ',
+          bg: 'bg-purple-50 text-purple-700 border-purple-200',
+          dot: 'bg-purple-500',
+          icon: Clock,
+        };
+      case 'WAITING_DIRECTOR':
+      case 'PENDING_DIRECTOR':
+        return {
+          label: 'รอผู้อำนวยการอนุมัติ',
+          bg: 'bg-amber-50 text-amber-700 border-amber-200',
+          dot: 'bg-amber-500',
+          icon: Clock,
+        };
+      case 'RETURNED':
+      case 'REVISION':
+        return {
+          label: 'ส่งกลับแก้ไข',
+          bg: 'bg-rose-50 text-rose-700 border-rose-200',
+          dot: 'bg-rose-500',
+          icon: RotateCcw,
+        };
+      case 'REJECTED':
+        return {
+          label: 'ไม่อนุมัติ',
+          bg: 'bg-red-50 text-red-700 border-red-200',
+          dot: 'bg-red-500',
+          icon: XCircle,
+        };
+      case 'DRAFT':
+      default:
+        return {
+          label: 'แบบร่าง (Draft)',
+          bg: 'bg-slate-50 text-slate-700 border-slate-200',
+          dot: 'bg-slate-400',
+          icon: FileText,
+        };
+    }
+  };
+
+  const getProgressSteps = (status: string) => {
+    // 4 Approval levels
+    const steps = [
+      { id: 1, name: 'เสนอโครงการ (แผนก/งาน)', key: 'DEPT' },
+      { id: 2, name: 'ตรวจสอบงบ & รหัส (งานแผนงาน)', key: 'PLANNING' },
+      { id: 3, name: 'พิจารณา (รอง ผอ.)', key: 'DEPUTY' },
+      { id: 4, name: 'อนุมัติโครงการ (ผอ.)', key: 'DIRECTOR' },
+    ];
+
+    let currentStep = 0;
+    let isApproved = false;
+    let isReturned = false;
+
+    if (status === 'DRAFT') {
+      currentStep = 0;
+    } else if (status === 'WAITING_HEAD_DEPT' || status === 'PENDING_HEAD_DEPT') {
+      currentStep = 1;
+    } else if (status === 'WAITING_PLANNING' || status === 'PENDING_PLANNING') {
+      currentStep = 2;
+    } else if (status === 'WAITING_DEPUTY' || status === 'PENDING_DEPUTY') {
+      currentStep = 3;
+    } else if (status === 'WAITING_DIRECTOR' || status === 'PENDING_DIRECTOR') {
+      currentStep = 4;
+    } else if (status === 'APPROVED') {
+      currentStep = 5;
+      isApproved = true;
+    } else if (status === 'RETURNED' || status === 'REVISION') {
+      isReturned = true;
+    }
+
+    return { steps, currentStep, isApproved, isReturned };
+  };
+
+  // Metrics calculation
+  const totalProjects = projects.length;
+  const approvedProjects = projects.filter((p) => p.status === 'APPROVED').length;
+  const pendingProjects = projects.filter((p) => p.status && p.status.startsWith('WAITING') || p.status?.startsWith('PENDING')).length;
+  const draftOrRevisionProjects = projects.filter((p) => p.status === 'DRAFT' || p.status === 'RETURNED' || p.status === 'REVISION').length;
+  const totalBudget = projects.reduce((sum, p) => sum + (Number(p.total_budget) || Number(p.budget) || 0), 0);
+  const approvalRate = totalProjects > 0 ? Math.round((approvedProjects / totalProjects) * 100) : 0;
+
+  // Filtered projects
+  const filteredProjects = projects.filter((p) => {
+    const matchSearch =
+      (p.name_th || '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.project_code || '').toLowerCase().includes(search.toLowerCase());
+    
+    if (statusFilter === 'ALL') return matchSearch;
+    if (statusFilter === 'APPROVED') return matchSearch && p.status === 'APPROVED';
+    if (statusFilter === 'PENDING') return matchSearch && (p.status?.startsWith('WAITING') || p.status?.startsWith('PENDING'));
+    if (statusFilter === 'DRAFT') return matchSearch && (p.status === 'DRAFT' || p.status === 'RETURNED' || p.status === 'REVISION');
+    return matchSearch;
+  });
+
+  const roleInfo = getRoleBadge(user?.role);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20 animate-in fade-in duration-200">
-      {/* Top Banner & User Card */}
+    <div className="max-w-7xl mx-auto space-y-6 pb-20 animate-in fade-in duration-200">
+      {/* 1. Header Profile Banner */}
       <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-theme-primary/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-72 h-72 bg-theme-primary/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          {/* User Profile Details */}
           <div className="flex items-center gap-5">
-            <div className="relative shrink-0 group">
-              {profileData.avatar_url ? (
+            <div className="relative shrink-0">
+              {user?.avatar_url ? (
                 <img
-                  src={profileData.avatar_url}
-                  alt={profileData.full_name}
+                  src={user.avatar_url}
+                  alt={user.full_name}
                   referrerPolicy="no-referrer"
                   className="w-20 h-20 rounded-2xl object-cover border-2 border-white/20 shadow-md ring-4 ring-white/10"
                   onError={(e) => {
@@ -326,47 +234,62 @@ export default function ProfilePage() {
               ) : null}
               <div
                 className={`w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center font-bold text-3xl shadow-md border-2 border-white/20 ring-4 ring-white/10 ${
-                  profileData.avatar_url ? 'hidden' : ''
+                  user?.avatar_url ? 'hidden' : ''
                 }`}
               >
-                {profileData.full_name?.charAt(0) || 'U'}
+                {user?.full_name?.charAt(0) || 'U'}
               </div>
-              <button
-                type="button"
-                onClick={() => setActiveTab('avatar')}
-                className="absolute -bottom-2 -right-2 p-1.5 rounded-lg bg-theme-primary text-white shadow-md hover:bg-theme-primary-hover transition"
-                title="เปลี่ยนรูปโปรไฟล์"
-              >
-                <Camera className="w-3.5 h-3.5" />
-              </button>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                  {profileData.full_name || user?.username}
+                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  {user?.full_name || user?.username}
                 </h1>
                 <span className="px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/15 text-blue-200 border border-white/10 backdrop-blur-sm">
-                  {getRoleLabel(user?.role)}
+                  {roleInfo.label}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-300 flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-blue-400" />
-                <span>{profileData.email || user?.email || 'ยังไม่ได้ระบุอีเมล'}</span>
-                {profileData.position && (
+              <p className="text-xs sm:text-sm text-slate-300 flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-blue-400" />
+                  {user?.email || 'ยังไม่ได้ระบุอีเมล'}
+                </span>
+                {user?.position && (
                   <>
                     <span className="text-slate-500">•</span>
-                    <span className="text-slate-300 font-medium">{profileData.position}</span>
+                    <span className="text-slate-200 font-medium">{user.position}</span>
+                  </>
+                )}
+                {user?.department?.name && (
+                  <>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-blue-300 font-medium">{user.department.name}</span>
                   </>
                 )}
               </p>
               <p className="text-[11px] text-slate-400">
-                บัญชีผู้ใช้งาน: <span className="font-mono text-slate-200 font-semibold">{user?.username}</span>
+                สังกัดสถานศึกษา: <span className="text-slate-200 font-medium">{collegeName}</span>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 self-stretch sm:self-auto justify-end">
+          {/* Quick Actions */}
+          <div className="flex flex-wrap items-center gap-2.5 self-stretch md:self-auto justify-end">
+            <Link
+              href="/profile/settings"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-theme-primary hover:bg-theme-primary-hover active:scale-95 rounded-xl transition shadow-md shadow-theme-primary/20"
+            >
+              <Settings className="w-4 h-4" />
+              <span>ตั้งค่าโปรไฟล์ & ลายเซ็น</span>
+            </Link>
+            <Link
+              href="/projects/new"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-100 bg-white/10 hover:bg-white/20 active:scale-95 rounded-xl transition border border-white/10 backdrop-blur-sm"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>เสนอโครงการใหม่</span>
+            </Link>
             <button
               type="button"
               onClick={() => {
@@ -376,543 +299,734 @@ export default function ProfilePage() {
                   router.push('/dashboard');
                 }
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-200 bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-xl transition border border-white/10 backdrop-blur-sm"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold text-slate-300 bg-white/5 hover:bg-white/15 rounded-xl transition border border-white/10"
+              title="ย้อนกลับ"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>ย้อนกลับ</span>
+              <span className="hidden sm:inline">ย้อนกลับ</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Modern Navigation Tabs */}
-      <div className="flex items-center gap-2 p-1.5 bg-slate-100/80 backdrop-blur-sm rounded-2xl border border-slate-200/80 overflow-x-auto no-scrollbar">
+      {/* 2. Key Metrics & KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold">โครงการทั้งหมด</span>
+            <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+              <FileText className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-slate-900">{totalProjects}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">โครงการที่คุณเป็นผู้รับผิดชอบ</p>
+        </div>
+
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold">อนุมัติแล้ว</span>
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-emerald-600">{approvedProjects}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">คิดเป็น {approvalRate}% ของทั้งหมด</p>
+        </div>
+
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold">อยู่ระหว่างรออนุมัติ</span>
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-amber-600">{pendingProjects}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">กำลังอยู่ในขั้นตอนการพิจารณา</p>
+        </div>
+
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold">แบบร่าง / ส่งกลับแก้ไข</span>
+            <div className="p-2 rounded-xl bg-rose-50 text-rose-600">
+              <RotateCcw className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-black text-rose-600">{draftOrRevisionProjects}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">รอการปรับปรุงหรือส่งเสนอ</p>
+        </div>
+
+        <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 sm:p-5 rounded-2xl shadow-sm">
+          <div className="flex items-center justify-between text-blue-100 mb-2">
+            <span className="text-xs font-bold">งบประมาณรวม</span>
+            <div className="p-2 rounded-xl bg-white/20 text-white backdrop-blur-xs">
+              <DollarSign className="w-4 h-4" />
+            </div>
+          </div>
+          <p className="text-xl sm:text-2xl font-black truncate">฿{totalBudget.toLocaleString()}</p>
+          <p className="text-[11px] text-blue-200 mt-0.5">รวมทุกโครงการของคุณ</p>
+        </div>
+      </div>
+
+      {/* 3. Navigation Tabs */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-100/90 backdrop-blur-sm rounded-2xl border border-slate-200/80 overflow-x-auto no-scrollbar">
         <button
           type="button"
-          onClick={() => setActiveTab('info')}
+          onClick={() => setActiveTab('overview')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === 'info'
+            activeTab === 'overview'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <User className={`w-4 h-4 ${activeTab === 'info' ? 'text-theme-primary' : 'text-slate-400'}`} />
-          <span>ข้อมูลทั่วไปและสังกัด</span>
+          <BarChart3 className={`w-4 h-4 ${activeTab === 'overview' ? 'text-theme-primary' : 'text-slate-400'}`} />
+          <span>ภาพรวมโปรไฟล์ & กิจกรรม</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab('avatar')}
+          onClick={() => setActiveTab('projects')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === 'avatar'
+            activeTab === 'projects'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <Camera className={`w-4 h-4 ${activeTab === 'avatar' ? 'text-theme-primary' : 'text-slate-400'}`} />
-          <span>รูปภาพโปรไฟล์</span>
+          <FileText className={`w-4 h-4 ${activeTab === 'projects' ? 'text-theme-primary' : 'text-slate-400'}`} />
+          <span>โครงการของฉัน ({projects.length})</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab('signature')}
+          onClick={() => setActiveTab('progress')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === 'signature'
+            activeTab === 'progress'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <FileSignature className={`w-4 h-4 ${activeTab === 'signature' ? 'text-theme-primary' : 'text-slate-400'}`} />
-          <span>ลายเซ็นดิจิทัล (Digital Signature)</span>
+          <TrendingUp className={`w-4 h-4 ${activeTab === 'progress' ? 'text-theme-primary' : 'text-slate-400'}`} />
+          <span>ความคืบหน้าโครงการ</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab('security')}
+          onClick={() => setActiveTab('status')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === 'security'
+            activeTab === 'status'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
               : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
           }`}
         >
-          <Lock className={`w-4 h-4 ${activeTab === 'security' ? 'text-theme-primary' : 'text-slate-400'}`} />
-          <span>ความปลอดภัย & รหัสผ่าน</span>
+          <Layers className={`w-4 h-4 ${activeTab === 'status' ? 'text-theme-primary' : 'text-slate-400'}`} />
+          <span>สถานะโครงการ</span>
         </button>
       </div>
 
-      {/* TAB 1: General Info & Department */}
-      {activeTab === 'info' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-150">
-          <form onSubmit={handleUpdateProfile} className="md:col-span-2 bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-blue-50 text-theme-primary">
-                  <User className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-sm sm:text-base text-slate-900">ข้อมูลส่วนตัวและตำแหน่ง</h2>
-                  <p className="text-[11px] text-slate-500">ข้อมูลนี้จะถูกนำไปพิมพ์ลงในเอกสารโครงการและบันทึกข้อความราชการ</p>
-                </div>
-              </div>
-            </div>
+      {/* 4. Tab Contents */}
 
-            <div className="space-y-4 text-xs font-sans">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1.5">
-                  ชื่อ - นามสกุล (สำหรับออกเอกสารราชการ) <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={profileData.full_name}
-                  onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
-                  placeholder="เช่น นายสมชาย ใจดี"
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-slate-50/50 focus:bg-white text-sm"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">
-                    ตำแหน่งทางการ <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={profileData.position}
-                    onChange={(e) => setProfileData({ ...profileData, position: e.target.value })}
-                    placeholder="เช่น ครู คศ.๒, หัวหน้างาน..."
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-slate-50/50 focus:bg-white text-sm"
-                    required
-                  />
+      {/* TAB 1: OVERVIEW */}
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-150">
+          {/* Left 2 Cols: Recent Projects & Visual Progress */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
+                  <Sparkles className="w-4 h-4 text-theme-primary" />
+                  <span>โครงการล่าสุดของฉัน</span>
                 </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">
-                    อีเมลติดต่อ (Email)
-                  </label>
-                  <input
-                    type="email"
-                    value={profileData.email}
-                    onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                    placeholder="name@cric.ac.th"
-                    className="w-full px-4 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-slate-50/50 focus:bg-white text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1.5">
-                  แผนกวิชา / ฝ่ายงานที่สังกัด <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={profileData.department_id}
-                  onChange={(e) => setProfileData({ ...profileData, department_id: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-2 focus:ring-theme-primary/10 transition bg-white text-sm"
-                  required
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('projects')}
+                  className="text-xs font-bold text-theme-primary hover:underline flex items-center gap-1"
                 >
-                  <option value="">-- กรุณาเลือกแผนก/ฝ่ายงาน --</option>
-                  {divisions.map((div) => {
-                    const depts = departments.filter((d) => d.division_id === div.id);
-                    if (depts.length === 0) return null;
+                  <span>ดูทั้งหมด ({projects.length})</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {loading ? (
+                <div className="py-12 text-center text-slate-400">
+                  <div className="w-8 h-8 border-2 border-theme-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-xs">กำลังโหลดข้อมูลโครงการ...</p>
+                </div>
+              ) : projects.length === 0 ? (
+                <div className="py-12 text-center text-slate-400">
+                  <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm font-semibold text-slate-600">ยังไม่มีรายการโครงการ</p>
+                  <p className="text-xs text-slate-400 mt-1 mb-4">เริ่มต้นสร้างข้อเสนอโครงการแรกของคุณ</p>
+                  <Link
+                    href="/projects/new"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-theme-primary text-white text-xs font-bold rounded-xl shadow-xs"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>สร้างโครงการใหม่</span>
+                  </Link>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {projects.slice(0, 5).map((p) => {
+                    const statusInfo = getStatusBadge(p.status);
+                    const StatusIcon = statusInfo.icon;
                     return (
-                      <optgroup key={div.id} label={`ฝ่าย${div.name}`}>
-                        {depts.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                          </option>
-                        ))}
-                      </optgroup>
+                      <div key={p.id} className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between gap-4 group">
+                        <div className="space-y-1 overflow-hidden">
+                          <div className="flex items-center gap-2">
+                            {p.project_code && (
+                              <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                                {p.project_code}
+                              </span>
+                            )}
+                            <h4 className="text-xs sm:text-sm font-bold text-slate-800 truncate group-hover:text-theme-primary transition">
+                              <Link href={`/projects/${p.id}`}>{p.name_th}</Link>
+                            </h4>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                            <span>งบประมาณ: ฿{(Number(p.total_budget) || Number(p.budget) || 0).toLocaleString()}</span>
+                            <span>•</span>
+                            <span>ปีงบประมาณ {p.fiscal_year || '-'}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusInfo.bg}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                            <span>{statusInfo.label}</span>
+                          </span>
+                          <Link
+                            href={`/projects/${p.id}`}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-theme-primary hover:bg-blue-50 transition"
+                            title="เปิดดูโครงการ"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Link>
+                        </div>
+                      </div>
                     );
                   })}
-                </select>
-              </div>
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-              <span className="text-[11px] text-slate-400">กดบันทึกเพื่ออัปเดตข้อมูลในระบบทันที</span>
-              <button
-                type="submit"
-                disabled={savingProfile}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50 active:scale-95"
-              >
-                <Save className="w-4 h-4" />
-                <span>{savingProfile ? 'กำลังบันทึก...' : 'บันทึกข้อมูลส่วนตัว'}</span>
-              </button>
-            </div>
-          </form>
+            {/* Quick Status Distribution */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+              <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-theme-primary" />
+                <span>สัดส่วนสถานะโครงการ</span>
+              </h3>
+              
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between text-xs font-semibold mb-1">
+                    <span className="text-emerald-700">อนุมัติเรียบร้อย</span>
+                    <span className="text-slate-600">{approvedProjects} / {totalProjects} ({approvalRate}%)</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${approvalRate}%` }}
+                    />
+                  </div>
+                </div>
 
-          {/* Right Info Card */}
-          <div className="space-y-4">
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50/40 p-6 rounded-2xl border border-blue-100/80 space-y-3">
-              <div className="flex items-center gap-2 font-bold text-blue-950 text-sm">
-                <Shield className="w-4 h-4 text-theme-primary" />
-                <span>สิทธิ์การใช้งาน (RBAC)</span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                คุณเข้าสู่ระบบด้วยสิทธิ์ <strong className="text-blue-950 font-bold">{getRoleLabel(user?.role)}</strong>
-              </p>
-              <div className="pt-2 border-t border-blue-200/50 text-[11px] text-slate-500 space-y-1">
-                <p>• สามารถสร้างและเสนอโครงการตามแผนกที่สังกัด</p>
-                <p>• เข้าถึงระบบติดตามและสรุปผลโครงการ</p>
-              </div>
-            </div>
+                <div>
+                  <div className="flex justify-between text-xs font-semibold mb-1">
+                    <span className="text-amber-700">รอการพิจารณา / รออนุมัติ</span>
+                    <span className="text-slate-600">
+                      {pendingProjects} / {totalProjects} ({totalProjects > 0 ? Math.round((pendingProjects / totalProjects) * 100) : 0}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${totalProjects > 0 ? (pendingProjects / totalProjects) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
 
-            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 text-xs text-slate-500 space-y-2">
-              <p className="font-bold text-slate-700 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>คำแนะนำการตั้งค่า</span>
-              </p>
-              <p className="text-[11px] leading-relaxed">
-                การระบุชื่อ-นามสกุล และตำแหน่งที่ถูกต้อง จะช่วยให้การออกรายงานสรุปโครงการและเอกสารเสนอขออนุมัติมีความสมบูรณ์ถูกต้องตามระเบียบสารบรรณ
-              </p>
+                <div>
+                  <div className="flex justify-between text-xs font-semibold mb-1">
+                    <span className="text-rose-700">แบบร่าง / ส่งกลับแก้ไข</span>
+                    <span className="text-slate-600">
+                      {draftOrRevisionProjects} / {totalProjects} ({totalProjects > 0 ? Math.round((draftOrRevisionProjects / totalProjects) * 100) : 0}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div
+                      className="bg-rose-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${totalProjects > 0 ? (draftOrRevisionProjects / totalProjects) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* TAB 2: Avatar Photo */}
-      {activeTab === 'avatar' && (
-        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6 animate-in fade-in duration-150">
-          <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
-              <Camera className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="font-bold text-sm sm:text-base text-slate-900">รูปภาพประจำตัว (Avatar Picture)</h2>
-              <p className="text-[11px] text-slate-500">เลือกรูปภาพเพื่อแสดงผลใน Navbar และโปรไฟล์ของคุณ</p>
-            </div>
-          </div>
+          {/* Right Col: Personal Account Card & Signature Preview */}
+          <div className="space-y-6">
+            {/* Account Card */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <User className="w-4 h-4 text-theme-primary" />
+                  <span>ข้อมูลบัญชีผู้ใช้งาน</span>
+                </span>
+                <Link
+                  href="/profile/settings"
+                  className="text-xs font-bold text-theme-primary hover:underline flex items-center gap-1"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>แก้ไข</span>
+                </Link>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-            {/* Current Preview */}
-            <div className="flex flex-col items-center p-6 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
-              <span className="text-xs font-bold text-slate-700">ตัวอย่างรูปปัจจุบัน</span>
-              <div className="relative">
-                {profileData.avatar_url ? (
-                  <img
-                    src={profileData.avatar_url}
-                    alt={profileData.full_name}
-                    referrerPolicy="no-referrer"
-                    className="w-28 h-28 rounded-2xl object-cover border-2 border-theme-primary shadow-md"
-                  />
+              <div className="space-y-3 text-xs">
+                <div>
+                  <span className="text-slate-400 block text-[11px]">ชื่อ-นามสกุล</span>
+                  <p className="font-bold text-slate-800">{user?.full_name || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">ตำแหน่งทางการ</span>
+                  <p className="font-semibold text-slate-700">{user?.position || 'ยังไม่ระบุ'}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">แผนกวิชา / ฝ่ายงาน</span>
+                  <p className="font-semibold text-slate-700">{user?.department?.name || 'ยังไม่ระบุ'}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">ชื่อผู้ใช้งาน (Username)</span>
+                  <p className="font-mono font-semibold text-slate-700">{user?.username}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">บทบาทระบบ (Role)</span>
+                  <p className="font-semibold text-theme-primary">{roleInfo.label}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Digital Signature Card */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <FileSignature className="w-4 h-4 text-emerald-600" />
+                  <span>ลายเซ็นดิจิทัล</span>
+                </span>
+                <Link
+                  href="/profile/settings"
+                  className="text-xs font-bold text-theme-primary hover:underline"
+                >
+                  ตั้งค่าลายเซ็น
+                </Link>
+              </div>
+
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center min-h-[100px]">
+                {user?.signature_img ? (
+                  <div className="text-center space-y-1">
+                    <img
+                      src={user.signature_img}
+                      alt="Signature"
+                      className="max-h-16 max-w-full object-contain mx-auto filter drop-shadow-xs"
+                    />
+                    <span className="inline-block text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      พร้อมแนบในเอกสาร
+                    </span>
+                  </div>
                 ) : (
-                  <div className="w-28 h-28 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-4xl shadow-md">
-                    {profileData.full_name?.charAt(0) || 'U'}
+                  <div className="text-center text-slate-400 text-xs">
+                    <FileSignature className="w-6 h-6 mx-auto mb-1 opacity-40" />
+                    <span>ยังไม่มีลายเซ็นในระบบ</span>
                   </div>
                 )}
               </div>
               <p className="text-[10px] text-slate-400 text-center">
-                จะแสดงผลในแถบเมนูบน และระบบอนุมัติโครงการ
+                ลายเซ็นนี้จะถูกประทับอัตโนมัติในส่วนท้ายของโครงการและรายงานสรุป
               </p>
             </div>
 
-            {/* Upload & Presets */}
-            <div className="md:col-span-2 space-y-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">
-                  อัปโหลดรูปภาพจากอุปกรณ์ (Upload Image File)
-                </label>
-                <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 hover:border-theme-primary rounded-2xl cursor-pointer bg-slate-50/50 hover:bg-blue-50/30 transition group">
-                  <Upload className="w-6 h-6 text-slate-400 group-hover:text-theme-primary mb-2 transition" />
-                  <span className="text-xs font-bold text-slate-700 group-hover:text-theme-primary">
-                    คลิกเพื่อเลือกไฟล์รูปภาพ (JPG, PNG, WebP)
-                  </span>
-                  <span className="text-[10px] text-slate-400 mt-0.5">ขนาดไม่เกิน 2MB</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarFileUpload}
-                    className="hidden"
-                  />
-                </label>
+            {/* Settings Jump Banner */}
+            <div className="bg-gradient-to-br from-slate-900 to-blue-950 p-5 rounded-2xl text-white space-y-3 shadow-md">
+              <div className="flex items-center gap-2">
+                <Settings className="w-5 h-5 text-blue-400" />
+                <h4 className="font-bold text-xs">การตั้งค่าโปรไฟล์และรหัสผ่าน</h4>
               </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                คุณสามารถปรับเปลี่ยนรูปโปรไฟล์, วาดลายเซ็นดิจิทัล, เปลี่ยนชื่อ-สังกัด และเปลี่ยนรหัสผ่านได้ที่หน้าการตั้งค่า
+              </p>
+              <Link
+                href="/profile/settings"
+                className="inline-flex items-center gap-2 w-full justify-center px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-xl transition shadow-xs"
+              >
+                <span>ไปยังหน้า Profile Settings</span>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  หรือระบุลิงก์รูปภาพโดยตรง (Image URL)
-                </label>
+      {/* TAB 2: MY PROJECTS (โครงการของฉัน) */}
+      {activeTab === 'projects' && (
+        <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <h2 className="font-black text-slate-900 text-base">รายการโครงการของฉัน</h2>
+              <p className="text-xs text-slate-500">โครงการทั้งหมดที่คุณเป็นผู้รับผิดชอบและได้จัดทำในระบบ</p>
+            </div>
+
+            {/* Search & Filter */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
-                  value={profileData.avatar_url}
-                  onChange={(e) => setProfileData({ ...profileData, avatar_url: e.target.value })}
-                  placeholder="https://example.com/avatar.jpg"
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition bg-slate-50/50 focus:bg-white text-xs"
+                  placeholder="ค้นหาชื่อ หรือ รหัสโครงการ..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs outline-none focus:border-theme-primary w-52 sm:w-64"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">
-                  หรือเลือกจากภาพตัวอย่าง (Preset Avatars)
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {avatarPresets.map((preset, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setProfileData({ ...profileData, avatar_url: preset })}
-                      className={`relative w-12 h-12 rounded-xl overflow-hidden border-2 transition ${
-                        profileData.avatar_url === preset ? 'border-theme-primary ring-2 ring-theme-primary/30 scale-105' : 'border-slate-200 hover:border-slate-400'
-                      }`}
-                    >
-                      <img src={preset} alt="preset" className="w-full h-full object-cover" />
-                      {profileData.avatar_url === preset && (
-                        <div className="absolute inset-0 bg-theme-primary/40 flex items-center justify-center">
-                          <Check className="w-4 h-4 text-white stroke-[3]" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                  {profileData.avatar_url && (
-                    <button
-                      type="button"
-                      onClick={() => setProfileData({ ...profileData, avatar_url: '' })}
-                      className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 text-[11px] font-bold transition flex items-center gap-1"
-                    >
-                      <Eraser className="w-3.5 h-3.5" />
-                      <span>รีเซ็ตเป็นตัวย่อ</span>
-                    </button>
-                  )}
-                </div>
-              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-theme-primary bg-white text-slate-700"
+              >
+                <option value="ALL">ทุกสถานะ</option>
+                <option value="APPROVED">อนุมัติแล้ว</option>
+                <option value="PENDING">รอพิจารณา</option>
+                <option value="DRAFT">แบบร่าง/ส่งกลับแก้ไข</option>
+              </select>
 
-              <div className="pt-4 border-t border-slate-100 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => handleUpdateProfile()}
-                  disabled={savingProfile}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>{savingProfile ? 'กำลังบันทึก...' : 'บันทึกรูปโปรไฟล์'}</span>
-                </button>
-              </div>
+              <Link
+                href="/projects/new"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>สร้างโครงการ</span>
+              </Link>
             </div>
           </div>
+
+          {loading ? (
+            <div className="py-16 text-center text-slate-400">
+              <div className="w-8 h-8 border-2 border-theme-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <p className="text-xs">กำลังโหลดโครงการของฉัน...</p>
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 space-y-3">
+              <FileText className="w-12 h-12 mx-auto opacity-30" />
+              <p className="text-sm font-semibold text-slate-600">ไม่พบรายการโครงการที่ตรงตามเงื่อนไข</p>
+              <p className="text-xs text-slate-400">ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/70 text-slate-500 font-bold uppercase tracking-wider">
+                    <th className="py-3 px-4">รหัสโครงการ</th>
+                    <th className="py-3 px-4">ชื่อโครงการ</th>
+                    <th className="py-3 px-4">ปีงบประมาณ</th>
+                    <th className="py-3 px-4 text-right">งบประมาณ</th>
+                    <th className="py-3 px-4 text-center">สถานะ</th>
+                    <th className="py-3 px-4 text-center">การกระทำ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredProjects.map((p) => {
+                    const statusInfo = getStatusBadge(p.status);
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/70 transition">
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-700 whitespace-nowrap">
+                          {p.project_code || <span className="text-slate-400 font-normal italic">รอออกรหัส</span>}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <Link
+                            href={`/projects/${p.id}`}
+                            className="font-bold text-slate-900 hover:text-theme-primary transition line-clamp-2"
+                          >
+                            {p.name_th}
+                          </Link>
+                          {p.name_en && <p className="text-[10px] text-slate-400 line-clamp-1">{p.name_en}</p>}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">
+                          {p.fiscal_year || '-'}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-bold text-slate-800 whitespace-nowrap">
+                          ฿{(Number(p.total_budget) || Number(p.budget) || 0).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${statusInfo.bg}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                            <span>{statusInfo.label}</span>
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Link
+                              href={`/projects/${p.id}`}
+                              className="px-2.5 py-1 text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                            >
+                              ดูเอกสาร
+                            </Link>
+                            {(p.status === 'DRAFT' || p.status === 'RETURNED' || p.status === 'REVISION') && (
+                              <Link
+                                href={`/projects/${p.id}/edit`}
+                                className="px-2.5 py-1 text-[11px] font-bold text-theme-primary bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                              >
+                                แก้ไข
+                              </Link>
+                            )}
+                            {p.status === 'APPROVED' && (
+                              <Link
+                                href={`/projects/${p.id}/summary`}
+                                className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition"
+                              >
+                                สรุปผล
+                              </Link>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      {/* TAB 3: Digital Signature */}
-      {activeTab === 'signature' && (
-        <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6 animate-in fade-in duration-150">
-          <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <FileSignature className="w-5 h-5" />
-            </div>
+      {/* TAB 3: PROJECT PROGRESS (ความคืบหน้าโครงการ) */}
+      {activeTab === 'progress' && (
+        <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
             <div>
-              <h2 className="font-bold text-sm sm:text-base text-slate-900">ลายเซ็นดิจิทัล (Digital Signature)</h2>
-              <p className="text-[11px] text-slate-500">
-                ลายเซ็นนี้จะถูกนำไปใช้อัตโนมัติในส่วนลงนามเอกสารขออนุมัติโครงการและสรุปผล
-              </p>
+              <h2 className="font-black text-slate-900 text-base">ความคืบหน้าการพิจารณาและอนุมัติโครงการ</h2>
+              <p className="text-xs text-slate-500">ติดตามขั้นตอนการลงนามตามลำดับสายบังคับบัญชา 4 ลำดับขั้น</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            {/* Draw Pad */}
+          {loading ? (
+            <div className="py-16 text-center text-slate-400">
+              <div className="w-8 h-8 border-2 border-theme-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <p className="text-xs">กำลังโหลดความคืบหน้า...</p>
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 space-y-2">
+              <TrendingUp className="w-12 h-12 mx-auto opacity-30" />
+              <p className="text-sm font-semibold text-slate-600">ยังไม่มีข้อมูลความคืบหน้าโครงการ</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {projects.map((p) => {
+                const statusInfo = getStatusBadge(p.status);
+                const { steps, currentStep, isApproved, isReturned } = getProgressSteps(p.status);
+
+                return (
+                  <div key={p.id} className="p-5 rounded-2xl border border-slate-200 hover:border-slate-300 transition bg-slate-50/40 hover:bg-white space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          {p.project_code && (
+                            <span className="font-mono text-xs font-black px-2 py-0.5 rounded bg-blue-100 text-blue-900">
+                              {p.project_code}
+                            </span>
+                          )}
+                          <h4 className="font-bold text-sm text-slate-900">
+                            <Link href={`/projects/${p.id}`} className="hover:text-theme-primary transition">
+                              {p.name_th}
+                            </Link>
+                          </h4>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          งบประมาณ: <strong className="text-slate-700">฿{(Number(p.total_budget) || Number(p.budget) || 0).toLocaleString()}</strong> • ประจำปีงบประมาณ {p.fiscal_year || '-'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${statusInfo.bg}`}>
+                          <span className={`w-2 h-2 rounded-full ${statusInfo.dot}`} />
+                          <span>{statusInfo.label}</span>
+                        </span>
+                        <Link
+                          href={`/projects/${p.id}`}
+                          className="p-2 text-slate-500 hover:text-theme-primary bg-white border border-slate-200 rounded-xl transition shadow-2xs"
+                          title="เปิดดูโครงการ"
+                        >
+                          <ArrowUpRight className="w-4 h-4" />
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* Step Visual Stepper */}
+                    <div className="pt-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {steps.map((s) => {
+                          const isDone = isApproved || currentStep > s.id;
+                          const isCurrent = !isApproved && currentStep === s.id;
+                          const isPending = !isApproved && currentStep < s.id;
+
+                          return (
+                            <div
+                              key={s.id}
+                              className={`p-3 rounded-xl border transition text-xs flex items-center gap-2.5 ${
+                                isDone
+                                  ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                                  : isCurrent
+                                  ? isReturned
+                                    ? 'bg-rose-50 border-rose-200 text-rose-900 ring-2 ring-rose-200'
+                                    : 'bg-blue-50 border-blue-200 text-blue-950 ring-2 ring-theme-primary/20'
+                                  : 'bg-white border-slate-200 text-slate-400 opacity-60'
+                              }`}
+                            >
+                              <div
+                                className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] shrink-0 ${
+                                  isDone
+                                    ? 'bg-emerald-600 text-white'
+                                    : isCurrent
+                                    ? isReturned
+                                      ? 'bg-rose-600 text-white'
+                                      : 'bg-theme-primary text-white animate-pulse'
+                                    : 'bg-slate-200 text-slate-600'
+                                }`}
+                              >
+                                {isDone ? '✓' : s.id}
+                              </div>
+                              <div className="overflow-hidden">
+                                <p className="font-bold text-[11px] truncate leading-tight">{s.name}</p>
+                                <p className="text-[9px] truncate opacity-75">
+                                  {isDone ? 'ผ่านการพิจารณา' : isCurrent ? (isReturned ? 'ส่งกลับแก้ไข' : 'กำลังดำเนินการ') : 'รอดำเนินการ'}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 4: PROJECT STATUS (สถานะโครงการ) */}
+      {activeTab === 'status' && (
+        <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-2xs space-y-6 animate-in fade-in duration-150">
+          <div>
+            <h2 className="font-black text-slate-900 text-base">การจัดกลุ่มตามสถานะโครงการ</h2>
+            <p className="text-xs text-slate-500">สรุปความพร้อมและสถานะการดำเนินงานของแต่ละโครงการ</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            {/* 1. Approved Column */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-theme-primary" />
-                  <span>เซ็นสดบนหน้าจอ (Touch / Mouse Pad)</span>
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-emerald-950">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <span className="font-bold text-xs">อนุมัติเสร็จสิ้น</span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-200 text-emerald-900 font-bold text-xs">
+                  {approvedProjects}
                 </span>
-                <button
-                  type="button"
-                  onClick={clearSignatureCanvas}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg transition"
-                >
-                  <Eraser className="w-3 h-3" />
-                  <span>ล้างลายเซ็น</span>
-                </button>
               </div>
 
-              <div className="relative border-2 border-dashed border-slate-300 rounded-2xl p-2 bg-slate-50/50 hover:bg-white transition flex items-center justify-center">
-                <canvas
-                  ref={sigCanvasRef}
-                  width={420}
-                  height={160}
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                  onTouchStart={startDrawing}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDrawing}
-                  className="bg-white rounded-xl shadow-inner w-full cursor-crosshair touch-none border border-slate-200"
-                />
-                {!hasDrawn && (
-                  <div className="absolute pointer-events-none text-slate-400 text-xs flex flex-col items-center gap-1">
-                    <FileSignature className="w-5 h-5 opacity-40" />
-                    <span>ใช้นิ้วหรือเมาส์จรดเพื่อเซ็นชื่อที่นี่</span>
-                  </div>
+              <div className="space-y-2">
+                {projects
+                  .filter((p) => p.status === 'APPROVED')
+                  .map((p) => (
+                    <div key={p.id} className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-emerald-300 shadow-2xs space-y-2 transition group">
+                      <div className="flex items-start justify-between gap-2">
+                        <Link href={`/projects/${p.id}`} className="font-bold text-xs text-slate-900 group-hover:text-theme-primary line-clamp-2">
+                          {p.name_th}
+                        </Link>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                        <span>{p.project_code || 'มีรหัสโครงการแล้ว'}</span>
+                        <span className="font-bold text-emerald-700">฿{(Number(p.total_budget) || Number(p.budget) || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                {approvedProjects === 0 && (
+                  <p className="text-center text-xs text-slate-400 py-6">ยังไม่มีโครงการที่อนุมัติ</p>
                 )}
               </div>
-              <p className="text-[10px] text-slate-400">
-                เมื่อวาดเสร็จ ระบบจะนำภาพลายเซ็นไปบันทึกเป็นลายเซ็นประจำตัวของคุณโดยอัตโนมัติ
-              </p>
             </div>
 
-            {/* Current & Upload */}
-            <div className="space-y-4">
-              <div>
-                <span className="text-xs font-bold text-slate-700 block mb-2">ตัวอย่างลายเซ็นปัจจุบัน</span>
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-center min-h-[140px]">
-                  {profileData.signature_img ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <img
-                        src={profileData.signature_img}
-                        alt="Signature"
-                        className="max-h-24 max-w-full object-contain filter drop-shadow-sm"
-                      />
-                      <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        พร้อมใช้งานในเอกสาร
-                      </span>
+            {/* 2. In Review / Pending Column */}
+            <div className="space-y-3">
+              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between text-amber-950">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-amber-600" />
+                  <span className="font-bold text-xs">อยู่ระหว่างรออนุมัติ</span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-bold text-xs">
+                  {pendingProjects}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {projects
+                  .filter((p) => p.status?.startsWith('WAITING') || p.status?.startsWith('PENDING'))
+                  .map((p) => (
+                    <div key={p.id} className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-amber-300 shadow-2xs space-y-2 transition group">
+                      <div className="flex items-start justify-between gap-2">
+                        <Link href={`/projects/${p.id}`} className="font-bold text-xs text-slate-900 group-hover:text-theme-primary line-clamp-2">
+                          {p.name_th}
+                        </Link>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                        <span className="text-amber-700 font-medium">กำลังพิจารณา</span>
+                        <span className="font-bold text-slate-700">฿{(Number(p.total_budget) || Number(p.budget) || 0).toLocaleString()}</span>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="text-center text-slate-400 text-xs">
-                      <FileSignature className="w-6 h-6 mx-auto mb-1 opacity-30" />
-                      <span>ยังไม่มีลายเซ็นในระบบ</span>
+                  ))}
+                {pendingProjects === 0 && (
+                  <p className="text-center text-xs text-slate-400 py-6">ไม่มีโครงการที่รอดำเนินการ</p>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Draft / Revision Column */}
+            <div className="space-y-3">
+              <div className="p-3.5 bg-slate-100 border border-slate-200 rounded-2xl flex items-center justify-between text-slate-900">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-slate-600" />
+                  <span className="font-bold text-xs">แบบร่าง / ส่งกลับแก้ไข</span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-800 font-bold text-xs">
+                  {draftOrRevisionProjects}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {projects
+                  .filter((p) => p.status === 'DRAFT' || p.status === 'RETURNED' || p.status === 'REVISION')
+                  .map((p) => (
+                    <div key={p.id} className="p-3.5 bg-white rounded-xl border border-slate-200 hover:border-rose-300 shadow-2xs space-y-2 transition group">
+                      <div className="flex items-start justify-between gap-2">
+                        <Link href={`/projects/${p.id}`} className="font-bold text-xs text-slate-900 group-hover:text-theme-primary line-clamp-2">
+                          {p.name_th}
+                        </Link>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                        <span className={p.status === 'RETURNED' || p.status === 'REVISION' ? 'text-rose-600 font-bold' : 'text-slate-500'}>
+                          {p.status === 'RETURNED' || p.status === 'REVISION' ? 'ส่งกลับแก้ไข' : 'แบบร่าง'}
+                        </span>
+                        <Link
+                          href={`/projects/${p.id}/edit`}
+                          className="text-theme-primary font-bold hover:underline"
+                        >
+                          แก้ไขข้อมูล
+                        </Link>
+                      </div>
                     </div>
-                  )}
-                </div>
+                  ))}
+                {draftOrRevisionProjects === 0 && (
+                  <p className="text-center text-xs text-slate-400 py-6">ไม่มีโครงการที่เป็นแบบร่าง</p>
+                )}
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">
-                  หรืออัปโหลดไฟล์รูปภาพลายเซ็น (PNG พื้นหลังโปร่งใส แนะนำ)
-                </label>
-                <label className="flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-300 hover:border-theme-primary rounded-xl cursor-pointer bg-white hover:bg-slate-50 transition text-xs font-semibold text-slate-700 shadow-2xs">
-                  <Upload className="w-4 h-4 text-theme-primary" />
-                  <span>เลือกไฟล์รูปลายเซ็นจากเครื่อง</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleSignatureFileUpload}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => handleUpdateProfile()}
-                  disabled={savingProfile}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-md transition disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>{savingProfile ? 'กำลังบันทึก...' : 'บันทึกลายเซ็น'}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: Security & Password */}
-      {activeTab === 'security' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in duration-150">
-          <form onSubmit={handleChangePassword} className="md:col-span-2 bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-6">
-            <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
-              <div className="p-2 rounded-xl bg-rose-50 text-rose-600">
-                <Lock className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="font-bold text-sm sm:text-base text-slate-900">เปลี่ยนรหัสผ่าน (Change Password)</h2>
-                <p className="text-[11px] text-slate-500">ตั้งรหัสผ่านใหม่เพื่อความปลอดภัยของบัญชีผู้ใช้งาน</p>
-              </div>
-            </div>
-
-            <div className="space-y-4 text-xs font-sans">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1.5">รหัสผ่านปัจจุบัน (Current Password)</label>
-                <div className="relative">
-                  <input
-                    type={showPassword.current ? 'text' : 'password'}
-                    value={passwordData.current_password}
-                    onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                    placeholder="••••••••"
-                    className="w-full pl-4 pr-10 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition text-sm"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">รหัสผ่านใหม่ (New Password)</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword.new ? 'text' : 'password'}
-                      value={passwordData.new_password}
-                      onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                      placeholder="อย่างน้อย 6 ตัวอักษร"
-                      className="w-full pl-4 pr-10 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">ยืนยันรหัสผ่านใหม่</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword.confirm ? 'text' : 'password'}
-                      value={passwordData.confirm_password}
-                      onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                      placeholder="พิมพ์รหัสผ่านใหม่อีกครั้ง"
-                      className="w-full pl-4 pr-10 py-2.5 border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex justify-end">
-              <button
-                type="submit"
-                disabled={savingPassword}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-md transition disabled:opacity-50 active:scale-95"
-              >
-                <Key className="w-4 h-4" />
-                <span>{savingPassword ? 'กำลังเปลี่ยนรหัสผ่าน...' : 'อัปเดตรหัสผ่านใหม่'}</span>
-              </button>
-            </div>
-          </form>
-
-          {/* Right Security Advice */}
-          <div className="space-y-4">
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-xs space-y-3">
-              <div className="flex items-center gap-1.5 font-bold text-slate-800 text-sm">
-                <Shield className="w-4 h-4 text-emerald-600" />
-                <span>ความปลอดภัยของบัญชี</span>
-              </div>
-              <ul className="text-[11px] text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
-                <li>ใช้รหัสผ่านที่มีความยาวอย่างน้อย 6-8 ตัวอักษร</li>
-                <li>ผสมผสานระหว่างตัวอักษรพิมพ์เล็ก พิมพ์ใหญ่ และตัวเลข</li>
-                <li>ไม่ควรใช้รหัสผ่านเดียวกับอีเมลส่วนตัว</li>
-                <li>หากใช้งานคอมพิวเตอร์สาธารณะ อย่าลืมกดออกจากระบบทุกครั้ง</li>
-              </ul>
             </div>
           </div>
         </div>
@@ -920,4 +1034,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

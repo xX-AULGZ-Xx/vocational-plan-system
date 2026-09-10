@@ -9,6 +9,7 @@ export interface User {
   full_name: string;
   position: string;
   avatar_url?: string | null;
+  signature_img?: string | null;
   google_id?: string | null;
   is_profile_completed?: boolean;
   role: 'TEACHER' | 'HEAD_DEPT' | 'DEPUTY_DIRECTOR' | 'PLANNING_OFFICER' | 'DIRECTOR' | 'ADMIN';
