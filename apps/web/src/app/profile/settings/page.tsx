@@ -162,30 +162,46 @@ export default function ProfileSettingsPage() {
   const fetchProfileAndMetadata = async () => {
     setLoading(true);
     try {
-      const [profileRes, divRes] = await Promise.all([
-        fetch('/api/v1/auth/me', {
+      // Safely load profile from /api/v1/auth/me
+      let profileUser = null;
+      try {
+        const profileRes = await fetch('/api/v1/auth/me', {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
-        fetch('/api/v1/divisions'),
-      ]);
-
-      const profileJson = await profileRes.json();
-      const divJson = await divRes.json();
-
-      let divList: Division[] = [];
-      if (divJson.success && Array.isArray(divJson.data)) {
-        divList = divJson.data;
-        setDivisions(divList);
+        });
+        if (profileRes.ok) {
+          const profileJson = await profileRes.json();
+          if (profileJson.success && profileJson.user) {
+            profileUser = profileJson.user;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch /api/v1/auth/me, using local user state:', e);
       }
 
-      if (profileJson.success && profileJson.user) {
-        const u = profileJson.user;
-        setFullName(u.full_name || user?.full_name || user?.username || '');
-        setEmail(u.email || user?.email || '');
-        setSignatureImg(u.signature_img || (user as any)?.signature_img || '');
-        setAvatarUrl(u.avatar_url || user?.avatar_url || '');
-        if (u.avatar_url || user?.avatar_url) {
-          setRawAvatarImage(u.avatar_url || user?.avatar_url);
+      // Safely load divisions
+      let divList: Division[] = [];
+      try {
+        const divRes = await fetch('/api/v1/divisions');
+        if (divRes.ok) {
+          const divJson = await divRes.json();
+          if (divJson.success && Array.isArray(divJson.data)) {
+            divList = divJson.data;
+            setDivisions(divList);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch /api/v1/divisions:', e);
+      }
+
+      const activeUser = profileUser || user;
+      if (activeUser) {
+        const u = activeUser;
+        setFullName(u.full_name || u.username || '');
+        setEmail(u.email || '');
+        setSignatureImg(u.signature_img || '');
+        setAvatarUrl(u.avatar_url || '');
+        if (u.avatar_url) {
+          setRawAvatarImage(u.avatar_url);
         }
 
         if (u.position) {
@@ -201,8 +217,8 @@ export default function ProfileSettingsPage() {
           }
         }
 
-        const deptId = u.department?.id ? Number(u.department.id) : null;
-        const divId = u.department?.division_id ? Number(u.department.division_id) : null;
+        const deptId = u.department?.id ? Number(u.department.id) : (u.department_id ? Number(u.department_id) : null);
+        const divId = u.department?.division_id ? Number(u.department.division_id) : (u.division_id ? Number(u.division_id) : null);
 
         if (divId) {
           setSelectedDivisionIds([divId]);
@@ -219,11 +235,6 @@ export default function ProfileSettingsPage() {
             setHeadDeptIds([deptId]);
           }
         }
-      } else if (user) {
-        setFullName(user.full_name || user.username || '');
-        setEmail(user.email || '');
-        setAvatarUrl(user.avatar_url || '');
-        if (user.avatar_url) setRawAvatarImage(user.avatar_url);
       }
     } catch (err: any) {
       console.error('Error fetching profile:', err);
