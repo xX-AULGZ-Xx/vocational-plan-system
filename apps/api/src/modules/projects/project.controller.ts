@@ -976,72 +976,122 @@ router.post('/:id/submit', authenticate, async (req: AuthRequest, res: Response)
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลโครงการ' });
     }
 
-    // Update status to submitted
-    await prisma.project.update({
-      where: { id: projectId },
-      data: { status: ProjectStatus.submitted },
+    // Check if there was an approval step that requested revision
+    const revisionStep = await prisma.projectApproval.findFirst({
+      where: {
+        project_id: projectId,
+        status: ApprovalStatus.REVISION_REQUESTED,
+      },
+      orderBy: { step_order: 'desc' },
+      include: { approver: true },
     });
 
-    // Find Head of department
-    const head =
-      (await prisma.user.findFirst({
-        where: {
-          department_id: project.department_id,
-          role: 'HEAD_DEPT',
-        },
-      })) ||
-      (await prisma.user.findFirst({
-        where: { role: 'HEAD_DEPT' },
-      })) ||
-      (await prisma.user.findFirst({
-        where: { role: 'ADMIN' },
-      }));
+    let targetStepOrder = 1;
+    let targetApproverId: bigint | null = null;
+    let targetApproverName = '';
+    let targetNotificationTitle = '';
+    let newProjectStatus: ProjectStatus = ProjectStatus.submitted;
 
-    if (head) {
-      // Clean up any subsequent steps (step 2, 3, 4) from previous approval cycles to reset flow cleanly
-      await prisma.projectApproval.deleteMany({
-        where: {
-          project_id: projectId,
-          step_order: { gt: 1 },
-        },
-      });
+    if (revisionStep) {
+      // If revision was requested by a specific step, route back to that step!
+      targetStepOrder = revisionStep.step_order;
+      targetApproverId = revisionStep.approver_id;
+      targetApproverName = revisionStep.approver?.full_name || '';
 
-      // Find if there is an existing Step 1 approval
-      const existingStep1 = await prisma.projectApproval.findFirst({
-        where: { project_id: projectId, step_order: 1 },
-      });
-
-      if (existingStep1) {
-        await prisma.projectApproval.update({
-          where: { id: existingStep1.id },
-          data: {
-            status: ApprovalStatus.PENDING,
-            approver_id: head.id,
-            comment: 'ยื่นเสนอขออนุมัติโครงการใหม่ รอการพิจารณาเห็นชอบ',
-            signed_at: null,
-          },
-        });
-      } else {
-        await prisma.projectApproval.create({
-          data: {
-            project_id: projectId,
-            step_order: 1,
-            approver_id: head.id,
-            status: ApprovalStatus.PENDING,
-            comment: 'เสนอขออนุมัติโครงการตามสายการบังคับบัญชา',
-          },
-        });
+      if (targetStepOrder === 1) {
+        newProjectStatus = ProjectStatus.submitted;
+        targetNotificationTitle = 'โครงการได้รับการแก้ไขแล้ว รอพิจารณาเห็นชอบ (ขั้นที่ 1 - หัวหน้าแผนก)';
+      } else if (targetStepOrder === 2) {
+        newProjectStatus = ProjectStatus.dept_approved;
+        targetNotificationTitle = 'โครงการได้รับการแก้ไขแล้ว รอพิจารณาเห็นชอบ (ขั้นที่ 2 - รอง ผอ.)';
+      } else if (targetStepOrder === 3) {
+        newProjectStatus = ProjectStatus.deputy_approved;
+        targetNotificationTitle = 'โครงการได้รับการแก้ไขแล้ว รอตรวจสอบงบประมาณ (ขั้นที่ 3 - งานแผนงาน)';
+      } else if (targetStepOrder === 4) {
+        newProjectStatus = ProjectStatus.planning_approved;
+        targetNotificationTitle = 'โครงการได้รับการแก้ไขแล้ว รอผู้อำนวยการอนุมัติ (ขั้นที่ 4 - ผู้อำนวยการ)';
       }
+    } else {
+      // First-time submission: find Head of Department (Step 1)
+      const head =
+        (await prisma.user.findFirst({
+          where: {
+            department_id: project.department_id,
+            role: 'HEAD_DEPT',
+          },
+        })) ||
+        (await prisma.user.findFirst({
+          where: { role: 'HEAD_DEPT' },
+        })) ||
+        (await prisma.user.findFirst({
+          where: { role: 'ADMIN' },
+        }));
 
-      // Send In-app, Real-time SSE & Email Notification to Head of Department
-      notificationService.createNotification({
-        userId: head.id,
-        title: 'มีโครงการใหม่รอพิจารณาอนุมัติ (ขั้นที่ 1)',
-        message: `โครงการ "${project.title}" ถูกเสนอโดย ${req.user!.full_name} รอการพิจารณาเห็นชอบจากท่าน`,
-        type: NotificationType.PROJECT_SUBMITTED,
-        linkUrl: `/approvals`,
-      }).catch(err => console.error('Notification dispatch error:', err));
+      if (head) {
+        targetApproverId = head.id;
+        targetApproverName = head.full_name;
+      }
+      targetNotificationTitle = 'มีโครงการใหม่รอพิจารณาอนุมัติ (ขั้นที่ 1 - หัวหน้าแผนก)';
     }
+
+    if (!targetApproverId) {
+      const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+      targetApproverId = admin ? admin.id : project.leader_id;
+    }
+
+    // Update project status
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { status: newProjectStatus },
+    });
+
+    // Reset target step approval to PENDING
+    const existingTargetStep = await prisma.projectApproval.findFirst({
+      where: { project_id: projectId, step_order: targetStepOrder },
+    });
+
+    if (existingTargetStep) {
+      await prisma.projectApproval.update({
+        where: { id: existingTargetStep.id },
+        data: {
+          status: ApprovalStatus.PENDING,
+          approver_id: targetApproverId,
+          comment: revisionStep
+            ? `ผู้เสนอโครงการได้แก้ไขและส่งกลับมาให้พิจารณาอีกครั้ง (รอบแก้ไข)`
+            : `ยื่นเสนอขออนุมัติโครงการใหม่ รอการพิจารณาเห็นชอบ`,
+          signed_at: null,
+        },
+      });
+    } else {
+      await prisma.projectApproval.create({
+        data: {
+          project_id: projectId,
+          step_order: targetStepOrder,
+          approver_id: targetApproverId,
+          status: ApprovalStatus.PENDING,
+          comment: `เสนอขออนุมัติโครงการตามสายการบังคับบัญชา`,
+        },
+      });
+    }
+
+    // Delete any subsequent steps beyond targetStepOrder if any exist in broken state
+    await prisma.projectApproval.deleteMany({
+      where: {
+        project_id: projectId,
+        step_order: { gt: targetStepOrder },
+      },
+    });
+
+    // Send Notification to target approver
+    notificationService.createNotification({
+      userId: targetApproverId,
+      title: targetNotificationTitle,
+      message: revisionStep
+        ? `โครงการ "${project.title}" ได้รับการปรับปรุงแก้ไขตามข้อเสนอแนะแล้ว และส่งกลับมาให้ท่านพิจารณาอีกครั้ง`
+        : `โครงการ "${project.title}" ถูกเสนอโดย ${req.user!.full_name} รอการพิจารณาเห็นชอบจากท่าน`,
+      type: NotificationType.APPROVAL_REQUIRED,
+      linkUrl: `/approvals`,
+    }).catch((err) => console.error('Notification dispatch error:', err));
 
     // Broadcast Realtime Data Update to all connected clients
     try {
@@ -1051,11 +1101,18 @@ router.post('/:id/submit', authenticate, async (req: AuthRequest, res: Response)
         projectId: projectId.toString(),
         leaderId: project.leader_id.toString(),
         departmentId: project.department_id,
+        targetStepOrder,
         timestamp: new Date().toISOString(),
       });
     } catch (e) {}
 
-    return res.json({ success: true, message: 'ส่งเสนอโครงการเข้าสู่สายการอนุมัติเรียบร้อยแล้ว' });
+    const stepLabel = targetStepOrder === 4 ? 'ผู้อำนวยการ' : targetStepOrder === 3 ? 'งานแผนงาน' : targetStepOrder === 2 ? 'รองผู้อำนวยการ' : 'หัวหน้าแผนก';
+    return res.json({
+      success: true,
+      message: revisionStep
+        ? `ส่งโครงการที่แก้ไขแล้วกลับไปยัง "${stepLabel}" เรียบร้อยแล้ว`
+        : `ส่งเสนอโครงการเข้าสู่สายการอนุมัติเรียบร้อยแล้ว`,
+    });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด', error: error.message });
   }
