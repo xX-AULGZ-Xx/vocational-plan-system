@@ -73,10 +73,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { Authorization: `Bearer ${savedToken}` },
       })
         .then((res) => {
-          if (res.status === 431) {
+          if (res.status === 431 || res.status === 401) {
+            console.warn(`Session expired or invalid (HTTP ${res.status}), clearing stored credentials.`);
             localStorage.removeItem('vps_token');
             localStorage.removeItem('vps_user');
-            window.location.href = '/login';
+            setToken(null);
+            setUser(null);
+            if (!window.location.pathname.includes('/login')) {
+              window.location.href = '/login';
+            }
             return;
           }
           return res.json();
