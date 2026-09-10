@@ -26,6 +26,7 @@ interface ProjectSummaryTabProps {
 export default function ProjectSummaryTab({ project, token, onProjectUpdated }: ProjectSummaryTabProps) {
   const { collegeName, directorName, directorPosition } = useSettings();
   const [activeView, setActiveView] = useState<'preview' | 'edit'>('preview');
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [selectingImageSlot, setSelectingImageSlot] = useState<number | null>(null);
@@ -190,6 +191,35 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
         </div>
 
         <div className="flex items-center gap-2">
+          {activeView === 'preview' && (
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-theme border border-slate-200 mr-1">
+              <button
+                type="button"
+                onClick={() => setOrientation('portrait')}
+                className={`px-2.5 py-1.5 rounded-theme text-xs font-bold transition flex items-center gap-1 ${
+                  orientation === 'portrait'
+                    ? 'bg-white text-indigo-950 shadow-2xs font-black'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="สลับเป็นแนวตั้ง (A4 Portrait)"
+              >
+                <span>แนวตั้ง</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOrientation('landscape')}
+                className={`px-2.5 py-1.5 rounded-theme text-xs font-bold transition flex items-center gap-1 ${
+                  orientation === 'landscape'
+                    ? 'bg-white text-indigo-950 shadow-2xs font-black'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="สลับเป็นแนวนอน (A4 Landscape)"
+              >
+                <span>แนวนอน</span>
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => window.print()}
@@ -459,6 +489,7 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
             collegeName={collegeName}
             directorName={directorName}
             directorPosition={directorPosition}
+            orientation={orientation}
           />
         </div>
       )}
