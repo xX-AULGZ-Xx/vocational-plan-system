@@ -55,8 +55,32 @@ export async function getProjectTargetDivisionId(project: any): Promise<number |
   return project.department?.division_id || null;
 }
 
-// Helper to generate project code: PRJ-YYYY-[DIV]-XXXX with collision prevention
-async function generateProjectCode(fiscalYear: number, divisionCode: string): Promise<string> {
+// Helper to generate project code with custom template support
+// Supported placeholders: {YEAR} (e.g. 2569), {YEAR2} (e.g. 69), {DIV} (e.g. ACAD), {NUM} (e.g. 0001)
+async function generateProjectCode(fiscalYear: number, divisionCode: string, departmentCode?: string): Promise<string> {
+  let template = 'PRJ-{YEAR}-{DIV}-{NUM}';
+  let digits = 4;
+
+  try {
+    const settings = await (prisma as any).systemSetting.findMany({
+      where: {
+        key: { in: ['project_code_template', 'project_code_digits'] },
+      },
+    });
+    for (const s of settings) {
+      if (s.key === 'project_code_template' && s.value) template = s.value;
+      if (s.key === 'project_code_digits' && s.value) digits = parseInt(s.value, 10) || 4;
+    }
+  } catch {
+    // fallback to default
+  }
+
+  const year4 = fiscalYear.toString();
+  const year2 = year4.slice(-2);
+  const div = divisionCode || 'GEN';
+  const dept = departmentCode || '';
+
+  // Get all existing project codes for the current fiscal year to find the highest running number
   const existingProjects = await prisma.project.findMany({
     where: {
       fiscal_year: fiscalYear,
@@ -68,22 +92,36 @@ async function generateProjectCode(fiscalYear: number, divisionCode: string): Pr
   let maxSeq = 0;
   for (const p of existingProjects) {
     if (p.project_code) {
-      const parts = p.project_code.split('-');
-      const lastPart = parts[parts.length - 1];
-      const num = parseInt(lastPart, 10);
-      if (!isNaN(num) && num > maxSeq) {
-        maxSeq = num;
+      // Find all numbers in the code and inspect candidates
+      const matches = p.project_code.match(/\d+/g);
+      if (matches && matches.length > 0) {
+        // Take the last numerical sequence which is usually the running sequence
+        const lastNum = parseInt(matches[matches.length - 1], 10);
+        if (!isNaN(lastNum) && lastNum > maxSeq && lastNum !== fiscalYear) {
+          maxSeq = lastNum;
+        }
       }
     }
   }
 
   let nextSeq = maxSeq + 1;
-  let candidateCode = `PRJ-${fiscalYear}-${divisionCode}-${nextSeq.toString().padStart(4, '0')}`;
+
+  const buildCode = (seq: number) => {
+    const numStr = seq.toString().padStart(digits, '0');
+    return template
+      .replace(/\{YEAR\}/gi, year4)
+      .replace(/\{YEAR2\}/gi, year2)
+      .replace(/\{DIV\}/gi, div)
+      .replace(/\{DEPT\}/gi, dept)
+      .replace(/\{NUM\}/gi, numStr);
+  };
+
+  let candidateCode = buildCode(nextSeq);
 
   // Ensure code does not collide with any existing project in database
   while (await prisma.project.findUnique({ where: { project_code: candidateCode } })) {
     nextSeq++;
-    candidateCode = `PRJ-${fiscalYear}-${divisionCode}-${nextSeq.toString().padStart(4, '0')}`;
+    candidateCode = buildCode(nextSeq);
   }
 
   return candidateCode;

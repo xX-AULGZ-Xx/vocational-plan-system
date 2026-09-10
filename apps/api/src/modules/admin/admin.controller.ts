@@ -132,6 +132,8 @@ const DEFAULT_SETTINGS = [
   { key: 'smtp_pass', value: '', description: 'SMTP Password / App Password' },
   { key: 'smtp_from_name', value: 'ระบบบริหารจัดการโครงการ วก.เชียงราย', description: 'ชื่อผู้ส่งอีเมล' },
   { key: 'smtp_from_email', value: '', description: 'อีเมลผู้ส่ง (ถ้าต่างจาก Username)' },
+  { key: 'project_code_template', value: 'PRJ-{YEAR}-{DIV}-{NUM}', description: 'รูปแบบแม่แบบรหัสโครงการ ({YEAR}=ปี พ.ศ. 4 หลัก, {YEAR2}=ปี 2 หลัก, {DIV}=รหัสฝ่าย, {NUM}=เลขรัน)' },
+  { key: 'project_code_digits', value: '4', description: 'จำนวนหลักของเลขรันนิ่ง (เช่น 4 = 0001, 3 = 001)' },
   { key: 'theme_preset', value: 'royal_blue', description: 'ชุดธีมระบบ (royal_blue, emerald, purple, amber, crimson, slate, custom)' },
   { key: 'theme_primary_color', value: '#1e3a8a', description: 'รหัสสีหลักของระบบ (Primary Color HEX)' },
   { key: 'theme_primary_hover', value: '#172554', description: 'รหัสสีหลักเมื่อโฮเวอร์ (Primary Hover Color HEX)' },

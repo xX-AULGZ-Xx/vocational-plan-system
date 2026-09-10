@@ -78,6 +78,8 @@ export default function AdminSettingsPage() {
     theme_sidebar_style: 'dark',
     theme_border_radius: 'md',
     developer_info: 'พัฒนาระบบโดย งานส่งเสริมการวิจัย นวัตกรรม และสิ่งประดิษฐ์ ร่วมกับ งานศูนย์ข้อมูลสารสนเทศ',
+    project_code_template: 'PRJ-{YEAR}-{DIV}-{NUM}',
+    project_code_digits: '4',
   });
 
   const [testEmailRecipient, setTestEmailRecipient] = useState('');
@@ -1163,6 +1165,141 @@ export default function AdminSettingsPage() {
                       )}
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              {/* Project Code Template Generator Card */}
+              <div className="p-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 via-white to-slate-50 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-indigo-100">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg">
+                      <Code className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs sm:text-sm text-indigo-950">
+                        แม่แบบและรูปแบบรหัสโครงการ (Project Code Template)
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        กำหนดรูปแบบรหัสโครงการอัตโนมัติเมื่อผ่านการตรวจสอบจากงานแผนงาน
+                      </p>
+                    </div>
+                  </div>
+                  {/* Live Preview Badge */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-indigo-200 rounded-lg shadow-2xs">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase">ตัวอย่างรหัสจริง:</span>
+                    <span className="font-mono font-black text-xs text-indigo-900">
+                      {(settings.project_code_template || 'PRJ-{YEAR}-{DIV}-{NUM}')
+                        .replace(/\{YEAR\}/gi, String(settings.current_fiscal_year || getCurrentThaiFiscalYear()))
+                        .replace(/\{YEAR2\}/gi, String(settings.current_fiscal_year || getCurrentThaiFiscalYear()).slice(-2))
+                        .replace(/\{DIV\}/gi, 'ACAD')
+                        .replace(/\{DEPT\}/gi, 'IT')
+                        .replace(/\{NUM\}/gi, '1'.padStart(parseInt(settings.project_code_digits || '4', 10), '0'))}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-700 block">เลือกรูปแบบแม่แบบสำเร็จรูป:</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {[
+                      { name: 'มาตรฐาน (PRJ-2569-ACAD-0001)', template: 'PRJ-{YEAR}-{DIV}-{NUM}', digits: '4' },
+                      { name: 'สั้นกะทัดรัด (69-ACAD-001)', template: '{YEAR2}-{DIV}-{NUM}', digits: '3' },
+                      { name: 'แบบทางการ (โครงการ-2569-0001)', template: 'PRJ-{YEAR}-{NUM}', digits: '4' },
+                    ].map((p, idx) => {
+                      const isSelected = settings.project_code_template === p.template && settings.project_code_digits === p.digits;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            handleChange('project_code_template', p.template);
+                            handleChange('project_code_digits', p.digits);
+                          }}
+                          className={`p-2.5 rounded-lg border text-left transition flex items-center justify-between text-xs ${
+                            isSelected
+                              ? 'border-indigo-600 bg-indigo-50 text-indigo-950 font-bold shadow-2xs ring-1 ring-indigo-600/30'
+                              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <div>
+                            <p className="font-bold text-[11px]">{p.name}</p>
+                            <p className="font-mono text-[10px] text-slate-500 mt-0.5">{p.template}</p>
+                          </div>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Template Input */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-700">
+                      กำหนดแม่แบบเอง (Custom Template Pattern):
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.project_code_template || ''}
+                      onChange={(e) => handleChange('project_code_template', e.target.value)}
+                      placeholder="เช่น PRJ-{YEAR}-{DIV}-{NUM}"
+                      className="w-full px-3 py-2 text-xs font-mono font-bold border border-slate-300 rounded-lg outline-none focus:border-indigo-600 transition bg-white"
+                    />
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500 pt-1">
+                      <span className="font-semibold text-slate-600">แท็กที่รองรับ:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleChange('project_code_template', (settings.project_code_template || '') + '{YEAR}')}
+                        className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 font-mono hover:bg-indigo-100"
+                        title="ปี พ.ศ. 4 หลัก (เช่น 2569)"
+                      >
+                        {'{YEAR}'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleChange('project_code_template', (settings.project_code_template || '') + '{YEAR2}')}
+                        className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 font-mono hover:bg-indigo-100"
+                        title="ปี พ.ศ. 2 หลักท้าย (เช่น 69)"
+                      >
+                        {'{YEAR2}'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleChange('project_code_template', (settings.project_code_template || '') + '{DIV}')}
+                        className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 font-mono hover:bg-indigo-100"
+                        title="รหัสฝ่าย (เช่น ACAD, RES, DEV, STRAT)"
+                      >
+                        {'{DIV}'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleChange('project_code_template', (settings.project_code_template || '') + '{NUM}')}
+                        className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 font-mono hover:bg-indigo-100"
+                        title="เลขรันนิ่งลำดับโครงการ (เช่น 0001)"
+                      >
+                        {'{NUM}'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-700">
+                      จำนวนหลักเลขรันนิ่ง (Digits):
+                    </label>
+                    <select
+                      value={settings.project_code_digits || '4'}
+                      onChange={(e) => handleChange('project_code_digits', e.target.value)}
+                      className="w-full px-3 py-2 text-xs font-mono font-bold border border-slate-300 rounded-lg outline-none focus:border-indigo-600 transition bg-white"
+                    >
+                      <option value="3">3 หลัก (เช่น 001)</option>
+                      <option value="4">4 หลัก (เช่น 0001)</option>
+                      <option value="5">5 หลัก (เช่น 00001)</option>
+                    </select>
+                    <p className="text-[10px] text-slate-400">
+                      กำหนดความยาวของตัวเลข {'{NUM}'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
