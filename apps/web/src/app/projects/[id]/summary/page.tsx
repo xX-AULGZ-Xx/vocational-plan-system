@@ -398,6 +398,33 @@ export default function ProjectSummaryPage() {
         }
 
         // 17. Timelines & Dates & Duration
+        const toIsoDateString = (d: any): string => {
+          if (!d) return '';
+          if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) {
+            return d.trim();
+          }
+          const dateObj = new Date(d);
+          if (isNaN(dateObj.getTime())) {
+            const match = String(d).match(/(\d{1,2})[\/\-\s]+([^\s\d]+|\d{1,2})[\/\-\s]+(\d{4})/);
+            if (match) {
+              const day = parseInt(match[1], 10);
+              let year = parseInt(match[3], 10);
+              if (year > 2400) year -= 543;
+              let month = 1;
+              const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+              const foundM = months.findIndex(m => match[2].includes(m));
+              if (foundM >= 0) month = foundM + 1;
+              else month = parseInt(match[2], 10) || 1;
+              return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            }
+            return '';
+          }
+          const y = dateObj.getFullYear();
+          const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+          const dy = dateObj.getDate().toString().padStart(2, '0');
+          return `${y}-${m}-${dy}`;
+        };
+
         const formatThaiDate = (d: any) => {
           if (!d) return '';
           const dateObj = new Date(d);
@@ -406,22 +433,64 @@ export default function ProjectSummaryPage() {
           return `${dateObj.getDate()} ${months[dateObj.getMonth()]} พ.ศ. ${dateObj.getFullYear() + 543}`;
         };
 
-        let sDate = '';
-        let eDate = '';
+        let rawStartDate = '';
+        let rawEndDate = '';
         if (Array.isArray(proj.timelines) && proj.timelines.length > 0) {
           const validStart = [...proj.timelines].filter((tm: any) => tm.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
           const validEnd = [...proj.timelines].filter((tm: any) => tm.end_date || tm.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
-          if (validStart.length > 0) sDate = formatThaiDate(validStart[0].start_date);
-          if (validEnd.length > 0) eDate = formatThaiDate(validEnd[validEnd.length - 1].end_date || validEnd[validEnd.length - 1].start_date);
+          if (validStart.length > 0) rawStartDate = validStart[0].start_date;
+          if (validEnd.length > 0) rawEndDate = validEnd[validEnd.length - 1].end_date || validEnd[validEnd.length - 1].start_date;
         }
 
-        if (key === 'start_date' || norm === 'startdate') return projDynamic.start_date || sDate;
-        if (key === 'end_date' || norm === 'enddate') return projDynamic.end_date || eDate;
-        if (key === 'doc_date' || norm.includes('docdate') || norm.includes('reportdate')) {
+        if (!rawStartDate && proj.start_date) rawStartDate = proj.start_date;
+        if (!rawEndDate && proj.end_date) rawEndDate = proj.end_date;
+        if (!rawStartDate && projDynamic.start_date) rawStartDate = projDynamic.start_date;
+        if (!rawEndDate && projDynamic.end_date) rawEndDate = projDynamic.end_date;
+
+        const sDate = rawStartDate ? formatThaiDate(rawStartDate) : '';
+        const eDate = rawEndDate ? formatThaiDate(rawEndDate) : '';
+
+        // Start Date matches
+        if (
+          key === 'start_date' ||
+          norm === 'startdate' ||
+          norm.includes('startdate') ||
+          norm.includes('begindate') ||
+          rawLabel.includes('วันที่เริ่ม') ||
+          rawLabel.includes('วันเริ่มต้น') ||
+          rawLabel.includes('วันที่เริ่มต้น')
+        ) {
+          if (t.tag_type === 'DATE') {
+            return toIsoDateString(projDynamic.start_date || rawStartDate) || '';
+          }
+          return projDynamic.start_date || sDate;
+        }
+
+        // End Date matches
+        if (
+          key === 'end_date' ||
+          norm === 'enddate' ||
+          norm.includes('enddate') ||
+          norm.includes('finishdate') ||
+          rawLabel.includes('วันที่สิ้นสุด') ||
+          rawLabel.includes('วันสิ้นสุด') ||
+          rawLabel.includes('วันที่แล้วเสร็จ')
+        ) {
+          if (t.tag_type === 'DATE') {
+            return toIsoDateString(projDynamic.end_date || rawEndDate) || '';
+          }
+          return projDynamic.end_date || eDate;
+        }
+
+        if (key === 'doc_date' || norm.includes('docdate') || norm.includes('reportdate') || rawLabel.includes('วันที่จัดทำ') || rawLabel.includes('วันที่รายงาน')) {
+          if (t.tag_type === 'DATE') {
+            return toIsoDateString(projDynamic.doc_date || new Date()) || '';
+          }
           if (projDynamic.doc_date) return projDynamic.doc_date;
           const now = new Date();
           return `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear() + 543}`;
         }
+
         if (key === 'duration_text' || key === 'duration' || norm.includes('duration') || norm.includes('period') || norm.includes('timeline')) {
           if (t.tag_type === 'TIMELINE' || t.tag_type === 'TABLE_LOOP') {
             if (Array.isArray(proj.timelines) && proj.timelines.length > 0) {
@@ -1166,7 +1235,32 @@ export default function ProjectSummaryPage() {
           </div>
         );
       }
-      case 'DATERANGE':
+      case 'DATERANGE': {
+        const toIso = (d: any): string => {
+          if (!d) return '';
+          if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) return d.trim();
+          const dateObj = new Date(d);
+          if (isNaN(dateObj.getTime())) {
+            const match = String(d).match(/(\d{1,2})[\/\-\s]+([^\s\d]+|\d{1,2})[\/\-\s]+(\d{4})/);
+            if (match) {
+              const day = parseInt(match[1], 10);
+              let year = parseInt(match[3], 10);
+              if (year > 2400) year -= 543;
+              let month = 1;
+              const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+              const foundM = months.findIndex(m => match[2].includes(m));
+              if (foundM >= 0) month = foundM + 1;
+              else month = parseInt(match[2], 10) || 1;
+              return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            }
+            return '';
+          }
+          const y = dateObj.getFullYear();
+          const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+          const dy = dateObj.getDate().toString().padStart(2, '0');
+          return `${y}-${m}-${dy}`;
+        };
+
         return (
           <div key={key}>
             <div className="mb-1">
@@ -1176,25 +1270,51 @@ export default function ProjectSummaryPage() {
             <div className="flex items-center space-x-2">
               <input
                 type="date"
-                value={value?.start || ''}
+                value={toIso(value?.start || value?.startDate || value) || ''}
                 onChange={(e) => handleDynamicChange(key, { ...(value || {}), start: e.target.value })}
                 disabled={!isEditing}
                 required={tag.is_required}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed bg-white"
               />
               <span className="text-gray-500 text-sm">ถึง</span>
               <input
                 type="date"
-                value={value?.end || ''}
+                value={toIso(value?.end || value?.endDate) || ''}
                 onChange={(e) => handleDynamicChange(key, { ...(value || {}), end: e.target.value })}
                 disabled={!isEditing}
                 required={tag.is_required}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed bg-white"
               />
             </div>
           </div>
         );
-      case 'DATE':
+      }
+      case 'DATE': {
+        const toIso = (d: any): string => {
+          if (!d) return '';
+          if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) return d.trim();
+          const dateObj = new Date(d);
+          if (isNaN(dateObj.getTime())) {
+            const match = String(d).match(/(\d{1,2})[\/\-\s]+([^\s\d]+|\d{1,2})[\/\-\s]+(\d{4})/);
+            if (match) {
+              const day = parseInt(match[1], 10);
+              let year = parseInt(match[3], 10);
+              if (year > 2400) year -= 543;
+              let month = 1;
+              const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+              const foundM = months.findIndex(m => match[2].includes(m));
+              if (foundM >= 0) month = foundM + 1;
+              else month = parseInt(match[2], 10) || 1;
+              return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            }
+            return '';
+          }
+          const y = dateObj.getFullYear();
+          const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+          const dy = dateObj.getDate().toString().padStart(2, '0');
+          return `${y}-${m}-${dy}`;
+        };
+
         return (
           <div key={key}>
             <div className="mb-1">
@@ -1203,13 +1323,14 @@ export default function ProjectSummaryPage() {
             </div>
             <input
               type="date"
-              value={value || ''}
+              value={toIso(value) || ''}
               onChange={(e) => handleDynamicChange(key, e.target.value)}
               required={tag.is_required}
-              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm bg-white"
             />
           </div>
         );
+      }
       case 'DROPDOWN':
         const options = Array.isArray(tag.options) ? tag.options : [];
         return (
