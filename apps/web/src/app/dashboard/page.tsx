@@ -104,30 +104,70 @@ export default function DashboardPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">อนุมัติแล้ว</span>;
-      case 'submitted':
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">รอหัวหน้าแผนกพิจารณา</span>;
-      case 'dept_approved':
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800">รอรอง ผอ. พิจารณา</span>;
-      case 'deputy_approved':
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">รองานแผนออกรหัส</span>;
-      case 'planning_approved':
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">รอ ผอ. อนุมัติ</span>;
-      case 'rejected':
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-800">ไม่อนุมัติ</span>;
-      case 'draft':
-      default:
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">แบบร่าง (Draft)</span>;
+  const getStatusBadge = (p: any) => {
+    const status = p.status;
+    const isApproved =
+      status === 'approved' ||
+      status === 'in_progress' ||
+      status === 'completed' ||
+      p.approvals?.some((a: any) => a.step_order === 4 && a.status === 'APPROVED');
+
+    if (isApproved) {
+      return (
+        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+          อนุมัติแล้ว
+        </span>
+      );
     }
+    if (status === 'rejected' || p.approvals?.some((a: any) => a.status === 'REJECTED')) {
+      return (
+        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+          ไม่อนุมัติ
+        </span>
+      );
+    }
+    if (status === 'revision_requested' || p.approvals?.some((a: any) => a.status === 'REVISION_REQUESTED')) {
+      return (
+        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+          ขอให้แก้ไข
+        </span>
+      );
+    }
+
+    const pendingApp = p.approvals?.find((a: any) => a.status === 'PENDING');
+    if (pendingApp) {
+      if (pendingApp.step_order === 1) return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">รอหัวหน้าแผนกพิจารณา</span>;
+      if (pendingApp.step_order === 2) return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">รอรอง ผอ. พิจารณา</span>;
+      if (pendingApp.step_order === 3) return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">รองานแผนออกรหัส</span>;
+      if (pendingApp.step_order === 4) return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 border border-purple-200">รอ ผอ. อนุมัติ</span>;
+    }
+
+    if (status === 'submitted') return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">รอหัวหน้าแผนกพิจารณา</span>;
+    if (status === 'dept_approved') return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">รอรอง ผอ. พิจารณา</span>;
+    if (status === 'deputy_approved') return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">รองานแผนออกรหัส</span>;
+    if (status === 'planning_approved') return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 border border-purple-200">รอ ผอ. อนุมัติ</span>;
+
+    return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700 border border-slate-200">แบบร่าง (Draft)</span>;
   };
 
   const filteredProjects = projects.filter((p) => {
     // Exclude draft projects from dashboard
     if (p.status === 'draft') return false;
-    if (selectedStatus && p.status !== selectedStatus) return false;
+    if (selectedStatus) {
+      if (selectedStatus === 'approved') {
+        const isApproved =
+          p.status === 'approved' ||
+          p.status === 'in_progress' ||
+          p.status === 'completed' ||
+          p.approvals?.some((a: any) => a.step_order === 4 && a.status === 'APPROVED');
+        if (!isApproved) return false;
+      } else if (selectedStatus === 'rejected') {
+        const isRejected = p.status === 'rejected' || p.approvals?.some((a: any) => a.status === 'REJECTED');
+        if (!isRejected) return false;
+      } else if (p.status !== selectedStatus) {
+        return false;
+      }
+    }
     if (selectedDivision && p.department?.division?.code?.toLowerCase() !== selectedDivision.toLowerCase()) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -410,7 +450,7 @@ export default function DashboardPage() {
                   <span className="font-mono text-xs font-bold text-theme-primary bg-theme-primary-light px-2 py-0.5 rounded border border-theme-primary/20">
                     {p.project_code || 'ยังไม่ออกรหัส'}
                   </span>
-                  <div>{getStatusBadge(p.status)}</div>
+                  <div>{getStatusBadge(p)}</div>
                 </div>
 
                 {/* Project Title */}
@@ -499,7 +539,7 @@ export default function DashboardPage() {
                     <td className="p-3 text-right font-bold text-slate-900">
                       {Number(p.total_budget).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="p-3 text-center">{getStatusBadge(p.status)}</td>
+                    <td className="p-3 text-center">{getStatusBadge(p)}</td>
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         <Link
