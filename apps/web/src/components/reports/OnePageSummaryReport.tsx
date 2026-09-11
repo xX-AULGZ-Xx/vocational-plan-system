@@ -288,13 +288,13 @@ export default function OnePageSummaryReport({
                     return (
                       <div
                         key={num}
-                        className="aspect-4/3 rounded-lg overflow-hidden border border-slate-200 bg-white relative shadow-2xs flex flex-col items-center justify-center group h-full"
+                        className="aspect-4/3 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 relative shadow-2xs flex flex-col items-center justify-center group h-full"
                       >
                         {imgUrl ? (
                           <img
                             src={imgUrl}
                             alt={`ภาพกิจกรรมที่ ${num}`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                            className="w-full h-full object-contain bg-slate-900/5 group-hover:scale-105 transition duration-200"
                           />
                         ) : (
                           <div className="text-center p-1 text-slate-400">
@@ -336,7 +336,7 @@ export default function OnePageSummaryReport({
                     <span>ผลที่ได้รับ (Actual Results & Key Achievements)</span>
                   </h3>
                   <div className={`text-slate-700 whitespace-pre-line ${
-                    actualResults.length > 500 ? 'text-[10px] leading-snug' : actualResults.length > 250 ? 'text-[10.5px] leading-relaxed' : 'text-[11px] leading-relaxed'
+                    actualResults.length > 500 ? 'text-[10px] leading-snug' : actualResults.length > 250 ? 'text-[11px] leading-relaxed' : 'text-[11px] leading-relaxed'
                   }`}>
                     {actualResults}
                   </div>
@@ -382,13 +382,13 @@ export default function OnePageSummaryReport({
                     return (
                       <div
                         key={num}
-                        className="aspect-4/3 rounded-lg overflow-hidden border border-slate-300 bg-white relative shadow-2xs flex flex-col items-center justify-center group"
+                        className="aspect-4/3 rounded-lg overflow-hidden border border-slate-300 bg-slate-100 relative shadow-2xs flex flex-col items-center justify-center group"
                       >
                         {imgUrl ? (
                           <img
                             src={imgUrl}
                             alt={`ภาพกิจกรรมที่ ${num}`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                            className="w-full h-full object-contain bg-slate-900/5 group-hover:scale-105 transition duration-200"
                           />
                         ) : (
                           <div className="text-center p-2 text-slate-400">
