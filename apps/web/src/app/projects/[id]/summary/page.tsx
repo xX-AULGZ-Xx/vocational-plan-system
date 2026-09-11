@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { showAlert } from '@/lib/sweetalert';
 import { useSettings } from '@/lib/settings-context';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   Save,
   Eye,
@@ -14,7 +15,12 @@ import {
   Plus,
   Trash2,
   Download,
-  ArrowLeft
+  ArrowLeft,
+  UploadCloud,
+  Paperclip,
+  Image as ImageIcon,
+  Check,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -42,6 +48,7 @@ export default function ProjectSummaryPage() {
   const templateId = searchParams.get('templateId');
 
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Project context data
@@ -53,6 +60,15 @@ export default function ProjectSummaryPage() {
   // Dynamic tags
   const [dynamicData, setDynamicData] = useState<Record<string, any>>({});
   const [divisionsData, setDivisionsData] = useState<any[]>([]);
+  const [selectingImageTag, setSelectingImageTag] = useState<string | null>(null);
+
+  const imageDocuments = useMemo(() => {
+    if (!Array.isArray(project?.documents)) return [];
+    return project.documents.filter((doc: any) => {
+      const ext = (doc.file_type || '').toLowerCase();
+      return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) || (doc.file_name && /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.file_name));
+    });
+  }, [project?.documents]);
 
   useEffect(() => {
     if (projectId && templateId && token) {
@@ -92,108 +108,240 @@ export default function ProjectSummaryPage() {
         console.error(e);
       }
 
-      // Initialize dynamic data
+      // Initialize dynamic data recursively from project and project summary
       const initial: Record<string, any> = {};
-      const projDynamic = typeof proj.dynamic_data === 'string' 
-        ? JSON.parse(proj.dynamic_data) 
-        : (proj.dynamic_data || {});
+      let projDynamic: any = proj.dynamic_data || {};
+      while (typeof projDynamic === 'string') {
+        try {
+          projDynamic = JSON.parse(projDynamic);
+        } catch {
+          break;
+        }
+      }
+      if (typeof projDynamic !== 'object' || projDynamic === null) {
+        projDynamic = {};
+      }
+
+      const normalizeKey = (k: string) => (k || '').toLowerCase().replace(/[%_\-\s]/g, '');
+
+      const resolveTagValue = (t: any) => {
+        const key = t.tag_name;
+        const norm = normalizeKey(key);
+        const clean = key.replace(/[%]/g, '').trim();
+
+        // 1. Direct match
+        if (projDynamic[key] !== undefined && projDynamic[key] !== '') return projDynamic[key];
+        if (projDynamic[clean] !== undefined && projDynamic[clean] !== '') return projDynamic[clean];
+
+        // 2. Activity Images (activity_image_1..4, image1..4, photo1..4, pic1..4, etc.)
+        if (norm.includes('activityimage1') || norm.includes('image1') || norm.includes('photo1') || norm.includes('img1') || norm.includes('pic1')) {
+          return projDynamic.activity_image_1 || projDynamic.image_1 || projDynamic.photo_1 || '';
+        }
+        if (norm.includes('activityimage2') || norm.includes('image2') || norm.includes('photo2') || norm.includes('img2') || norm.includes('pic2')) {
+          return projDynamic.activity_image_2 || projDynamic.image_2 || projDynamic.photo_2 || '';
+        }
+        if (norm.includes('activityimage3') || norm.includes('image3') || norm.includes('photo3') || norm.includes('img3') || norm.includes('pic3')) {
+          return projDynamic.activity_image_3 || projDynamic.image_3 || projDynamic.photo_3 || '';
+        }
+        if (norm.includes('activityimage4') || norm.includes('image4') || norm.includes('photo4') || norm.includes('img4') || norm.includes('pic4')) {
+          return projDynamic.activity_image_4 || projDynamic.image_4 || projDynamic.photo_4 || '';
+        }
+
+        // 3. Core project fields
+        if (key === 'title' || key === 'project_name' || norm === 'title' || norm === 'projectname') {
+          return proj.title;
+        }
+        if (key === 'fiscal_year' || norm === 'fiscalyear') {
+          return proj.fiscal_year;
+        }
+        if (key === 'budget' || key === 'total_budget' || norm === 'budget' || norm === 'totalbudget') {
+          return proj.total_budget;
+        }
+        if (key === 'department' || norm === 'department') {
+          return proj.department?.name;
+        }
+        if (key === 'project_code' || norm === 'projectcode') {
+          return proj.project_code;
+        }
+
+        // 4. Budget & Financial results from "บันทึกผล/สรุปผล"
+        if (norm.includes('actualspent') || norm.includes('actualexpense') || norm.includes('spentamount') || norm.includes('totalspent') || norm.includes('spentbudget') || norm.includes('disbursement')) {
+          return proj.actual_spent || projDynamic.actual_spent || projDynamic.actual_expense || proj.total_budget || 0;
+        }
+
+        // 5. Operation / execution status & achievements
+        if (norm.includes('operationstatus') || norm.includes('executionstatus') || norm.includes('projectstatus')) {
+          return projDynamic.operation_status || 'ดำเนินงานแล้วเสร็จ 100%';
+        }
+        if (norm.includes('keyachievement') || norm.includes('keyresult') || norm.includes('achievement') || norm.includes('successrate')) {
+          return projDynamic.key_achievements || projDynamic.key_results || '';
+        }
+
+        // 6. Summary 4 columns (ตารางสรุปผล ๔ ช่อง)
+        if (norm.includes('activitiessummary') || norm.includes('activitysummary') || norm === 'activities' || norm.includes('activitydesc')) {
+          return projDynamic.activities_summary || projDynamic.activity_summary || '';
+        }
+        if (norm.includes('actualresult') || norm.includes('resultssummary') || norm === 'results' || norm === 'actualoutcome' || norm.includes('benefit')) {
+          return projDynamic.actual_results || projDynamic.results_summary || proj.expected_results || proj.expected_outcome || '';
+        }
+        if (norm.includes('problem') || norm.includes('obstacle') || norm.includes('problemsobstacles')) {
+          return projDynamic.problems_obstacles || projDynamic.problems_obstacles_text || projDynamic.obstacles_and_solutions || '';
+        }
+        if (norm.includes('projectsuggestion') || norm.includes('suggestion') || norm.includes('summarynote') || norm.includes('recommendation') || norm.includes('solution')) {
+          return projDynamic.project_suggestions || projDynamic.summary_notes || '';
+        }
+
+        // 7. Vocational Standards & Curriculum Standards
+        if (norm.includes('standard') || norm.includes('vocationalstandard') || norm.includes('curriculumstandard')) {
+          return projDynamic.vocational_standards || projDynamic.standards || proj.standard || 'มาตรฐานที่ ๑ คุณลักษณะของผู้สำเร็จการศึกษาอาชีวศึกษาที่พึงประสงค์';
+        }
+
+        // 8. Objectives (TABLE_LOOP or text)
+        if (norm.includes('objective')) {
+          if (t.tag_type === 'TABLE_LOOP') {
+            if (Array.isArray(projDynamic.objectives) && projDynamic.objectives.length > 0) return projDynamic.objectives;
+            if (Array.isArray(proj.objectives) && proj.objectives.length > 0) {
+              return proj.objectives.map((o: any) => typeof o === 'string' ? { description: o } : { description: o.name || o.description || '' });
+            }
+            return [{}];
+          }
+          if (Array.isArray(proj.objectives)) {
+            return proj.objectives.map((o: any) => typeof o === 'string' ? o : (o.name || o.description || '')).filter(Boolean).join('\n');
+          }
+          return proj.objectives || projDynamic.objectives || '';
+        }
+
+        // 9. Targets / Target Group
+        if (norm.includes('target') || norm.includes('targetgroup')) {
+          return proj.target_group || proj.target || projDynamic.target_group || projDynamic.target || '';
+        }
+
+        // 10. Indicators
+        if (norm.includes('indicator')) {
+          return proj.indicators || proj.indicator || projDynamic.indicators || '';
+        }
+
+        // 11. Principles / Rationale / Background
+        if (norm.includes('rationale') || norm.includes('principle') || norm.includes('background')) {
+          return proj.background || proj.rationale || proj.principles || projDynamic.rationale || projDynamic.principles || '';
+        }
+
+        // 12. Dates / Duration
+        if (key === 'start_date' || key === 'end_date' || key === 'duration_text' || key === 'duration' || key === 'doc_date' || norm.includes('docdate') || norm.includes('startdate') || norm.includes('enddate')) {
+          const formatThaiDate = (d: any) => {
+            if (!d) return '';
+            const dateObj = new Date(d);
+            if (isNaN(dateObj.getTime())) return String(d);
+            const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+            return `${dateObj.getDate()} ${months[dateObj.getMonth()]} พ.ศ. ${dateObj.getFullYear() + 543}`;
+          };
+          let sDate = '';
+          let eDate = '';
+          if (Array.isArray(proj.timelines) && proj.timelines.length > 0) {
+            const validStart = [...proj.timelines].filter((tm: any) => tm.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+            const validEnd = [...proj.timelines].filter((tm: any) => tm.end_date || tm.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
+            if (validStart.length > 0) sDate = formatThaiDate(validStart[0].start_date);
+            if (validEnd.length > 0) eDate = formatThaiDate(validEnd[validEnd.length - 1].end_date || validEnd[validEnd.length - 1].start_date);
+          }
+          if (key === 'start_date' || norm === 'startdate') return projDynamic.start_date || sDate;
+          if (key === 'end_date' || norm === 'enddate') return projDynamic.end_date || eDate;
+          if (key === 'doc_date' || norm.includes('docdate')) {
+            if (projDynamic.doc_date) return projDynamic.doc_date;
+            const now = new Date();
+            return `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear() + 543}`;
+          }
+          if (key === 'duration_text' || key === 'duration' || norm.includes('duration')) {
+            const dText = (sDate && eDate) ? (sDate === eDate ? sDate : `${sDate} ถึง ${eDate}`) : (sDate || eDate);
+            return projDynamic[key] || dText;
+          }
+        }
+
+        // 13. Fuzzy match in projDynamic
+        for (const k of Object.keys(projDynamic)) {
+          if (normalizeKey(k) === norm) {
+            return projDynamic[k];
+          }
+        }
+
+        // 14. Signers and institutional defaults
+        if (t.tag_type === 'LEADER_NAME' || key === 'leader_name' || norm === 'leadername') {
+          return proj.leader?.full_name || user?.full_name || '';
+        }
+        if (t.tag_type === 'LEADER_POSITION' || key === 'leader_position' || norm === 'leaderposition') {
+          const userDept = user?.department;
+          if (userDept) {
+            if (user?.role === 'HEAD_DEPT' || (user as any)?.is_head) {
+              return userDept.name.startsWith('งาน') || userDept.name.startsWith('แผนก') 
+                ? `หัวหน้า${userDept.name}` 
+                : `หัวหน้างาน${userDept.name}`;
+            } else if (user?.position === 'เจ้าหน้าที่') {
+              return userDept.name.startsWith('งาน') || userDept.name.startsWith('แผนก')
+                ? `เจ้าหน้าที่${userDept.name}`
+                : `เจ้าหน้าที่งาน${userDept.name}`;
+            } else {
+              return userDept.name.startsWith('แผนก') 
+                ? `ครูประจำ${userDept.name}` 
+                : (userDept.name.startsWith('งาน') ? `ครูผู้ช่วย${userDept.name}` : `ครูประจำแผนกวิชา${userDept.name}`);
+            }
+          }
+          return proj.leader?.position || user?.position || 'ครู';
+        }
+        if (t.tag_type === 'DIRECTOR_NAME' || key === 'director_name' || norm === 'directorname') {
+          return directorName || '';
+        }
+        if (t.tag_type === 'DIRECTOR_POSITION' || key === 'director_position' || norm === 'directorposition') {
+          return directorPosition || '';
+        }
+        if (t.tag_type === 'COLLEGE_NAME' || key === 'college_name' || norm === 'collegename') {
+          return collegeName || '';
+        }
+        if (t.tag_type === 'PLANNING_HEAD_NAME' || key === 'planning_head_name' || norm === 'planningheadname') {
+          return planningHeadName || '';
+        }
+        if (t.tag_type === 'PLANNING_HEAD_POSITION' || key === 'planning_head_position' || norm === 'planningheadposition') {
+          return planningHeadPosition || 'หัวหน้างานวางแผนและงบประมาณ';
+        }
+        if (t.tag_type === 'DEPUTY_ACAD_NAME' || key === 'deputy_acad_name' || norm === 'deputyacadname') {
+          return deputyAcadName || '';
+        }
+        if (t.tag_type === 'DEPUTY_ACAD_POSITION' || key === 'deputy_acad_position' || norm === 'deputyacadposition') {
+          return deputyAcadPosition || '';
+        }
+        if (t.tag_type === 'DEPUTY_RES_NAME' || key === 'deputy_res_name' || norm === 'deputyresname') {
+          return deputyResName || '';
+        }
+        if (t.tag_type === 'DEPUTY_RES_POSITION' || key === 'deputy_res_position' || norm === 'deputyresposition') {
+          return deputyResPosition || '';
+        }
+        if (t.tag_type === 'DEPUTY_DEV_NAME' || key === 'deputy_dev_name' || norm === 'deputydevname') {
+          return deputyDevName || '';
+        }
+        if (t.tag_type === 'DEPUTY_DEV_POSITION' || key === 'deputy_dev_position' || norm === 'deputydevposition') {
+          return deputyDevPosition || '';
+        }
+        if (t.tag_type === 'DEPUTY_STRAT_NAME' || key === 'deputy_strat_name' || norm === 'deputystratname') {
+          return deputyStratName || '';
+        }
+        if (t.tag_type === 'DEPUTY_STRAT_POSITION' || key === 'deputy_strat_position' || norm === 'deputystratposition') {
+          return deputyStratPosition || '';
+        }
+        if (t.tag_type === 'HEAD_NAME' || key === 'head_name' || norm === 'headname') {
+          const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
+          return userDept?.head_name || '';
+        }
+        if (t.tag_type === 'HEAD_POSITION' || key === 'head_position' || norm === 'headposition') {
+          const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
+          return userDept?.head_position || (userDept ? `หัวหน้า${userDept.name}` : 'หัวหน้างาน');
+        }
+
+        // Tag type fallbacks
+        if (t.tag_type === 'TABLE_LOOP') return [{}];
+        if (t.tag_type === 'BOOLEAN') return false;
+        return '';
+      };
 
       tpl.tags?.forEach((t: any) => {
-        const key = t.tag_name;
-        // Map from core project fields if match
-        if (key === 'title' || key === 'project_name') {
-           initial[key] = proj.title;
-        } else if (key === 'fiscal_year') {
-           initial[key] = proj.fiscal_year;
-        } else if (key === 'budget' || key === 'total_budget') {
-           initial[key] = proj.total_budget;
-        } else if (key === 'department') {
-           initial[key] = proj.department?.name;
-        } else if (key === 'project_code') {
-           initial[key] = proj.project_code;
-        } else if (key === 'start_date' || key === 'end_date' || key === 'duration_text' || key === 'duration') {
-           const formatThaiDate = (d: any) => {
-             if (!d) return '';
-             const dateObj = new Date(d);
-             if (isNaN(dateObj.getTime())) return String(d);
-             const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-             return `${dateObj.getDate()} ${months[dateObj.getMonth()]} พ.ศ. ${dateObj.getFullYear() + 543}`;
-           };
-           let sDate = '';
-           let eDate = '';
-           if (Array.isArray(proj.timelines) && proj.timelines.length > 0) {
-             const validStart = [...proj.timelines].filter((t: any) => t.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-             const validEnd = [...proj.timelines].filter((t: any) => t.end_date || t.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
-             if (validStart.length > 0) sDate = formatThaiDate(validStart[0].start_date);
-             if (validEnd.length > 0) eDate = formatThaiDate(validEnd[validEnd.length - 1].end_date || validEnd[validEnd.length - 1].start_date);
-           }
-           if (key === 'start_date') initial[key] = projDynamic.start_date || sDate;
-           else if (key === 'end_date') initial[key] = projDynamic.end_date || eDate;
-           else if (key === 'duration_text' || key === 'duration') {
-             const dText = (sDate && eDate) ? (sDate === eDate ? sDate : `${sDate} ถึง ${eDate}`) : (sDate || eDate);
-             initial[key] = projDynamic[key] || dText;
-           }
-        } else if (projDynamic[key] !== undefined) {
-           initial[key] = projDynamic[key];
-        } else if (t.tag_type === 'LEADER_NAME' || key === 'leader_name') {
-           initial[key] = proj.leader?.full_name || user?.full_name || '';
-        } else if (t.tag_type === 'LEADER_POSITION' || key === 'leader_position') {
-           const userDept = user?.department;
-           if (userDept) {
-             if (user?.role === 'HEAD_DEPT' || (user as any)?.is_head) {
-               initial[key] = userDept.name.startsWith('งาน') || userDept.name.startsWith('แผนก') 
-                 ? `หัวหน้า${userDept.name}` 
-                 : `หัวหน้างาน${userDept.name}`;
-             } else if (user?.position === 'เจ้าหน้าที่') {
-               initial[key] = userDept.name.startsWith('งาน') || userDept.name.startsWith('แผนก')
-                 ? `เจ้าหน้าที่${userDept.name}`
-                 : `เจ้าหน้าที่งาน${userDept.name}`;
-             } else {
-               initial[key] = userDept.name.startsWith('แผนก') 
-                 ? `ครูประจำ${userDept.name}` 
-                 : (userDept.name.startsWith('งาน') ? `ครูผู้ช่วย${userDept.name}` : `ครูประจำแผนกวิชา${userDept.name}`);
-             }
-           } else {
-             initial[key] = proj.leader?.position || user?.position || 'ครู';
-           }
-        } else if (t.tag_type === 'DIRECTOR_NAME' || key === 'director_name') {
-           initial[key] = directorName || '';
-        } else if (t.tag_type === 'DIRECTOR_POSITION' || key === 'director_position') {
-           initial[key] = directorPosition || '';
-        } else if (t.tag_type === 'COLLEGE_NAME' || key === 'college_name') {
-           initial[key] = collegeName || '';
-        } else if (t.tag_type === 'PLANNING_HEAD_NAME' || key === 'planning_head_name') {
-           initial[key] = planningHeadName || '';
-        } else if (t.tag_type === 'PLANNING_HEAD_POSITION' || key === 'planning_head_position') {
-           initial[key] = planningHeadPosition || 'หัวหน้างานวางแผนและงบประมาณ';
-        } else if (t.tag_type === 'DEPUTY_ACAD_NAME' || key === 'deputy_acad_name') {
-           initial[key] = deputyAcadName || '';
-        } else if (t.tag_type === 'DEPUTY_ACAD_POSITION' || key === 'deputy_acad_position') {
-           initial[key] = deputyAcadPosition || '';
-        } else if (t.tag_type === 'DEPUTY_RES_NAME' || key === 'deputy_res_name') {
-           initial[key] = deputyResName || '';
-        } else if (t.tag_type === 'DEPUTY_RES_POSITION' || key === 'deputy_res_position') {
-           initial[key] = deputyResPosition || '';
-        } else if (t.tag_type === 'DEPUTY_DEV_NAME' || key === 'deputy_dev_name') {
-           initial[key] = deputyDevName || '';
-        } else if (t.tag_type === 'DEPUTY_DEV_POSITION' || key === 'deputy_dev_position') {
-           initial[key] = deputyDevPosition || '';
-        } else if (t.tag_type === 'DEPUTY_STRAT_NAME' || key === 'deputy_strat_name') {
-           initial[key] = deputyStratName || '';
-        } else if (t.tag_type === 'DEPUTY_STRAT_POSITION' || key === 'deputy_strat_position') {
-           initial[key] = deputyStratPosition || '';
-        } else if (t.tag_type === 'HEAD_NAME' || key === 'head_name') {
-           const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
-           initial[key] = userDept?.head_name || '';
-        } else if (t.tag_type === 'HEAD_POSITION' || key === 'head_position') {
-           const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
-           initial[key] = userDept?.head_position || (userDept ? `หัวหน้า${userDept.name}` : 'หัวหน้างาน');
-        } else {
-           // default empty
-           if (t.tag_type === 'TABLE_LOOP') initial[key] = [{}];
-           else if (t.tag_type === 'BOOLEAN') initial[key] = false;
-           else initial[key] = '';
-        }
+        initial[t.tag_name] = resolveTagValue(t);
       });
       setDynamicData(initial);
 
@@ -1001,54 +1149,125 @@ export default function ProjectSummaryPage() {
             ))}
           </div>
         );
-      case 'IMAGE':
+      case 'IMAGE': {
+        const imgVal = value;
+        const displaySrc = imgVal
+          ? (imgVal.startsWith('data:') || imgVal.startsWith('/') || imgVal.startsWith('http') ? imgVal : `data:image/jpeg;base64,${imgVal}`)
+          : null;
+
         return (
-          <div key={key}>
-            <div className="mb-1">
-              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
-              {tag.description && <p className="text-xs text-gray-500 mt-0.5">{tag.description}</p>}
+          <div key={key} className="col-span-1 lg:col-span-2 bg-slate-50/80 p-4 rounded-xl border border-slate-200">
+            <div className="mb-2 flex items-center justify-between">
+              <label className="block text-sm font-bold text-slate-800">
+                {label} {tag.is_required && <span className="text-red-500">*</span>}
+              </label>
+              {displaySrc && (
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> ดึงข้อมูลรูปภาพแล้ว
+                </span>
+              )}
             </div>
-            <div className="flex gap-2">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      handleDynamicChange(key, (reader.result as string).split(',')[1]); // Store base64 data
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }}
-                className="w-full text-sm"
-              />
-              <input 
-                type="number" 
-                placeholder="กว้าง" 
-                onChange={(e) => {
-                   const sizeKey = key + '_size';
-                   const currentSize = dynamicData[sizeKey] || [150, 150];
-                   handleDynamicChange(sizeKey, [parseInt(e.target.value) || 150, currentSize[1]]);
-                }}
-                className="w-20 text-sm border-gray-300 rounded" 
-                title="ความกว้าง (px)"
-              />
-              <input 
-                type="number" 
-                placeholder="สูง" 
-                onChange={(e) => {
-                   const sizeKey = key + '_size';
-                   const currentSize = dynamicData[sizeKey] || [150, 150];
-                   handleDynamicChange(sizeKey, [currentSize[0], parseInt(e.target.value) || 150]);
-                }}
-                className="w-20 text-sm border-gray-300 rounded"
-                title="ความสูง (px)" 
-              />
+            {tag.description && <p className="text-xs text-slate-500 mb-3">{tag.description}</p>}
+
+            <div className="flex flex-col sm:flex-row gap-4 items-start">
+              {displaySrc ? (
+                <div className="relative w-44 aspect-4/3 rounded-lg overflow-hidden border border-slate-300 bg-slate-900/5 shadow-2xs flex items-center justify-center shrink-0">
+                  <img src={displaySrc} alt={label} className="w-full h-full object-contain" />
+                  <button
+                    type="button"
+                    onClick={() => handleDynamicChange(key, '')}
+                    className="absolute top-1.5 right-1.5 p-1 bg-rose-600/90 hover:bg-rose-700 text-white rounded-full text-xs transition shadow-xs"
+                    title="ลบรูปภาพ"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-44 aspect-4/3 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-slate-400 bg-white shrink-0">
+                  <ImageIcon className="w-7 h-7 mb-1 opacity-40" />
+                  <span className="text-xs font-medium">ยังไม่มีรูปภาพ</span>
+                </div>
+              )}
+
+              <div className="flex-1 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-indigo-500 text-slate-700 text-xs font-bold rounded-lg cursor-pointer shadow-2xs transition">
+                    <UploadCloud className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{displaySrc ? 'เปลี่ยนรูปภาพ...' : 'อัปโหลดรูปภาพ...'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            handleDynamicChange(key, reader.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+
+                  {imageDocuments.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectingImageTag(key)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 transition"
+                    >
+                      <Paperclip className="w-3.5 h-3.5" />
+                      <span>เลือกจากไฟล์แนบโครงการ ({imageDocuments.length})</span>
+                    </button>
+                  )}
+
+                  {displaySrc && (
+                    <button
+                      type="button"
+                      onClick={() => handleDynamicChange(key, '')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold rounded-lg border border-rose-200 transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>ลบรูป</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <span>ขนาดในเอกสาร:</span>
+                  <input
+                    type="number"
+                    placeholder="กว้าง"
+                    value={dynamicData[`${key}_size`]?.[0] || ''}
+                    onChange={(e) => {
+                      const sizeKey = `${key}_size`;
+                      const currentSize = dynamicData[sizeKey] || [150, 150];
+                      handleDynamicChange(sizeKey, [parseInt(e.target.value) || 150, currentSize[1]]);
+                    }}
+                    className="w-16 px-2 py-1 text-xs border border-slate-300 rounded bg-white"
+                    title="ความกว้าง (px)"
+                  />
+                  <span>×</span>
+                  <input
+                    type="number"
+                    placeholder="สูง"
+                    value={dynamicData[`${key}_size`]?.[1] || ''}
+                    onChange={(e) => {
+                      const sizeKey = `${key}_size`;
+                      const currentSize = dynamicData[sizeKey] || [150, 150];
+                      handleDynamicChange(sizeKey, [currentSize[0], parseInt(e.target.value) || 150]);
+                    }}
+                    className="w-16 px-2 py-1 text-xs border border-slate-300 rounded bg-white"
+                    title="ความสูง (px)"
+                  />
+                  <span className="text-[11px] text-slate-400">(px)</span>
+                </div>
+              </div>
             </div>
           </div>
         );
+      }
       default:
         return (
           <div key={key}>
@@ -1065,6 +1284,89 @@ export default function ProjectSummaryPage() {
             />
           </div>
         );
+    }
+  };
+
+  const handleSave = async () => {
+    if (!project?.id) return;
+    setIsSaving(true);
+    try {
+      let currentDynamic = project.dynamic_data || {};
+      while (typeof currentDynamic === 'string') {
+        try { currentDynamic = JSON.parse(currentDynamic); } catch { break; }
+      }
+      if (typeof currentDynamic !== 'object' || currentDynamic === null) {
+        currentDynamic = {};
+      }
+
+      // Merge and synchronize dynamicData
+      const mergedDynamic = {
+        ...currentDynamic,
+        ...dynamicData,
+      };
+
+      // Ensure activity_image_1..4 and 4-column summaries are synced back
+      for (const [k, v] of Object.entries(dynamicData)) {
+        const norm = (k || '').toLowerCase().replace(/[%_\-\s]/g, '');
+        if (norm.includes('activityimage1') || norm.includes('image1') || norm.includes('photo1') || norm.includes('img1')) {
+          mergedDynamic['activity_image_1'] = v;
+        } else if (norm.includes('activityimage2') || norm.includes('image2') || norm.includes('photo2') || norm.includes('img2')) {
+          mergedDynamic['activity_image_2'] = v;
+        } else if (norm.includes('activityimage3') || norm.includes('image3') || norm.includes('photo3') || norm.includes('img3')) {
+          mergedDynamic['activity_image_3'] = v;
+        } else if (norm.includes('activityimage4') || norm.includes('image4') || norm.includes('photo4') || norm.includes('img4')) {
+          mergedDynamic['activity_image_4'] = v;
+        } else if (norm.includes('activitiessummary') || norm.includes('activitysummary')) {
+          mergedDynamic['activities_summary'] = v;
+        } else if (norm.includes('actualresult') || norm.includes('resultssummary')) {
+          mergedDynamic['actual_results'] = v;
+        } else if (norm.includes('problem') || norm.includes('obstacle')) {
+          mergedDynamic['problems_obstacles'] = v;
+        } else if (norm.includes('projectsuggestion') || norm.includes('summarynote')) {
+          mergedDynamic['project_suggestions'] = v;
+        } else if (norm.includes('actualspent') || norm.includes('actualexpense') || norm.includes('spentamount')) {
+          mergedDynamic['actual_spent'] = v;
+        }
+      }
+
+      const authToken = token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+
+      let res = await fetch(`/api/v1/projects/${project.id}/summary`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({
+          dynamic_data: JSON.stringify(mergedDynamic),
+          actual_spent: Number(mergedDynamic.actual_spent || project.actual_spent) || 0,
+        }),
+      });
+
+      if (res.status === 404 || res.status === 405) {
+        res = await fetch(`/api/v1/projects/${project.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+          body: JSON.stringify({
+            dynamic_data: JSON.stringify(mergedDynamic),
+            actual_spent: Number(mergedDynamic.actual_spent || project.actual_spent) || 0,
+          }),
+        });
+      }
+
+      const data = await res.json().catch(() => ({ success: false, message: 'การตอบสนองจากเซิร์ฟเวอร์ไม่ถูกต้อง' }));
+      if (res.ok && data.success) {
+        showAlert.success('บันทึกสำเร็จ', 'บันทึกข้อมูลสรุปโครงการและเชื่อมโยงกับระบบเรียบร้อยแล้ว');
+      } else {
+        showAlert.error('บันทึกไม่สำเร็จ', data.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      }
+    } catch (e: any) {
+      showAlert.error('เกิดข้อผิดพลาด', e.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1088,20 +1390,47 @@ export default function ProjectSummaryPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
-      <div className="flex items-center gap-4 mb-2">
-        <Link href="/my-projects" className="p-2 bg-white rounded-full border border-gray-200 hover:bg-gray-50 text-gray-500">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">สร้างรายงานสรุปโครงการ</h1>
-          <p className="text-gray-500 mt-1">อ้างอิงจากโครงการ: <span className="font-semibold text-indigo-700">{project?.title}</span></p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <div className="flex items-center gap-3">
+          <Link href={`/projects/${projectId}`} className="p-2 bg-white rounded-full border border-gray-200 hover:bg-gray-50 text-gray-500 transition shadow-2xs">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">สร้างรายงานสรุปโครงการ</h1>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+              อ้างอิงจากโครงการ: <span className="font-semibold text-indigo-700">{project?.title}</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition disabled:opacity-50"
+          >
+            {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            <span>{isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePreview('docx')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-lg transition"
+          >
+            <Download className="w-4 h-4" />
+            <span>Word (.docx)</span>
+          </button>
         </div>
       </div>
 
       <form className="space-y-6">
         <div className="bg-white shadow-sm rounded-xl border border-gray-100 p-6">
-          <div className="flex justify-between items-center mb-4 border-b pb-2">
-            <h2 className="text-lg font-medium text-gray-900">ฟอร์มกรอกข้อมูลสรุป ({template?.name})</h2>
+          <div className="flex justify-between items-center mb-6 border-b pb-3">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">ฟอร์มกรอกข้อมูลสรุป ({template?.name})</h2>
+              <p className="text-xs text-slate-500 mt-0.5">ระบบดึงข้อมูลจากหน้ารายละเอียดโครงการ และแท็บบันทึกผล/สรุปผลให้อัตโนมัติ</p>
+            </div>
           </div>
           
           <div className="flex flex-col gap-6">
@@ -1115,25 +1444,116 @@ export default function ProjectSummaryPage() {
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3 pt-4">
-          <button
-            type="button"
-            onClick={() => handlePreview('docx')}
-            className="inline-flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-100 transition-colors"
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200">
+          <Link
+            href={`/projects/${projectId}`}
+            className="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition"
           >
-            <Download className="w-4 h-4 mr-2" />
-            ดาวน์โหลด .docx
-          </button>
-          <button
-            type="button"
-            onClick={() => handlePreview('pdf')}
-            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-          >
-            <Eye className="w-4 h-4 mr-2" />
-            พรีวิว PDF จำลอง
-          </button>
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            กลับหน้ารายละเอียดโครงการ
+          </Link>
+
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition disabled:opacity-50"
+            >
+              {isSaving ? <RefreshCw className="w-4 h-4 animate-spin mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
+              <span>{isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePreview('docx')}
+              className="inline-flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 text-xs font-bold transition-colors"
+            >
+              <Download className="w-4 h-4 mr-1.5" />
+              ดาวน์โหลด .docx
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePreview('pdf')}
+              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs font-bold transition-colors shadow-sm"
+            >
+              <Eye className="w-4 h-4 mr-1.5" />
+              พรีวิว PDF จำลอง
+            </button>
+          </div>
         </div>
       </form>
+
+      {/* Attachment Image Picker Modal */}
+      {selectingImageTag && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-theme-primary" />
+                  <h3 className="font-bold text-slate-800 text-base">เลือกภาพจากไฟล์แนบโครงการ</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectingImageTag(null)}
+                  className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500">
+                คลิกเลือกรูปภาพที่ต้องการนำมาใช้ในช่อง <span className="font-bold text-indigo-700">{selectingImageTag}</span>:
+              </p>
+
+              <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-3 p-1">
+                {imageDocuments.map((doc: any) => {
+                  const docUrl = doc.file_path?.startsWith('http') || doc.file_path?.startsWith('/')
+                    ? doc.file_path
+                    : `/api/v1/projects/documents/${doc.id}/${encodeURIComponent(doc.file_name || 'image')}`;
+
+                  return (
+                    <div
+                      key={doc.id}
+                      onClick={() => {
+                        handleDynamicChange(selectingImageTag, docUrl);
+                        setSelectingImageTag(null);
+                      }}
+                      className="group cursor-pointer border border-slate-200 hover:border-indigo-500 rounded-xl overflow-hidden shadow-2xs hover:shadow-md transition bg-slate-50 flex flex-col"
+                    >
+                      <div className="aspect-4/3 bg-slate-900/5 overflow-hidden flex items-center justify-center relative">
+                        <img
+                          src={docUrl}
+                          alt={doc.file_name}
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                          onError={(e: any) => {
+                            e.currentTarget.src = '';
+                            e.currentTarget.className = 'hidden';
+                          }}
+                        />
+                      </div>
+                      <div className="p-2 text-center bg-white border-t border-slate-100">
+                        <p className="text-[11px] font-bold text-slate-700 truncate">{doc.file_name}</p>
+                        <span className="text-[10px] text-indigo-600 font-medium group-hover:underline">เลือกรูปนี้</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex justify-end pt-2 border-t">
+                <button
+                  type="button"
+                  onClick={() => setSelectingImageTag(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"
+                >
+                  ยกเลิก
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
     </div>
   );
 }
