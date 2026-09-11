@@ -70,6 +70,15 @@ export default function ProjectSummaryModal({
               <span>ดาวน์โหลด Word (.docx)</span>
             </a>
 
+            <a
+              href={'/api/v1/projects/' + project.id + '/export-summary-pdf'}
+              download
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-theme bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs transition"
+            >
+              <FileText className="w-4 h-4" />
+              <span>ดาวน์โหลด PDF (.pdf)</span>
+            </a>
+
             <button
               onClick={onClose}
               className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition ml-1"

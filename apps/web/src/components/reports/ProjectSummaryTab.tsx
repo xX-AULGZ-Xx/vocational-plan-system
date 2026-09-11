@@ -30,6 +30,7 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [selectingImageSlot, setSelectingImageSlot] = useState<number | null>(null);
 
   const imageDocuments = useMemo(() => {
@@ -151,6 +152,37 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
     }
   };
 
+  const handleExportPdf = async () => {
+    try {
+      setIsExportingPdf(true);
+      const authToken = token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      const res = await fetch(`/api/v1/projects/${project.id}/export-summary-pdf`, { headers });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'ดาวน์โหลดเอกสาร PDF ไม่สำเร็จ');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeTitle = (project.title || 'project_summary').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 40);
+      a.download = `สรุปผลโครงการ_${safeTitle}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Export pdf error:', error);
+      showAlert.error('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถสร้างไฟล์ PDF ได้');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const mergedProjectForPreview = {
     ...project,
     actual_spent: summaryData.actual_spent,
@@ -235,6 +267,7 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
             onClick={handleExportDocx}
             disabled={isExportingDocx}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
+            title="ดาวน์โหลดไฟล์ Word (.docx)"
           >
             {isExportingDocx ? (
               <>
@@ -245,6 +278,26 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
               <>
                 <Download className="w-4 h-4" />
                 <span>ดาวน์โหลด Word (.docx)</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={isExportingPdf}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
+            title="ดาวน์โหลดเอกสารสรุปโครงการเป็นไฟล์ PDF"
+          >
+            {isExportingPdf ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>กำลังสร้าง PDF...</span>
+              </>
+            ) : (
+              <>
+                <FileText className="w-4 h-4" />
+                <span>ดาวน์โหลด PDF (.pdf)</span>
               </>
             )}
           </button>

@@ -9,6 +9,7 @@ import { renderDynamicDocx, resolveTemplateFilePath } from '../../lib/docx-gener
 import { scanDocxTemplate } from '../../lib/docx-scanner';
 import { notificationService } from '../notifications/notification.service';
 import { sseManager } from '../notifications/sse.manager';
+import { convertDocxToPdf } from '../../lib/pdf-converter';
 
 const router = Router();
 
@@ -1451,316 +1452,322 @@ router.patch('/:id/summary', authenticate, async (req: AuthRequest, res: Respons
   }
 });
 
-// GET /api/v1/projects/:id/export-summary-docx (Download project summary report as DOCX)
-router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
-  try {
-    const { id } = req.params;
-    const projectId = BigInt(id);
+async function generateProjectSummaryDocx(id: string | bigint) {
+  const projectId = BigInt(id);
 
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: {
-        department: { include: { division: true } },
-        leader: true,
-        timelines: { orderBy: { start_date: 'asc' } },
-        budget_items: { include: { category: true } },
-        alignments: { include: { indicator: { include: { plan: true } } } },
-        approvals: { include: { approver: true }, orderBy: { step_order: 'asc' } },
-      },
-    });
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: {
+      department: { include: { division: true } },
+      leader: true,
+      timelines: { orderBy: { start_date: 'asc' } },
+      budget_items: { include: { category: true } },
+      alignments: { include: { indicator: { include: { plan: true } } } },
+      approvals: { include: { approver: true }, orderBy: { step_order: 'asc' } },
+    },
+  });
 
-    if (!project) {
-      return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลโครงการ' });
+  if (!project) {
+    throw new Error('ไม่พบข้อมูลโครงการ');
+  }
+
+  // Parse dynamic_data
+  let dynamicData: any = {};
+  if (project.dynamic_data) {
+    let temp = project.dynamic_data;
+    while (typeof temp === 'string') {
+      try { temp = JSON.parse(temp); } catch { break; }
     }
+    dynamicData = temp || {};
+  }
 
-    // Parse dynamic_data
-    let dynamicData: any = {};
-    if (project.dynamic_data) {
-      let temp = project.dynamic_data;
-      while (typeof temp === 'string') {
-        try { temp = JSON.parse(temp); } catch { break; }
-      }
-      dynamicData = temp || {};
+  // Find summary template
+  const templates = await (prisma as any).documentTemplate.findMany({
+    where: { is_active: true },
+    include: { tags: true },
+    orderBy: [{ created_at: 'desc' }],
+  });
+
+  let summaryTpl = templates.find((t: any) =>
+    t.default_type === 'FULL_SUMMARY' ||
+    t.default_type === 'SUMMARY' ||
+    (t.name && (t.name.includes('สรุป') || t.name.includes('แผ่นเดียว') || t.name.includes('เล่ม'))) ||
+    (t.file_name && (t.file_name.includes('สรุป') || t.file_name.includes('แผ่นเดียว') || t.file_name.includes('เล่ม')))
+  );
+
+  if (!summaryTpl && templates.length > 0) {
+    summaryTpl = templates[0];
+  }
+
+  if (!summaryTpl) {
+    throw new Error('ไม่พบไฟล์แม่แบบสรุปโครงการบนระบบ');
+  }
+
+  const resolvedPath = resolveTemplateFilePath(summaryTpl.file_path);
+  if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+    throw new Error(`ไม่พบไฟล์แม่แบบเอกสารที่ตำแหน่ง ${summaryTpl.file_path}`);
+  }
+
+  // Format helper
+  const formatThai = (d: any) => {
+    if (!d) return '-';
+    const dateObj = new Date(d);
+    if (isNaN(dateObj.getTime())) {
+      return String(d).replace(/พ\.ศ\.\s*/g, '');
     }
+    const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    return `${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear() + 543}`;
+  };
 
-    // Find summary template
-    const templates = await (prisma as any).documentTemplate.findMany({
-      where: { is_active: true },
-      include: { tags: true },
-      orderBy: [{ created_at: 'desc' }],
-    });
-
-    let summaryTpl = templates.find((t: any) =>
-      t.default_type === 'FULL_SUMMARY' ||
-      t.default_type === 'SUMMARY' ||
-      (t.name && (t.name.includes('สรุป') || t.name.includes('แผ่นเดียว') || t.name.includes('เล่ม'))) ||
-      (t.file_name && (t.file_name.includes('สรุป') || t.file_name.includes('แผ่นเดียว') || t.file_name.includes('เล่ม')))
-    );
-
-    if (!summaryTpl && templates.length > 0) {
-      summaryTpl = templates[0];
+  // Format objectives list
+  let rawObjectives: any[] = [];
+  if (Array.isArray(dynamicData.objectives) && dynamicData.objectives.length > 0) {
+    rawObjectives = dynamicData.objectives;
+  } else if (Array.isArray(project.objectives) && project.objectives.length > 0) {
+    rawObjectives = project.objectives;
+  }
+  const extractText = (val: any): string => {
+    if (val === null || val === undefined) return '';
+    let target = val;
+    if (typeof target === 'string' && (target.startsWith('{') || target.startsWith('['))) {
+      try { target = JSON.parse(target); } catch {}
     }
-
-    if (!summaryTpl) {
-      return res.status(404).json({ success: false, message: 'ไม่พบไฟล์แม่แบบสรุปโครงการบนระบบ' });
+    if (typeof target === 'object' && target !== null) {
+      return target.description || target.title || target.name || target.item || target.text || Object.values(target)[0] || '';
     }
+    return String(target);
+  };
 
-    const resolvedPath = resolveTemplateFilePath(summaryTpl.file_path);
-    if (!resolvedPath || !fs.existsSync(resolvedPath)) {
-      return res.status(404).json({ success: false, message: `ไม่พบไฟล์แม่แบบเอกสารที่ตำแหน่ง ${summaryTpl.file_path}` });
-    }
-
-    // Format helper
-    const formatThai = (d: any) => {
-      if (!d) return '-';
-      const dateObj = new Date(d);
-      if (isNaN(dateObj.getTime())) {
-        return String(d).replace(/พ\.ศ\.\s*/g, '');
-      }
-      const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-      return `${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear() + 543}`;
+  const formattedObjectives = rawObjectives.map((obj: any, idx: number) => {
+    const text = extractText(obj);
+    return {
+      _index: idx + 1,
+      index: idx + 1,
+      item: text,
+      name: text,
+      title: text,
+      description: text,
     };
+  });
 
-    // Format objectives list
-    let rawObjectives: any[] = [];
-    if (Array.isArray(dynamicData.objectives) && dynamicData.objectives.length > 0) {
-      rawObjectives = dynamicData.objectives;
-    } else if (Array.isArray(project.objectives) && project.objectives.length > 0) {
-      rawObjectives = project.objectives;
+  // Determine start / end dates
+  let rawStartDate: any = '';
+  let rawEndDate: any = '';
+
+  for (const [_, v] of Object.entries(dynamicData)) {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const obj = v as any;
+      if (obj.start && !rawStartDate) rawStartDate = obj.start;
+      if (obj.end && !rawEndDate) rawEndDate = obj.end;
+      if (obj.startDate && !rawStartDate) rawStartDate = obj.startDate;
+      if (obj.endDate && !rawEndDate) rawEndDate = obj.endDate;
     }
-    const extractText = (val: any): string => {
-      if (val === null || val === undefined) return '';
-      let target = val;
-      if (typeof target === 'string' && (target.startsWith('{') || target.startsWith('['))) {
-        try { target = JSON.parse(target); } catch {}
-      }
-      if (typeof target === 'object' && target !== null) {
-        return target.description || target.title || target.name || target.item || target.text || Object.values(target)[0] || '';
-      }
-      return String(target);
-    };
+  }
 
-    const formattedObjectives = rawObjectives.map((obj: any, idx: number) => {
-      const text = extractText(obj);
-      return {
-        _index: idx + 1,
-        index: idx + 1,
-        item: text,
-        name: text,
-        title: text,
-        description: text,
-      };
-    });
-
-    // Format problems list
-    let rawProblems: any[] = [];
-    if (Array.isArray(dynamicData.problems_obstacles) && dynamicData.problems_obstacles.length > 0) {
-      rawProblems = dynamicData.problems_obstacles;
+  if (Array.isArray(project.timelines) && project.timelines.length > 0) {
+    if (!rawStartDate && project.timelines[0].start_date) {
+      rawStartDate = project.timelines[0].start_date;
     }
-    const formattedProblems = rawProblems.map((p: any, idx: number) => {
-      const text = extractText(p);
-      return {
-        _index: idx + 1,
-        index: idx + 1,
-        item: text,
-        name: text,
-        title: text,
-        description: text,
-      };
-    });
-
-    // Resolve project start and end dates from timelines or dynamic_data
-    let rawStartDate: any = null;
-    let rawEndDate: any = null;
-
-    if (Array.isArray(project.timelines) && project.timelines.length > 0) {
-      const validStartTimelines = [...project.timelines].filter((t: any) => t.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-      const validEndTimelines = [...project.timelines].filter((t: any) => t.end_date || t.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
-      if (validStartTimelines.length > 0) {
-        rawStartDate = validStartTimelines[0].start_date;
-      }
-      if (validEndTimelines.length > 0) {
-        rawEndDate = validEndTimelines[validEndTimelines.length - 1].end_date || validEndTimelines[validEndTimelines.length - 1].start_date;
-      }
+    const lastTimeline = project.timelines[project.timelines.length - 1];
+    if (!rawEndDate && (lastTimeline.end_date || lastTimeline.start_date)) {
+      rawEndDate = lastTimeline.end_date || lastTimeline.start_date;
     }
-    
-    // Check if dynamicData has duration or any DATERANGE object
-    if (!rawStartDate && dynamicData) {
-      for (const [key, val] of Object.entries(dynamicData)) {
-        if (val && typeof val === 'object' && !Array.isArray(val) && ((val as any).start || (val as any).startDate || (val as any).start_date)) {
-          rawStartDate = (val as any).start || (val as any).startDate || (val as any).start_date;
-          rawEndDate = (val as any).end || (val as any).endDate || (val as any).end_date || rawStartDate;
+  }
+
+  if (!rawStartDate || !rawEndDate) {
+    for (const [_, v] of Object.entries(dynamicData)) {
+      if (typeof v === 'string' && (v.includes('ถึง') || v.includes(' – ') || v.includes(' - '))) {
+        const parts = v.split(/\s+(?:ถึง|–|-)\s+/);
+        if (parts.length >= 2) {
+          if (!rawStartDate) rawStartDate = parts[0].trim();
+          if (!rawEndDate) rawEndDate = parts[1].trim();
           break;
         }
       }
     }
+  }
 
-    if (!rawStartDate) {
-      rawStartDate = dynamicData.start_date || dynamicData.real_date_start || dynamicData.project_start_date || project.created_at;
-      rawEndDate = dynamicData.end_date || dynamicData.real_date_end || dynamicData.project_end_date || rawStartDate;
+  if (!rawStartDate) {
+    rawStartDate = dynamicData.start_date || dynamicData.real_date_start || dynamicData.project_start_date || (project as any).start_date || '';
+  }
+  if (!rawEndDate) {
+    rawEndDate = dynamicData.end_date || dynamicData.real_date_end || dynamicData.project_end_date || (project as any).end_date || rawStartDate;
+  }
+
+  const formattedStartDate = formatThai(rawStartDate);
+  const formattedEndDate = formatThai(rawEndDate || rawStartDate);
+
+  const totalBudgetNum = Number(project.total_budget || 0);
+  const allocatedBudgetNum = Number(dynamicData.allocated_budget || totalBudgetNum);
+  const spentBudgetNum = Number(dynamicData.actual_spent || dynamicData.expenditure_performance || project.actual_spent || totalBudgetNum);
+
+  let calculatedDurationText = '';
+  if (formattedStartDate && formattedEndDate && formattedStartDate !== '-' && formattedEndDate !== '-') {
+    calculatedDurationText = formattedStartDate === formattedEndDate ? formattedStartDate : `${formattedStartDate} ถึง ${formattedEndDate}`;
+  } else {
+    calculatedDurationText = (formattedStartDate !== '-' ? formattedStartDate : '') || (formattedEndDate !== '-' ? formattedEndDate : '') || formatThai(new Date());
+  }
+
+  const finalDurationText = calculatedDurationText || dynamicData.duration_text || '';
+
+  // Resolve System Settings for Deputies & Director
+  let settingsMap = new Map<string, string>();
+  try {
+    const allSettings = await (prisma as any).systemSetting.findMany();
+    settingsMap = new Map<string, string>(allSettings.map((s: any) => [s.key, s.value]));
+  } catch {}
+
+  const divCode = (project.department?.division?.code || '').toLowerCase();
+  const divName = project.department?.division?.name || 'ฝ่ายวิชาการ';
+  
+  // Resolve Deputy of project's division
+  let resolvedDeputyName = dynamicData.deputy_name || settingsMap.get(`deputy_name_${divCode}`) || settingsMap.get(`deputy_${divCode}_name`) || '';
+  let resolvedDeputyPosition = dynamicData.deputy_position || settingsMap.get(`deputy_position_${divCode}`) || settingsMap.get(`deputy_${divCode}_position`) || `รองผู้อำนวยการ${divName}`;
+  
+  // Resolve Deputy of Strategic/Planning
+  let resolvedDeputyStratName = dynamicData.deputy_strat_name || settingsMap.get('deputy_name_strat') || settingsMap.get('deputy_strat_name') || '';
+  let resolvedDirectorName = dynamicData.director_name || settingsMap.get('director_name') || 'นางปิยะพร พูลเพิ่ม';
+
+  if (!resolvedDeputyName && project.department?.division_id) {
+    const deputyUser = await prisma.user.findFirst({
+      where: {
+        role: 'DEPUTY_DIRECTOR',
+        department: { division_id: project.department.division_id },
+      },
+    });
+    if (deputyUser) {
+      resolvedDeputyName = deputyUser.full_name;
+      if (deputyUser.position) resolvedDeputyPosition = deputyUser.position;
     }
+  }
 
-    const formattedStartDate = formatThai(rawStartDate);
-    const formattedEndDate = formatThai(rawEndDate || rawStartDate);
-
-    const totalBudgetNum = Number(project.total_budget || 0);
-    const allocatedBudgetNum = Number(dynamicData.allocated_budget || totalBudgetNum);
-    const spentBudgetNum = Number(dynamicData.actual_spent || dynamicData.expenditure_performance || project.actual_spent || totalBudgetNum);
-
-    let calculatedDurationText = '';
-    if (formattedStartDate && formattedEndDate && formattedStartDate !== '-' && formattedEndDate !== '-') {
-      calculatedDurationText = formattedStartDate === formattedEndDate ? formattedStartDate : `${formattedStartDate} ถึง ${formattedEndDate}`;
-    } else {
-      calculatedDurationText = (formattedStartDate !== '-' ? formattedStartDate : '') || (formattedEndDate !== '-' ? formattedEndDate : '') || formatThai(new Date());
-    }
-
-    const finalDurationText = calculatedDurationText || dynamicData.duration_text || '';
-
-    // Resolve System Settings for Deputies & Director
-    let settingsMap = new Map<string, string>();
-    try {
-      const allSettings = await (prisma as any).systemSetting.findMany();
-      settingsMap = new Map<string, string>(allSettings.map((s: any) => [s.key, s.value]));
-    } catch {}
-
-    const divCode = (project.department?.division?.code || '').toLowerCase();
-    const divName = project.department?.division?.name || 'ฝ่ายวิชาการ';
-    
-    // Resolve Deputy of project's division
-    let resolvedDeputyName = dynamicData.deputy_name || settingsMap.get(`deputy_name_${divCode}`) || settingsMap.get(`deputy_${divCode}_name`) || '';
-    let resolvedDeputyPosition = dynamicData.deputy_position || settingsMap.get(`deputy_position_${divCode}`) || settingsMap.get(`deputy_${divCode}_position`) || `รองผู้อำนวยการ${divName}`;
-    
-    // Resolve Deputy of Strategic/Planning (ฝ่ายยุทธศาสตร์และแผนงาน / ฝ่ายแผนงานและความร่วมมือ)
-    let resolvedDeputyStratName = dynamicData.deputy_strat_name || settingsMap.get('deputy_name_strat') || settingsMap.get('deputy_strat_name') || '';
-    let resolvedDirectorName = dynamicData.director_name || settingsMap.get('director_name') || 'นางปิยะพร พูลเพิ่ม';
-
-    // If still empty, try finding user with DEPUTY_DIRECTOR role for this division
-    if (!resolvedDeputyName && project.department?.division_id) {
-      const deputyUser = await prisma.user.findFirst({
+  if (!resolvedDeputyStratName) {
+    const stratDiv = await prisma.division.findFirst({ where: { code: 'STRAT' } });
+    if (stratDiv) {
+      const deputyStratUser = await prisma.user.findFirst({
         where: {
           role: 'DEPUTY_DIRECTOR',
-          department: { division_id: project.department.division_id },
+          department: { division_id: stratDiv.id },
         },
       });
-      if (deputyUser) {
-        resolvedDeputyName = deputyUser.full_name;
-        if (deputyUser.position) resolvedDeputyPosition = deputyUser.position;
+      if (deputyStratUser) {
+        resolvedDeputyStratName = deputyStratUser.full_name;
       }
     }
+  }
 
-    // If deputy_strat_name still empty, find user in STRAT division
-    if (!resolvedDeputyStratName) {
-      const stratDiv = await prisma.division.findFirst({ where: { code: 'STRAT' } });
-      if (stratDiv) {
-        const deputyStratUser = await prisma.user.findFirst({
-          where: {
-            role: 'DEPUTY_DIRECTOR',
-            department: { division_id: stratDiv.id },
-          },
-        });
-        if (deputyStratUser) {
-          resolvedDeputyStratName = deputyStratUser.full_name;
-        }
-      }
-    }
+  const formDataForDocx: Record<string, any> = {
+    ...dynamicData,
+    title: project.title,
+    project_name: project.title,
+    fiscal_year: project.fiscal_year,
+    project_code: project.project_code || 'ยังไม่ออกรหัส',
+    department_name: dynamicData.department_name || project.department?.name || '',
+    division_name: dynamicData.division_name || project.department?.division?.name || 'ฝ่ายวิชาการ',
+    leader_name: project.leader?.full_name || '',
+    leader_position: project.leader?.position || 'ครู',
+    reporter_name: dynamicData.reporter_name || project.leader?.full_name || '',
+    reporter_position: dynamicData.reporter_position || project.leader?.position || 'ครู',
+    doc_date: formatThai(dynamicData.doc_date || new Date()),
+    doc_date_full: formatThai(dynamicData.doc_date || new Date()),
+    report_date: formatThai(dynamicData.doc_date || new Date()),
+    date: formatThai(dynamicData.doc_date || new Date()),
+    today: formatThai(dynamicData.doc_date || new Date()),
+    start_date: formattedStartDate,
+    end_date: formattedEndDate,
+    start_date_thai: formattedStartDate,
+    end_date_thai: formattedEndDate,
+    duration_text: finalDurationText,
+    duration: finalDurationText,
+    project_duration: finalDurationText,
+    duration_thai: finalDurationText,
+    subject: dynamicData.subject || (`รายงานผลการดำเนินงานโครงการ ${project.title}`),
+    report_subject: dynamicData.report_subject || (`รายงานผลการดำเนินงานการปฏิบัติการ/${project.title}`),
+    memo_dept: dynamicData.memo_dept || project.department?.name || '',
+    memo_paragraph1: dynamicData.memo_paragraph1 || (`ตามที่ แผนก/งาน ได้รับอนุมัติให้ดำเนินโครงการ ${project.title} ประจำปีงบประมาณ พ.ศ. ${project.fiscal_year} นั้น`),
+    memo_paragraph2: dynamicData.memo_paragraph2 || 'บัดนี้ การดำเนินงานตามโครงการดังกล่าวได้เสร็จสิ้นเป็นที่เรียบร้อยแล้ว จึงขอรายงานผลการดำเนินงานตามเอกสารที่แนบมาพร้อมนี้',
+    intro_paragraph: dynamicData.intro_paragraph || project.background || '',
+    qa_standard: dynamicData.qa_standard || 'มาตรฐานที่ ๑ คุณลักษณะของผู้สำเร็จการศึกษาอาชีวศึกษาที่พึงประสงค์',
+    qa_issue: dynamicData.qa_issue || '๑.๑ ด้านความรู้ ความสามารถ และทักษะการปฏิบัติงาน',
+    qa_aspect: dynamicData.qa_aspect || 'ด้านสมรรถนะวิชาชีพและเทคโนโลยี',
+    real_date_start: formatThai(dynamicData.real_date_start || rawStartDate),
+    real_date_end: formatThai(dynamicData.real_date_end || rawEndDate || rawStartDate),
+    target_quantitative: dynamicData.target_quantitative || (project.target_groups as any)?.quantitative || '',
+    target_qualitative: dynamicData.target_qualitative || (project.target_groups as any)?.qualitative || '',
+    activities_summary: dynamicData.activities_summary || dynamicData.key_achievements || '-',
+    actual_results: dynamicData.actual_results || dynamicData.key_achievements || dynamicData.actual_result_quantitative || '-',
+    actual_result_quantitative: dynamicData.actual_result_quantitative || '-',
+    actual_result_qualitative: dynamicData.actual_result_qualitative || '-',
+    operation_status: dynamicData.operation_status || 'ดำเนินงานแล้ว',
+    total_budget: totalBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
+    allocated_budget: allocatedBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
+    actual_spent: spentBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
+    expenditure_performance: spentBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
+    budget_fund_type: dynamicData.budget_fund_type || '-',
+    spending_status: dynamicData.spending_status || '-',
+    spending_diff_amount: dynamicData.spending_diff_amount || '-',
+    evaluation_rating: dynamicData.evaluation_rating || '-',
+    project_strengths: dynamicData.project_strengths || '-',
+    project_weaknesses: dynamicData.project_weaknesses || '-',
+    problems_obstacles: dynamicData.problems_obstacles_text || dynamicData.obstacles_and_solutions || (Array.isArray(dynamicData.problems_obstacles) ? dynamicData.problems_obstacles.join(', ') : (dynamicData.problems_obstacles || '-')),
+    project_suggestions: dynamicData.project_suggestions || dynamicData.summary_notes || '-',
+    dissemination_channel: dynamicData.dissemination_channel || 'เว็บไซต์',
+    dissemination_other: dynamicData.dissemination_other || '',
+    head_dept_name: dynamicData.head_dept_name || '',
+    deputy_name: resolvedDeputyName,
+    deputy_position: resolvedDeputyPosition,
+    deputy_strat_name: resolvedDeputyStratName,
+    director_name: resolvedDirectorName,
+    objectives: formattedObjectives,
+    timelines: (project.timelines || []).map((t: any, idx: number) => ({
+      _index: idx + 1,
+      index: idx + 1,
+      activity_name: t.activity_name,
+      start_date: formatThai(t.start_date),
+      end_date: formatThai(t.end_date),
+      location: t.location || '',
+    })),
+    budget_items: (project.budget_items || []).map((b: any, idx: number) => ({
+      _index: idx + 1,
+      no: idx + 1,
+      description: b.description,
+      category: b.category?.name || '',
+      quantity: Number(b.quantity),
+      unit: b.unit,
+      unit_price: Number(b.unit_price).toLocaleString('th-TH', { minimumFractionDigits: 2 }),
+      total_amount: Number(b.total_amount).toLocaleString('th-TH', { minimumFractionDigits: 2 }),
+    })),
+    // Activity images fallbacks
+    activity_image_1: dynamicData.activity_image_1 || '',
+    activity_image_2: dynamicData.activity_image_2 || '',
+    activity_image_3: dynamicData.activity_image_3 || '',
+    activity_image_4: dynamicData.activity_image_4 || '',
+  };
 
-    const formDataForDocx: Record<string, any> = {
-      ...dynamicData,
-      title: project.title,
-      project_name: project.title,
-      fiscal_year: project.fiscal_year,
-      project_code: project.project_code || 'ยังไม่ออกรหัส',
-      department_name: dynamicData.department_name || project.department?.name || '',
-      division_name: dynamicData.division_name || project.department?.division?.name || 'ฝ่ายวิชาการ',
-      leader_name: project.leader?.full_name || '',
-      leader_position: project.leader?.position || 'ครู',
-      reporter_name: dynamicData.reporter_name || project.leader?.full_name || '',
-      reporter_position: dynamicData.reporter_position || project.leader?.position || 'ครู',
-      doc_date: formatThai(dynamicData.doc_date || new Date()),
-      doc_date_full: formatThai(dynamicData.doc_date || new Date()),
-      report_date: formatThai(dynamicData.doc_date || new Date()),
-      date: formatThai(dynamicData.doc_date || new Date()),
-      today: formatThai(dynamicData.doc_date || new Date()),
-      start_date: formattedStartDate,
-      end_date: formattedEndDate,
-      start_date_thai: formattedStartDate,
-      end_date_thai: formattedEndDate,
-      duration_text: finalDurationText,
-      duration: finalDurationText,
-      project_duration: finalDurationText,
-      duration_thai: finalDurationText,
-      subject: dynamicData.subject || (`รายงานผลการดำเนินงานโครงการ ${project.title}`),
-      report_subject: dynamicData.report_subject || (`รายงานผลการดำเนินงานการปฏิบัติการ/${project.title}`),
-      memo_dept: dynamicData.memo_dept || project.department?.name || '',
-      memo_paragraph1: dynamicData.memo_paragraph1 || (`ตามที่ แผนก/งาน ได้รับอนุมัติให้ดำเนินโครงการ ${project.title} ประจำปีงบประมาณ พ.ศ. ${project.fiscal_year} นั้น`),
-      memo_paragraph2: dynamicData.memo_paragraph2 || 'บัดนี้ การดำเนินงานตามโครงการดังกล่าวได้เสร็จสิ้นเป็นที่เรียบร้อยแล้ว จึงขอรายงานผลการดำเนินงานตามเอกสารที่แนบมาพร้อมนี้',
-      intro_paragraph: dynamicData.intro_paragraph || project.background || '',
-      qa_standard: dynamicData.qa_standard || 'มาตรฐานที่ ๑ คุณลักษณะของผู้สำเร็จการศึกษาอาชีวศึกษาที่พึงประสงค์',
-      qa_issue: dynamicData.qa_issue || '๑.๑ ด้านความรู้ ความสามารถ และทักษะการปฏิบัติงาน',
-      qa_aspect: dynamicData.qa_aspect || 'ด้านสมรรถนะวิชาชีพและเทคโนโลยี',
-      real_date_start: formatThai(dynamicData.real_date_start || rawStartDate),
-      real_date_end: formatThai(dynamicData.real_date_end || rawEndDate || rawStartDate),
-      target_quantitative: dynamicData.target_quantitative || (project.target_groups as any)?.quantitative || '',
-      target_qualitative: dynamicData.target_qualitative || (project.target_groups as any)?.qualitative || '',
-      activities_summary: dynamicData.activities_summary || dynamicData.key_achievements || '-',
-      actual_results: dynamicData.actual_results || dynamicData.key_achievements || dynamicData.actual_result_quantitative || '-',
-      actual_result_quantitative: dynamicData.actual_result_quantitative || '-',
-      actual_result_qualitative: dynamicData.actual_result_qualitative || '-',
-      operation_status: dynamicData.operation_status || 'ดำเนินงานแล้ว',
-      total_budget: totalBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
-      allocated_budget: allocatedBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
-      actual_spent: spentBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
-      expenditure_performance: spentBudgetNum.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
-      budget_fund_type: dynamicData.budget_fund_type || '-',
-      spending_status: dynamicData.spending_status || '-',
-      spending_diff_amount: dynamicData.spending_diff_amount || '-',
-      evaluation_rating: dynamicData.evaluation_rating || '-',
-      project_strengths: dynamicData.project_strengths || '-',
-      project_weaknesses: dynamicData.project_weaknesses || '-',
-      problems_obstacles: dynamicData.problems_obstacles_text || dynamicData.obstacles_and_solutions || (Array.isArray(dynamicData.problems_obstacles) ? dynamicData.problems_obstacles.join(', ') : (dynamicData.problems_obstacles || '-')),
-      project_suggestions: dynamicData.project_suggestions || dynamicData.summary_notes || '-',
-      dissemination_channel: dynamicData.dissemination_channel || 'เว็บไซต์',
-      dissemination_other: dynamicData.dissemination_other || '',
-      head_dept_name: dynamicData.head_dept_name || '',
-      deputy_name: resolvedDeputyName,
-      deputy_position: resolvedDeputyPosition,
-      deputy_strat_name: resolvedDeputyStratName,
-      director_name: resolvedDirectorName,
-      objectives: formattedObjectives,
-      timelines: (project.timelines || []).map((t: any, idx: number) => ({
-        _index: idx + 1,
-        index: idx + 1,
-        activity_name: t.activity_name,
-        start_date: formatThai(t.start_date),
-        end_date: formatThai(t.end_date),
-        location: t.location || '',
-      })),
-      budget_items: (project.budget_items || []).map((b: any, idx: number) => ({
-        _index: idx + 1,
-        no: idx + 1,
-        description: b.description,
-        category: b.category?.name || '',
-        quantity: Number(b.quantity),
-        unit: b.unit,
-        unit_price: Number(b.unit_price).toLocaleString('th-TH', { minimumFractionDigits: 2 }),
-        total_amount: Number(b.total_amount).toLocaleString('th-TH', { minimumFractionDigits: 2 }),
-      })),
-      // Activity images fallbacks
-      activity_image_1: dynamicData.activity_image_1 || '',
-      activity_image_2: dynamicData.activity_image_2 || '',
-      activity_image_3: dynamicData.activity_image_3 || '',
-      activity_image_4: dynamicData.activity_image_4 || '',
-    };
+  const renderResult = await renderDynamicDocx(resolvedPath, formDataForDocx, summaryTpl.tags || []);
+  const safeTitle = (project.title || 'summary').replace(/[/\\:*?"<>|]/g, '_').slice(0, 40);
 
-    const { buffer } = await renderDynamicDocx(resolvedPath, formDataForDocx, summaryTpl.tags || []);
+  return {
+    project,
+    summaryTpl,
+    formDataForDocx,
+    renderResult,
+    safeTitle,
+  };
+}
 
-    const safeTitle = (project.title || 'summary').replace(/[/\\:*?"<>|]/g, '_').slice(0, 40);
+// GET /api/v1/projects/:id/export-summary-docx (Download project summary report as DOCX)
+router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { project, renderResult, safeTitle } = await generateProjectSummaryDocx(id);
+
     const downloadFileName = 'สรุปผลโครงการ_' + safeTitle + '.docx';
     const encodedFileName = encodeURIComponent(downloadFileName);
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="project_summary_${project.id}.docx"; filename*=UTF-8''${encodedFileName}`);
-    return res.send(buffer);
+    return res.send(renderResult.buffer);
   } catch (error: any) {
     console.error('Export summary docx error:', error);
     let detailedMsg = error.message || 'เกิดข้อผิดพลาดในการสร้างไฟล์ Word สรุปโครงการ';
@@ -1768,6 +1775,37 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
       const subErrors = error.properties.errors.map((e: any) => e.message || e.id || JSON.stringify(e)).join('; ');
       detailedMsg += ` (${subErrors})`;
     }
+    return res.status(500).json({ success: false, message: detailedMsg, error: detailedMsg });
+  }
+});
+
+// GET /api/v1/projects/:id/export-summary-pdf (Download project summary report as PDF)
+router.get('/:id/export-summary-pdf', async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { project, renderResult, safeTitle } = await generateProjectSummaryDocx(id);
+
+    const docxPath = renderResult.filePath;
+    const pdfName = renderResult.fileName.replace(/\.docx$/i, '.pdf');
+    const pdfPath = path.join(EXPORTS_DIR, pdfName);
+
+    await convertDocxToPdf(docxPath, pdfPath);
+
+    if (!fs.existsSync(pdfPath)) {
+      throw new Error('ไม่สามารถแปลงไฟล์เอกสารเป็น PDF ได้');
+    }
+
+    const downloadFileName = 'สรุปผลโครงการ_' + safeTitle + '.pdf';
+    const encodedFileName = encodeURIComponent(downloadFileName);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="project_summary_${project.id}.pdf"; filename*=UTF-8''${encodedFileName}`);
+    
+    const fileStream = fs.createReadStream(pdfPath);
+    fileStream.pipe(res);
+  } catch (error: any) {
+    console.error('Export summary pdf error:', error);
+    let detailedMsg = error.message || 'เกิดข้อผิดพลาดในการสร้างไฟล์ PDF สรุปโครงการ';
     return res.status(500).json({ success: false, message: detailedMsg, error: detailedMsg });
   }
 });
