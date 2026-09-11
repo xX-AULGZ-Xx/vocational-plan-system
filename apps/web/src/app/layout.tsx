@@ -29,6 +29,16 @@ export const viewport = {
 export const metadata: Metadata = {
   title: 'ระบบบริหารจัดการงานแผนงานและโครงการ',
   description: 'Vocational Planning & Project Management System',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    shortcut: ['/favicon.ico'],
+    apple: [
+      { url: '/apple-icon.png' },
+    ],
+  },
 };
 
 export default function RootLayout({
