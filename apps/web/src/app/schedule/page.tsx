@@ -31,6 +31,7 @@ const WEEKDAYS = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 export default function SchedulePage() {
   const { token, user } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
+  const [divisions, setDivisions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // View Mode: 'calendar' (Month Grid) or 'list' (Timeline List)
@@ -41,6 +42,7 @@ export default function SchedulePage() {
 
   // Filter by Division or Department
   const [divisionFilter, setDivisionFilter] = useState('ALL');
+  const [departmentFilter, setDepartmentFilter] = useState('ALL');
   const [milestoneOnly, setMilestoneOnly] = useState(false);
 
   // Selected Activity for Detail Modal Popup
@@ -48,7 +50,20 @@ export default function SchedulePage() {
 
   useEffect(() => {
     fetchProjects();
+    fetchDivisions();
   }, [token]);
+
+  const fetchDivisions = async () => {
+    try {
+      const res = await fetch('/api/v1/divisions');
+      const data = await res.json();
+      if (data.success) {
+        setDivisions(data.data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch divisions:', e);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -85,8 +100,10 @@ export default function SchedulePage() {
           project_id: p.id,
           project_title: p.title,
           project_code: p.project_code,
+          division_id: p.department?.division_id || p.department?.division?.id,
           division_code: divCode,
           division_name: divName,
+          department_id: p.department_id || p.department?.id,
           department_name: deptName,
           leader_name: leaderName,
           total_budget: budget,
@@ -126,8 +143,10 @@ export default function SchedulePage() {
                 location: ed.location || dyn.execution_status_location || '',
                 is_execution: true,
                 is_milestone: true,
+                division_id: p.department?.division_id || p.department?.division?.id,
                 division_code: divCode,
                 division_name: divName,
+                department_id: p.department_id || p.department?.id,
                 department_name: deptName,
                 leader_name: leaderName,
                 total_budget: budget,
@@ -141,14 +160,29 @@ export default function SchedulePage() {
     }).sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
   }, [projects]);
 
+  // Departments available for current selected division
+  const availableDepartments = useMemo(() => {
+    if (divisionFilter === 'ALL') {
+      return (divisions || []).reduce((acc: any[], d: any) => [...acc, ...(d.departments || [])], []);
+    }
+    const matchedDiv = (divisions || []).find((d: any) => d.code === divisionFilter || String(d.id) === divisionFilter);
+    return matchedDiv?.departments || [];
+  }, [divisions, divisionFilter]);
+
   // Filtered activities based on filters
   const filteredActivities = useMemo(() => {
     return allActivities.filter((act) => {
       if (milestoneOnly && !act.is_milestone) return false;
-      if (divisionFilter !== 'ALL' && act.division_code !== divisionFilter) return false;
+      if (divisionFilter !== 'ALL') {
+        const matchDiv = act.division_code === divisionFilter || String(act.division_id) === divisionFilter;
+        if (!matchDiv) return false;
+      }
+      if (departmentFilter !== 'ALL') {
+        if (String(act.department_id) !== String(departmentFilter)) return false;
+      }
       return true;
     });
-  }, [allActivities, divisionFilter, milestoneOnly]);
+  }, [allActivities, divisionFilter, departmentFilter, milestoneOnly]);
 
   const formatThaiDate = (dStr: string) => {
     if (!dStr) return '-';
@@ -242,6 +276,25 @@ export default function SchedulePage() {
     }
   };
 
+  // Division activity pill styling in calendar view
+  const getActivityPillStyle = (act: any) => {
+    if (act.is_milestone) {
+      return 'bg-amber-100 text-amber-950 border-amber-300 hover:bg-amber-200 shadow-2xs font-bold';
+    }
+    switch (act.division_code) {
+      case 'ACAD':
+        return 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100';
+      case 'RES':
+        return 'bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100';
+      case 'DEV':
+        return 'bg-orange-50 text-orange-950 border-orange-200 hover:bg-orange-100';
+      case 'STRAT':
+        return 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100';
+      default:
+        return 'bg-slate-50 text-slate-900 border-slate-200 hover:bg-slate-100';
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
       {/* Header */}
@@ -294,68 +347,139 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="bg-white p-4 rounded-theme shadow-xs border border-slate-200 flex flex-wrap gap-4 items-center justify-between">
-        {/* Navigation Controls (If Calendar View) */}
-        {viewMode === 'calendar' ? (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={prevMonth}
-              className="p-2 border border-slate-200 rounded-theme hover:bg-slate-100 text-slate-700 transition"
-              title="เดือนก่อนหน้า"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={todayMonth}
-              className="px-3 py-1.5 border border-slate-200 rounded-theme text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
-            >
-              วันนี้
-            </button>
-            <button
-              onClick={nextMonth}
-              className="p-2 border border-slate-200 rounded-theme hover:bg-slate-100 text-slate-700 transition"
-              title="เดือนถัดไป"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 ml-2">
-              {THAI_MONTHS_FULL[month]} พ.ศ. {year + 543}
-            </h2>
-          </div>
-        ) : (
-          <div className="font-bold text-slate-900 text-base flex items-center gap-2">
-            <span>ตารางไทม์ไลน์กิจกรรม (Timeline Gantt List)</span>
-          </div>
-        )}
+      {/* Enhanced Division & Department Filter Section */}
+      <div className="bg-white p-4 sm:p-5 rounded-theme shadow-xs border border-slate-200 space-y-4">
+        {/* Division Pill Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => {
+              setDivisionFilter('ALL');
+              setDepartmentFilter('ALL');
+            }}
+            className={`px-3.5 py-1.5 rounded-theme text-xs font-bold transition flex items-center gap-1.5 ${
+              divisionFilter === 'ALL'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }`}
+          >
+            <span>ทุกฝ่าย</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              divisionFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+            }`}>
+              {allActivities.length}
+            </span>
+          </button>
 
-        {/* Filter Dropdowns */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-bold text-slate-600">ฝ่าย:</label>
-            <select
-              value={divisionFilter}
-              onChange={(e) => setDivisionFilter(e.target.value)}
-              className="text-xs font-bold px-3 py-1.5 border border-slate-200 rounded-theme bg-slate-50 focus:border-theme-primary outline-none cursor-pointer"
-            >
-              <option value="ALL">ทุกฝ่าย</option>
-              <option value="ACAD">ฝ่ายวิชาการ</option>
-              <option value="RES">ฝ่ายบริหารทรัพยากร</option>
-              <option value="DEV">ฝ่ายพัฒนากิจการฯ</option>
-              <option value="STRAT">ฝ่ายแผนงานและความร่วมมือ</option>
-            </select>
-          </div>
+          {(divisions.length > 0 ? divisions : [
+            { id: 1, code: 'ACAD', name: 'ฝ่ายวิชาการ' },
+            { id: 2, code: 'RES', name: 'ฝ่ายบริหารทรัพยากร' },
+            { id: 3, code: 'DEV', name: 'ฝ่ายพัฒนากิจการนักเรียนฯ' },
+            { id: 4, code: 'STRAT', name: 'ฝ่ายแผนงานและความร่วมมือ' },
+          ]).map((d: any) => {
+            const isSelected = divisionFilter === d.code || divisionFilter === String(d.id);
+            const count = allActivities.filter(
+              (act) => act.division_code === d.code || String(act.division_id) === String(d.id)
+            ).length;
 
-          <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer bg-slate-50 px-3 py-1.5 rounded-theme border border-slate-200">
-            <input
-              type="checkbox"
-              checked={milestoneOnly}
-              onChange={(e) => setMilestoneOnly(e.target.checked)}
-              className="rounded text-amber-500 focus:ring-amber-400"
-            />
-            <Flag className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-            <span>เฉพาะเป้าหมายสำคัญ (Milestone)</span>
-          </label>
+            let badgeColorClass = 'bg-blue-600 text-white';
+            if (d.code === 'RES') badgeColorClass = 'bg-purple-600 text-white';
+            else if (d.code === 'DEV') badgeColorClass = 'bg-amber-600 text-white';
+            else if (d.code === 'STRAT') badgeColorClass = 'bg-emerald-600 text-white';
+
+            return (
+              <button
+                key={d.id || d.code}
+                onClick={() => {
+                  setDivisionFilter(isSelected ? 'ALL' : (d.code || String(d.id)));
+                  setDepartmentFilter('ALL');
+                }}
+                className={`px-3 py-1.5 rounded-theme text-xs font-bold transition flex items-center gap-1.5 border ${
+                  isSelected
+                    ? `${badgeColorClass} shadow-xs border-transparent`
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
+              >
+                <span>{d.name}</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  isSelected ? 'bg-black/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Secondary Filter Row: Date Nav (if calendar), Department Dropdown & Milestone Checkbox */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
+          {/* Navigation Controls (If Calendar View) */}
+          {viewMode === 'calendar' ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={prevMonth}
+                className="p-2 border border-slate-200 rounded-theme hover:bg-slate-100 text-slate-700 transition"
+                title="เดือนก่อนหน้า"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={todayMonth}
+                className="px-3 py-1.5 border border-slate-200 rounded-theme text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+              >
+                วันนี้
+              </button>
+              <button
+                onClick={nextMonth}
+                className="p-2 border border-slate-200 rounded-theme hover:bg-slate-100 text-slate-700 transition"
+                title="เดือนถัดไป"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 ml-2 flex items-center gap-1.5">
+                <CalendarDays className="w-5 h-5 text-theme-primary" />
+                <span>{THAI_MONTHS_FULL[month]} พ.ศ. {year + 543}</span>
+              </h2>
+            </div>
+          ) : (
+            <div className="font-bold text-slate-900 text-base flex items-center gap-2">
+              <ListFilter className="w-5 h-5 text-theme-primary" />
+              <span>ตารางไทม์ไลน์กิจกรรม (Timeline Gantt List)</span>
+            </div>
+          )}
+
+          {/* Department Filter & Milestone Toggle */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {availableDepartments.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-slate-400" />
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="text-xs font-medium px-3 py-1.5 border border-slate-200 rounded-theme bg-slate-50 focus:border-theme-primary outline-none cursor-pointer max-w-[200px] truncate"
+                >
+                  <option value="ALL">
+                    {divisionFilter === 'ALL' ? 'ทุกแผนก/งาน' : 'ทุกแผนกในฝ่ายนี้'}
+                  </option>
+                  {availableDepartments.map((dept: any) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer bg-amber-50/70 hover:bg-amber-100/80 px-3 py-1.5 rounded-theme border border-amber-200 transition">
+              <input
+                type="checkbox"
+                checked={milestoneOnly}
+                onChange={(e) => setMilestoneOnly(e.target.checked)}
+                className="rounded text-amber-500 focus:ring-amber-400"
+              />
+              <Flag className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+              <span>เฉพาะเป้าหมายสำคัญ (Milestones)</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -420,23 +544,21 @@ export default function SchedulePage() {
                     )}
                   </div>
 
-                  {/* Activities Pills in Cell */}
-                  <div className="space-y-1 overflow-y-auto max-h-[85px] sm:max-h-[95px] pr-0.5">
-                    {acts.map((act, aIdx) => {
-                      const isMilestone = act.is_milestone;
-                      return (
-                        <button
-                          key={aIdx}
-                          onClick={() => setSelectedActivity(act)}
-                          className={`w-full text-left p-1 rounded text-[11px] font-medium leading-tight truncate transition block border ${
-                            isMilestone
-                              ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 shadow-2xs font-bold'
-                              : 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100'
-                          }`}
-                          title={`${act.activity_name} (${act.project_title})`}
-                        >
-                          <span className="flex items-center gap-1">
-                            {isMilestone && <Flag className="w-2.5 h-2.5 shrink-0 fill-amber-600 text-amber-600" />}
+                    {/* Activities Pills in Cell */}
+                    <div className="space-y-1 overflow-y-auto max-h-[85px] sm:max-h-[95px] pr-0.5">
+                      {acts.map((act, aIdx) => {
+                        const isMilestone = act.is_milestone;
+                        return (
+                          <button
+                            key={aIdx}
+                            onClick={() => setSelectedActivity(act)}
+                            className={`w-full text-left p-1 rounded text-[11px] font-medium leading-tight truncate transition block border ${getActivityPillStyle(
+                              act
+                            )}`}
+                            title={`${act.activity_name} (${act.project_title})`}
+                          >
+                            <span className="flex items-center gap-1">
+                              {isMilestone && <Flag className="w-2.5 h-2.5 shrink-0 fill-amber-600 text-amber-600" />}
                             <span className="truncate">{act.activity_name}</span>
                           </span>
                         </button>
