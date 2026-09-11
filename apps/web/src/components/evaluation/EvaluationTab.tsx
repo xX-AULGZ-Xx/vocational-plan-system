@@ -405,7 +405,7 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
               <p className="text-xs text-slate-500 mt-0.5">{formMeta.title}</p>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 shrink-0">
               {/* Export Dropdown */}
               <div className="relative" ref={exportMenuRef}>
                 <button
@@ -488,9 +488,18 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
 
               <button
                 type="button"
+                onClick={() => setShowEditor(true)}
+                className="px-3.5 py-1.5 rounded-theme text-xs font-semibold bg-theme-primary-light text-theme-primary border border-theme-primary/20 hover:bg-theme-primary hover:text-white flex items-center gap-1.5 transition-all shadow-xs"
+              >
+                <Palette className="w-3.5 h-3.5" />
+                <span>ปรับแต่งคำถาม & ธีม</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleToggleStatus}
                 disabled={togglingStatus}
-                className={`px-3 py-1.5 rounded-theme text-xs font-semibold border flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-theme text-xs font-semibold border flex items-center gap-1.5 transition-all shadow-xs ${
                   formMeta.is_active
                     ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
                     : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
@@ -498,15 +507,6 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
               >
                 <Power className="w-3.5 h-3.5" />
                 <span>{formMeta.is_active ? 'ปิดรับคำตอบ' : 'เปิดรับคำตอบ'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowEditor(true)}
-                className="px-3.5 py-1.5 rounded-theme text-xs font-semibold bg-theme-primary-light text-theme-primary border border-theme-primary/20 hover:bg-theme-primary hover:text-white flex items-center gap-1.5 transition-all"
-              >
-                <Palette className="w-3.5 h-3.5" />
-                <span>ปรับแต่งคำถาม & ธีม</span>
               </button>
 
               <button
