@@ -98,10 +98,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   };
 
   const handleIncomingNotification = useCallback((newNoti: NotificationItem) => {
-    setNotifications((prev) => [newNoti, ...prev.filter((item) => item.id !== newNoti.id)]);
+    if (!newNoti) return;
+    setNotifications((prev) => {
+      const exists = prev.some((item) => String(item.id) === String(newNoti.id));
+      if (exists) return prev;
+      return [newNoti, ...prev];
+    });
     setUnreadCount((prev) => prev + 1);
     playNotificationSound();
-    showAlert.toast?.(newNoti.title, 'info');
+    showAlert.toast(newNoti.title || '🔔 มีการแจ้งเตือนใหม่', 'info', newNoti.message);
   }, []);
 
   const handleIncomingDataUpdate = useCallback((data: DataUpdateEvent) => {
@@ -145,7 +150,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [token]);
 
-  // Establish Real-time Connection (WebSocket with SSE Fallback)
+  // Establish Real-time Connection (Dual-Channel: WebSocket & SSE Active Redundancy)
   useEffect(() => {
     if (!token || !user) {
       if (socketRef.current) {
@@ -164,7 +169,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     fetchNotifications();
 
-    let isSocketConnected = false;
+    const extractNotification = (payload: any): NotificationItem | null => {
+      if (!payload) return null;
+      if (payload.action === 'NEW_NOTIFICATION' && payload.notification) {
+        return payload.notification;
+      }
+      if (payload.notification) {
+        return payload.notification;
+      }
+      if (payload.title || payload.message) {
+        return payload as NotificationItem;
+      }
+      return null;
+    };
 
     // 1. Primary Real-time Transport: WebSocket (Socket.IO)
     const socket = io({
@@ -182,25 +199,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     socket.on('connect', () => {
       console.log('⚡ [WebSocket] Connected successfully to notification gateway');
-      isSocketConnected = true;
       setIsConnected(true);
-
-      // If SSE fallback was active, we can close it
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
     });
 
     socket.on('disconnect', (reason) => {
       console.log('🔌 [WebSocket] Disconnected:', reason);
-      isSocketConnected = false;
-      setIsConnected(false);
     });
 
     socket.on('notification', (payload: any) => {
-      if (payload?.action === 'NEW_NOTIFICATION' && payload?.notification) {
-        handleIncomingNotification(payload.notification);
+      console.log('🔔 [WebSocket] notification received:', payload);
+      const noti = extractNotification(payload);
+      if (noti) {
+        handleIncomingNotification(noti);
       }
     });
 
@@ -214,59 +224,52 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       handleIncomingDataUpdate(data);
     });
 
-    // 2. Secondary Fallback Transport: Server-Sent Events (SSE) if WebSocket fails
-    const connectSSEFallback = () => {
-      if (isSocketConnected || eventSourceRef.current) return;
-      try {
-        const sseUrl = `/api/v1/notifications/stream?token=${encodeURIComponent(token)}`;
-        const eventSource = new EventSource(sseUrl);
-        eventSourceRef.current = eventSource;
+    // 2. Secondary Real-time Transport: Server-Sent Events (SSE) active streaming
+    try {
+      const sseUrl = `/api/v1/notifications/stream?token=${encodeURIComponent(token)}`;
+      const eventSource = new EventSource(sseUrl);
+      eventSourceRef.current = eventSource;
 
-        eventSource.addEventListener('connected', () => {
-          console.log('📡 [SSE Fallback] Connected to notification stream');
-          setIsConnected(true);
-        });
+      eventSource.addEventListener('connected', () => {
+        console.log('📡 [SSE] Connected to notification stream');
+        setIsConnected(true);
+      });
 
-        eventSource.addEventListener('unread_count', (e) => {
-          try {
-            const data = JSON.parse(e.data);
-            if (typeof data.count === 'number') {
-              setUnreadCount(data.count);
-            }
-          } catch (err) {}
-        });
-
-        eventSource.addEventListener('notification', (e) => {
-          try {
-            const data = JSON.parse(e.data);
-            if (data.action === 'NEW_NOTIFICATION' && data.notification) {
-              handleIncomingNotification(data.notification);
-            }
-          } catch (err) {}
-        });
-
-        eventSource.addEventListener('data_update', (e) => {
-          try {
-            const data = JSON.parse(e.data) as DataUpdateEvent;
-            handleIncomingDataUpdate(data);
-          } catch (err) {}
-        });
-
-        eventSource.onerror = () => {
-          if (eventSource.readyState === EventSource.CLOSED) {
-            console.warn('[SSE Fallback] Connection closed.');
+      eventSource.addEventListener('unread_count', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (typeof data.count === 'number') {
+            setUnreadCount(data.count);
           }
-        };
-      } catch (sseErr) {
-        console.warn('[SSE Fallback] Initialization error:', sseErr);
-      }
-    };
+        } catch (err) {}
+      });
 
-    socket.on('connect_error', () => {
-      if (!isSocketConnected) {
-        connectSSEFallback();
-      }
-    });
+      eventSource.addEventListener('notification', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          console.log('📡 [SSE] notification received:', data);
+          const noti = extractNotification(data);
+          if (noti) {
+            handleIncomingNotification(noti);
+          }
+        } catch (err) {}
+      });
+
+      eventSource.addEventListener('data_update', (e) => {
+        try {
+          const data = JSON.parse(e.data) as DataUpdateEvent;
+          handleIncomingDataUpdate(data);
+        } catch (err) {}
+      });
+
+      eventSource.onerror = () => {
+        if (eventSource.readyState === EventSource.CLOSED) {
+          console.warn('[SSE] Connection closed.');
+        }
+      };
+    } catch (sseErr) {
+      console.warn('[SSE] Initialization error:', sseErr);
+    }
 
     return () => {
       if (socketRef.current) {

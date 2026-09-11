@@ -64,15 +64,21 @@ export const showAlert = {
     return result.isConfirmed;
   },
 
-  toast: (title: string, icon: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+  toast: (title: string, icon: 'success' | 'error' | 'warning' | 'info' = 'info', text?: string) => {
     return Swal.fire({
       toast: true,
       position: 'top-end',
       showConfirmButton: false,
-      timer: 4000,
+      timer: 5000,
       timerProgressBar: true,
       icon,
       title,
+      text,
+      customClass: {
+        popup: 'font-sans shadow-2xl border border-slate-200 rounded-xl bg-white text-left p-3',
+        title: 'text-slate-900 font-bold text-sm leading-tight',
+        htmlContainer: 'text-slate-600 text-xs mt-1 leading-snug',
+      },
     });
   },
 
