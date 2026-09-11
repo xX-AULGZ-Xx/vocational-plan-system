@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, authorize, AuthRequest } from '../../middlewares/auth';
 import { Role } from '@prisma/client';
+import { sseManager } from '../notifications/sse.manager';
 import { extractFontsFromDocx } from '../../lib/font-extractor';
 import { extractTagsFromDocx } from '../../lib/docx-extractor';
 import { sanitizeDocxTemplate } from '../../lib/docx-generator';
@@ -1076,6 +1077,15 @@ router.put('/settings', async (req: AuthRequest, res: Response) => {
         },
       });
     }
+
+    // Broadcast Realtime Data Update
+    try {
+      sseManager.broadcast('data_update', {
+        scope: 'SYSTEM',
+        action: 'SETTINGS_UPDATED',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {}
 
     return res.json({ success: true, message: 'บันทึกการตั้งค่าระบบเรียบร้อยแล้ว' });
   } catch (error: any) {

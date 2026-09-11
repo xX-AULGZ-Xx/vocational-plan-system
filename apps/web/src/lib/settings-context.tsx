@@ -204,6 +204,24 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
 
     fetchSettings();
+
+    // Listen for real-time system/settings update broadcast
+    const handleRealtimeDataUpdate = (e: any) => {
+      const detail = e.detail;
+      if (detail?.scope === 'SYSTEM' || detail?.action === 'SETTINGS_UPDATED') {
+        fetchSettings();
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('vps:data_update', handleRealtimeDataUpdate);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('vps:data_update', handleRealtimeDataUpdate);
+      }
+    };
   }, []);
 
   const collegeLogoUrl = settings.college_logo_url || '';

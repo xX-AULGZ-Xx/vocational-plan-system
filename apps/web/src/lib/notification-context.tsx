@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
@@ -106,6 +106,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const handleIncomingDataUpdate = useCallback((data: DataUpdateEvent) => {
     setLastDataUpdate(data);
+
+    // Notify all context subscribers
     dataUpdateListenersRef.current.forEach((listener) => {
       try {
         listener(data);
@@ -113,6 +115,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         console.error('[Realtime] Listener error on data_update:', listenerErr);
       }
     });
+
+    // Also dispatch a DOM CustomEvent so non-context components (e.g. SettingsProvider) can react
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vps:data_update', { detail: data }));
+    }
   }, []);
 
   const fetchNotifications = useCallback(async () => {
