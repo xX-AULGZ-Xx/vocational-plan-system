@@ -776,7 +776,7 @@ export default function ProfileDashboardPage() {
                             )}
                             {p.status === 'APPROVED' && (
                               <Link
-                                href={`/projects/${p.id}/summary`}
+                                href={`/projects/${p.id}?tab=summary`}
                                 className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-theme transition"
                               >
                                 สรุปผล

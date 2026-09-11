@@ -514,47 +514,14 @@ export default function MyProjectsPage() {
                         </button>
                       );
                     })()}
-                    {isApproved && summaryTemplates.length > 0 && (
-                      <div className="relative">
-                        <button
-                          onClick={() => setDropdownOpenId(dropdownOpenId === p.id ? null : p.id)}
-                          className="flex items-center gap-1.5 px-3.5 py-2 bg-theme-gradient hover:brightness-110 text-white text-xs font-bold rounded-theme shadow-sm transition"
-                        >
-                          <Sparkles className="w-4 h-4 text-amber-300" />
-                          <span>สรุปโครงการ</span>
-                          <ChevronRight className={`w-3 h-3 transition-transform ${dropdownOpenId === p.id ? 'rotate-90' : ''}`} />
-                        </button>
-                        
-                        {dropdownOpenId === p.id && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-40"
-                              onClick={() => setDropdownOpenId(null)}
-                            />
-                            <div className="absolute left-0 bottom-full mb-1.5 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-theme shadow-xl z-50 py-1 overflow-hidden">
-                              <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-                                <span>เลือกแบบฟอร์มสรุป</span>
-                                <button
-                                  onClick={() => setDropdownOpenId(null)}
-                                  className="text-slate-400 hover:text-slate-600"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                              {summaryTemplates.map(tpl => (
-                                <Link
-                                  key={tpl.id}
-                                  href={`/projects/${p.id}/summary?templateId=${tpl.id}`}
-                                  onClick={() => setDropdownOpenId(null)}
-                                  className="block px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-theme-primary-light hover:text-theme-primary transition-colors border-b border-slate-50 last:border-0"
-                                >
-                                  {tpl.name}
-                                </Link>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
+                    {isApproved && (
+                      <Link
+                        href={`/projects/${p.id}?tab=summary`}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-theme-gradient hover:brightness-110 text-white text-xs font-bold rounded-theme shadow-sm transition"
+                      >
+                        <Sparkles className="w-4 h-4 text-amber-300" />
+                        <span>สรุปโครงการ</span>
+                      </Link>
                     )}
 
                     <button

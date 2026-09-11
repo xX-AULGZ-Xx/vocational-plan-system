@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
@@ -58,15 +58,26 @@ const formatThaiDate = (dateStr: string) => {
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, token } = useAuth();
   const { collegeName } = useSettings();
   const { subscribeDataUpdate } = useNotifications();
   const projectId = params?.id as string;
 
+  const initialTab = (searchParams.get('tab') as any) || 'details';
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<number>(0.85);
-  const [activeTab, setActiveTab] = useState<'details' | 'approvals' | 'attachments' | 'evaluation' | 'summary'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'approvals' | 'attachments' | 'evaluation' | 'summary'>(
+    ['details', 'approvals', 'attachments', 'evaluation', 'summary'].includes(initialTab) ? initialTab : 'details'
+  );
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['details', 'approvals', 'attachments', 'evaluation', 'summary'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, [searchParams]);
 
   const parsedDynamicData = useMemo(() => {
     if (!project?.dynamic_data) return {};

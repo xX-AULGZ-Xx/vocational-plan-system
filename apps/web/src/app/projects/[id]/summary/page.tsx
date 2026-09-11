@@ -72,10 +72,10 @@ export default function ProjectSummaryPage() {
   }, [project?.documents]);
 
   useEffect(() => {
-    if (projectId && templateId && token) {
-      fetchData();
+    if (projectId) {
+      router.replace(`/projects/${projectId}?tab=summary`);
     }
-  }, [projectId, templateId, token, planningHeadName]);
+  }, [projectId, router]);
 
   const fetchData = async () => {
     setLoading(true);
