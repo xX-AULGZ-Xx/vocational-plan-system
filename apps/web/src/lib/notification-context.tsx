@@ -97,10 +97,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   };
 
+  // Track recent notification IDs to deduplicate across dual SSE/WebSocket transports
+  const recentNotiIdsRef = useRef<Set<string>>(new Set());
+
   const handleIncomingNotification = useCallback((newNoti: NotificationItem) => {
-    if (!newNoti) return;
+    if (!newNoti || !newNoti.id) return;
+    const notiIdStr = String(newNoti.id);
+
+    // If we have seen this notification ID in the last 10 seconds, ignore duplicate delivery
+    if (recentNotiIdsRef.current.has(notiIdStr)) {
+      return;
+    }
+    recentNotiIdsRef.current.add(notiIdStr);
+    setTimeout(() => {
+      recentNotiIdsRef.current.delete(notiIdStr);
+    }, 10000);
+
     setNotifications((prev) => {
-      const exists = prev.some((item) => String(item.id) === String(newNoti.id));
+      const exists = prev.some((item) => String(item.id) === notiIdStr);
       if (exists) return prev;
       return [newNoti, ...prev];
     });

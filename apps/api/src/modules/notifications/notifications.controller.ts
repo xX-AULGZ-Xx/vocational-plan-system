@@ -223,20 +223,8 @@ router.post('/test', authenticate, async (req: AuthRequest, res: Response) => {
       )
     );
 
-    // 3. Broadcast realtime global event
+    // 3. Broadcast data_update event so lists/counters sync in background
     try {
-      sseManager.broadcast('notification', {
-        action: 'NEW_NOTIFICATION',
-        notification: {
-          id: Date.now().toString(),
-          title: notiTitle,
-          message: notiMessage,
-          type: notiType,
-          link_url: notiLink,
-          created_at: new Date().toISOString(),
-        },
-      });
-
       sseManager.broadcast('data_update', {
         scope: 'SYSTEM',
         action: 'TEST_NOTIFICATION',
