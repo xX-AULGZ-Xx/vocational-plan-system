@@ -24,7 +24,7 @@ router.get('/stream', (req: Request, res: Response) => {
   }
 
   try {
-    const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key';
+    const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     const userId = decoded.id ? decoded.id.toString() : null;
 
@@ -34,10 +34,12 @@ router.get('/stream', (req: Request, res: Response) => {
 
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no'); // Prevent Nginx buffering
-    res.flushHeaders();
+    if (typeof res.flushHeaders === 'function') {
+      res.flushHeaders();
+    }
 
     // Register client
     sseManager.addClient(userId, res);
