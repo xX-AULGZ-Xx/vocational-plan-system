@@ -77,8 +77,9 @@ export default function SchedulePage() {
       const leaderName = p.leader?.full_name;
       const budget = p.total_budget;
 
-      // 1. Standard project timelines
+      // 1. Standard project timelines (including synced execution dates from database)
       (p.timelines || []).forEach((t: any) => {
+        const isExec = t.activity_name?.includes('📍') || t.activity_name?.includes('ดำเนินโครงการ');
         items.push({
           ...t,
           project_id: p.id,
@@ -89,10 +90,12 @@ export default function SchedulePage() {
           department_name: deptName,
           leader_name: leaderName,
           total_budget: budget,
+          is_execution: isExec,
+          is_milestone: Boolean(t.is_milestone) || isExec,
         });
       });
 
-      // 2. Parse dynamic_data.execution_dates if available
+      // 2. Parse dynamic_data.execution_dates ONLY if not already present in p.timelines
       let dyn: any = {};
       if (p.dynamic_data) {
         try {
@@ -105,9 +108,11 @@ export default function SchedulePage() {
           const s = ed.start_date || ed.startDate;
           const e = ed.end_date || ed.endDate || s;
           if (s) {
-            // Only add if not already in timelines by ID
+            // Check if any timeline already covers execution
             const isAlreadyAdded = (p.timelines || []).some(
-              (t: any) => t.activity_name?.includes('📍 การดำเนินโครงการ') && t.start_date === s
+              (t: any) =>
+                (t.activity_name?.includes('ดำเนินโครงการ') || t.activity_name?.includes('📍')) &&
+                (typeof t.start_date === 'string' ? t.start_date.startsWith(s) : new Date(t.start_date).toISOString().startsWith(s))
             );
             if (!isAlreadyAdded) {
               items.push({
@@ -115,7 +120,7 @@ export default function SchedulePage() {
                 project_id: p.id,
                 project_title: p.title,
                 project_code: p.project_code,
-                activity_name: `📍 ดำเนินโครงการ: ${ed.title || p.title}${dyn.execution_dates.length > 1 ? ` (ช่วงที่ ${edIdx + 1})` : ''}`,
+                activity_name: `📍 การดำเนินโครงการ${dyn.execution_dates.length > 1 ? ` (ช่วงที่ ${edIdx + 1})` : ''}: ${ed.title || p.title}`,
                 start_date: s,
                 end_date: e,
                 location: ed.location || dyn.execution_status_location || '',
