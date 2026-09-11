@@ -23,6 +23,7 @@ import {
   X
 } from 'lucide-react';
 import Link from 'next/link';
+import { formatThaiBaht } from '@/lib/bahttext';
 
 export default function ProjectSummaryPage() {
   const router = useRouter();
@@ -181,19 +182,43 @@ export default function ProjectSummaryPage() {
           return proj.department?.name || '';
         }
 
-        // 5. Budgets (Total, Spent, Remaining, Items)
-        if (norm === 'budget' || norm === 'totalbudget' || norm === 'approvedbudget' || norm === 'totalamount') {
-          return proj.total_budget || 0;
+        // 5. Budgets (Total, Spent, Remaining, Items, BahtText)
+        const totalBudgetVal = Number(proj.total_budget || 0);
+        const isBahtText = key.includes('bahttext') || norm.includes('bahttext') || rawLabel.includes('ตัวอักษร') || key.includes('ตัวอักษร') || norm.includes('thaibaht');
+        const isBudgetFormatted = norm.includes('budgettext') || norm.includes('formattedbudget') || rawLabel.includes('ตัวเลข') || key.includes('ตัวเลข');
+
+        if (isBahtText) {
+          return formatThaiBaht(totalBudgetVal);
         }
-        if (norm.includes('actualspent') || norm.includes('actualexpense') || norm.includes('spentamount') || norm.includes('totalspent') || norm.includes('spentbudget') || norm.includes('disbursement') || norm.includes('disbursedamount')) {
+
+        if (
+          norm === 'budget' ||
+          norm === 'totalbudget' ||
+          norm === 'approvedbudget' ||
+          norm === 'totalamount' ||
+          key.includes('total_budget') ||
+          key.includes('งบประมาณ') ||
+          rawLabel.includes('งบประมาณ') ||
+          rawLabel.includes('รวมงบประมาณ') ||
+          rawLabel.includes('รวมงบประมาณทั้งสิ้น')
+        ) {
+          if (t.tag_type === 'NUMBER' || (t as any).input_type === 'number') {
+            return totalBudgetVal;
+          }
+          if (isBudgetFormatted) {
+            return totalBudgetVal.toLocaleString();
+          }
+          return totalBudgetVal;
+        }
+        if (norm.includes('actualspent') || norm.includes('actualexpense') || norm.includes('spentamount') || norm.includes('totalspent') || norm.includes('spentbudget') || norm.includes('disbursement') || norm.includes('disbursedamount') || rawLabel.includes('เบิกจ่าย') || rawLabel.includes('ใช้จ่ายจริง')) {
           return proj.actual_spent || projDynamic.actual_spent || projDynamic.actual_expense || proj.total_budget || 0;
         }
-        if (norm.includes('remaining') || norm.includes('balance') || norm.includes('budgetbalance') || norm.includes('leftbudget')) {
+        if (norm.includes('remaining') || norm.includes('balance') || norm.includes('budgetbalance') || norm.includes('leftbudget') || rawLabel.includes('คงเหลือ')) {
           const total = Number(proj.total_budget || 0);
           const spent = Number(proj.actual_spent || projDynamic.actual_spent || projDynamic.actual_expense || 0);
           return Math.max(0, total - spent);
         }
-        if (norm.includes('budgetitem') || norm.includes('expenses') || norm.includes('budgetdetail')) {
+        if (norm.includes('budgetitem') || norm.includes('expenses') || norm.includes('budgetdetail') || rawLabel.includes('รายการค่าใช้จ่าย')) {
           if (t.tag_type === 'TABLE_LOOP') {
             if (Array.isArray(proj.budget_items) && proj.budget_items.length > 0) {
               return proj.budget_items.map((b: any) => ({
@@ -433,6 +458,12 @@ export default function ProjectSummaryPage() {
           return `${dateObj.getDate()} ${months[dateObj.getMonth()]} พ.ศ. ${dateObj.getFullYear() + 543}`;
         };
 
+        // Default start/end dates from fiscal_year if no timelines
+        const fy = proj.fiscal_year || new Date().getFullYear() + 543;
+        const fyChristian = fy > 2400 ? fy - 543 : fy;
+        const defaultStartDate = `${fyChristian - 1}-10-01`;
+        const defaultEndDate = `${fyChristian}-09-30`;
+
         let rawStartDate = '';
         let rawEndDate = '';
         if (Array.isArray(proj.timelines) && proj.timelines.length > 0) {
@@ -446,6 +477,8 @@ export default function ProjectSummaryPage() {
         if (!rawEndDate && proj.end_date) rawEndDate = proj.end_date;
         if (!rawStartDate && projDynamic.start_date) rawStartDate = projDynamic.start_date;
         if (!rawEndDate && projDynamic.end_date) rawEndDate = projDynamic.end_date;
+        if (!rawStartDate) rawStartDate = defaultStartDate;
+        if (!rawEndDate) rawEndDate = defaultEndDate;
 
         const sDate = rawStartDate ? formatThaiDate(rawStartDate) : '';
         const eDate = rawEndDate ? formatThaiDate(rawEndDate) : '';
@@ -458,12 +491,15 @@ export default function ProjectSummaryPage() {
           norm.includes('begindate') ||
           rawLabel.includes('วันที่เริ่ม') ||
           rawLabel.includes('วันเริ่มต้น') ||
-          rawLabel.includes('วันที่เริ่มต้น')
+          rawLabel.includes('วันที่เริ่มต้น') ||
+          rawLabel.includes('วันเริ่ม') ||
+          key.includes('start') ||
+          key.includes('เริ่ม')
         ) {
-          if (t.tag_type === 'DATE') {
-            return toIsoDateString(projDynamic.start_date || rawStartDate) || '';
+          if (t.tag_type === 'DATE' || (t as any).input_type === 'date') {
+            return toIsoDateString(projDynamic.start_date || rawStartDate) || defaultStartDate;
           }
-          return projDynamic.start_date || sDate;
+          return projDynamic.start_date || sDate || formatThaiDate(rawStartDate);
         }
 
         // End Date matches
@@ -474,12 +510,16 @@ export default function ProjectSummaryPage() {
           norm.includes('finishdate') ||
           rawLabel.includes('วันที่สิ้นสุด') ||
           rawLabel.includes('วันสิ้นสุด') ||
-          rawLabel.includes('วันที่แล้วเสร็จ')
+          rawLabel.includes('วันที่แล้วเสร็จ') ||
+          rawLabel.includes('วันแล้วเสร็จ') ||
+          key.includes('end') ||
+          key.includes('สิ้นสุด') ||
+          key.includes('แล้วเสร็จ')
         ) {
-          if (t.tag_type === 'DATE') {
-            return toIsoDateString(projDynamic.end_date || rawEndDate) || '';
+          if (t.tag_type === 'DATE' || (t as any).input_type === 'date') {
+            return toIsoDateString(projDynamic.end_date || rawEndDate) || defaultEndDate;
           }
-          return projDynamic.end_date || eDate;
+          return projDynamic.end_date || eDate || formatThaiDate(rawEndDate);
         }
 
         if (key === 'doc_date' || norm.includes('docdate') || norm.includes('reportdate') || rawLabel.includes('วันที่จัดทำ') || rawLabel.includes('วันที่รายงาน')) {
