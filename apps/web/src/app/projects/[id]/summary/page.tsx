@@ -428,37 +428,53 @@ export default function ProjectSummaryPage() {
           if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) {
             return d.trim();
           }
-          const dateObj = new Date(d);
-          if (isNaN(dateObj.getTime())) {
-            const match = String(d).match(/(\d{1,2})[\/\-\s]+([^\s\d]+|\d{1,2})[\/\-\s]+(\d{4})/);
-            if (match) {
-              const day = parseInt(match[1], 10);
-              let year = parseInt(match[3], 10);
-              if (year > 2400) year -= 543;
-              let month = 1;
-              const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-              const foundM = months.findIndex(m => match[2].includes(m));
-              if (foundM >= 0) month = foundM + 1;
-              else month = parseInt(match[2], 10) || 1;
-              return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-            }
-            return '';
+          const cleanStr = String(d).replace(/พ\.ศ\.?/g, '').trim();
+          const match = cleanStr.match(/(\d{1,2})[\/\-\s]+([^\s\d]+|\d{1,2})[\/\-\s]+(\d{4})/);
+          if (match) {
+            const day = parseInt(match[1], 10);
+            let year = parseInt(match[3], 10);
+            if (year > 2400) year -= 543;
+            let month = 1;
+            const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+            const foundM = months.findIndex(m => match[2].includes(m));
+            if (foundM >= 0) month = foundM + 1;
+            else month = parseInt(match[2], 10) || 1;
+            return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
           }
-          const y = dateObj.getFullYear();
-          const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-          const dy = dateObj.getDate().toString().padStart(2, '0');
-          return `${y}-${m}-${dy}`;
+          const dateObj = new Date(d);
+          if (!isNaN(dateObj.getTime())) {
+            const y = dateObj.getFullYear();
+            const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            const dy = dateObj.getDate().toString().padStart(2, '0');
+            return `${y}-${m}-${dy}`;
+          }
+          return '';
         };
 
+        // Format Thai Date with safe timezone & string handling
         const formatThaiDate = (d: any) => {
           if (!d) return '';
+          if (typeof d === 'string') {
+            const isoMatch = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (isoMatch) {
+              const y = parseInt(isoMatch[1], 10);
+              const m = parseInt(isoMatch[2], 10);
+              const day = parseInt(isoMatch[3], 10);
+              const thaiYear = y < 2400 ? y + 543 : y;
+              const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+              return `${day} ${months[m - 1]} พ.ศ. ${thaiYear}`;
+            }
+            if (d.includes('มกราคม') || d.includes('กุมภาพันธ์') || d.includes('มีนาคม') || d.includes('เมษายน') || d.includes('พฤษภาคม') || d.includes('มิถุนายน') || d.includes('กรกฎาคม') || d.includes('สิงหาคม') || d.includes('กันยายน') || d.includes('ตุลาคม') || d.includes('พฤศจิกายน') || d.includes('ธันวาคม')) {
+              return d;
+            }
+          }
           const dateObj = new Date(d);
           if (isNaN(dateObj.getTime())) return String(d);
           const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
           return `${dateObj.getDate()} ${months[dateObj.getMonth()]} พ.ศ. ${dateObj.getFullYear() + 543}`;
         };
 
-        // Default start/end dates from fiscal_year if no timelines
+        // Default start/end dates from fiscal_year if no other dates found
         const fy = proj.fiscal_year || new Date().getFullYear() + 543;
         const fyChristian = fy > 2400 ? fy - 543 : fy;
         const defaultStartDate = `${fyChristian - 1}-10-01`;
@@ -466,17 +482,47 @@ export default function ProjectSummaryPage() {
 
         let rawStartDate = '';
         let rawEndDate = '';
+
+        // 17.1 Check DATERANGE objects or { start, end } in projDynamic
+        for (const [_, v] of Object.entries(projDynamic)) {
+          if (v && typeof v === 'object' && !Array.isArray(v)) {
+            const obj = v as any;
+            if (obj.start && !rawStartDate) rawStartDate = obj.start;
+            if (obj.end && !rawEndDate) rawEndDate = obj.end;
+            if (obj.startDate && !rawStartDate) rawStartDate = obj.startDate;
+            if (obj.endDate && !rawEndDate) rawEndDate = obj.endDate;
+          }
+        }
+
+        // 17.2 Check timelines
         if (Array.isArray(proj.timelines) && proj.timelines.length > 0) {
           const validStart = [...proj.timelines].filter((tm: any) => tm.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
           const validEnd = [...proj.timelines].filter((tm: any) => tm.end_date || tm.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
-          if (validStart.length > 0) rawStartDate = validStart[0].start_date;
-          if (validEnd.length > 0) rawEndDate = validEnd[validEnd.length - 1].end_date || validEnd[validEnd.length - 1].start_date;
+          if (validStart.length > 0 && !rawStartDate) rawStartDate = validStart[0].start_date;
+          if (validEnd.length > 0 && !rawEndDate) rawEndDate = validEnd[validEnd.length - 1].end_date || validEnd[validEnd.length - 1].start_date;
         }
 
+        // 17.3 Check project direct properties
         if (!rawStartDate && proj.start_date) rawStartDate = proj.start_date;
         if (!rawEndDate && proj.end_date) rawEndDate = proj.end_date;
         if (!rawStartDate && projDynamic.start_date) rawStartDate = projDynamic.start_date;
         if (!rawEndDate && projDynamic.end_date) rawEndDate = projDynamic.end_date;
+
+        // 17.4 Check string ranges (e.g. "5 มีนาคม 2570 ถึง 9 มิถุนายน 2570")
+        if (!rawStartDate || !rawEndDate) {
+          for (const [_, v] of Object.entries(projDynamic)) {
+            if (typeof v === 'string' && (v.includes('ถึง') || v.includes(' – ') || v.includes(' - '))) {
+              const parts = v.split(/\s+(?:ถึง|–|-)\s+/);
+              if (parts.length >= 2) {
+                if (!rawStartDate) rawStartDate = parts[0].trim();
+                if (!rawEndDate) rawEndDate = parts[1].trim();
+                break;
+              }
+            }
+          }
+        }
+
+        // 17.5 Fallback to fiscal year start/end if still empty
         if (!rawStartDate) rawStartDate = defaultStartDate;
         if (!rawEndDate) rawEndDate = defaultEndDate;
 
@@ -497,9 +543,9 @@ export default function ProjectSummaryPage() {
           key.includes('เริ่ม')
         ) {
           if (t.tag_type === 'DATE' || (t as any).input_type === 'date') {
-            return toIsoDateString(projDynamic.start_date || rawStartDate) || defaultStartDate;
+            return toIsoDateString(rawStartDate) || defaultStartDate;
           }
-          return projDynamic.start_date || sDate || formatThaiDate(rawStartDate);
+          return sDate || formatThaiDate(rawStartDate);
         }
 
         // End Date matches
@@ -517,9 +563,9 @@ export default function ProjectSummaryPage() {
           key.includes('แล้วเสร็จ')
         ) {
           if (t.tag_type === 'DATE' || (t as any).input_type === 'date') {
-            return toIsoDateString(projDynamic.end_date || rawEndDate) || defaultEndDate;
+            return toIsoDateString(rawEndDate) || defaultEndDate;
           }
-          return projDynamic.end_date || eDate || formatThaiDate(rawEndDate);
+          return eDate || formatThaiDate(rawEndDate);
         }
 
         if (key === 'doc_date' || norm.includes('docdate') || norm.includes('reportdate') || rawLabel.includes('วันที่จัดทำ') || rawLabel.includes('วันที่รายงาน')) {
