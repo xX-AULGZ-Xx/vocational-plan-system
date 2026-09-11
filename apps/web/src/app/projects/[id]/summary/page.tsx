@@ -100,10 +100,14 @@ export default function ProjectSummaryPage() {
       setTemplate(tpl);
 
       // Fetch Divisions
+      let fetchedDivs: any[] = [];
       try {
         const resDiv = await fetch('/api/v1/divisions', { headers: { Authorization: `Bearer ${token}` } });
         const dataDiv = await resDiv.json();
-        if (dataDiv.success) setDivisionsData(dataDiv.data);
+        if (dataDiv.success && Array.isArray(dataDiv.data)) {
+          fetchedDivs = dataDiv.data;
+          setDivisionsData(dataDiv.data);
+        }
       } catch (e) {
         console.error(e);
       }
@@ -124,9 +128,20 @@ export default function ProjectSummaryPage() {
 
       const normalizeKey = (k: string) => (k || '').toLowerCase().replace(/[%_\-\s]/g, '');
 
+      // Find current division of the project's department
+      const allDivs = fetchedDivs.length > 0 ? fetchedDivs : divisionsData;
+      const currentDiv = allDivs.find((div: any) =>
+        (div.departments || []).some((d: any) => d.id === (proj.department_id || proj.department?.id)) ||
+        (proj.department?.division_id && div.id === proj.department.division_id) ||
+        (proj.department?.division?.name && div.name === proj.department.division.name) ||
+        (proj.department?.division?.code && div.code === proj.department.division.code)
+      );
+
       const resolveTagValue = (t: any) => {
-        const key = t.tag_name;
+        const key = t.tag_name || '';
+        const rawLabel = t.label || '';
         const norm = normalizeKey(key);
+        const normLabel = normalizeKey(rawLabel);
         const clean = key.replace(/[%]/g, '').trim();
 
         // 1. Direct match from dynamic_data
@@ -160,7 +175,7 @@ export default function ProjectSummaryPage() {
 
         // 4. Department & Division
         if (norm === 'division' || norm === 'divisionname' || norm === 'divname' || norm === 'departmentdivision') {
-          return proj.department?.division?.name || '';
+          return proj.department?.division?.name || currentDiv?.name || '';
         }
         if (key === 'department' || norm === 'department' || norm === 'departmentname' || norm === 'dept' || norm === 'deptname') {
           return proj.department?.name || '';
@@ -266,7 +281,123 @@ export default function ProjectSummaryPage() {
           return projDynamic.location || proj.location || collegeName || 'สถานศึกษา';
         }
 
-        // 14. Timelines & Dates & Duration
+        // 14. Specific 4-Division Deputy matches by tag name or label
+        if (
+          norm.includes('deputystrat') ||
+          norm.includes('deputyplan') ||
+          rawLabel.includes('แผนงาน') ||
+          key.includes('แผนงาน')
+        ) {
+          if (t.tag_type === 'DEPUTY_STRAT_POSITION' || norm.includes('pos') || rawLabel.includes('ตำแหน่ง')) {
+            return deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ';
+          }
+          return deputyStratName || currentDiv?.deputy_name || '';
+        }
+
+        if (
+          norm.includes('deputyacad') ||
+          rawLabel.includes('วิชาการ') ||
+          key.includes('วิชาการ')
+        ) {
+          if (t.tag_type === 'DEPUTY_ACAD_POSITION' || norm.includes('pos') || rawLabel.includes('ตำแหน่ง')) {
+            return deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ';
+          }
+          return deputyAcadName || currentDiv?.deputy_name || '';
+        }
+
+        if (
+          norm.includes('deputyres') ||
+          rawLabel.includes('บริหารทรัพยากร') ||
+          rawLabel.includes('ทรัพยากร') ||
+          key.includes('ทรัพยากร')
+        ) {
+          if (t.tag_type === 'DEPUTY_RES_POSITION' || norm.includes('pos') || rawLabel.includes('ตำแหน่ง')) {
+            return deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร';
+          }
+          return deputyResName || currentDiv?.deputy_name || '';
+        }
+
+        if (
+          norm.includes('deputydev') ||
+          rawLabel.includes('พัฒนากิจการ') ||
+          rawLabel.includes('พัฒนานักเรียน') ||
+          key.includes('พัฒนา')
+        ) {
+          if (t.tag_type === 'DEPUTY_DEV_POSITION' || norm.includes('pos') || rawLabel.includes('ตำแหน่ง')) {
+            return deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา';
+          }
+          return deputyDevName || currentDiv?.deputy_name || '';
+        }
+
+        // 15. General Deputy & Approver (รองผู้อำนวยการฝ่ายประจำฝ่ายที่สังกัด)
+        if (
+          t.tag_type === 'APPROVER_DROPDOWN' ||
+          t.tag_type === 'DEPUTY_DROPDOWN' ||
+          key === 'approver_name' ||
+          key === 'deputy_name' ||
+          norm === 'deputyname' ||
+          norm === 'approvername' ||
+          rawLabel.includes('รองผู้อำนวยการ') ||
+          rawLabel.includes('ผู้เห็นชอบ')
+        ) {
+          if (norm.includes('pos') || rawLabel.includes('ตำแหน่ง')) {
+            return (
+              projDynamic.deputy_position ||
+              projDynamic.approver_position ||
+              currentDiv?.deputy_position ||
+              (currentDiv ? (currentDiv.deputy_position || `รองผู้อำนวยการ${currentDiv.name}`) : '') ||
+              deputyStratPosition ||
+              'รองผู้อำนวยการ'
+            );
+          }
+          return (
+            projDynamic.deputy_name ||
+            projDynamic.approver_name ||
+            currentDiv?.deputy_name ||
+            (currentDiv?.code === 'ACAD' ? deputyAcadName : null) ||
+            (currentDiv?.code === 'RES' ? deputyResName : null) ||
+            (currentDiv?.code === 'DEV' ? deputyDevName : null) ||
+            (currentDiv?.code === 'STRAT' ? deputyStratName : null) ||
+            deputyStratName ||
+            deputyAcadName ||
+            deputyResName ||
+            ''
+          );
+        }
+
+        if (
+          t.tag_type === 'APPROVER_POSITION' ||
+          t.tag_type === 'DEPUTY_POSITION' ||
+          key === 'approver_position' ||
+          key === 'deputy_position' ||
+          norm === 'deputyposition' ||
+          norm === 'approverposition'
+        ) {
+          return (
+            projDynamic.deputy_position ||
+            projDynamic.approver_position ||
+            currentDiv?.deputy_position ||
+            (currentDiv ? (currentDiv.deputy_position || `รองผู้อำนวยการ${currentDiv.name}`) : '') ||
+            (currentDiv?.code === 'ACAD' ? (deputyAcadPosition || 'รองผู้อำนวยการฝ่ายวิชาการ') : null) ||
+            (currentDiv?.code === 'RES' ? (deputyResPosition || 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร') : null) ||
+            (currentDiv?.code === 'DEV' ? (deputyDevPosition || 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา') : null) ||
+            (currentDiv?.code === 'STRAT' ? (deputyStratPosition || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ') : null) ||
+            deputyStratPosition ||
+            'รองผู้อำนวยการ'
+          );
+        }
+
+        // 16. Head of Department / Unit (หัวหน้างาน/หัวหน้าแผนก)
+        if (t.tag_type === 'HEAD_NAME' || key === 'head_name' || norm === 'headname' || rawLabel.includes('หัวหน้างาน') || rawLabel.includes('หัวหน้าแผนก')) {
+          const userDept = (allDivs || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
+          return projDynamic.head_name || userDept?.head_name || '';
+        }
+        if (t.tag_type === 'HEAD_POSITION' || key === 'head_position' || norm === 'headposition') {
+          const userDept = (allDivs || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
+          return projDynamic.head_position || userDept?.head_position || (userDept ? (userDept.name.startsWith('งาน') || userDept.name.startsWith('แผนก') ? `หัวหน้า${userDept.name}` : `หัวหน้างาน${userDept.name}`) : 'หัวหน้างาน');
+        }
+
+        // 17. Timelines & Dates & Duration
         const formatThaiDate = (d: any) => {
           if (!d) return '';
           const dateObj = new Date(d);
@@ -306,14 +437,14 @@ export default function ProjectSummaryPage() {
           return projDynamic[key] || dText;
         }
 
-        // 15. Fuzzy match in projDynamic
+        // 18. Fuzzy match in projDynamic
         for (const k of Object.keys(projDynamic)) {
           if (normalizeKey(k) === norm) {
             return projDynamic[k];
           }
         }
 
-        // 16. Signers and institutional defaults
+        // 19. Proposer / Leader details
         if (t.tag_type === 'LEADER_NAME' || key === 'leader_name' || norm === 'leadername' || norm.includes('proposername') || norm.includes('ownername')) {
           return proj.leader?.full_name || user?.full_name || '';
         }
@@ -336,6 +467,8 @@ export default function ProjectSummaryPage() {
           }
           return proj.leader?.position || user?.position || 'ครู';
         }
+
+        // 20. Planning Head, Director & College defaults
         if (t.tag_type === 'DIRECTOR_NAME' || key === 'director_name' || norm === 'directorname') {
           return directorName || '';
         }
@@ -350,52 +483,6 @@ export default function ProjectSummaryPage() {
         }
         if (t.tag_type === 'PLANNING_HEAD_POSITION' || key === 'planning_head_position' || norm === 'planningheadposition') {
           return planningHeadPosition || 'หัวหน้างานวางแผนและงบประมาณ';
-        }
-        if (t.tag_type === 'DEPUTY_ACAD_NAME' || key === 'deputy_acad_name' || norm === 'deputyacadname') {
-          return deputyAcadName || '';
-        }
-        if (t.tag_type === 'DEPUTY_ACAD_POSITION' || key === 'deputy_acad_position' || norm === 'deputyacadposition') {
-          return deputyAcadPosition || '';
-        }
-        if (t.tag_type === 'DEPUTY_RES_NAME' || key === 'deputy_res_name' || norm === 'deputyresname') {
-          return deputyResName || '';
-        }
-        if (t.tag_type === 'DEPUTY_RES_POSITION' || key === 'deputy_res_position' || norm === 'deputyresposition') {
-          return deputyResPosition || '';
-        }
-        if (t.tag_type === 'DEPUTY_DEV_NAME' || key === 'deputy_dev_name' || norm === 'deputydevname') {
-          return deputyDevName || '';
-        }
-        if (t.tag_type === 'DEPUTY_DEV_POSITION' || key === 'deputy_dev_position' || norm === 'deputydevposition') {
-          return deputyDevPosition || '';
-        }
-        if (t.tag_type === 'DEPUTY_STRAT_NAME' || key === 'deputy_strat_name' || norm === 'deputystratname') {
-          return deputyStratName || '';
-        }
-        if (t.tag_type === 'DEPUTY_STRAT_POSITION' || key === 'deputy_strat_position' || norm === 'deputystratposition') {
-          return deputyStratPosition || '';
-        }
-        if (t.tag_type === 'HEAD_NAME' || key === 'head_name' || norm === 'headname') {
-          const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
-          return userDept?.head_name || '';
-        }
-        if (t.tag_type === 'HEAD_POSITION' || key === 'head_position' || norm === 'headposition') {
-          const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
-          return userDept?.head_position || (userDept ? `หัวหน้า${userDept.name}` : 'หัวหน้างาน');
-        }
-
-        // 17. Approver dropdowns default to corresponding division deputy
-        if (t.tag_type === 'APPROVER_DROPDOWN' || t.tag_type === 'DEPUTY_DROPDOWN' || key === 'approver_name' || key === 'deputy_name') {
-          const currentDiv = (divisionsData || []).find((div: any) => (div.departments || []).some((d: any) => d.id === (proj.department_id || proj.department?.id)));
-          if (currentDiv && currentDiv.deputy_name) {
-            return currentDiv.deputy_name;
-          }
-        }
-        if (t.tag_type === 'APPROVER_POSITION' || t.tag_type === 'DEPUTY_POSITION' || key === 'approver_position' || key === 'deputy_position') {
-          const currentDiv = (divisionsData || []).find((div: any) => (div.departments || []).some((d: any) => d.id === (proj.department_id || proj.department?.id)));
-          if (currentDiv && currentDiv.deputy_position) {
-            return currentDiv.deputy_position;
-          }
         }
 
         // Tag type fallbacks
