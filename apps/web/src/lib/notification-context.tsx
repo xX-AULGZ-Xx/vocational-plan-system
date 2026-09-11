@@ -183,12 +183,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       return null;
     };
 
-    // 1. Primary Real-time Transport: WebSocket (Socket.IO)
+    // 1. Primary Real-time Transport: Socket.IO (HTTP Polling -> WebSocket Upgrade)
     const socket = io({
       path: '/socket.io',
       auth: { token },
       query: { token },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      rememberUpgrade: true,
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
