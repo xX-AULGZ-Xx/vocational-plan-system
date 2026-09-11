@@ -202,78 +202,88 @@ export default function OnePageSummaryReport({
 
         {/* Landscape vs Portrait Layout */}
         {isLandscape ? (
-          /* Landscape View: 2 Big Columns (Left = 4 Core Analysis, Right = 4 Images) */
-          <div className="grid grid-cols-12 gap-3 mb-3 flex-1 items-stretch">
-            {/* Left side: 4 Analysis Cards (6 or 7 cols) */}
-            <div className="col-span-7 grid grid-cols-2 gap-2.5">
-              <div className="p-2.5 bg-gradient-to-br from-indigo-50/50 to-white border border-indigo-100 rounded-xl shadow-2xs flex flex-col justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-indigo-100 pb-1 mb-1.5">
-                    <div className="w-4 h-4 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[9px] font-bold">๑</div>
+          /* Landscape View: 2 Big Columns (Left = 4 Core Analysis with dynamic heights, Right = 4 Images) */
+          <div className="grid grid-cols-12 gap-3 mb-3 flex-1 items-stretch min-h-0">
+            {/* Left side: 2 Columns of 2 Rows (Activities, Results on top row / Problems, Suggestions on bottom row) */}
+            <div className="col-span-7 flex flex-col gap-2.5">
+              {/* Top Row: Activities Summary & Actual Results (flex-1 to grow nicely) */}
+              <div className="grid grid-cols-2 gap-2.5 flex-1 min-h-0">
+                {/* 1. กิจกรรมดำเนินการ */}
+                <div className="p-3 bg-gradient-to-br from-indigo-50/60 via-indigo-50/20 to-white border border-indigo-100/90 rounded-xl shadow-2xs flex flex-col justify-start overflow-hidden">
+                  <h3 className="text-xs font-bold text-indigo-950 flex items-center gap-1.5 border-b border-indigo-100 pb-1.5 mb-2 shrink-0">
+                    <div className="w-4.5 h-4.5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">๑</div>
                     <span>กิจกรรมดำเนินการ</span>
                   </h3>
-                  <p className="text-[10.5px] text-slate-700 whitespace-pre-line leading-snug">
+                  <div className={`text-slate-700 whitespace-pre-line leading-relaxed overflow-y-auto pr-1 ${
+                    activitiesSummary.length > 350 ? 'text-[10px] leading-snug' : activitiesSummary.length > 200 ? 'text-[10.5px] leading-relaxed' : 'text-[11px] leading-relaxed'
+                  }`}>
                     {activitiesSummary}
-                  </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="p-2.5 bg-gradient-to-br from-emerald-50/50 to-white border border-emerald-100 rounded-xl shadow-2xs flex flex-col justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-emerald-900 flex items-center gap-1.5 border-b border-emerald-100 pb-1 mb-1.5">
-                    <div className="w-4 h-4 rounded-md bg-emerald-600 text-white flex items-center justify-center text-[9px] font-bold">๒</div>
+                {/* 2. ผลที่ได้รับ */}
+                <div className="p-3 bg-gradient-to-br from-emerald-50/60 via-emerald-50/20 to-white border border-emerald-100/90 rounded-xl shadow-2xs flex flex-col justify-start overflow-hidden">
+                  <h3 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5 border-b border-emerald-100 pb-1.5 mb-2 shrink-0">
+                    <div className="w-4.5 h-4.5 rounded-md bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">๒</div>
                     <span>ผลที่ได้รับ</span>
                   </h3>
-                  <p className="text-[10.5px] text-slate-700 whitespace-pre-line leading-snug">
+                  <div className={`text-slate-700 whitespace-pre-line leading-relaxed overflow-y-auto pr-1 ${
+                    actualResults.length > 350 ? 'text-[10px] leading-snug' : actualResults.length > 200 ? 'text-[10.5px] leading-relaxed' : 'text-[11px] leading-relaxed'
+                  }`}>
                     {actualResults}
-                  </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="p-2.5 bg-gradient-to-br from-amber-50/40 to-white border border-amber-100 rounded-xl shadow-2xs flex flex-col justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-amber-900 flex items-center gap-1.5 border-b border-amber-100 pb-1 mb-1.5">
-                    <div className="w-4 h-4 rounded-md bg-amber-600 text-white flex items-center justify-center text-[9px] font-bold">๓</div>
+              {/* Bottom Row: Problems & Suggestions (auto height or balanced) */}
+              <div className="grid grid-cols-2 gap-2.5 shrink-0">
+                {/* 3. ปัญหาและอุปสรรค */}
+                <div className="p-3 bg-gradient-to-br from-amber-50/60 via-amber-50/20 to-white border border-amber-100/90 rounded-xl shadow-2xs flex flex-col justify-start overflow-hidden">
+                  <h3 className="text-xs font-bold text-amber-950 flex items-center gap-1.5 border-b border-amber-100 pb-1.5 mb-2 shrink-0">
+                    <div className="w-4.5 h-4.5 rounded-md bg-amber-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">๓</div>
                     <span>ปัญหาและอุปสรรค</span>
                   </h3>
-                  <p className="text-[10.5px] text-slate-700 whitespace-pre-line leading-snug">
+                  <div className={`text-slate-700 whitespace-pre-line leading-relaxed overflow-y-auto pr-1 ${
+                    problemsObstacles.length > 200 ? 'text-[10px] leading-snug' : 'text-[10.5px] leading-relaxed'
+                  }`}>
                     {problemsObstacles}
-                  </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="p-2.5 bg-gradient-to-br from-blue-50/40 to-white border border-blue-100 rounded-xl shadow-2xs flex flex-col justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-blue-900 flex items-center gap-1.5 border-b border-blue-100 pb-1 mb-1.5">
-                    <div className="w-4 h-4 rounded-md bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">๔</div>
+                {/* 4. ข้อเสนอแนะเพื่อการพัฒนา */}
+                <div className="p-3 bg-gradient-to-br from-blue-50/60 via-blue-50/20 to-white border border-blue-100/90 rounded-xl shadow-2xs flex flex-col justify-start overflow-hidden">
+                  <h3 className="text-xs font-bold text-blue-950 flex items-center gap-1.5 border-b border-blue-100 pb-1.5 mb-2 shrink-0">
+                    <div className="w-4.5 h-4.5 rounded-md bg-blue-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">๔</div>
                     <span>ข้อเสนอแนะเพื่อการพัฒนา</span>
                   </h3>
-                  <p className="text-[10.5px] text-slate-700 whitespace-pre-line leading-snug">
+                  <div className={`text-slate-700 whitespace-pre-line leading-relaxed overflow-y-auto pr-1 ${
+                    projectSuggestions.length > 200 ? 'text-[10px] leading-snug' : 'text-[10.5px] leading-relaxed'
+                  }`}>
                     {projectSuggestions}
-                  </p>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Right side: 4 Photos Grid (5 cols) */}
-            <div className="col-span-5 bg-slate-50 border border-slate-200 rounded-xl p-2.5 shadow-2xs flex flex-col justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 border-b border-slate-200 pb-1 mb-2">
+            <div className="col-span-5 bg-slate-50/80 border border-slate-200/90 rounded-xl p-3 shadow-2xs flex flex-col justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 border-b border-slate-200 pb-1.5 mb-2 shrink-0">
                 <ImageIcon className="w-3.5 h-3.5 text-indigo-700" />
                 <span>ภาพถ่ายการดำเนินกิจกรรม (๔ ภาพ)</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 flex-1 items-center">
+              <div className="grid grid-cols-2 gap-2 flex-1 items-stretch min-h-0">
                 {[1, 2, 3, 4].map((num) => {
                   const imgUrl = dyn[`activity_image_${num}`];
                   return (
                     <div
                       key={num}
-                      className="aspect-4/3 rounded-lg overflow-hidden border border-slate-300 bg-white relative shadow-2xs flex flex-col items-center justify-center group h-full"
+                      className="aspect-4/3 rounded-lg overflow-hidden border border-slate-200 bg-white relative shadow-2xs flex flex-col items-center justify-center group h-full"
                     >
                       {imgUrl ? (
                         <img
                           src={imgUrl}
                           alt={`ภาพกิจกรรมที่ ${num}`}
-                          className="w-full h-full object-contain bg-slate-900/5 group-hover:scale-105 transition duration-200"
+                          className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
                         />
                       ) : (
                         <div className="text-center p-1 text-slate-400">
@@ -281,7 +291,7 @@ export default function OnePageSummaryReport({
                           <span className="text-[9px] font-semibold block text-slate-400">ภาพที่ {num}</span>
                         </div>
                       )}
-                      <div className="absolute bottom-1 right-1 bg-slate-900/70 text-white text-[8px] px-1 py-0.5 rounded backdrop-blur-xs font-medium">
+                      <div className="absolute bottom-1 right-1 bg-slate-900/70 text-white text-[8px] px-1.5 py-0.5 rounded backdrop-blur-xs font-medium">
                         ภาพที่ {num}
                       </div>
                     </div>
@@ -293,64 +303,64 @@ export default function OnePageSummaryReport({
         ) : (
           /* Portrait View: 4 Analysis Cards (Top) + 4 Photos (Bottom) */
           <>
-            {/* 3. Four Core Analysis Cards (2x2 Grid) */}
+            {/* 3. Four Core Analysis Cards (2x2 Grid with responsive text flow) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
               {/* 1. กิจกรรมดำเนินการ */}
-              <div className="p-3 bg-gradient-to-br from-indigo-50/50 to-white border border-indigo-100 rounded-xl shadow-2xs flex flex-col justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-indigo-100 pb-1 mb-1.5">
-                    <div className="w-4.5 h-4.5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">๑</div>
-                    <span>กิจกรรมดำเนินการ (Activities Summary)</span>
-                  </h3>
-                  <p className="text-[11px] text-slate-700 whitespace-pre-line leading-relaxed">
-                    {activitiesSummary}
-                  </p>
+              <div className="p-3.5 bg-gradient-to-br from-indigo-50/60 via-indigo-50/20 to-white border border-indigo-100/90 rounded-xl shadow-2xs flex flex-col justify-start">
+                <h3 className="text-xs font-bold text-indigo-950 flex items-center gap-1.5 border-b border-indigo-100 pb-1.5 mb-2">
+                  <div className="w-4.5 h-4.5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">๑</div>
+                  <span>กิจกรรมดำเนินการ (Activities Summary)</span>
+                </h3>
+                <div className={`text-slate-700 whitespace-pre-line ${
+                  activitiesSummary.length > 500 ? 'text-[10px] leading-snug' : activitiesSummary.length > 250 ? 'text-[11px] leading-relaxed' : 'text-xs leading-relaxed'
+                }`}>
+                  {activitiesSummary}
                 </div>
               </div>
 
               {/* 2. ผลที่ได้รับ */}
-              <div className="p-3 bg-gradient-to-br from-emerald-50/50 to-white border border-emerald-100 rounded-xl shadow-2xs flex flex-col justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-emerald-900 flex items-center gap-1.5 border-b border-emerald-100 pb-1 mb-1.5">
-                    <div className="w-4.5 h-4.5 rounded-md bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold">๒</div>
-                    <span>ผลที่ได้รับ (Actual Results & Key Achievements)</span>
-                  </h3>
-                  <p className="text-[11px] text-slate-700 whitespace-pre-line leading-relaxed">
-                    {actualResults}
-                  </p>
+              <div className="p-3.5 bg-gradient-to-br from-emerald-50/60 via-emerald-50/20 to-white border border-emerald-100/90 rounded-xl shadow-2xs flex flex-col justify-start">
+                <h3 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5 border-b border-emerald-100 pb-1.5 mb-2">
+                  <div className="w-4.5 h-4.5 rounded-md bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">๒</div>
+                  <span>ผลที่ได้รับ (Actual Results & Key Achievements)</span>
+                </h3>
+                <div className={`text-slate-700 whitespace-pre-line ${
+                  actualResults.length > 500 ? 'text-[10px] leading-snug' : actualResults.length > 250 ? 'text-[11px] leading-relaxed' : 'text-xs leading-relaxed'
+                }`}>
+                  {actualResults}
                 </div>
               </div>
 
               {/* 3. ปัญหา-อุปสรรค */}
-              <div className="p-3 bg-gradient-to-br from-amber-50/40 to-white border border-amber-100 rounded-xl shadow-2xs flex flex-col justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-amber-900 flex items-center gap-1.5 border-b border-amber-100 pb-1 mb-1.5">
-                    <div className="w-4.5 h-4.5 rounded-md bg-amber-600 text-white flex items-center justify-center text-[10px] font-bold">๓</div>
-                    <span>ปัญหาและอุปสรรค (Problems & Obstacles)</span>
-                  </h3>
-                  <p className="text-[11px] text-slate-700 whitespace-pre-line leading-relaxed">
-                    {problemsObstacles}
-                  </p>
+              <div className="p-3.5 bg-gradient-to-br from-amber-50/60 via-amber-50/20 to-white border border-amber-100/90 rounded-xl shadow-2xs flex flex-col justify-start">
+                <h3 className="text-xs font-bold text-amber-950 flex items-center gap-1.5 border-b border-amber-100 pb-1.5 mb-2">
+                  <div className="w-4.5 h-4.5 rounded-md bg-amber-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">๓</div>
+                  <span>ปัญหาและอุปสรรค (Problems & Obstacles)</span>
+                </h3>
+                <div className={`text-slate-700 whitespace-pre-line ${
+                  problemsObstacles.length > 300 ? 'text-[10px] leading-snug' : 'text-[11px] leading-relaxed'
+                }`}>
+                  {problemsObstacles}
                 </div>
               </div>
 
               {/* 4. ข้อเสนอแนะ */}
-              <div className="p-3 bg-gradient-to-br from-blue-50/40 to-white border border-blue-100 rounded-xl shadow-2xs flex flex-col justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-blue-900 flex items-center gap-1.5 border-b border-blue-100 pb-1 mb-1.5">
-                    <div className="w-4.5 h-4.5 rounded-md bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">๔</div>
-                    <span>ข้อเสนอแนะเพื่อการพัฒนา (Suggestions)</span>
-                  </h3>
-                  <p className="text-[11px] text-slate-700 whitespace-pre-line leading-relaxed">
-                    {projectSuggestions}
-                  </p>
+              <div className="p-3.5 bg-gradient-to-br from-blue-50/60 via-blue-50/20 to-white border border-blue-100/90 rounded-xl shadow-2xs flex flex-col justify-start">
+                <h3 className="text-xs font-bold text-blue-950 flex items-center gap-1.5 border-b border-blue-100 pb-1.5 mb-2">
+                  <div className="w-4.5 h-4.5 rounded-md bg-blue-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">๔</div>
+                  <span>ข้อเสนอแนะเพื่อการพัฒนา (Suggestions)</span>
+                </h3>
+                <div className={`text-slate-700 whitespace-pre-line ${
+                  projectSuggestions.length > 300 ? 'text-[10px] leading-snug' : 'text-[11px] leading-relaxed'
+                }`}>
+                  {projectSuggestions}
                 </div>
               </div>
             </div>
 
             {/* 4. Four Activity Images Section */}
-            <div className="mb-3 bg-slate-50 border border-slate-200 rounded-xl p-2.5 shadow-2xs">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1">
+            <div className="mb-3 bg-slate-50/80 border border-slate-200/90 rounded-xl p-3 shadow-2xs">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-2 border-b border-slate-200 pb-1.5">
                 <ImageIcon className="w-3.5 h-3.5 text-indigo-700" />
                 <span>ภาพถ่ายการดำเนินกิจกรรมโครงการ (๔ รูปภาพ)</span>
               </div>
