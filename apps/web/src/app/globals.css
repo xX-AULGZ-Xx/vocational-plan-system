@@ -184,6 +184,9 @@ input, button, select, textarea, optgroup {
 /* SweetAlert2 Dynamic Theme Styling */
 .swal2-container {
   z-index: 10000 !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  background-color: rgba(15, 23, 42, 0.6) !important;
 }
 
 .swal2-popup {

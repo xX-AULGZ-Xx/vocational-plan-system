@@ -1057,7 +1057,7 @@ export default function AdminUsersPage() {
 
       {/* Modal 1: Create / Edit User */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-8">
             {/* Modal Header (Green/Theme Brand Header with Sparkles) */}
             <div
@@ -1477,7 +1477,7 @@ export default function AdminUsersPage() {
 
       {/* Modal 2: Reset Password Dialog */}
       {isResetModalOpen && resetTargetUser && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-amber-50/50">
               <div className="flex items-center gap-2">

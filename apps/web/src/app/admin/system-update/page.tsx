@@ -943,7 +943,7 @@ export default function SystemUpdatePage() {
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-theme max-w-md w-full p-6 shadow-2xl space-y-5">
             <div className="flex items-center gap-3 text-theme-primary">
               <GitPullRequest className="w-7 h-7" />
