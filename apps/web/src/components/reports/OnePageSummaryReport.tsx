@@ -67,14 +67,18 @@ export default function OnePageSummaryReport({
             size: ${isLandscape ? 'A4 landscape' : 'A4 portrait'};
             margin: 0 !important;
           }
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
           html, body {
             margin: 0 !important;
             padding: 0 !important;
-            background: white !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
             width: 100% !important;
             height: 100% !important;
+            background: white !important;
+            overflow: visible !important;
           }
           body * {
             visibility: hidden !important;
@@ -84,15 +88,16 @@ export default function OnePageSummaryReport({
             visibility: visible !important;
           }
           #one-page-summary-report {
-            position: fixed !important;
+            position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: ${isLandscape ? '297mm' : '210mm'} !important;
-            height: ${isLandscape ? '210mm' : '297mm'} !important;
+            width: 100vw !important;
+            height: 100vh !important;
             max-width: ${isLandscape ? '297mm' : '210mm'} !important;
             max-height: ${isLandscape ? '210mm' : '297mm'} !important;
+            min-height: ${isLandscape ? '210mm' : '297mm'} !important;
             margin: 0 !important;
-            padding: ${isLandscape ? '5mm 7mm' : '7mm 9mm'} !important;
+            padding: ${isLandscape ? '7mm 10mm 6mm 10mm' : '9mm 12mm 8mm 12mm'} !important;
             box-shadow: none !important;
             border: none !important;
             background: white !important;
@@ -102,6 +107,9 @@ export default function OnePageSummaryReport({
             break-inside: avoid !important;
             overflow: hidden !important;
             z-index: 999999 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
           }
           .no-print {
             display: none !important;
@@ -111,9 +119,9 @@ export default function OnePageSummaryReport({
 
       <div
         id="one-page-summary-report"
-        className={`w-full mx-auto bg-white text-slate-800 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-0 print:m-0 font-sans flex flex-col justify-between box-border transition-all duration-200 ${
+        className={`w-full mx-auto bg-white text-slate-800 shadow-xl border border-slate-200 print:shadow-none print:border-none font-sans flex flex-col justify-between box-border transition-all duration-200 ${
           isLandscape
-            ? 'max-w-[297mm] min-h-[200mm] p-6'
+            ? 'max-w-[297mm] min-h-[210mm] p-6 sm:p-7'
             : 'max-w-[210mm] min-h-[297mm] p-6 sm:p-8'
         }`}
       >
