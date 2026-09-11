@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { showAlert } from '@/lib/sweetalert';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   User,
   Building2,
@@ -324,7 +325,8 @@ export default function ProfileSetupModal() {
   const activeDivisionsWithDepts = divisions.filter((d) => selectedDivisionIds.includes(d.id));
 
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden flex flex-col my-8">
         {/* Header */}
         <div
@@ -635,5 +637,6 @@ export default function ProfileSetupModal() {
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 }

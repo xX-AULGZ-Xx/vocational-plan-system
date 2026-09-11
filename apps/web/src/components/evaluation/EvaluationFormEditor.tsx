@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   X,
   Plus,
@@ -294,7 +295,8 @@ export default function EvaluationFormEditor({
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <ModalPortal>
+      <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-5xl w-full max-h-[94vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Header */}
@@ -1048,5 +1050,6 @@ export default function EvaluationFormEditor({
 
       </div>
     </div>
+    </ModalPortal>
   );
 }

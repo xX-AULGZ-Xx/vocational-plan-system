@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   X,
   FileText,
@@ -63,7 +64,8 @@ export default function ProjectQuickPreviewModal({
   const totalBudget = Number(project.total_budget || 0);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[70] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+    <ModalPortal>
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[70] flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 overflow-hidden">
         
         {/* Modal Header */}
@@ -355,5 +357,6 @@ export default function ProjectQuickPreviewModal({
 
       </div>
     </div>
+    </ModalPortal>
   );
 }

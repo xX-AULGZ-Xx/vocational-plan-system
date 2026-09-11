@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useSettings } from '@/lib/settings-context';
 import { showAlert } from '@/lib/sweetalert';
 import OnePageSummaryReport from './OnePageSummaryReport';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   FileText,
   Printer,
@@ -496,86 +497,88 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
 
       {/* Modal for selecting image from attachments */}
       {selectingImageSlot !== null && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Paperclip className="w-5 h-5 text-theme-primary" />
-                <h3 className="font-bold text-sm text-slate-800">
-                  เลือกรูปภาพจากแท็บไฟล์แนบ (สำหรับภาพกิจกรรมที่ {selectingImageSlot})
-                </h3>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-xl w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Paperclip className="w-5 h-5 text-theme-primary" />
+                  <h3 className="font-bold text-sm text-slate-800">
+                    เลือกรูปภาพจากแท็บไฟล์แนบ (สำหรับภาพกิจกรรมที่ {selectingImageSlot})
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectingImageSlot(null)}
+                  className="text-slate-400 hover:text-slate-600 p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectingImageSlot(null)}
-                className="text-slate-400 hover:text-slate-600 p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            {imageDocuments.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                <ImageIcon className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-                <p className="text-xs font-semibold text-slate-600">ยังไม่มีไฟล์รูปภาพในแท็บไฟล์แนบ</p>
-                <p className="text-[11px] text-slate-400 mt-1">ท่านสามารถอัปโหลดรูปภาพใหม่ลงในช่องได้โดยตรง</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto p-1">
-                {imageDocuments.map((doc: any) => {
-                  const docUrl = `/api/v1/projects/documents/${doc.id}/download`;
-                  return (
-                    <div
-                      key={doc.id}
-                      onClick={async () => {
-                        try {
-                          // Fetch and convert to base64 data URL so Word template can render it seamlessly
-                          const res = await fetch(docUrl);
-                          const blob = await res.blob();
-                          const reader = new FileReader();
-                          reader.onload = (e) => {
-                            handleChange(`activity_image_${selectingImageSlot}`, e.target?.result as string);
+              {imageDocuments.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">
+                  <ImageIcon className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs font-semibold text-slate-600">ยังไม่มีไฟล์รูปภาพในแท็บไฟล์แนบ</p>
+                  <p className="text-[11px] text-slate-400 mt-1">ท่านสามารถอัปโหลดรูปภาพใหม่ลงในช่องได้โดยตรง</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto p-1">
+                  {imageDocuments.map((doc: any) => {
+                    const docUrl = `/api/v1/projects/documents/${doc.id}/download`;
+                    return (
+                      <div
+                        key={doc.id}
+                        onClick={async () => {
+                          try {
+                            // Fetch and convert to base64 data URL so Word template can render it seamlessly
+                            const res = await fetch(docUrl);
+                            const blob = await res.blob();
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                              handleChange(`activity_image_${selectingImageSlot}`, e.target?.result as string);
+                              setSelectingImageSlot(null);
+                            };
+                            reader.readAsDataURL(blob);
+                          } catch (err) {
+                            console.error('Error loading attachment image:', err);
+                            handleChange(`activity_image_${selectingImageSlot}`, docUrl);
                             setSelectingImageSlot(null);
-                          };
-                          reader.readAsDataURL(blob);
-                        } catch (err) {
-                          console.error('Error loading attachment image:', err);
-                          handleChange(`activity_image_${selectingImageSlot}`, docUrl);
-                          setSelectingImageSlot(null);
-                        }
-                      }}
-                      className="group cursor-pointer border border-slate-200 hover:border-theme-primary rounded-xl overflow-hidden bg-slate-50 hover:bg-white transition flex flex-col p-2 text-left shadow-2xs hover:shadow-md"
-                    >
-                      <div className="aspect-4/3 rounded-lg overflow-hidden bg-slate-200 mb-2 relative">
-                        <img
-                          src={docUrl}
-                          alt={doc.file_name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
-                        />
+                          }
+                        }}
+                        className="group cursor-pointer border border-slate-200 hover:border-theme-primary rounded-xl overflow-hidden bg-slate-50 hover:bg-white transition flex flex-col p-2 text-left shadow-2xs hover:shadow-md"
+                      >
+                        <div className="aspect-4/3 rounded-lg overflow-hidden bg-slate-200 mb-2 relative">
+                          <img
+                            src={docUrl}
+                            alt={doc.file_name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
+                          />
+                        </div>
+                        <p className="text-[11px] font-bold text-slate-700 line-clamp-1 group-hover:text-theme-primary" title={doc.file_name}>
+                          {doc.file_name}
+                        </p>
+                        <span className="text-[10px] text-slate-400 uppercase mt-0.5">
+                          {doc.file_type || 'IMAGE'}
+                        </span>
                       </div>
-                      <p className="text-[11px] font-bold text-slate-700 line-clamp-1 group-hover:text-theme-primary" title={doc.file_name}>
-                        {doc.file_name}
-                      </p>
-                      <span className="text-[10px] text-slate-400 uppercase mt-0.5">
-                        {doc.file_type || 'IMAGE'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
 
-            <div className="flex justify-end pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setSelectingImageSlot(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"
-              >
-                ปิดหน้าต่าง
-              </button>
+              <div className="flex justify-end pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setSelectingImageSlot(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition"
+                >
+                  ปิดหน้าต่าง
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

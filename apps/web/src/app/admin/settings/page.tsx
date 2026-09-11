@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import { getCurrentThaiFiscalYear } from '@/lib/bahttext';
 import AccessDenied from '@/components/common/AccessDenied';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   Settings,
   Building,
@@ -1929,218 +1930,222 @@ export default function AdminSettingsPage() {
 
       {/* Modal 1: เพิ่มปีงบประมาณใหม่ */}
       {showAddYearModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
-                  <Calendar className="w-5 h-5" />
+        <ModalPortal>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in zoom-in-95">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-50 text-emerald-700 rounded-xl">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">เพิ่มปีงบประมาณใหม่</h3>
+                    <p className="text-xs text-slate-500">สร้างรอบปีงบประมาณสำหรับจัดทำแผนงานและโครงการ</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">เพิ่มปีงบประมาณใหม่</h3>
-                  <p className="text-xs text-slate-500">สร้างรอบปีงบประมาณสำหรับจัดทำแผนงานและโครงการ</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddYearModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddFiscalYear} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  ระบุปีงบประมาณ (พ.ศ.) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="2500"
-                  max="2600"
-                  required
-                  value={newYearInput}
-                  onChange={(e) => setNewYearInput(e.target.value)}
-                  placeholder="เช่น 2568, 2569"
-                  className="w-full px-3.5 py-2.5 text-sm font-mono font-bold border border-slate-300 rounded-xl outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition"
-                />
-                
-                {/* Quick Year Selection Chips */}
-                <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                  <span className="text-[11px] text-slate-400">เลือกด่วน:</span>
-                  {[
-                    getCurrentThaiFiscalYear() - 1,
-                    getCurrentThaiFiscalYear(),
-                    getCurrentThaiFiscalYear() + 1,
-                    getCurrentThaiFiscalYear() + 2,
-                  ].map((y) => (
-                    <button
-                      key={y}
-                      type="button"
-                      onClick={() => setNewYearInput(String(y))}
-                      className={`px-2 py-0.5 rounded text-[11px] font-mono font-medium transition ${
-                        newYearInput === String(y)
-                          ? 'bg-emerald-600 text-white font-bold'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {y}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={setAsActiveYear}
-                    onChange={(e) => setSetAsActiveYear(e.target.checked)}
-                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
-                  />
-                  <span>กำหนดให้เป็น <strong>ปีงบประมาณปัจจุบันของระบบ (Active)</strong> ทันที</span>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowAddYearModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition"
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
                 >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  disabled={addingYear}
-                  className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>{addingYear ? 'กำลังบันทึก...' : 'เพิ่มปีงบประมาณ'}</span>
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleAddFiscalYear} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    ระบุปีงบประมาณ (พ.ศ.) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="2500"
+                    max="2600"
+                    required
+                    value={newYearInput}
+                    onChange={(e) => setNewYearInput(e.target.value)}
+                    placeholder="เช่น 2568, 2569"
+                    className="w-full px-3.5 py-2.5 text-sm font-mono font-bold border border-slate-300 rounded-xl outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 transition"
+                  />
+                  
+                  {/* Quick Year Selection Chips */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="text-[11px] text-slate-400">เลือกด่วน:</span>
+                    {[
+                      getCurrentThaiFiscalYear() - 1,
+                      getCurrentThaiFiscalYear(),
+                      getCurrentThaiFiscalYear() + 1,
+                      getCurrentThaiFiscalYear() + 2,
+                    ].map((y) => (
+                      <button
+                        key={y}
+                        type="button"
+                        onClick={() => setNewYearInput(String(y))}
+                        className={`px-2 py-0.5 rounded text-[11px] font-mono font-medium transition ${
+                          newYearInput === String(y)
+                            ? 'bg-emerald-600 text-white font-bold'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                      >
+                        {y}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={setAsActiveYear}
+                      onChange={(e) => setSetAsActiveYear(e.target.checked)}
+                      className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                    />
+                    <span>กำหนดให้เป็น <strong>ปีงบประมาณปัจจุบันของระบบ (Active)</strong> ทันที</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddYearModal(false)}
+                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addingYear}
+                    className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>{addingYear ? 'กำลังบันทึก...' : 'เพิ่มปีงบประมาณ'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Modal 2: ตั้งค่าสถานะและเวลาเปิดรับข้อเสนอโครงการ */}
       {showScheduleModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-blue-50 text-blue-900 rounded-xl">
-                  <Clock className="w-5 h-5" />
+        <ModalPortal>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in zoom-in-95">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-blue-50 text-blue-900 rounded-xl">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">ตั้งค่าสถานะและเวลาเปิดรับข้อเสนอโครงการ</h3>
+                    <p className="text-xs text-slate-500">กำหนดเปิด/ปิดรับ และกรอบระยะเวลาเสนอโครงการประจำปีงบประมาณ</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">ตั้งค่าสถานะและเวลาเปิดรับข้อเสนอโครงการ</h3>
-                  <p className="text-xs text-slate-500">กำหนดเปิด/ปิดรับ และกรอบระยะเวลาเสนอโครงการประจำปีงบประมาณ</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowScheduleModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {/* Submission Open/Close Switch */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <label className="block text-xs font-bold text-slate-800">
-                  สถานะการเปิดรับข้อเสนอโครงการ:
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleChange('is_submission_open', 'true')}
-                    className={`p-3 rounded-xl border text-center font-bold text-xs transition flex items-center justify-center gap-2 ${
-                      settings.is_submission_open === 'true'
-                        ? 'border-emerald-600 bg-emerald-50 text-emerald-800 shadow-xs ring-2 ring-emerald-600/20'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>เปิดรับข้อเสนอโครงการ</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleChange('is_submission_open', 'false')}
-                    className={`p-3 rounded-xl border text-center font-bold text-xs transition flex items-center justify-center gap-2 ${
-                      settings.is_submission_open === 'false'
-                        ? 'border-red-600 bg-red-50 text-red-800 shadow-xs ring-2 ring-red-600/20'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                    <span>ปิดรับข้อเสนอโครงการ</span>
-                  </button>
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  หากเลือก "ปิดรับข้อเสนอโครงการ" ครูและบุคลากรจะไม่สามารถกดสร้างหรือเสนอโครงการใหม่ได้
-                </p>
-              </div>
-
-              {/* Date Ranges */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-blue-900" />
-                    <span>วันเริ่มต้นเปิดรับข้อเสนอ</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={settings.submission_start_date || ''}
-                    onChange={(e) => handleChange('submission_start_date', e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:border-blue-900 bg-white"
-                  />
-                  <span className="text-[10px] text-slate-400 block mt-1">ปล่อยว่างได้หากไม่จำกัดวันเริ่ม</span>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-red-500" />
-                    <span>วันสิ้นสุดการรับ (Deadline)</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={settings.submission_end_date || ''}
-                    onChange={(e) => handleChange('submission_end_date', e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:border-blue-900 bg-white"
-                  />
-                  <span className="text-[10px] text-slate-400 block mt-1">ปล่อยว่างได้หากไม่จำกัดวันหมดเขต</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowScheduleModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition"
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
                 >
-                  ยกเลิก
+                  <X className="w-5 h-5" />
                 </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={async () => {
-                    await handleSave();
-                    setShowScheduleModal(false);
-                  }}
-                  className="px-5 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-800 rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>{saving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}</span>
-                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Submission Open/Close Switch */}
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                  <label className="block text-xs font-bold text-slate-800">
+                    สถานะการเปิดรับข้อเสนอโครงการ:
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleChange('is_submission_open', 'true')}
+                      className={`p-3 rounded-xl border text-center font-bold text-xs transition flex items-center justify-center gap-2 ${
+                        settings.is_submission_open === 'true'
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-800 shadow-xs ring-2 ring-emerald-600/20'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>เปิดรับข้อเสนอโครงการ</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleChange('is_submission_open', 'false')}
+                      className={`p-3 rounded-xl border text-center font-bold text-xs transition flex items-center justify-center gap-2 ${
+                        settings.is_submission_open === 'false'
+                          ? 'border-red-600 bg-red-50 text-red-800 shadow-xs ring-2 ring-red-600/20'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                      <span>ปิดรับข้อเสนอโครงการ</span>
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    หากเลือก "ปิดรับข้อเสนอโครงการ" ครูและบุคลากรจะไม่สามารถกดสร้างหรือเสนอโครงการใหม่ได้
+                  </p>
+                </div>
+
+                {/* Date Ranges */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-blue-900" />
+                      <span>วันเริ่มต้นเปิดรับข้อเสนอ</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={settings.submission_start_date || ''}
+                      onChange={(e) => handleChange('submission_start_date', e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:border-blue-900 bg-white"
+                    />
+                    <span className="text-[10px] text-slate-400 block mt-1">ปล่อยว่างได้หากไม่จำกัดวันเริ่ม</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-red-500" />
+                      <span>วันสิ้นสุดการรับ (Deadline)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={settings.submission_end_date || ''}
+                      onChange={(e) => handleChange('submission_end_date', e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:border-blue-900 bg-white"
+                    />
+                    <span className="text-[10px] text-slate-400 block mt-1">ปล่อยว่างได้หากไม่จำกัดวันหมดเขต</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleModal(false)}
+                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={async () => {
+                      await handleSave();
+                      setShowScheduleModal(false);
+                    }}
+                    className="px-5 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-800 rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{saving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

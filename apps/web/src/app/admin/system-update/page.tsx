@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import AccessDenied from '@/components/common/AccessDenied';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   ArrowUpCircle,
   RefreshCw,
@@ -943,47 +944,49 @@ export default function SystemUpdatePage() {
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-theme max-w-md w-full p-6 shadow-2xl space-y-5">
-            <div className="flex items-center gap-3 text-theme-primary">
-              <GitPullRequest className="w-7 h-7" />
-              <h3 className="text-lg font-black text-slate-900">ยืนยันการดึงโค้ดและอัปเดตจาก GitHub?</h3>
-            </div>
+        <ModalPortal>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-theme max-w-md w-full p-6 shadow-2xl space-y-5">
+              <div className="flex items-center gap-3 text-theme-primary">
+                <GitPullRequest className="w-7 h-7" />
+                <h3 className="text-lg font-black text-slate-900">ยืนยันการดึงโค้ดและอัปเดตจาก GitHub?</h3>
+              </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">
-              ระบบจะทำการเปิด <strong>Maintenance Mode</strong> ชั่วคราว และดึงโค้ดล่าสุดจาก Repository:{' '}
-              <strong className="text-theme-primary font-bold">https://github.com/xX-AULGZ-Xx/vocational-plan-system.git</strong>{' '}
-              พร้อมอัปเดตโครงสร้างฐานข้อมูล
-            </p>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                ระบบจะทำการเปิด <strong>Maintenance Mode</strong> ชั่วคราว และดึงโค้ดล่าสุดจาก Repository:{' '}
+                <strong className="text-theme-primary font-bold">https://github.com/xX-AULGZ-Xx/vocational-plan-system.git</strong>{' '}
+                พร้อมอัปเดตโครงสร้างฐานข้อมูล
+              </p>
 
-            <div className="p-3.5 bg-slate-50 rounded-theme border border-slate-200 text-xs space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-800">
-                <input
-                  type="checkbox"
-                  checked={createBackupBeforeUpdate}
-                  onChange={(e) => setCreateBackupBeforeUpdate(e.target.checked)}
-                  className="rounded-sm text-theme-primary focus:ring-theme-primary"
-                />
-                <span>สำรองข้อมูล Snapshot อัตโนมัติก่อนเริ่มอัปเดต (แนะนำ)</span>
-              </label>
-            </div>
+              <div className="p-3.5 bg-slate-50 rounded-theme border border-slate-200 text-xs space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={createBackupBeforeUpdate}
+                    onChange={(e) => setCreateBackupBeforeUpdate(e.target.checked)}
+                    className="rounded-sm text-theme-primary focus:ring-theme-primary"
+                  />
+                  <span>สำรองข้อมูล Snapshot อัตโนมัติก่อนเริ่มอัปเดต (แนะนำ)</span>
+                </label>
+              </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-theme transition"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={handleStartUpdate}
-                className="px-5 py-2.5 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-md transition"
-              >
-                ยืนยันและเริ่มอัปเดตจาก GitHub
-              </button>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-theme transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleStartUpdate}
+                  className="px-5 py-2.5 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-md transition"
+                >
+                  ยืนยันและเริ่มอัปเดตจาก GitHub
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

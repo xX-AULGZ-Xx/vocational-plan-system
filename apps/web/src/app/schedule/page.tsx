@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   Calendar as CalendarIcon,
   Flag,
@@ -464,109 +465,111 @@ export default function SchedulePage() {
 
       {/* Activity Details Modal Popup */}
       {selectedActivity && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col relative my-auto animate-in fade-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className={`p-4 text-white flex justify-between items-center shrink-0 ${
-              selectedActivity.is_milestone ? 'bg-amber-600' : 'bg-slate-900'
-            }`}>
-              <div className="flex items-center gap-2">
-                {selectedActivity.is_milestone ? (
-                  <Flag className="w-5 h-5 fill-white text-white" />
-                ) : (
-                  <CalendarDays className="w-5 h-5 text-blue-400" />
-                )}
-                <h2 className="text-base sm:text-lg font-bold">
-                  {selectedActivity.is_milestone ? 'เป้าหมายสำคัญ (Milestone)' : 'รายละเอียดกิจกรรม'}
-                </h2>
-              </div>
-              <button
-                onClick={() => setSelectedActivity(null)}
-                className="p-1 hover:bg-white/20 rounded-lg transition text-white/80 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 space-y-4 text-sm">
-              <div>
-                <span className={`inline-block px-2.5 py-0.5 rounded text-xs font-bold mb-2 ${getDivisionBadgeColor(selectedActivity.division_code)}`}>
-                  {selectedActivity.division_name || selectedActivity.division_code || 'ฝ่ายงาน'}
-                </span>
-                <h3 className="text-lg font-bold text-slate-900 leading-snug">
-                  {selectedActivity.activity_name}
-                </h3>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col relative my-auto animate-in fade-in zoom-in-95 duration-200">
+              {/* Modal Header */}
+              <div className={`p-4 text-white flex justify-between items-center shrink-0 ${
+                selectedActivity.is_milestone ? 'bg-amber-600' : 'bg-slate-900'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {selectedActivity.is_milestone ? (
+                    <Flag className="w-5 h-5 fill-white text-white" />
+                  ) : (
+                    <CalendarDays className="w-5 h-5 text-blue-400" />
+                  )}
+                  <h2 className="text-base sm:text-lg font-bold">
+                    {selectedActivity.is_milestone ? 'เป้าหมายสำคัญ (Milestone)' : 'รายละเอียดกิจกรรม'}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setSelectedActivity(null)}
+                  className="p-1 hover:bg-white/20 rounded-lg transition text-white/80 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="bg-slate-50 p-3.5 rounded-theme border border-slate-200 space-y-2">
-                <div className="flex items-center gap-2 text-xs text-slate-600">
-                  <FolderKanban className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span className="font-bold text-slate-700">โครงการ:</span>
-                  <span className="text-slate-900 font-medium">{selectedActivity.project_title}</span>
+              {/* Modal Body */}
+              <div className="p-6 space-y-4 text-sm">
+                <div>
+                  <span className={`inline-block px-2.5 py-0.5 rounded text-xs font-bold mb-2 ${getDivisionBadgeColor(selectedActivity.division_code)}`}>
+                    {selectedActivity.division_name || selectedActivity.division_code || 'ฝ่ายงาน'}
+                  </span>
+                  <h3 className="text-lg font-bold text-slate-900 leading-snug">
+                    {selectedActivity.activity_name}
+                  </h3>
                 </div>
 
-                {selectedActivity.project_code && (
+                <div className="bg-slate-50 p-3.5 rounded-theme border border-slate-200 space-y-2">
                   <div className="flex items-center gap-2 text-xs text-slate-600">
-                    <span className="font-bold text-slate-700">รหัสโครงการ:</span>
-                    <span className="font-mono font-bold text-theme-primary">{selectedActivity.project_code}</span>
+                    <FolderKanban className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span className="font-bold text-slate-700">โครงการ:</span>
+                    <span className="text-slate-900 font-medium">{selectedActivity.project_title}</span>
                   </div>
-                )}
 
-                <div className="flex items-center gap-2 text-xs text-slate-600">
-                  <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span className="font-bold text-slate-700">แผนก/งาน:</span>
-                  <span>{selectedActivity.department_name || '-'}</span>
+                  {selectedActivity.project_code && (
+                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                      <span className="font-bold text-slate-700">รหัสโครงการ:</span>
+                      <span className="font-mono font-bold text-theme-primary">{selectedActivity.project_code}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                    <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span className="font-bold text-slate-700">แผนก/งาน:</span>
+                    <span>{selectedActivity.department_name || '-'}</span>
+                  </div>
+
+                  {selectedActivity.leader_name && (
+                    <div className="flex items-center gap-2 text-xs text-slate-600">
+                      <span className="font-bold text-slate-700">ผู้รับผิดชอบ:</span>
+                      <span>{selectedActivity.leader_name}</span>
+                    </div>
+                  )}
                 </div>
 
-                {selectedActivity.leader_name && (
-                  <div className="flex items-center gap-2 text-xs text-slate-600">
-                    <span className="font-bold text-slate-700">ผู้รับผิดชอบ:</span>
-                    <span>{selectedActivity.leader_name}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-blue-50/60 rounded-theme border border-blue-200 flex items-center gap-2.5">
+                    <Clock className="w-4 h-4 text-theme-primary shrink-0" />
+                    <div>
+                      <div className="font-bold text-slate-700">ระยะเวลาดำเนินงาน</div>
+                      <div className="text-slate-900">
+                        {formatThaiDate(selectedActivity.start_date)} - {formatThaiDate(selectedActivity.end_date)}
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3 bg-blue-50/60 rounded-theme border border-blue-200 flex items-center gap-2.5">
-                  <Clock className="w-4 h-4 text-theme-primary shrink-0" />
-                  <div>
-                    <div className="font-bold text-slate-700">ระยะเวลาดำเนินงาน</div>
-                    <div className="text-slate-900">
-                      {formatThaiDate(selectedActivity.start_date)} - {formatThaiDate(selectedActivity.end_date)}
+                  <div className="p-3 bg-slate-50 rounded-theme border border-slate-200 flex items-center gap-2.5">
+                    <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                    <div>
+                      <div className="font-bold text-slate-700">สถานที่</div>
+                      <div className="text-slate-900">{selectedActivity.location || 'ไม่ได้ระบุ'}</div>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="p-3 bg-slate-50 rounded-theme border border-slate-200 flex items-center gap-2.5">
-                  <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
-                  <div>
-                    <div className="font-bold text-slate-700">สถานที่</div>
-                    <div className="text-slate-900">{selectedActivity.location || 'ไม่ได้ระบุ'}</div>
-                  </div>
-                </div>
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center gap-2">
+                <Link
+                  href={`/projects/${selectedActivity.project_id}`}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs transition"
+                >
+                  <span>เปิดดูโครงการเต็ม</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+
+                <button
+                  onClick={() => setSelectedActivity(null)}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-theme transition"
+                >
+                  ปิดหน้าต่าง
+                </button>
               </div>
             </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center gap-2">
-              <Link
-                href={`/projects/${selectedActivity.project_id}`}
-                className="flex items-center gap-1.5 px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs transition"
-              >
-                <span>เปิดดูโครงการเต็ม</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </Link>
-
-              <button
-                onClick={() => setSelectedActivity(null)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-theme transition"
-              >
-                ปิดหน้าต่าง
-              </button>
-            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

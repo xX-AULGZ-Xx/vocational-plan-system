@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useNotifications } from '@/lib/notification-context';
 import { showAlert } from '@/lib/sweetalert';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   Building2,
   BookOpen,
@@ -561,83 +562,85 @@ export default function DivisionPage() {
 
       {/* Edit Deputy Director Modal */}
       {showDeputyModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
-              <div className="flex items-center gap-2 text-slate-800 font-bold">
-                <UserCheck className="w-5 h-5 text-theme-primary" />
-                <span>กำหนดผู้ดำรงตำแหน่งรองผู้อำนวยการ</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowDeputyModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/60 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveDeputy} className="p-6 space-y-4">
-              <div>
-                <span className="inline-block px-2.5 py-0.5 rounded-theme text-xs font-bold bg-theme-primary-light text-theme-primary border border-theme-primary/20 mb-2">
-                  {division.name} ({division.code})
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  ชื่อ - นามสกุล (พร้อมคำนำหน้า) <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={deputyName}
-                  onChange={(e) => setDeputyName(e.target.value)}
-                  placeholder="เช่น นายสมศักดิ์ รักเรียน"
-                  className="w-full px-3.5 py-2 text-sm rounded-theme border border-slate-300 focus:outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  ตำแหน่งทางการ <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={deputyPosition}
-                  onChange={(e) => setDeputyPosition(e.target.value)}
-                  placeholder={`เช่น รองผู้อำนวยการ${division.name}`}
-                  className="w-full px-3.5 py-2 text-sm rounded-theme border border-slate-300 focus:outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+        <ModalPortal>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+                <div className="flex items-center gap-2 text-slate-800 font-bold">
+                  <UserCheck className="w-5 h-5 text-theme-primary" />
+                  <span>กำหนดผู้ดำรงตำแหน่งรองผู้อำนวยการ</span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowDeputyModal(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-theme transition"
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/60 transition"
                 >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingDeputy}
-                  className="px-5 py-2 text-xs font-bold text-white bg-theme-primary hover:bg-theme-primary-hover disabled:opacity-50 rounded-theme shadow-xs transition flex items-center gap-1.5"
-                >
-                  {savingDeputy ? (
-                    <span>กำลังบันทึก...</span>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      <span>บันทึกข้อมูล</span>
-                    </>
-                  )}
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSaveDeputy} className="p-6 space-y-4">
+                <div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-theme text-xs font-bold bg-theme-primary-light text-theme-primary border border-theme-primary/20 mb-2">
+                    {division.name} ({division.code})
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    ชื่อ - นามสกุล (พร้อมคำนำหน้า) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={deputyName}
+                    onChange={(e) => setDeputyName(e.target.value)}
+                    placeholder="เช่น นายสมศักดิ์ รักเรียน"
+                    className="w-full px-3.5 py-2 text-sm rounded-theme border border-slate-300 focus:outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    ตำแหน่งทางการ <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={deputyPosition}
+                    onChange={(e) => setDeputyPosition(e.target.value)}
+                    placeholder={`เช่น รองผู้อำนวยการ${division.name}`}
+                    className="w-full px-3.5 py-2 text-sm rounded-theme border border-slate-300 focus:outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeputyModal(false)}
+                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-theme transition"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingDeputy}
+                    className="px-5 py-2 text-xs font-bold text-white bg-theme-primary hover:bg-theme-primary-hover disabled:opacity-50 rounded-theme shadow-xs transition flex items-center gap-1.5"
+                  >
+                    {savingDeputy ? (
+                      <span>กำลังบันทึก...</span>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>บันทึกข้อมูล</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

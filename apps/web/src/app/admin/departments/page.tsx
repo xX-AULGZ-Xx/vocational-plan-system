@@ -39,6 +39,7 @@ interface Division {
 }
 
 import AccessDenied from '@/components/common/AccessDenied';
+import ModalPortal from '@/components/ui/ModalPortal';
 
 export default function AdminDepartmentsPage() {
   const { user, token } = useAuth();
@@ -687,106 +688,108 @@ export default function AdminDepartmentsPage() {
 
       {/* Division Add/Edit Modal */}
       {showDivisionModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-5 py-4 bg-blue-950 text-white">
-              <div className="flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-blue-300" />
-                <h3 className="font-bold text-sm">
-                  {editingDivId ? 'แก้ไขฝ่าย / กลุ่มงาน' : 'เพิ่มฝ่าย / กลุ่มงานใหม่'}
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowDivisionModal(false)}
-                className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <form onSubmit={handleSaveDivision} className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  ชื่อฝ่าย / กลุ่มงาน: <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newDivName}
-                  onChange={(e) => setNewDivName(e.target.value)}
-                  placeholder="เช่น ฝ่ายบริหารทรัพยากร, ฝ่ายวิชาการ..."
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none font-medium"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  รหัสฝ่าย (Code ย่อ): <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newDivCode}
-                  onChange={(e) => setNewDivCode(e.target.value)}
-                  placeholder="เช่น acad, res, dev, strat..."
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none font-mono"
-                  required
-                />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  ใช้สำหรับสร้าง URL และกำหนดสิทธิ์ เช่น /divisions/acad
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    ชื่อรองผู้อำนวยการประจำฝ่าย:
-                  </label>
-                  <input
-                    type="text"
-                    value={newDivDeputyName}
-                    onChange={(e) => setNewDivDeputyName(e.target.value)}
-                    placeholder="เช่น ดร.สมศักดิ์ มั่นคง"
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none font-medium"
-                  />
+        <ModalPortal>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-5 py-4 bg-blue-950 text-white">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-blue-300" />
+                  <h3 className="font-bold text-sm">
+                    {editingDivId ? 'แก้ไขฝ่าย / กลุ่มงาน' : 'เพิ่มฝ่าย / กลุ่มงานใหม่'}
+                  </h3>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    ตำแหน่งรองผู้อำนวยการ:
-                  </label>
-                  <input
-                    type="text"
-                    value={newDivDeputyPos}
-                    onChange={(e) => setNewDivDeputyPos(e.target.value)}
-                    placeholder={`เช่น รองผู้อำนวยการ${newDivName || 'ฝ่าย'}`}
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
                 <button
-                  type="button"
                   onClick={() => setShowDivisionModal(false)}
-                  className="px-4 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  className="p-1 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
                 >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading || !newDivName.trim() || !newDivCode.trim()}
-                  className="px-5 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-800 rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 shadow-sm cursor-pointer"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>บันทึกข้อมูลฝ่าย</span>
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-            </form>
+
+              {/* Modal Body */}
+              <form onSubmit={handleSaveDivision} className="p-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    ชื่อฝ่าย / กลุ่มงาน: <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newDivName}
+                    onChange={(e) => setNewDivName(e.target.value)}
+                    placeholder="เช่น ฝ่ายบริหารทรัพยากร, ฝ่ายวิชาการ..."
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none font-medium"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    รหัสฝ่าย (Code ย่อ): <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newDivCode}
+                    onChange={(e) => setNewDivCode(e.target.value)}
+                    placeholder="เช่น acad, res, dev, strat..."
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none font-mono"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    ใช้สำหรับสร้าง URL และกำหนดสิทธิ์ เช่น /divisions/acad
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      ชื่อรองผู้อำนวยการประจำฝ่าย:
+                    </label>
+                    <input
+                      type="text"
+                      value={newDivDeputyName}
+                      onChange={(e) => setNewDivDeputyName(e.target.value)}
+                      placeholder="เช่น ดร.สมศักดิ์ มั่นคง"
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      ตำแหน่งรองผู้อำนวยการ:
+                    </label>
+                    <input
+                      type="text"
+                      value={newDivDeputyPos}
+                      onChange={(e) => setNewDivDeputyPos(e.target.value)}
+                      placeholder={`เช่น รองผู้อำนวยการ${newDivName || 'ฝ่าย'}`}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-blue-900 outline-none font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDivisionModal(false)}
+                    className="px-4 py-2 text-xs font-semibold bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading || !newDivName.trim() || !newDivCode.trim()}
+                    className="px-5 py-2 text-xs font-bold text-white bg-blue-900 hover:bg-blue-800 rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>บันทึกข้อมูลฝ่าย</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

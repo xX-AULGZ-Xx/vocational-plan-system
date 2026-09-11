@@ -11,6 +11,7 @@ import A4DocumentPreview, { ProjectFormData } from '@/components/preview/A4Docum
 import ProjectSummaryModal from '@/components/reports/ProjectSummaryModal';
 import ProjectSummaryTab from '@/components/reports/ProjectSummaryTab';
 import EvaluationTab from '@/components/evaluation/EvaluationTab';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   ArrowLeft,
   Printer,
@@ -1378,100 +1379,102 @@ export default function ProjectDetailPage() {
 
       {/* Action Dialog / Modal */}
       {actionType && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                {actionType === 'APPROVE' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
-                {actionType === 'REVISE' && <RotateCcw className="w-5 h-5 text-amber-600" />}
-                {actionType === 'REJECT' && <X className="w-5 h-5 text-rose-600" />}
-                {actionType === 'APPROVE' && 'ยืนยันการอนุมัติ / เห็นชอบโครงการ'}
-                {actionType === 'REVISE' && 'ส่งคำขอแก้ไขโครงการกลับไปยังผู้เสนอ'}
-                {actionType === 'REJECT' && 'ยืนยันการปฏิเสธ / ไม่อนุมัติโครงการ'}
-              </h3>
-              <button onClick={() => setActionType(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                ข้อคิดเห็น / คำสั่งการพิจารณา:
-              </label>
-
-              {/* Quick Preset Chips */}
-              <div className="space-y-1 mb-2">
-                <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-500" /> ข้อความมาตรฐานด่วน (คลิกเลือก):
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {(actionType === 'APPROVE'
-                    ? [
-                        'เห็นชอบตามเสนอ สมควรดำเนินการ',
-                        'สอดคล้องกับยุทธศาสตร์ประจำฝ่าย',
-                        'ตรวจสอบงบประมาณถูกต้อง ออกรหัสโครงการเรียบร้อย',
-                        'อนุมัติให้ดำเนินโครงการตามที่เสนอ',
-                      ]
-                    : actionType === 'REVISE'
-                    ? [
-                        'ขอให้ปรับปรุงรายละเอียดค่าใช้จ่ายในตารางงบประมาณเพิ่มเติม',
-                        'ขอให้ระบุเป้าหมายเชิงปริมาณและคุณภาพให้ชัดเจนยิ่งขึ้น',
-                        'ขอให้ปรับแก้กำหนดการและกิจกรรมตามกระบวนการ PDCA',
-                      ]
-                    : [
-                        'ไม่อนุมัติ เนื่องจากงบประมาณไม่เพียงพอ',
-                        'ไม่อนุมัติ เนื่องจากกิจกรรมไม่สอดคล้องกับยุทธศาสตร์หลัก',
-                      ]
-                  ).map((text, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setComment(text)}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition text-left ${
-                        comment === text
-                          ? 'bg-blue-900 text-white border-blue-900 font-semibold shadow-2xs'
-                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                      }`}
-                    >
-                      {text}
-                    </button>
-                  ))}
-                </div>
+        <ModalPortal>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  {actionType === 'APPROVE' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+                  {actionType === 'REVISE' && <RotateCcw className="w-5 h-5 text-amber-600" />}
+                  {actionType === 'REJECT' && <X className="w-5 h-5 text-rose-600" />}
+                  {actionType === 'APPROVE' && 'ยืนยันการอนุมัติ / เห็นชอบโครงการ'}
+                  {actionType === 'REVISE' && 'ส่งคำขอแก้ไขโครงการกลับไปยังผู้เสนอ'}
+                  {actionType === 'REJECT' && 'ยืนยันการปฏิเสธ / ไม่อนุมัติโครงการ'}
+                </h3>
+                <button onClick={() => setActionType(null)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <textarea
-                rows={3}
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="ระบุข้อคิดเห็น เช่น เห็นควรดำเนินการตามเสนอ..."
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 font-sans leading-relaxed"
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  ข้อคิดเห็น / คำสั่งการพิจารณา:
+                </label>
 
-            <div className="flex justify-end gap-2.5 pt-2">
-              <button
-                onClick={() => setActionType(null)}
-                disabled={isProcessing}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={handleApprovalAction}
-                disabled={isProcessing}
-                className={`px-5 py-2 text-xs font-bold text-white rounded-xl shadow-xs transition ${
-                  actionType === 'APPROVE'
-                    ? 'bg-emerald-600 hover:bg-emerald-500'
-                    : actionType === 'REVISE'
-                    ? 'bg-amber-600 hover:bg-amber-500'
-                    : 'bg-rose-600 hover:bg-rose-500'
-                }`}
-              >
-                {isProcessing ? 'กำลังประมวลผล...' : 'ยืนยันดำเนินการ'}
-              </button>
+                {/* Quick Preset Chips */}
+                <div className="space-y-1 mb-2">
+                  <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-amber-500" /> ข้อความมาตรฐานด่วน (คลิกเลือก):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(actionType === 'APPROVE'
+                      ? [
+                          'เห็นชอบตามเสนอ สมควรดำเนินการ',
+                          'สอดคล้องกับยุทธศาสตร์ประจำฝ่าย',
+                          'ตรวจสอบงบประมาณถูกต้อง ออกรหัสโครงการเรียบร้อย',
+                          'อนุมัติให้ดำเนินโครงการตามที่เสนอ',
+                        ]
+                      : actionType === 'REVISE'
+                      ? [
+                          'ขอให้ปรับปรุงรายละเอียดค่าใช้จ่ายในตารางงบประมาณเพิ่มเติม',
+                          'ขอให้ระบุเป้าหมายเชิงปริมาณและคุณภาพให้ชัดเจนยิ่งขึ้น',
+                          'ขอให้ปรับแก้กำหนดการและกิจกรรมตามกระบวนการ PDCA',
+                        ]
+                      : [
+                          'ไม่อนุมัติ เนื่องจากงบประมาณไม่เพียงพอ',
+                          'ไม่อนุมัติ เนื่องจากกิจกรรมไม่สอดคล้องกับยุทธศาสตร์หลัก',
+                        ]
+                    ).map((text, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setComment(text)}
+                        className={`text-[11px] px-2.5 py-1 rounded-full border transition text-left ${
+                          comment === text
+                            ? 'bg-blue-900 text-white border-blue-900 font-semibold shadow-2xs'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        {text}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <textarea
+                  rows={3}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="ระบุข้อคิดเห็น เช่น เห็นควรดำเนินการตามเสนอ..."
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 font-sans leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button
+                  onClick={() => setActionType(null)}
+                  disabled={isProcessing}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  onClick={handleApprovalAction}
+                  disabled={isProcessing}
+                  className={`px-5 py-2 text-xs font-bold text-white rounded-xl shadow-xs transition ${
+                    actionType === 'APPROVE'
+                      ? 'bg-emerald-600 hover:bg-emerald-500'
+                      : actionType === 'REVISE'
+                      ? 'bg-amber-600 hover:bg-amber-500'
+                      : 'bg-rose-600 hover:bg-rose-500'
+                  }`}
+                >
+                  {isProcessing ? 'กำลังประมวลผล...' : 'ยืนยันดำเนินการ'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Project Summary Hub Modal (Booklet & One-Page) */}
@@ -1483,63 +1486,65 @@ export default function ProjectDetailPage() {
 
       {/* Document Inline Preview Modal (PDF & Images) */}
       {previewDoc && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-slate-50">
-              <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="w-8 h-8 rounded-lg bg-theme-primary-light text-theme-primary flex items-center justify-center shrink-0">
-                  <FileText className="w-4 h-4" />
+        <ModalPortal>
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-slate-50">
+                <div className="flex items-center gap-2.5 overflow-hidden">
+                  <div className="w-8 h-8 rounded-lg bg-theme-primary-light text-theme-primary flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <h4 className="text-sm font-bold text-slate-800 truncate" title={previewDoc.file_name}>
+                      {previewDoc.file_name}
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      ประเภท: {previewDoc.file_type?.toUpperCase()} • วันที่แนบ: {new Date(previewDoc.created_at).toLocaleDateString('th-TH')}
+                    </p>
+                  </div>
                 </div>
-                <div className="overflow-hidden">
-                  <h4 className="text-sm font-bold text-slate-800 truncate" title={previewDoc.file_name}>
-                    {previewDoc.file_name}
-                  </h4>
-                  <p className="text-[11px] text-slate-500">
-                    ประเภท: {previewDoc.file_type?.toUpperCase()} • วันที่แนบ: {new Date(previewDoc.created_at).toLocaleDateString('th-TH')}
-                  </p>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/api/v1/projects/documents/${previewDoc.id}/download`}
+                    download
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-theme-primary text-white text-xs font-bold rounded-theme hover:bg-theme-primary-hover shadow-xs transition"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>ดาวน์โหลด</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDoc(null)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-lg transition"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <a
-                  href={`/api/v1/projects/documents/${previewDoc.id}/download`}
-                  download
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-theme-primary text-white text-xs font-bold rounded-theme hover:bg-theme-primary-hover shadow-xs transition"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>ดาวน์โหลด</span>
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setPreviewDoc(null)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-lg transition"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body: Render PDF in iframe or Image */}
-            <div className="flex-1 bg-slate-100 p-2 overflow-auto flex items-center justify-center">
-              {['jpg', 'jpeg', 'png', 'gif', 'webp'].includes((previewDoc.file_type || '').toLowerCase()) ? (
-                <div className="max-w-full max-h-full p-4 flex items-center justify-center">
-                  <img
+              {/* Modal Body: Render PDF in iframe or Image */}
+              <div className="flex-1 bg-slate-100 p-2 overflow-auto flex items-center justify-center">
+                {['jpg', 'jpeg', 'png', 'gif', 'webp'].includes((previewDoc.file_type || '').toLowerCase()) ? (
+                  <div className="max-w-full max-h-full p-4 flex items-center justify-center">
+                    <img
+                      src={`/api/v1/projects/documents/${previewDoc.id}/view`}
+                      alt={previewDoc.file_name}
+                      className="max-w-full max-h-[72vh] object-contain rounded-lg shadow-sm border border-slate-200 bg-white"
+                    />
+                  </div>
+                ) : (
+                  <iframe
                     src={`/api/v1/projects/documents/${previewDoc.id}/view`}
-                    alt={previewDoc.file_name}
-                    className="max-w-full max-h-[72vh] object-contain rounded-lg shadow-sm border border-slate-200 bg-white"
+                    className="w-full h-full rounded-lg border border-slate-200 bg-white"
+                    title={previewDoc.file_name}
                   />
-                </div>
-              ) : (
-                <iframe
-                  src={`/api/v1/projects/documents/${previewDoc.id}/view`}
-                  className="w-full h-full rounded-lg border border-slate-200 bg-white"
-                  title={previewDoc.file_name}
-                />
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import AccessDenied from '@/components/common/AccessDenied';
 import { showAlert } from '@/lib/sweetalert';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   Users,
   UserPlus,
@@ -1057,484 +1058,441 @@ export default function AdminUsersPage() {
 
       {/* Modal 1: Create / Edit User */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-8">
-            {/* Modal Header (Green/Theme Brand Header with Sparkles) */}
-            <div
-              className="p-6 text-white text-left relative overflow-hidden"
-              style={{ backgroundColor: 'var(--color-primary, #1e3a8a)' }}
-            >
-              <div className="relative z-10 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/20">
-                    <Sparkles className="w-6 h-6 text-amber-300 animate-pulse" />
-                  </div>
-                  <div>
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 text-xs font-semibold border border-amber-400/30 mb-1">
-                      <span>{editingUser ? 'แก้ไขผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}</span>
-                    </div>
-                    <h2 className="text-xl font-bold text-white tracking-tight">
-                      {editingUser ? 'ตั้งค่าข้อมูลโปรไฟล์และหน้าที่ความรับผิดชอบ' : 'สร้างบัญชีผู้ใช้งานใหม่'}
-                    </h2>
-                    <p className="text-xs text-blue-100/90 mt-1 leading-relaxed">
-                      กรุณาระบุชื่อ-นามสกุลจริง ตำแหน่ง และเลือกฝ่าย/งานที่สังกัด (สามารถเลือกได้หลายฝ่ายและหลายงาน) พร้อมติ๊กตำแหน่งหัวหน้างานได้ทันที
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-white/70 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition shrink-0"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Form */}
-            <form onSubmit={handleSubmitForm} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-              {/* Full Name */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-slate-500" />
-                  <span>ชื่อ - นามสกุลจริง (พร้อมคำนำหน้า เช่น นาย, นาง, นางสาว, ดร.)</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  placeholder="เช่น นายสมชาย ใจดี หรือ นางสาวสุภาวดี รักเรียน"
-                  className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-theme-primary focus:border-theme-primary outline-none transition"
-                />
-                <p className="text-[11px] text-slate-400">ชื่อนี้จะปรากฏเป็นชื่อผู้เสนอโครงการในแบบเสนอโครงการและบันทึกข้อความ</p>
-              </div>
-
-              {/* Personnel Type (ครู / เจ้าหน้าที่) */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Briefcase className="w-3.5 h-3.5 text-slate-500" />
-                  <span>ประเภทบุคลากร</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handlePersonnelTypeChange('TEACHER')}
-                    className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all ${
-                      personnelType === 'TEACHER'
-                        ? 'bg-blue-50/80 border-blue-500 text-blue-900 shadow-2xs ring-1 ring-blue-500'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        personnelType === 'TEACHER' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'
-                      }`}
-                    >
-                      <GraduationCap className="w-4 h-4" />
+        <ModalPortal>
+          <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-8">
+              {/* Modal Header (Green/Theme Brand Header with Sparkles) */}
+              <div
+                className="p-6 text-white text-left relative overflow-hidden"
+                style={{ backgroundColor: 'var(--color-primary, #1e3a8a)' }}
+              >
+                <div className="relative z-10 flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/20">
+                      <Sparkles className="w-6 h-6 text-amber-300 animate-pulse" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold">ครู / สายผู้สอน</p>
-                      <p className="text-[10px] text-slate-500">แผนกวิชา / ช่วยงานฝ่าย</p>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 text-xs font-semibold border border-amber-400/30 mb-1">
+                        <span>{editingUser ? 'แก้ไขผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}</span>
+                      </div>
+                      <h3 className="text-xl font-bold tracking-tight">
+                        {editingUser ? 'แก้ไขข้อมูลผู้ใช้งาน' : 'สร้างบัญชีผู้ใช้งานใหม่'}
+                      </h3>
+                      <p className="text-xs text-white/80 mt-1">
+                        กรุณาระบุชื่อ นามสกุลจริง ตำแหน่ง และเลือกฝ่าย/งานที่สังกัด (สามารถเลือกได้หลายฝ่ายและหลายงาน) พร้อมตั้งตำแหน่งหัวหน้างานได้ทันที
+                      </p>
                     </div>
-                  </button>
-
+                  </div>
                   <button
-                    type="button"
-                    onClick={() => handlePersonnelTypeChange('STAFF')}
-                    className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all ${
-                      personnelType === 'STAFF'
-                        ? 'bg-teal-50/80 border-teal-500 text-teal-900 shadow-2xs ring-1 ring-teal-500'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition"
                   >
-                    <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        personnelType === 'STAFF' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-500'
-                      }`}
-                    >
-                      <Building className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold">เจ้าหน้าที่ / สายสนับสนุน</p>
-                      <p className="text-[10px] text-slate-500">งานตามฝ่ายต่างๆ</p>
-                    </div>
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
               </div>
 
-              {/* Position Selector */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <span>ตำแหน่งทางการ</span>
-                  <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={positionSelect}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setPositionSelect(val);
-                    if (val !== 'other') {
-                      setFormData((prev) => ({ ...prev, position: val }));
-                    }
-                  }}
-                  className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition bg-white"
-                >
-                  {(personnelType === 'TEACHER' ? TEACHER_POSITIONS : STAFF_POSITIONS).map((pos) => (
-                    <option key={pos} value={pos}>
-                      {pos}
-                    </option>
-                  ))}
-                  <option value="other">ระบุตำแหน่งอื่นๆ...</option>
-                </select>
-
-                {positionSelect === 'other' && (
+              {/* Form Body */}
+              <form onSubmit={handleSubmitForm} className="p-6 space-y-6 overflow-y-auto max-h-[75vh]">
+                {/* 1. Full Name */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    ชื่อ - นามสกุลจริง (พร้อมคำนำหน้า เช่น นาย, นาง, นางสาว, ดร.) <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     required
-                    value={customPosition}
-                    onChange={(e) => {
-                      setCustomPosition(e.target.value);
-                      setFormData((prev) => ({ ...prev, position: e.target.value }));
-                    }}
-                    placeholder="พิมพ์ระบุตำแหน่ง เช่น พนักงานราชการ, ครูพี่เลี้ยง"
-                    className="w-full mt-2 px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    placeholder="เช่น นายสมชาย ใจดี หรือ นางสาวสุภาวดี รักเรียน"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
                   />
-                )}
-              </div>
-
-              {/* Division Multi-Select */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                    <span>ฝ่ายงานที่ปฏิบัติหน้าที่ (เลือกได้มากกว่า 1 ฝ่าย)</span>
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <span className="text-[11px] text-theme-primary font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                    เลือกแล้ว {selectedDivisionIds.length} ฝ่าย
-                  </span>
+                  <p className="text-[11px] text-slate-400">
+                    ชื่อนี้จะปรากฏในช่องผู้เสนอโครงการในแบบเสนอโครงการและบันทึกข้อความ
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {divisions.map((div) => {
-                    const isChecked = selectedDivisionIds.includes(div.id);
-                    return (
-                      <div
-                        key={div.id}
-                        onClick={() => handleToggleDivision(div.id)}
-                        className={`p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer transition ${
-                          isChecked
-                            ? 'bg-blue-50/90 border-blue-500 text-blue-950 font-bold shadow-2xs ring-1 ring-blue-500'
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
+                {/* 2. Personnel Type Selector */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-700">
+                    ประเภทบุคลากร <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handlePersonnelTypeChange('TEACHER')}
+                      className={`p-3.5 rounded-xl border text-left flex items-center gap-3 transition ${
+                        personnelType === 'TEACHER'
+                          ? 'border-theme-primary bg-theme-primary/5 ring-2 ring-theme-primary'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${personnelType === 'TEACHER' ? 'bg-theme-primary text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        <GraduationCap className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800">ครู / สายผู้สอน</div>
+                        <div className="text-[10px] text-slate-500">แผนกวิชา / งานการสอน</div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePersonnelTypeChange('STAFF')}
+                      className={`p-3.5 rounded-xl border text-left flex items-center gap-3 transition ${
+                        personnelType === 'STAFF'
+                          ? 'border-theme-primary bg-theme-primary/5 ring-2 ring-theme-primary'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${personnelType === 'STAFF' ? 'bg-theme-primary text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        <Briefcase className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800">เจ้าหน้าที่ / สายสนับสนุน</div>
+                        <div className="text-[10px] text-slate-500">งานและฝ่ายต่างๆ</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Position Text */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    ตำแหน่งทางการ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.position}
+                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                    placeholder="เช่น ครู, ครูชำนาญการพิเศษ, พนักงานพิมพ์, เจ้าหน้าที่ธุรการ"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
+                  />
+                </div>
+
+                {/* 4. Multi-Division Selection */}
+                <div className="space-y-2 p-4 bg-slate-50/70 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-theme-primary" />
+                      <span>ฝ่ายงานที่ปฏิบัติหน้าที่ (เลือกได้มากกว่า 1 ฝ่าย) <span className="text-red-500">*</span></span>
+                    </label>
+                    <span className="text-[11px] font-bold text-theme-primary bg-theme-primary-light px-2 py-0.5 rounded-full">
+                      เลือกแล้ว {selectedDivisionIds.length} ฝ่าย
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {divisions.map((div) => {
+                      const isChecked = selectedDivisionIds.includes(div.id);
+                      return (
+                        <label
+                          key={div.id}
+                          className={`flex items-center gap-2.5 p-2.5 rounded-lg border text-xs cursor-pointer transition select-none ${
+                            isChecked
+                              ? 'bg-white border-theme-primary font-bold text-theme-primary shadow-xs'
+                              : 'bg-white/60 border-slate-200 text-slate-700 hover:bg-white'
+                          }`}
+                        >
                           <input
                             type="checkbox"
                             checked={isChecked}
-                            onChange={() => {}}
-                            className="w-4 h-4 text-theme-primary rounded border-slate-300 pointer-events-none"
+                            onChange={() => handleToggleDivision(div.id)}
+                            className="w-4 h-4 rounded text-theme-primary focus:ring-theme-primary border-slate-300 cursor-pointer"
                           />
-                          <span>{div.name}</span>
-                        </div>
-                        <span className="text-[10px] text-slate-400 font-mono">[{div.code?.toUpperCase()}]</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Departments & Works Selection with Head of Work Checkbox */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <UserCheck className="w-3.5 h-3.5 text-slate-500" />
-                    <span>
-                      {personnelType === 'TEACHER' ? 'แผนกวิชา / งานที่รับผิดชอบ' : 'งานที่รับผิดชอบในฝ่าย'}
-                      <span className="text-red-500 font-bold ml-1">*</span>
-                    </span>
-                  </label>
-                  <span className="text-[11px] text-theme-primary font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                    เลือก {selectedDepartmentIds.length} งาน / หัวหน้างาน {headDeptIds.length} งาน
-                  </span>
+                          <span className="flex-1 truncate">{div.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-slate-100 text-slate-500">
+                            [{div.code}]
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 max-h-56 overflow-y-auto space-y-3">
-                  {divisions.filter((d) => selectedDivisionIds.includes(d.id)).length === 0 ? (
-                    <div className="text-center py-4 text-slate-400 text-xs">
-                      กรุณาเลือกฝ่ายงานด้านบนเพื่อแสดงรายการงาน/แผนกวิชา
+                {/* 5. Multi-Department Selection with Head of Department Toggle */}
+                {selectedDivisionIds.length > 0 && (
+                  <div className="space-y-2 p-4 bg-slate-50/70 rounded-xl border border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Building className="w-4 h-4 text-theme-primary" />
+                        <span>แผนกวิชา / งานที่รับผิดชอบ <span className="text-red-500">*</span></span>
+                      </label>
+                      <span className="text-[11px] font-bold text-theme-primary bg-theme-primary-light px-2 py-0.5 rounded-full">
+                        เลือก {selectedDepartmentIds.length} งาน / หัวหน้างาน {headDeptIds.length} งาน
+                      </span>
                     </div>
-                  ) : (
-                    divisions
-                      .filter((d) => selectedDivisionIds.includes(d.id))
-                      .map((div) => (
-                        <div key={div.id} className="space-y-1.5">
-                          <div className="text-[11px] font-bold text-slate-600 bg-slate-200/70 px-2.5 py-1 rounded-md flex items-center justify-between">
-                            <span>📁 {div.name}</span>
-                            <span className="text-[10px] font-mono text-slate-500">[{div.code?.toUpperCase()}]</span>
-                          </div>
 
-                          <div className="space-y-1.5 pl-1">
-                            {div.departments.map((dept) => {
-                              const isChecked = selectedDepartmentIds.includes(dept.id);
-                              const isPrimary = String(formData.department_id) === String(dept.id);
-                              const isHeadOfThisDept = headDeptIds.includes(dept.id);
+                    <div className="space-y-3 pt-1">
+                      {divisions
+                        .filter((div) => selectedDivisionIds.includes(div.id))
+                        .map((div) => {
+                          const deptsInDiv = div.departments || [];
+                          return (
+                            <div key={div.id} className="bg-white p-3 rounded-lg border border-slate-200 space-y-2">
+                              <div className="text-[11px] font-bold text-slate-700 flex items-center justify-between pb-1 border-b border-slate-100">
+                                <span>ฝ่าย{div.name}</span>
+                                <span className="text-[10px] text-slate-400">[{div.code}]</span>
+                              </div>
 
-                              return (
-                                <div
-                                  key={dept.id}
-                                  onClick={() => handleToggleDepartment(dept.id)}
-                                  className={`p-2 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer transition ${
-                                    isChecked
-                                      ? 'bg-white border-blue-400 text-slate-900 font-semibold shadow-2xs'
-                                      : 'bg-white/80 border-slate-200 text-slate-700 hover:bg-white'
-                                  }`}
-                                >
-                                  {/* Left: Department Name */}
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <input
-                                      type="checkbox"
-                                      checked={isChecked}
-                                      onChange={() => {}}
-                                      className="w-4 h-4 text-theme-primary rounded border-slate-300 pointer-events-none shrink-0"
-                                    />
-                                    <span className="truncate">{dept.name}</span>
-                                    {isPrimary && (
-                                      <span className="text-[9px] bg-theme-primary text-white px-1.5 py-0.2 rounded font-bold shrink-0">
-                                        งานหลัก
-                                      </span>
-                                    )}
-                                  </div>
+                              <div className="grid grid-cols-1 gap-1.5">
+                                {deptsInDiv.map((dept) => {
+                                  const isSelected = selectedDepartmentIds.includes(dept.id);
+                                  const isHead = headDeptIds.includes(dept.id);
 
-                                  {/* Right: Actions */}
-                                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center pl-6 sm:pl-0">
-                                    {isChecked && !isPrimary && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setFormData((prev) => ({ ...prev, department_id: String(dept.id) }));
-                                        }}
-                                        className="text-[10px] px-1.5 py-0.5 rounded border bg-slate-50 text-slate-600 border-slate-300 hover:bg-blue-50 hover:text-blue-900 hover:border-blue-300"
-                                      >
-                                        ตั้งเป็นงานหลัก
-                                      </button>
-                                    )}
-
-                                    {/* Head of department toggle button */}
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleToggleHeadDept(dept.id, e)}
-                                      className={`px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold border transition flex items-center gap-1 ${
-                                        isHeadOfThisDept
-                                          ? 'bg-amber-500 text-white border-amber-600 shadow-xs ring-1 ring-amber-400'
-                                          : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-amber-50 hover:text-amber-900 hover:border-amber-300'
+                                  return (
+                                    <div
+                                      key={dept.id}
+                                      className={`flex items-center justify-between p-2 rounded-lg border transition ${
+                                        isSelected
+                                          ? 'border-theme-primary/40 bg-theme-primary/5'
+                                          : 'border-slate-100 hover:border-slate-200 bg-slate-50/40'
                                       }`}
-                                      title="ติ๊กเพื่อระบุว่าผู้ใช้นี้ดำรงตำแหน่งหัวหน้าสำหรับงาน/แผนกนี้"
                                     >
-                                      <ShieldCheck className="w-3.5 h-3.5" />
-                                      <span>{isHeadOfThisDept ? '✓ เป็นหัวหน้างาน' : '+ เป็นหัวหน้างาน'}</span>
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))
-                  )}
-                </div>
-              </div>
+                                      <label className="flex items-center gap-2 text-xs cursor-pointer flex-1 truncate pr-2 select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => handleToggleDepartment(dept.id)}
+                                          className="w-4 h-4 rounded text-theme-primary focus:ring-theme-primary border-slate-300 cursor-pointer"
+                                        />
+                                        <span className={`truncate ${isSelected ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
+                                          {dept.name}
+                                        </span>
+                                      </label>
 
-              {/* Account Credentials (Username, Password, Email) */}
-              <div className="pt-2 border-t border-slate-200/80 space-y-3">
-                <div className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5 text-slate-500" />
-                  <span>ข้อมูลบัญชีผู้ใช้และความปลอดภัย</span>
-                </div>
+                                      {isSelected && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => handleToggleHeadDept(dept.id, e)}
+                                          className={`text-[10px] font-bold px-2 py-1 rounded-md transition flex items-center gap-1 ${
+                                            isHead
+                                              ? 'bg-amber-500 text-white shadow-xs'
+                                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                          }`}
+                                          title={isHead ? 'ยกเลิกการเป็นหัวหน้า' : 'ตั้งเป็นหัวหน้างานนี้'}
+                                        >
+                                          {isHead ? (
+                                            <>
+                                              <ShieldCheck className="w-3 h-3" />
+                                              <span>หัวหน้าแผนก/งาน</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <span>+ เป็นหัวหน้างาน</span>
+                                            </>
+                                          )}
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Username */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      ชื่อผู้ใช้ (Username) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      disabled={Boolean(editingUser)}
-                      value={formData.username}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      placeholder="เช่น somchai.k"
-                      className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition disabled:bg-slate-100 font-mono"
-                    />
-                    {editingUser && <span className="text-[10px] text-slate-400">ชื่อผู้ใช้ไม่สามารถเปลี่ยนได้</span>}
+                {/* 6. Account Credentials */}
+                <div className="space-y-3 p-4 bg-slate-50/70 rounded-xl border border-slate-200">
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <Key className="w-4 h-4 text-theme-primary" />
+                    <span>ข้อมูลบัญชีผู้ใช้และความปลอดภัย</span>
                   </div>
 
-                  {/* Password */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      {editingUser ? 'รหัสผ่านใหม่ (เว้นว่างได้)' : 'รหัสผ่าน (Password)'}
-                    </label>
-                    <div className="relative">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        ชื่อผู้ใช้ (Username) <span className="text-red-500">*</span>
+                      </label>
                       <input
-                        type={showPassword ? 'text' : 'password'}
-                        required={!editingUser && !formData.email}
+                        type="text"
+                        required
+                        value={formData.username}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                        placeholder="เช่น somchai.k"
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:border-theme-primary font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        {editingUser ? 'รหัสผ่านใหม่ (เว้นว่างหากไม่เปลี่ยน)' : 'รหัสผ่าน (Password) *'}
+                      </label>
+                      <input
+                        type="password"
+                        required={!editingUser}
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        placeholder={editingUser ? '••••••••' : 'อย่างน้อย 4 ตัวอักษร'}
-                        className="w-full pl-3 pr-8 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
+                        placeholder="อย่างน้อย 4 ตัวอักษร"
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:border-theme-primary font-mono"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      อีเมลองค์กร / Google Account (ถ้ามี สำหรับ Google Sign-in)
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="เช่น somchai.k@cric.ac.th"
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:border-theme-primary font-mono"
+                    />
                   </div>
                 </div>
 
-                {/* Email */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    อีเมลองค์กร / Google Account (เช่น user@cric.ac.th)
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="เช่น somchai@cric.ac.th หรือ somchai@vec.mail.go.th"
-                    className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary transition"
-                  />
-                </div>
-              </div>
+                {/* 7. System Roles Selector */}
+                <div className="space-y-2 p-4 bg-slate-50/70 rounded-xl border border-slate-200">
+                  <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-theme-primary" />
+                    <span>บทบาทและสิทธิ์การใช้งานในระบบ (System Role) <span className="text-red-500">*</span></span>
+                  </div>
 
-              {/* Role & Status */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                {/* Role */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    บทบาท / สิทธิ์การใช้งาน <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    required
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded-xl outline-none focus:border-theme-primary transition bg-white"
-                  >
-                    <option value="TEACHER">ครู / ผู้เสนอโครงการ (TEACHER)</option>
-                    <option value="HEAD_DEPT">หัวหน้าแผนก / งาน (HEAD_DEPT)</option>
-                    <option value="DEPUTY_DIRECTOR">รองผู้อำนวยการ (DEPUTY_DIRECTOR)</option>
-                    <option value="PLANNING_OFFICER">เจ้าหน้าที่งานวางแผนฯ (PLANNING_OFFICER)</option>
-                    <option value="DIRECTOR">ผู้อำนวยการ (DIRECTOR)</option>
-                    <option value="ADMIN">ผู้ดูแลระบบ (ADMIN)</option>
-                  </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {[
+                      { role: 'TEACHER', title: 'ครู / ผู้เสนอโครงการ', desc: 'เสนอโครงการและติดตามสถานะ' },
+                      { role: 'HEAD_OF_DEPT', title: 'หัวหน้างาน / หัวหน้าแผนก', desc: 'ลงนามพิจารณาขั้นที่ 1' },
+                      { role: 'DEPUTY_DIRECTOR', title: 'รองผู้อำนวยการ', desc: 'ลงนามพิจารณาขั้นที่ 2' },
+                      { role: 'PLANNING_OFFICER', title: 'เจ้าหน้าที่งานแผนงาน', desc: 'ตรวจงบประมาณ ออกรหัส (ขั้นที่ 3)' },
+                      { role: 'DIRECTOR', title: 'ผู้อำนวยการ', desc: 'อนุมัติขั้นสุดท้าย (ขั้นที่ 4)' },
+                      { role: 'ADMIN', title: 'ผู้ดูแลระบบ (Admin)', desc: 'จัดการระบบ ตั้งค่า และผู้ใช้งานทั้งหมด' },
+                    ].map((r) => {
+                      const isSelected = formData.role === r.role;
+                      return (
+                        <label
+                          key={r.role}
+                          className={`p-2.5 rounded-lg border text-left flex items-start gap-2.5 cursor-pointer transition select-none ${
+                            isSelected
+                              ? 'bg-white border-theme-primary ring-2 ring-theme-primary/20 shadow-xs'
+                              : 'bg-white/60 border-slate-200 hover:bg-white'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="role_radio"
+                            value={r.role}
+                            checked={isSelected}
+                            onChange={() => setFormData({ ...formData, role: r.role })}
+                            className="mt-0.5 w-4 h-4 text-theme-primary focus:ring-theme-primary border-slate-300 cursor-pointer"
+                          />
+                          <div>
+                            <div className={`text-xs font-bold ${isSelected ? 'text-theme-primary' : 'text-slate-800'}`}>
+                              {r.title}
+                            </div>
+                            <div className="text-[10px] text-slate-400">{r.desc}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                {/* Status Toggle */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">สถานะการใช้งาน</label>
-                  <label className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer h-[38px]">
+                {/* 8. Active Status */}
+                <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-200">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
                     <input
                       type="checkbox"
                       checked={formData.is_active}
                       onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                      className="w-4 h-4 text-theme-primary rounded border-slate-300 focus:ring-theme-primary"
+                      className="w-4 h-4 rounded text-theme-primary focus:ring-theme-primary border-slate-300 cursor-pointer"
                     />
-                    <span className="text-xs font-bold text-slate-800">เปิดใช้งานบัญชีนี้ (Active)</span>
+                    <span>เปิดใช้งานบัญชีผู้ใช้นี้ (สามารถเข้าสู่ระบบได้)</span>
                   </label>
                 </div>
-              </div>
 
-              {/* Modal Footer Buttons */}
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  disabled={formSubmitting}
-                  className="flex items-center gap-1.5 px-5 py-2 text-xs sm:text-sm font-bold text-white bg-theme-primary hover:bg-theme-primary-hover rounded-xl shadow transition disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>{formSubmitting ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</span>
-                </button>
-              </div>
-            </form>
+                {/* Footer Submit */}
+                <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={formSubmitting}
+                    className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white rounded-lg shadow-md transition disabled:opacity-50"
+                    style={{ backgroundColor: 'var(--color-primary, #1e3a8a)' }}
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{formSubmitting ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Modal 2: Reset Password Dialog */}
       {isResetModalOpen && resetTargetUser && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-amber-50/50">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-amber-100 text-amber-900 rounded-lg">
-                  <Key className="w-4 h-4" />
+        <ModalPortal>
+          <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-amber-50/50">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-amber-100 text-amber-900 rounded-lg">
+                    <Key className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base">รีเซ็ตรหัสผ่าน</h3>
                 </div>
-                <h3 className="font-bold text-slate-900 text-base">รีเซ็ตรหัสผ่าน</h3>
-              </div>
-              <button
-                onClick={() => setIsResetModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleResetPassword} className="p-6 space-y-4">
-              <div className="p-3 bg-slate-50 rounded-lg text-xs space-y-1">
-                <div className="text-slate-500">ผู้ใช้งาน:</div>
-                <div className="font-bold text-slate-900 text-sm">{resetTargetUser.full_name}</div>
-                <div className="text-slate-500 font-mono">Username: @{resetTargetUser.username}</div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  กำหนดรหัสผ่านใหม่ <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="กรอกรหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)"
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 transition font-mono"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
-                  type="button"
                   onClick={() => setIsResetModalOpen(false)}
-                  className="px-4 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
                 >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  disabled={resetSubmitting || newPassword.trim().length < 4}
-                  className="flex items-center gap-1.5 px-5 py-2 text-xs sm:text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow transition disabled:opacity-50"
-                >
-                  <Lock className="w-4 h-4" />
-                  <span>{resetSubmitting ? 'กำลังตั้งรหัส...' : 'ยืนยันรหัสผ่านใหม่'}</span>
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleResetPassword} className="p-6 space-y-4">
+                <div className="p-3 bg-slate-50 rounded-lg text-xs space-y-1">
+                  <div className="text-slate-500">ผู้ใช้งาน:</div>
+                  <div className="font-bold text-slate-900 text-sm">{resetTargetUser.full_name}</div>
+                  <div className="text-slate-500 font-mono">Username: @{resetTargetUser.username}</div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    กำหนดรหัสผ่านใหม่ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="กรอกรหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 transition font-mono"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsResetModalOpen(false)}
+                    className="px-4 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={resetSubmitting || newPassword.trim().length < 4}
+                    className="flex items-center gap-1.5 px-5 py-2 text-xs sm:text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow transition disabled:opacity-50"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>{resetSubmitting ? 'กำลังตั้งรหัส...' : 'ยืนยันรหัสผ่านใหม่'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

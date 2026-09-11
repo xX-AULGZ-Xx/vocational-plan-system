@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import { useNotifications } from '@/lib/notification-context';
 import { showAlert } from '@/lib/sweetalert';
+import ModalPortal from '@/components/ui/ModalPortal';
 
 import {
   FolderKanban,
@@ -479,67 +480,69 @@ export default function MyProjectsPage() {
 
       {/* Docs Modal */}
       {selectedProjectForDocs && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 bg-theme-primary text-white flex justify-between items-center shrink-0">
-              <h2 className="text-lg font-bold">อัปโหลดไฟล์เอกสารสแกน</h2>
-              <button onClick={() => setSelectedProjectForDocs(null)} className="p-1 hover:bg-white/20 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto">
-              <div className="mb-6">
-                <h3 className="text-sm font-bold text-slate-700 mb-2">อัปโหลดไฟล์ใหม่</h3>
-                <div className="flex gap-2">
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    ref={fileInputRef}
-                    className="flex-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-theme file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
-                  />
-                  <button
-                    onClick={() => handleFileUpload({ target: { files: fileInputRef.current?.files } } as any)}
-                    disabled={uploading}
-                    className="px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme text-sm font-bold transition"
-                  >
-                    {uploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
-                  </button>
-                </div>
-                {uploadMsg && (
-                  <p className={`mt-2 text-xs font-bold ${uploadMsg.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>
-                    {uploadMsg.text}
-                  </p>
-                )}
+        <ModalPortal>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-4 bg-theme-primary text-white flex justify-between items-center shrink-0">
+                <h2 className="text-lg font-bold">อัปโหลดไฟล์เอกสารสแกน</h2>
+                <button onClick={() => setSelectedProjectForDocs(null)} className="p-1 hover:bg-white/20 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-
-              <div>
-                <h3 className="text-sm font-bold text-slate-700 mb-2">ไฟล์เอกสาร ({docsList.length})</h3>
-                {loadingDocs ? (
-                  <p className="text-sm text-slate-500">กำลังโหลด...</p>
-                ) : docsList.length === 0 ? (
-                  <p className="text-sm text-slate-500">ยังไม่มีไฟล์เอกสาร</p>
-                ) : (
-                  <div className="space-y-2">
-                    {docsList.map(doc => (
-                      <div key={doc.id} className="flex justify-between items-center p-3 border rounded-theme">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-theme-primary" />
-                          <a href={`/api/v1/projects/${selectedProjectForDocs.id}/documents/${doc.id}`} target="_blank" rel="noreferrer" className="text-sm text-theme-primary hover:underline">
-                            {doc.file_name}
-                          </a>
-                        </div>
-                        <button onClick={() => handleDeleteDoc(doc.id)} className="p-1 text-red-500 hover:bg-red-50 rounded">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+              
+              <div className="p-6 overflow-y-auto">
+                <div className="mb-6">
+                  <h3 className="text-sm font-bold text-slate-700 mb-2">อัปโหลดไฟล์ใหม่</h3>
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      ref={fileInputRef}
+                      className="flex-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-theme file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
+                    />
+                    <button
+                      onClick={() => handleFileUpload({ target: { files: fileInputRef.current?.files } } as any)}
+                      disabled={uploading}
+                      className="px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme text-sm font-bold transition"
+                    >
+                      {uploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
+                    </button>
                   </div>
-                )}
+                  {uploadMsg && (
+                    <p className={`mt-2 text-xs font-bold ${uploadMsg.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>
+                      {uploadMsg.text}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-slate-700 mb-2">ไฟล์เอกสาร ({docsList.length})</h3>
+                  {loadingDocs ? (
+                    <p className="text-sm text-slate-500">กำลังโหลด...</p>
+                  ) : docsList.length === 0 ? (
+                    <p className="text-sm text-slate-500">ยังไม่มีไฟล์เอกสาร</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {docsList.map(doc => (
+                        <div key={doc.id} className="flex justify-between items-center p-3 border rounded-theme">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-theme-primary" />
+                            <a href={`/api/v1/projects/${selectedProjectForDocs.id}/documents/${doc.id}`} target="_blank" rel="noreferrer" className="text-sm text-theme-primary hover:underline">
+                              {doc.file_name}
+                            </a>
+                          </div>
+                          <button onClick={() => handleDeleteDoc(doc.id)} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

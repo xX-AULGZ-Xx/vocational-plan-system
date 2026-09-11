@@ -7,6 +7,7 @@ import { useSettings } from '@/lib/settings-context';
 import { useNotifications } from '@/lib/notification-context';
 import AccessDenied from '@/components/common/AccessDenied';
 import ProjectQuickPreviewModal from '@/components/approvals/ProjectQuickPreviewModal';
+import ModalPortal from '@/components/ui/ModalPortal';
 import {
   CheckSquare,
   Clock,
@@ -1292,201 +1293,205 @@ export default function ApprovalsPage() {
       {/* SINGLE ACTION MODAL */}
       {/* ======================================================== */}
       {actionType && selectedApproval && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+        <ModalPortal>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      actionType === 'APPROVE'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : actionType === 'REVISE'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-rose-100 text-rose-700'
+                    }`}
+                  >
+                    {actionType === 'APPROVE' && <CheckCircle2 className="w-5 h-5" />}
+                    {actionType === 'REVISE' && <RotateCcw className="w-5 h-5" />}
+                    {actionType === 'REJECT' && <X className="w-5 h-5" />}
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {actionType === 'APPROVE' && 'ยืนยันการอนุมัติ / เห็นชอบโครงการ'}
+                    {actionType === 'REVISE' && 'ส่งคำขอแก้ไขโครงการกลับผู้เสนอ'}
+                    {actionType === 'REJECT' && 'ปฏิเสธ / ไม่อนุมัติโครงการ'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setActionType(null);
+                    setSelectedApproval(null);
+                  }}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                <p className="text-xs font-bold text-slate-800 truncate">
+                  {selectedApproval.project?.title}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {getStepTitle(selectedApproval.step_order)} • งบประมาณ {Number(selectedApproval.project?.total_budget).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  ข้อคิดเห็น / คำสั่งการพิจารณา:
+                </label>
+
+                {/* Quick Preset Comment Chips */}
+                <div className="space-y-1 mb-2">
+                  <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" /> ข้อความมาตรฐานด่วน (คลิกเลือก):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {getQuickComments(selectedApproval.step_order, actionType).map((text, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setComment(text)}
+                        className={`text-[11px] px-2.5 py-1 rounded-full border transition text-left ${
+                          comment === text
+                            ? 'bg-blue-900 text-white border-blue-900'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                        }`}
+                      >
+                        {text}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="ระบุข้อคิดเห็นหรือคำสั่งการ..."
+                  rows={3}
+                  className="w-full text-xs p-3 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionType(null);
+                    setSelectedApproval(null);
+                  }}
+                  className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:bg-slate-100 transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAction}
+                  disabled={isProcessing}
+                  className={`px-4 py-2 text-xs font-bold rounded-lg text-white shadow-xs transition disabled:opacity-50 flex items-center gap-1.5 ${
                     actionType === 'APPROVE'
-                      ? 'bg-emerald-100 text-emerald-700'
+                      ? 'bg-emerald-600 hover:bg-emerald-500'
                       : actionType === 'REVISE'
-                      ? 'bg-amber-100 text-amber-700'
-                      : 'bg-rose-100 text-rose-700'
+                      ? 'bg-amber-600 hover:bg-amber-500'
+                      : 'bg-rose-600 hover:bg-rose-500'
                   }`}
                 >
-                  {actionType === 'APPROVE' && <CheckCircle2 className="w-5 h-5" />}
-                  {actionType === 'REVISE' && <RotateCcw className="w-5 h-5" />}
-                  {actionType === 'REJECT' && <X className="w-5 h-5" />}
-                </div>
-                <h3 className="text-base font-bold text-slate-900">
-                  {actionType === 'APPROVE' && 'ยืนยันการอนุมัติ / เห็นชอบโครงการ'}
-                  {actionType === 'REVISE' && 'ส่งคำขอแก้ไขโครงการกลับผู้เสนอ'}
-                  {actionType === 'REJECT' && 'ปฏิเสธ / ไม่อนุมัติโครงการ'}
-                </h3>
+                  {isProcessing ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <span>ยืนยันบันทึกผล</span>
+                  )}
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  setActionType(null);
-                  setSelectedApproval(null);
-                }}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-              <p className="text-xs font-bold text-slate-800 truncate">
-                {selectedApproval.project?.title}
-              </p>
-              <p className="text-[11px] text-slate-500">
-                {getStepTitle(selectedApproval.step_order)} • งบประมาณ {Number(selectedApproval.project?.total_budget).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                ข้อคิดเห็น / คำสั่งการพิจารณา:
-              </label>
-
-              {/* Quick Preset Comment Chips */}
-              <div className="space-y-1 mb-2">
-                <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" /> ข้อความมาตรฐานด่วน (คลิกเลือก):
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {getQuickComments(selectedApproval.step_order, actionType).map((text, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setComment(text)}
-                      className={`text-[11px] px-2.5 py-1 rounded-full border transition text-left ${
-                        comment === text
-                          ? 'bg-blue-900 text-white border-blue-900'
-                          : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                      }`}
-                    >
-                      {text}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="ระบุข้อคิดเห็นหรือคำสั่งการ..."
-                rows={3}
-                className="w-full text-xs p-3 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setActionType(null);
-                  setSelectedApproval(null);
-                }}
-                className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:bg-slate-100 transition"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                onClick={handleAction}
-                disabled={isProcessing}
-                className={`px-4 py-2 text-xs font-bold rounded-lg text-white shadow-xs transition disabled:opacity-50 flex items-center gap-1.5 ${
-                  actionType === 'APPROVE'
-                    ? 'bg-emerald-600 hover:bg-emerald-500'
-                    : actionType === 'REVISE'
-                    ? 'bg-amber-600 hover:bg-amber-500'
-                    : 'bg-rose-600 hover:bg-rose-500'
-                }`}
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>กำลังบันทึก...</span>
-                  </>
-                ) : (
-                  <span>ยืนยันบันทึกผล</span>
-                )}
-              </button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* ======================================================== */}
       {/* BATCH ACTION CONFIRMATION MODAL */}
       {/* ======================================================== */}
       {batchActionType && selectedIds.length > 0 && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  batchActionType === 'APPROVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                }`}>
-                  {batchActionType === 'APPROVE' ? <CheckCircle2 className="w-5 h-5" /> : <X className="w-5 h-5" />}
+        <ModalPortal>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                    batchActionType === 'APPROVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                  }`}>
+                    {batchActionType === 'APPROVE' ? <CheckCircle2 className="w-5 h-5" /> : <X className="w-5 h-5" />}
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {batchActionType === 'APPROVE' ? 'ยืนยันอนุมัติโครงการพร้อมกัน' : 'ยืนยันปฏิเสธโครงการพร้อมกัน'} ({selectedIds.length} รายการ)
+                  </h3>
                 </div>
-                <h3 className="text-base font-bold text-slate-900">
-                  {batchActionType === 'APPROVE' ? 'ยืนยันอนุมัติโครงการพร้อมกัน' : 'ยืนยันปฏิเสธโครงการพร้อมกัน'} ({selectedIds.length} รายการ)
-                </h3>
+                <button
+                  onClick={() => setBatchActionType(null)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={() => setBatchActionType(null)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
-              <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                ท่านกำลังจะ{batchActionType === 'APPROVE' ? 'อนุมัติ' : 'ปฏิเสธ'}โครงการจำนวน {selectedIds.length} รายการพร้อมกัน
-              </p>
-              <p className="text-[11px] text-amber-800">
-                ระบบจะส่งผลการพิจารณาและแจ้งเตือนไปยังผู้รับผิดชอบโครงการทุกรายโดยอัตโนมัติ
-              </p>
-            </div>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
+                <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  ท่านกำลังจะ{batchActionType === 'APPROVE' ? 'อนุมัติ' : 'ปฏิเสธ'}โครงการจำนวน {selectedIds.length} รายการพร้อมกัน
+                </p>
+                <p className="text-[11px] text-amber-800">
+                  ระบบจะส่งผลการพิจารณาและแจ้งเตือนไปยังผู้รับผิดชอบโครงการทุกรายโดยอัตโนมัติ
+                </p>
+              </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                ข้อคิดเห็นร่วมสำหรับการดำเนินการกลุ่ม:
-              </label>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="ระบุข้อคิดเห็น..."
-                rows={2}
-                className="w-full text-xs p-3 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  ข้อคิดเห็นร่วมสำหรับการดำเนินการกลุ่ม:
+                </label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="ระบุข้อคิดเห็น..."
+                  rows={2}
+                  className="w-full text-xs p-3 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
+                />
+              </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setBatchActionType(null)}
-                className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:bg-slate-100 transition"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                onClick={handleBatchAction}
-                disabled={isProcessing}
-                className={`px-5 py-2 text-xs font-bold rounded-lg text-white shadow-xs transition disabled:opacity-50 flex items-center gap-1.5 ${
-                  batchActionType === 'APPROVE'
-                    ? 'bg-emerald-600 hover:bg-emerald-500'
-                    : 'bg-rose-600 hover:bg-rose-500'
-                }`}
-              >
-                {isProcessing ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>กำลังดำเนินการ...</span>
-                  </>
-                ) : (
-                  <span>ยืนยันดำเนินการ ({selectedIds.length} รายการ)</span>
-                )}
-              </button>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setBatchActionType(null)}
+                  className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:bg-slate-100 transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBatchAction}
+                  disabled={isProcessing}
+                  className={`px-5 py-2 text-xs font-bold rounded-lg text-white shadow-xs transition disabled:opacity-50 flex items-center gap-1.5 ${
+                    batchActionType === 'APPROVE'
+                      ? 'bg-emerald-600 hover:bg-emerald-500'
+                      : 'bg-rose-600 hover:bg-rose-500'
+                  }`}
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>กำลังดำเนินการ...</span>
+                    </>
+                  ) : (
+                    <span>ยืนยันดำเนินการ ({selectedIds.length} รายการ)</span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );
