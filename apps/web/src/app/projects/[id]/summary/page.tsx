@@ -129,9 +129,9 @@ export default function ProjectSummaryPage() {
         const norm = normalizeKey(key);
         const clean = key.replace(/[%]/g, '').trim();
 
-        // 1. Direct match
-        if (projDynamic[key] !== undefined && projDynamic[key] !== '') return projDynamic[key];
-        if (projDynamic[clean] !== undefined && projDynamic[clean] !== '') return projDynamic[clean];
+        // 1. Direct match from dynamic_data
+        if (projDynamic[key] !== undefined && projDynamic[key] !== '' && projDynamic[key] !== null) return projDynamic[key];
+        if (projDynamic[clean] !== undefined && projDynamic[clean] !== '' && projDynamic[clean] !== null) return projDynamic[clean];
 
         // 2. Activity Images (activity_image_1..4, image1..4, photo1..4, pic1..4, etc.)
         if (norm.includes('activityimage1') || norm.includes('image1') || norm.includes('photo1') || norm.includes('img1') || norm.includes('pic1')) {
@@ -147,57 +147,89 @@ export default function ProjectSummaryPage() {
           return projDynamic.activity_image_4 || projDynamic.image_4 || projDynamic.photo_4 || '';
         }
 
-        // 3. Core project fields
-        if (key === 'title' || key === 'project_name' || norm === 'title' || norm === 'projectname') {
-          return proj.title;
+        // 3. Core project title & code & fiscal year
+        if (key === 'title' || key === 'project_name' || norm === 'title' || norm === 'projectname' || norm === 'projecttitle' || norm === 'name') {
+          return proj.title || '';
         }
-        if (key === 'fiscal_year' || norm === 'fiscalyear') {
-          return proj.fiscal_year;
+        if (key === 'fiscal_year' || norm === 'fiscalyear' || norm === 'year' || norm === 'budgetyear') {
+          return proj.fiscal_year || new Date().getFullYear() + 543;
         }
-        if (key === 'budget' || key === 'total_budget' || norm === 'budget' || norm === 'totalbudget') {
-          return proj.total_budget;
-        }
-        if (key === 'department' || norm === 'department') {
-          return proj.department?.name;
-        }
-        if (key === 'project_code' || norm === 'projectcode') {
-          return proj.project_code;
+        if (key === 'project_code' || norm === 'projectcode' || norm === 'code' || norm === 'projcode') {
+          return proj.project_code || '';
         }
 
-        // 4. Budget & Financial results from "บันทึกผล/สรุปผล"
-        if (norm.includes('actualspent') || norm.includes('actualexpense') || norm.includes('spentamount') || norm.includes('totalspent') || norm.includes('spentbudget') || norm.includes('disbursement')) {
+        // 4. Department & Division
+        if (norm === 'division' || norm === 'divisionname' || norm === 'divname' || norm === 'departmentdivision') {
+          return proj.department?.division?.name || '';
+        }
+        if (key === 'department' || norm === 'department' || norm === 'departmentname' || norm === 'dept' || norm === 'deptname') {
+          return proj.department?.name || '';
+        }
+
+        // 5. Budgets (Total, Spent, Remaining, Items)
+        if (norm === 'budget' || norm === 'totalbudget' || norm === 'approvedbudget' || norm === 'totalamount') {
+          return proj.total_budget || 0;
+        }
+        if (norm.includes('actualspent') || norm.includes('actualexpense') || norm.includes('spentamount') || norm.includes('totalspent') || norm.includes('spentbudget') || norm.includes('disbursement') || norm.includes('disbursedamount')) {
           return proj.actual_spent || projDynamic.actual_spent || projDynamic.actual_expense || proj.total_budget || 0;
         }
+        if (norm.includes('remaining') || norm.includes('balance') || norm.includes('budgetbalance') || norm.includes('leftbudget')) {
+          const total = Number(proj.total_budget || 0);
+          const spent = Number(proj.actual_spent || projDynamic.actual_spent || projDynamic.actual_expense || 0);
+          return Math.max(0, total - spent);
+        }
+        if (norm.includes('budgetitem') || norm.includes('expenses') || norm.includes('budgetdetail')) {
+          if (t.tag_type === 'TABLE_LOOP') {
+            if (Array.isArray(proj.budget_items) && proj.budget_items.length > 0) {
+              return proj.budget_items.map((b: any) => ({
+                description: b.name || b.description || b.category?.name || '',
+                category: b.category?.name || b.name || '',
+                amount: Number(b.amount || 0).toLocaleString(),
+                total: Number(b.amount || 0).toLocaleString(),
+              }));
+            }
+            return [{}];
+          }
+          if (Array.isArray(proj.budget_items) && proj.budget_items.length > 0) {
+            return proj.budget_items.map((b: any, idx: number) => `${idx + 1}. ${b.name || b.category?.name || 'ค่าใช้จ่าย'}: ${Number(b.amount || 0).toLocaleString()} บาท`).join('\n');
+          }
+        }
 
-        // 5. Operation / execution status & achievements
-        if (norm.includes('operationstatus') || norm.includes('executionstatus') || norm.includes('projectstatus')) {
+        // 6. Operation / execution status & achievements
+        if (norm.includes('operationstatus') || norm.includes('executionstatus') || norm.includes('projectstatus') || norm.includes('progressstatus')) {
           return projDynamic.operation_status || 'ดำเนินงานแล้วเสร็จ 100%';
         }
-        if (norm.includes('keyachievement') || norm.includes('keyresult') || norm.includes('achievement') || norm.includes('successrate')) {
+        if (norm.includes('keyachievement') || norm.includes('keyresult') || norm.includes('achievement') || norm.includes('successrate') || norm.includes('highlight')) {
           return projDynamic.key_achievements || projDynamic.key_results || '';
         }
 
-        // 6. Summary 4 columns (ตารางสรุปผล ๔ ช่อง)
-        if (norm.includes('activitiessummary') || norm.includes('activitysummary') || norm === 'activities' || norm.includes('activitydesc')) {
+        // 7. Summary 4 columns (ตารางสรุปผล ๔ ช่อง)
+        if (norm.includes('activitiessummary') || norm.includes('activitysummary') || norm === 'activities' || norm.includes('activitydesc') || norm.includes('operationactivities') || norm.includes('implementationsummary')) {
           return projDynamic.activities_summary || projDynamic.activity_summary || '';
         }
-        if (norm.includes('actualresult') || norm.includes('resultssummary') || norm === 'results' || norm === 'actualoutcome' || norm.includes('benefit')) {
+        if (norm.includes('actualresult') || norm.includes('resultssummary') || norm === 'results' || norm === 'actualoutcome' || norm.includes('benefit') || norm.includes('accomplishment')) {
           return projDynamic.actual_results || projDynamic.results_summary || proj.expected_results || proj.expected_outcome || '';
         }
-        if (norm.includes('problem') || norm.includes('obstacle') || norm.includes('problemsobstacles')) {
+        if (norm.includes('problem') || norm.includes('obstacle') || norm.includes('problemsobstacles') || norm.includes('issue')) {
           return projDynamic.problems_obstacles || projDynamic.problems_obstacles_text || projDynamic.obstacles_and_solutions || '';
         }
-        if (norm.includes('projectsuggestion') || norm.includes('suggestion') || norm.includes('summarynote') || norm.includes('recommendation') || norm.includes('solution')) {
+        if (norm.includes('projectsuggestion') || norm.includes('suggestion') || norm.includes('summarynote') || norm.includes('recommendation') || norm.includes('solution') || norm.includes('note')) {
           return projDynamic.project_suggestions || projDynamic.summary_notes || '';
         }
 
-        // 7. Vocational Standards & Curriculum Standards
+        // 8. Vocational Standards & Strategic Alignments
         if (norm.includes('standard') || norm.includes('vocationalstandard') || norm.includes('curriculumstandard')) {
           return projDynamic.vocational_standards || projDynamic.standards || proj.standard || 'มาตรฐานที่ ๑ คุณลักษณะของผู้สำเร็จการศึกษาอาชีวศึกษาที่พึงประสงค์';
         }
+        if (norm.includes('strategy') || norm.includes('strategic') || norm.includes('alignment')) {
+          if (Array.isArray(proj.alignments) && proj.alignments.length > 0) {
+            return proj.alignments.map((a: any) => a.indicator?.description || a.indicator?.plan?.title || '').filter(Boolean).join(', ');
+          }
+          return projDynamic.strategic_indicators || projDynamic.strategy || '';
+        }
 
-        // 8. Objectives (TABLE_LOOP or text)
-        if (norm.includes('objective')) {
+        // 9. Objectives (TABLE_LOOP or text)
+        if (norm.includes('objective') || norm.includes('purpose') || norm.includes('goal')) {
           if (t.tag_type === 'TABLE_LOOP') {
             if (Array.isArray(projDynamic.objectives) && projDynamic.objectives.length > 0) return projDynamic.objectives;
             if (Array.isArray(proj.objectives) && proj.objectives.length > 0) {
@@ -211,64 +243,82 @@ export default function ProjectSummaryPage() {
           return proj.objectives || projDynamic.objectives || '';
         }
 
-        // 9. Targets / Target Group
+        // 10. Targets / Target Groups
         if (norm.includes('target') || norm.includes('targetgroup')) {
+          if (Array.isArray(proj.target_groups) && proj.target_groups.length > 0) {
+            return proj.target_groups.map((tg: any) => typeof tg === 'string' ? tg : (tg.name || tg.description || `${tg.group || ''} ${tg.amount || ''} ${tg.unit || ''}`.trim())).filter(Boolean).join('\n');
+          }
           return proj.target_group || proj.target || projDynamic.target_group || projDynamic.target || '';
         }
 
-        // 10. Indicators
-        if (norm.includes('indicator')) {
+        // 11. Indicators & KPIs
+        if (norm.includes('indicator') || norm.includes('kpi')) {
           return proj.indicators || proj.indicator || projDynamic.indicators || '';
         }
 
-        // 11. Principles / Rationale / Background
-        if (norm.includes('rationale') || norm.includes('principle') || norm.includes('background')) {
+        // 12. Principles / Rationale / Background
+        if (norm.includes('rationale') || norm.includes('principle') || norm.includes('background') || norm.includes('origin') || norm.includes('justification')) {
           return proj.background || proj.rationale || proj.principles || projDynamic.rationale || projDynamic.principles || '';
         }
 
-        // 12. Dates / Duration
-        if (key === 'start_date' || key === 'end_date' || key === 'duration_text' || key === 'duration' || key === 'doc_date' || norm.includes('docdate') || norm.includes('startdate') || norm.includes('enddate')) {
-          const formatThaiDate = (d: any) => {
-            if (!d) return '';
-            const dateObj = new Date(d);
-            if (isNaN(dateObj.getTime())) return String(d);
-            const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
-            return `${dateObj.getDate()} ${months[dateObj.getMonth()]} พ.ศ. ${dateObj.getFullYear() + 543}`;
-          };
-          let sDate = '';
-          let eDate = '';
-          if (Array.isArray(proj.timelines) && proj.timelines.length > 0) {
-            const validStart = [...proj.timelines].filter((tm: any) => tm.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-            const validEnd = [...proj.timelines].filter((tm: any) => tm.end_date || tm.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
-            if (validStart.length > 0) sDate = formatThaiDate(validStart[0].start_date);
-            if (validEnd.length > 0) eDate = formatThaiDate(validEnd[validEnd.length - 1].end_date || validEnd[validEnd.length - 1].start_date);
-          }
-          if (key === 'start_date' || norm === 'startdate') return projDynamic.start_date || sDate;
-          if (key === 'end_date' || norm === 'enddate') return projDynamic.end_date || eDate;
-          if (key === 'doc_date' || norm.includes('docdate')) {
-            if (projDynamic.doc_date) return projDynamic.doc_date;
-            const now = new Date();
-            return `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear() + 543}`;
-          }
-          if (key === 'duration_text' || key === 'duration' || norm.includes('duration')) {
-            const dText = (sDate && eDate) ? (sDate === eDate ? sDate : `${sDate} ถึง ${eDate}`) : (sDate || eDate);
-            return projDynamic[key] || dText;
-          }
+        // 13. Location & Venue
+        if (norm.includes('location') || norm.includes('place') || norm.includes('venue')) {
+          return projDynamic.location || proj.location || collegeName || 'สถานศึกษา';
         }
 
-        // 13. Fuzzy match in projDynamic
+        // 14. Timelines & Dates & Duration
+        const formatThaiDate = (d: any) => {
+          if (!d) return '';
+          const dateObj = new Date(d);
+          if (isNaN(dateObj.getTime())) return String(d);
+          const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+          return `${dateObj.getDate()} ${months[dateObj.getMonth()]} พ.ศ. ${dateObj.getFullYear() + 543}`;
+        };
+
+        let sDate = '';
+        let eDate = '';
+        if (Array.isArray(proj.timelines) && proj.timelines.length > 0) {
+          const validStart = [...proj.timelines].filter((tm: any) => tm.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+          const validEnd = [...proj.timelines].filter((tm: any) => tm.end_date || tm.start_date).sort((a: any, b: any) => new Date(a.end_date || a.start_date).getTime() - new Date(b.end_date || b.start_date).getTime());
+          if (validStart.length > 0) sDate = formatThaiDate(validStart[0].start_date);
+          if (validEnd.length > 0) eDate = formatThaiDate(validEnd[validEnd.length - 1].end_date || validEnd[validEnd.length - 1].start_date);
+        }
+
+        if (key === 'start_date' || norm === 'startdate') return projDynamic.start_date || sDate;
+        if (key === 'end_date' || norm === 'enddate') return projDynamic.end_date || eDate;
+        if (key === 'doc_date' || norm.includes('docdate') || norm.includes('reportdate')) {
+          if (projDynamic.doc_date) return projDynamic.doc_date;
+          const now = new Date();
+          return `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear() + 543}`;
+        }
+        if (key === 'duration_text' || key === 'duration' || norm.includes('duration') || norm.includes('period') || norm.includes('timeline')) {
+          if (t.tag_type === 'TIMELINE' || t.tag_type === 'TABLE_LOOP') {
+            if (Array.isArray(proj.timelines) && proj.timelines.length > 0) {
+              return proj.timelines.map((tm: any) => ({
+                step_name: tm.name || tm.step_name || tm.activity || '',
+                start_date: formatThaiDate(tm.start_date),
+                end_date: formatThaiDate(tm.end_date),
+                description: tm.name || '',
+              }));
+            }
+          }
+          const dText = (sDate && eDate) ? (sDate === eDate ? sDate : `${sDate} ถึง ${eDate}`) : (sDate || eDate);
+          return projDynamic[key] || dText;
+        }
+
+        // 15. Fuzzy match in projDynamic
         for (const k of Object.keys(projDynamic)) {
           if (normalizeKey(k) === norm) {
             return projDynamic[k];
           }
         }
 
-        // 14. Signers and institutional defaults
-        if (t.tag_type === 'LEADER_NAME' || key === 'leader_name' || norm === 'leadername') {
+        // 16. Signers and institutional defaults
+        if (t.tag_type === 'LEADER_NAME' || key === 'leader_name' || norm === 'leadername' || norm.includes('proposername') || norm.includes('ownername')) {
           return proj.leader?.full_name || user?.full_name || '';
         }
-        if (t.tag_type === 'LEADER_POSITION' || key === 'leader_position' || norm === 'leaderposition') {
-          const userDept = user?.department;
+        if (t.tag_type === 'LEADER_POSITION' || key === 'leader_position' || norm === 'leaderposition' || norm.includes('proposerposition')) {
+          const userDept = user?.department || proj.department;
           if (userDept) {
             if (user?.role === 'HEAD_DEPT' || (user as any)?.is_head) {
               return userDept.name.startsWith('งาน') || userDept.name.startsWith('แผนก') 
@@ -292,7 +342,7 @@ export default function ProjectSummaryPage() {
         if (t.tag_type === 'DIRECTOR_POSITION' || key === 'director_position' || norm === 'directorposition') {
           return directorPosition || '';
         }
-        if (t.tag_type === 'COLLEGE_NAME' || key === 'college_name' || norm === 'collegename') {
+        if (t.tag_type === 'COLLEGE_NAME' || key === 'college_name' || norm === 'collegename' || norm.includes('schoolname')) {
           return collegeName || '';
         }
         if (t.tag_type === 'PLANNING_HEAD_NAME' || key === 'planning_head_name' || norm === 'planningheadname') {
@@ -332,6 +382,20 @@ export default function ProjectSummaryPage() {
         if (t.tag_type === 'HEAD_POSITION' || key === 'head_position' || norm === 'headposition') {
           const userDept = (divisionsData || []).reduce((acc: any[], div: any) => [...acc, ...(div.departments || [])], []).find((d: any) => d.id === (proj.department_id || user?.department?.id || (user as any)?.department_id));
           return userDept?.head_position || (userDept ? `หัวหน้า${userDept.name}` : 'หัวหน้างาน');
+        }
+
+        // 17. Approver dropdowns default to corresponding division deputy
+        if (t.tag_type === 'APPROVER_DROPDOWN' || t.tag_type === 'DEPUTY_DROPDOWN' || key === 'approver_name' || key === 'deputy_name') {
+          const currentDiv = (divisionsData || []).find((div: any) => (div.departments || []).some((d: any) => d.id === (proj.department_id || proj.department?.id)));
+          if (currentDiv && currentDiv.deputy_name) {
+            return currentDiv.deputy_name;
+          }
+        }
+        if (t.tag_type === 'APPROVER_POSITION' || t.tag_type === 'DEPUTY_POSITION' || key === 'approver_position' || key === 'deputy_position') {
+          const currentDiv = (divisionsData || []).find((div: any) => (div.departments || []).some((d: any) => d.id === (proj.department_id || proj.department?.id)));
+          if (currentDiv && currentDiv.deputy_position) {
+            return currentDiv.deputy_position;
+          }
         }
 
         // Tag type fallbacks
