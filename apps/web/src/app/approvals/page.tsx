@@ -759,70 +759,83 @@ export default function ApprovalsPage() {
               <p className="text-sm">ยังไม่มีประวัติการพิจารณาที่บันทึกไว้</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse min-w-[640px]">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                      <th className="py-3 px-4 w-12 text-center">ลำดับ</th>
-                      <th className="py-3 px-4">โครงการ</th>
-                      <th className="py-3 px-4">ขั้นตอน / สังกัด</th>
-                      <th className="py-3 px-4">ผลการพิจารณา</th>
-                      <th className="py-3 px-4">วันที่ลงนาม</th>
-                      <th className="py-3 px-4">ข้อคิดเห็น / คำสั่งการ</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {historyList.map((h, idx) => {
-                      const prj = h.project;
-                      const isApproved = h.status === 'APPROVED';
-                      const isRevision = h.status === 'REVISION_REQUESTED';
-                      const isRejected = h.status === 'REJECTED';
+            <div className="grid grid-cols-1 gap-3">
+              {historyList.map((h, idx) => {
+                const prj = h.project;
+                const isApproved = h.status === 'APPROVED';
+                const isRevision = h.status === 'REVISION_REQUESTED';
+                const isRejected = h.status === 'REJECTED';
 
-                      return (
-                        <tr key={h.id} className="hover:bg-slate-50">
-                          <td className="py-3 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                          <td className="py-3 px-4 font-medium text-slate-900 max-w-xs">
-                            <Link href={`/projects/${prj?.id}`} className="hover:text-blue-900 font-bold block truncate">
-                              {prj?.title}
-                            </Link>
-                            <span className="text-[11px] text-slate-500">
-                              ผู้เสนอ: {prj?.leader?.full_name} • งบ {Number(prj?.total_budget || 0).toLocaleString('th-TH')} บ.
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-slate-600">
-                            <span className="font-bold text-slate-800 block">{getStepTitle(h.step_order)}</span>
-                            <span className="text-[11px] text-slate-400">{prj?.department?.name}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            {isApproved && (
-                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3" /> อนุมัติเห็นชอบ
-                              </span>
-                            )}
-                            {isRevision && (
-                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
-                                <RotateCcw className="w-3 h-3" /> ส่งคำขอแก้ไข
-                              </span>
-                            )}
-                            {isRejected && (
-                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200 inline-flex items-center gap-1">
-                                <X className="w-3 h-3" /> ไม่อนุมัติ
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
-                            {formatThaiDate(h.signed_at || h.updated_at)}
-                          </td>
-                          <td className="py-3 px-4 text-slate-700 italic max-w-sm">
-                            "{h.comment || '-'}"
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                return (
+                  <div
+                    key={h.id}
+                    className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-md transition space-y-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-900 border border-blue-200">
+                          {getStepTitle(h.step_order)}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                          {prj?.department?.name} ({prj?.department?.division?.name})
+                        </span>
+                        {prj?.project_code && (
+                          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded">
+                            {prj.project_code}
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        {isApproved && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> อนุมัติเห็นชอบ
+                          </span>
+                        )}
+                        {isRevision && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                            <RotateCcw className="w-3.5 h-3.5 text-amber-600" /> ส่งคำขอแก้ไข
+                          </span>
+                        )}
+                        {isRejected && (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200 inline-flex items-center gap-1">
+                            <X className="w-3.5 h-3.5 text-rose-600" /> ไม่อนุมัติ
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <h3 className="text-base font-bold text-slate-900 hover:text-blue-900 transition">
+                        <Link href={`/projects/${prj?.id}`}>{prj?.title}</Link>
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-3 sm:gap-5 text-xs text-slate-600 pt-0.5">
+                        <div>
+                          <span className="text-slate-400">ผู้เสนอ:</span>{' '}
+                          <span className="font-medium text-slate-800">{prj?.leader?.full_name} ({prj?.leader?.position || 'ครู'})</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">งบประมาณ:</span>{' '}
+                          <span className="font-bold text-blue-900">
+                            {Number(prj?.total_budget || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">วันที่ลงนาม:</span>{' '}
+                          <span className="font-medium text-slate-800">{formatThaiDate(h.signed_at || h.updated_at)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {h.comment && (
+                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs text-slate-700 italic">
+                        <span className="font-bold not-italic text-slate-500 mr-1">ข้อคิดเห็น/คำสั่งการ:</span>
+                        "{h.comment}"
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -943,7 +956,7 @@ export default function ApprovalsPage() {
                   </button>
                 </div>
 
-                {/* Table of Tracking Projects */}
+                {/* Cards of Tracking Projects */}
                 {loadingTracking ? (
                   <div className="p-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200">
                     <div className="animate-spin inline-block w-8 h-8 border-4 border-theme-primary border-t-transparent rounded-full mb-2"></div>
@@ -956,157 +969,153 @@ export default function ApprovalsPage() {
                     <p className="text-xs text-slate-400">ยังไม่มีโครงการที่ตรงกับเงื่อนไขตัวกรองการดำเนินงานที่เลือก</p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse min-w-[760px]">
-                        <thead>
-                          <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                            <th className="py-3 px-4 w-12 text-center">ลำดับ</th>
-                            <th className="py-3 px-4">รหัส / ชื่อโครงการ</th>
-                            <th className="py-3 px-4">แผนก / ฝ่ายสังกัด</th>
-                            <th className="py-3 px-4 text-right">งบประมาณ</th>
-                            <th className="py-3 px-4 text-center">สถานะการดำเนินงานปัจจุบัน</th>
-                            <th className="py-3 px-4 text-center">เปลี่ยนสถานะ (งานแผนงาน)</th>
-                            <th className="py-3 px-4 text-center w-24">จัดการ</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {filteredTracking.map((p, idx) => {
-                            let dyn = p.dynamic_data;
-                            if (typeof dyn === 'string') { try { dyn = JSON.parse(dyn); } catch(e){} }
-                            const currentSub = dyn?.execution_sub_status || (p.status === 'completed' ? 'completed' : p.status === 'in_progress' ? 'in_progress' : 'approved');
-                            const isUpdating = updatingTrackingId === Number(p.id);
+                  <div className="grid grid-cols-1 gap-3">
+                    {filteredTracking.map((p, idx) => {
+                      let dyn = p.dynamic_data;
+                      if (typeof dyn === 'string') { try { dyn = JSON.parse(dyn); } catch(e){} }
+                      const currentSub = dyn?.execution_sub_status || (p.status === 'completed' ? 'completed' : p.status === 'in_progress' ? 'in_progress' : 'approved');
+                      const isUpdating = updatingTrackingId === Number(p.id);
 
-                            return (
-                              <tr key={p.id} className="hover:bg-slate-50 transition">
-                                <td className="py-3.5 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                                <td className="py-3.5 px-4 max-w-xs">
-                                  <div className="flex items-center gap-1.5 mb-0.5">
-                                    {p.project_code ? (
-                                      <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-900 border border-blue-200 rounded">
-                                        {p.project_code}
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">
-                                        ปี {p.fiscal_year}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <Link
-                                    href={`/projects/${p.id}`}
-                                    className="font-bold text-slate-900 hover:text-theme-primary transition block line-clamp-2"
-                                  >
-                                    {p.title}
-                                  </Link>
-                                  <span className="text-[11px] text-slate-500 block mt-0.5">
-                                    ผู้รับผิดชอบ: {p.leader?.full_name} ({p.leader?.position || 'ครู'})
-                                  </span>
-                                </td>
-                                <td className="py-3.5 px-4 text-slate-600">
-                                  <span className="font-semibold text-slate-800 block">{p.department?.name}</span>
-                                  <span className="text-[11px] text-slate-400">{p.department?.division?.name}</span>
-                                </td>
-                                <td className="py-3.5 px-4 text-right font-bold text-slate-900 whitespace-nowrap">
-                                  {Number(p.total_budget || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บ.
-                                </td>
-                                <td className="py-3.5 px-4 text-center">
-                                  {currentSub === 'approved' && (
-                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                      ๑. อนุมัติโครงการ
-                                    </span>
-                                  )}
-                                  {currentSub === 'permitted' && (
-                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 inline-flex items-center gap-1">
-                                      <PlayCircle className="w-3 h-3 text-indigo-600" />
-                                      ๒. อนุญาตดำเนินโครงการ
-                                    </span>
-                                  )}
-                                  {currentSub === 'in_progress' && (
-                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1 animate-pulse">
-                                      <Clock className="w-3 h-3 text-amber-600" />
-                                      ๓. ดำเนินโครงการ
-                                    </span>
-                                  )}
-                                  {currentSub === 'completed' && (
-                                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800 border border-teal-200 inline-flex items-center gap-1">
-                                      <CheckSquare className="w-3 h-3 text-teal-600" />
-                                      ๔. สรุปผลโครงการ
-                                    </span>
-                                  )}
-                                  {dyn?.execution_status_updated_at && (
-                                    <span className="block text-[10px] text-slate-400 mt-1">
-                                      อัปเดต: {formatThaiDate(dyn.execution_status_updated_at)}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="py-3.5 px-4 text-center">
-                                  <div className="inline-flex items-center gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-                                    <button
-                                      onClick={() => handleUpdateExecutionStatus(Number(p.id), 'approved')}
-                                      disabled={isUpdating || currentSub === 'approved'}
-                                      className={`px-2 py-1 rounded text-[10px] font-bold transition ${
-                                        currentSub === 'approved'
-                                          ? 'bg-emerald-600 text-white shadow-2xs'
-                                          : 'text-slate-600 hover:bg-white hover:text-emerald-700'
-                                      }`}
-                                      title="เปลี่ยนเป็น: อนุมัติโครงการ"
-                                    >
-                                      อนุมัติ
-                                    </button>
-                                    <button
-                                      onClick={() => handleUpdateExecutionStatus(Number(p.id), 'permitted')}
-                                      disabled={isUpdating || currentSub === 'permitted'}
-                                      className={`px-2 py-1 rounded text-[10px] font-bold transition ${
-                                        currentSub === 'permitted'
-                                          ? 'bg-indigo-600 text-white shadow-2xs'
-                                          : 'text-slate-600 hover:bg-white hover:text-indigo-700'
-                                      }`}
-                                      title="เปลี่ยนเป็น: อนุญาตดำเนินโครงการ"
-                                    >
-                                      อนุญาต
-                                    </button>
-                                    <button
-                                      onClick={() => handleUpdateExecutionStatus(Number(p.id), 'in_progress')}
-                                      disabled={isUpdating || currentSub === 'in_progress'}
-                                      className={`px-2 py-1 rounded text-[10px] font-bold transition ${
-                                        currentSub === 'in_progress'
-                                          ? 'bg-amber-600 text-white shadow-2xs'
-                                          : 'text-slate-600 hover:bg-white hover:text-amber-700'
-                                      }`}
-                                      title="เปลี่ยนเป็น: ดำเนินโครงการ"
-                                    >
-                                      ดำเนินงาน
-                                    </button>
-                                    <button
-                                      onClick={() => handleUpdateExecutionStatus(Number(p.id), 'completed')}
-                                      disabled={isUpdating || currentSub === 'completed'}
-                                      className={`px-2 py-1 rounded text-[10px] font-bold transition ${
-                                        currentSub === 'completed'
-                                          ? 'bg-teal-600 text-white shadow-2xs'
-                                          : 'text-slate-600 hover:bg-white hover:text-teal-700'
-                                      }`}
-                                      title="เปลี่ยนเป็น: สรุปผลโครงการ"
-                                    >
-                                      สรุปผล
-                                    </button>
-                                  </div>
-                                </td>
-                                <td className="py-3.5 px-4 text-center">
-                                  <Link
-                                    href={`/projects/${p.id}`}
-                                    className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold inline-flex items-center gap-1 shadow-2xs transition"
-                                  >
-                                    <span>เปิดดู</span>
-                                    <ExternalLink className="w-3 h-3 text-slate-400" />
-                                  </Link>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                      return (
+                        <div
+                          key={p.id}
+                          className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-md transition space-y-3"
+                        >
+                          {/* Top row: Badges, Department, Budget */}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {p.project_code ? (
+                                <span className="font-mono text-[11px] font-bold px-2 py-0.5 bg-blue-50 text-blue-900 border border-blue-200 rounded">
+                                  {p.project_code}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded">
+                                  ปี {p.fiscal_year}
+                                </span>
+                              )}
+                              <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                                {p.department?.name} ({p.department?.division?.name})
+                              </span>
+                            </div>
+
+                            <div className="text-right">
+                              <span className="text-xs font-bold text-blue-900 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100 inline-block">
+                                งบ {Number(p.total_budget || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Title & Leader */}
+                          <div className="space-y-1">
+                            <h3 className="text-base font-bold text-slate-900 hover:text-theme-primary transition">
+                              <Link href={`/projects/${p.id}`}>{p.title}</Link>
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                              ผู้รับผิดชอบ: <span className="font-medium text-slate-800">{p.leader?.full_name} ({p.leader?.position || 'ครู'})</span>
+                            </p>
+                          </div>
+
+                          {/* Status & Change Buttons */}
+                          <div className="pt-3 border-t border-slate-100 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                            {/* Current Status Badge */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs text-slate-400 font-medium">สถานะ:</span>
+                              {currentSub === 'approved' && (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  ๑. อนุมัติโครงการ
+                                </span>
+                              )}
+                              {currentSub === 'permitted' && (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 inline-flex items-center gap-1">
+                                  <PlayCircle className="w-3.5 h-3.5 text-indigo-600" />
+                                  ๒. อนุญาตดำเนินโครงการ
+                                </span>
+                              )}
+                              {currentSub === 'in_progress' && (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 inline-flex items-center gap-1 animate-pulse">
+                                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                  ๓. ดำเนินโครงการ
+                                </span>
+                              )}
+                              {currentSub === 'completed' && (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200 inline-flex items-center gap-1">
+                                  <CheckSquare className="w-3.5 h-3.5 text-teal-600" />
+                                  ๔. สรุปผลโครงการ
+                                </span>
+                              )}
+                              {dyn?.execution_status_updated_at && (
+                                <span className="text-[10px] text-slate-400">
+                                  (อัปเดต {formatThaiDate(dyn.execution_status_updated_at)})
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Status Changer Toolbar & Open Project */}
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                              <div className="grid grid-cols-4 gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                                <button
+                                  onClick={() => handleUpdateExecutionStatus(Number(p.id), 'approved')}
+                                  disabled={isUpdating || currentSub === 'approved'}
+                                  className={`px-2.5 py-1.5 rounded text-[11px] font-bold transition text-center ${
+                                    currentSub === 'approved'
+                                      ? 'bg-emerald-600 text-white shadow-2xs'
+                                      : 'text-slate-600 hover:bg-white hover:text-emerald-700'
+                                  }`}
+                                  title="เปลี่ยนเป็น: ๑. อนุมัติโครงการ"
+                                >
+                                  อนุมัติ
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateExecutionStatus(Number(p.id), 'permitted')}
+                                  disabled={isUpdating || currentSub === 'permitted'}
+                                  className={`px-2.5 py-1.5 rounded text-[11px] font-bold transition text-center ${
+                                    currentSub === 'permitted'
+                                      ? 'bg-indigo-600 text-white shadow-2xs'
+                                      : 'text-slate-600 hover:bg-white hover:text-indigo-700'
+                                  }`}
+                                  title="เปลี่ยนเป็น: ๒. อนุญาตดำเนินโครงการ"
+                                >
+                                  อนุญาต
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateExecutionStatus(Number(p.id), 'in_progress')}
+                                  disabled={isUpdating || currentSub === 'in_progress'}
+                                  className={`px-2.5 py-1.5 rounded text-[11px] font-bold transition text-center ${
+                                    currentSub === 'in_progress'
+                                      ? 'bg-amber-600 text-white shadow-2xs'
+                                      : 'text-slate-600 hover:bg-white hover:text-amber-700'
+                                  }`}
+                                  title="เปลี่ยนเป็น: ๓. ดำเนินโครงการ"
+                                >
+                                  ดำเนินงาน
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateExecutionStatus(Number(p.id), 'completed')}
+                                  disabled={isUpdating || currentSub === 'completed'}
+                                  className={`px-2.5 py-1.5 rounded text-[11px] font-bold transition text-center ${
+                                    currentSub === 'completed'
+                                      ? 'bg-teal-600 text-white shadow-2xs'
+                                      : 'text-slate-600 hover:bg-white hover:text-teal-700'
+                                  }`}
+                                  title="เปลี่ยนเป็น: ๔. สรุปผลโครงการ"
+                                >
+                                  สรุปผล
+                                </button>
+                              </div>
+
+                              <Link
+                                href={`/projects/${p.id}`}
+                                className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold inline-flex items-center justify-center gap-1 shadow-2xs transition shrink-0"
+                              >
+                                <span>เปิดดู</span>
+                                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
