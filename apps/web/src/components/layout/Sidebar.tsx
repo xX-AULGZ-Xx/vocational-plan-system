@@ -90,8 +90,9 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
         { name: 'แผนปฏิบัติงาน / ปฏิทิน', href: '/schedule', icon: Calendar },
       ];
 
-  const showDivisions = user && ['DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'].includes(role);
-  const divisionNav = showDivisions ? allDivisionNav : [];
+  // Division navigation available to all users
+  const showDivisions = true;
+  const divisionNav = allDivisionNav;
 
   const adminNav = user ? allAdminNav.filter((item) => item.roles.includes(role)) : [];
 
