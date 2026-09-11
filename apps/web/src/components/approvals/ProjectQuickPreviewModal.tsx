@@ -69,9 +69,9 @@ export default function ProjectQuickPreviewModal({
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 overflow-hidden">
         
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-blue-900 text-white p-5 flex items-start justify-between gap-4 shrink-0">
-          <div className="space-y-1.5 flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
+        <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-blue-900 text-white p-4 sm:p-5 flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4 shrink-0">
+          <div className="space-y-1.5 flex-1 min-w-0 w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-blue-500/30 text-blue-200 border border-blue-400/30 text-[11px] font-bold">
                 ขั้นที่ {approvalStep}
               </span>
@@ -84,23 +84,23 @@ export default function ProjectQuickPreviewModal({
                 </span>
               )}
             </div>
-            <h2 className="text-lg sm:text-xl font-bold leading-snug truncate">
+            <h2 className="text-base sm:text-xl font-bold leading-snug line-clamp-2">
               {project.title}
             </h2>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-slate-300">
               <span className="flex items-center gap-1">
-                <Building className="w-3.5 h-3.5 text-blue-400" />
-                {project.department?.name} ({project.department?.division?.name || 'ฝ่ายวิชาการ'})
+                <Building className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span>{project.department?.name} ({project.department?.division?.name || 'ฝ่ายวิชาการ'})</span>
               </span>
               <span>•</span>
               <span className="flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-amber-400" />
-                ผู้เสนอ: {project.leader?.full_name} ({project.leader?.position || 'ครู'})
+                <User className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>ผู้เสนอ: {project.leader?.full_name} ({project.leader?.position || 'ครู'})</span>
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-white/10">
             <Link
               href={`/projects/${project.id}`}
               target="_blank"
@@ -119,11 +119,11 @@ export default function ProjectQuickPreviewModal({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto shrink-0">
+        <div className="bg-slate-100 px-3 sm:px-4 py-2 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-nowrap shrink-0">
           {[
             { id: 'overview', label: 'ภาพรวมโครงการ', icon: FileText },
             { id: 'budget', label: `งบประมาณ (${totalBudget.toLocaleString('th-TH')} บ.)`, icon: DollarSign },
-            { id: 'timeline', label: `กำหนดการ (${project.timelines?.length || 0} กิจกรรม)`, icon: Calendar },
+            { id: 'timeline', label: `กำหนดการ (${project.timelines?.length || 0})`, icon: Calendar },
             { id: 'docs', label: `เอกสารแนบ (${project.documents?.length || 0})`, icon: Paperclip },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -132,7 +132,7 @@ export default function ProjectQuickPreviewModal({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'bg-blue-900 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -146,11 +146,11 @@ export default function ProjectQuickPreviewModal({
         </div>
 
         {/* Modal Body Content */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-5 text-slate-800 text-xs sm:text-sm">
+        <div className="p-3.5 sm:p-6 overflow-y-auto flex-1 space-y-4 sm:space-y-5 text-slate-800 text-xs sm:text-sm">
           {activeTab === 'overview' && (
             <div className="space-y-4">
               {/* Background / Rationale */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+              <div className="p-3.5 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                 <h4 className="font-bold text-slate-900 flex items-center gap-1.5 text-xs uppercase tracking-wider text-blue-900">
                   <FileText className="w-4 h-4" /> หลักการและเหตุผล
                 </h4>
@@ -160,7 +160,7 @@ export default function ProjectQuickPreviewModal({
               </div>
 
               {/* Objectives */}
-              <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2">
+              <div className="p-3.5 sm:p-4 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2">
                 <h4 className="font-bold text-blue-950 flex items-center gap-1.5 text-xs uppercase tracking-wider">
                   <Target className="w-4 h-4 text-blue-900" /> วัตถุประสงค์ของโครงการ
                 </h4>
@@ -200,54 +200,56 @@ export default function ProjectQuickPreviewModal({
 
           {activeTab === 'budget' && (
             <div className="space-y-4">
-              <div className="p-4 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-xl flex items-center justify-between">
+              <div className="p-3.5 sm:p-4 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-xl flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs text-blue-200 font-medium">งบประมาณรวมทั้งสิ้น</p>
-                  <p className="text-2xl font-black">{totalBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท</p>
+                  <p className="text-xl sm:text-2xl font-black">{totalBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท</p>
                 </div>
-                <div className="px-3 py-1.5 rounded-lg bg-white/10 text-xs font-bold">
-                  {project.budget_items?.length || 0} รายการค่าใช้จ่าย
+                <div className="px-3 py-1.5 rounded-lg bg-white/10 text-xs font-bold shrink-0">
+                  {project.budget_items?.length || 0} รายการ
                 </div>
               </div>
 
               {/* Budget Table */}
               <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                      <th className="py-2.5 px-3 w-12 text-center">ลำดับ</th>
-                      <th className="py-2.5 px-3">รายการค่าใช้จ่าย</th>
-                      <th className="py-2.5 px-3">หมวดงบ</th>
-                      <th className="py-2.5 px-3 text-right">จำนวน</th>
-                      <th className="py-2.5 px-3">หน่วย</th>
-                      <th className="py-2.5 px-3 text-right">ราคา/หน่วย</th>
-                      <th className="py-2.5 px-3 text-right">รวมเป็นเงิน</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {(project.budget_items || []).length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="text-center py-6 text-slate-400">
-                          ไม่มีรายการค่าใช้จ่าย
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse min-w-[560px]">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                        <th className="py-2.5 px-3 w-12 text-center">ลำดับ</th>
+                        <th className="py-2.5 px-3">รายการค่าใช้จ่าย</th>
+                        <th className="py-2.5 px-3">หมวดงบ</th>
+                        <th className="py-2.5 px-3 text-right">จำนวน</th>
+                        <th className="py-2.5 px-3">หน่วย</th>
+                        <th className="py-2.5 px-3 text-right">ราคา/หน่วย</th>
+                        <th className="py-2.5 px-3 text-right">รวมเป็นเงิน</th>
                       </tr>
-                    ) : (
-                      project.budget_items.map((item: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-slate-50">
-                          <td className="py-2 px-3 text-center text-slate-400 font-bold">{idx + 1}</td>
-                          <td className="py-2 px-3 font-medium text-slate-900">{item.description}</td>
-                          <td className="py-2 px-3 text-slate-600">{item.category?.name || '-'}</td>
-                          <td className="py-2 px-3 text-right font-mono">{Number(item.quantity).toLocaleString()}</td>
-                          <td className="py-2 px-3 text-slate-500">{item.unit}</td>
-                          <td className="py-2 px-3 text-right font-mono">{Number(item.unit_price).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-                          <td className="py-2 px-3 text-right font-mono font-bold text-blue-900">
-                            {Number(item.total_amount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(project.budget_items || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="text-center py-6 text-slate-400">
+                            ไม่มีรายการค่าใช้จ่าย
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        project.budget_items.map((item: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="py-2 px-3 text-center text-slate-400 font-bold">{idx + 1}</td>
+                            <td className="py-2 px-3 font-medium text-slate-900">{item.description}</td>
+                            <td className="py-2 px-3 text-slate-600">{item.category?.name || '-'}</td>
+                            <td className="py-2 px-3 text-right font-mono">{Number(item.quantity).toLocaleString()}</td>
+                            <td className="py-2 px-3 text-slate-500">{item.unit}</td>
+                            <td className="py-2 px-3 text-right font-mono">{Number(item.unit_price).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-2 px-3 text-right font-mono font-bold text-blue-900">
+                              {Number(item.total_amount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -262,7 +264,7 @@ export default function ProjectQuickPreviewModal({
                   <p className="text-center py-8 text-slate-400 text-xs">ไม่มีกำหนดการกิจกรรม</p>
                 ) : (
                   project.timelines.map((t: any, idx: number) => (
-                    <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
+                    <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
                       <div className="flex items-center gap-3">
                         <span className="w-6 h-6 rounded-lg bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
                           {idx + 1}
@@ -272,8 +274,8 @@ export default function ProjectQuickPreviewModal({
                           {t.location && <p className="text-[11px] text-slate-500">สถานที่: {t.location}</p>}
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-[11px] font-semibold text-slate-600 bg-white px-2.5 py-1 rounded-md border border-slate-200">
+                      <div className="sm:text-right shrink-0 pl-9 sm:pl-0">
+                        <span className="text-[11px] font-semibold text-slate-600 bg-white px-2.5 py-1 rounded-md border border-slate-200 inline-block">
                           {formatThaiDate(t.start_date)} - {formatThaiDate(t.end_date)}
                         </span>
                       </div>
@@ -320,18 +322,18 @@ export default function ProjectQuickPreviewModal({
         </div>
 
         {/* Modal Action Footer */}
-        <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
+        <div className="bg-slate-50 p-3.5 sm:p-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition"
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition text-center"
           >
             ปิดหน้าต่าง
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
             <button
               onClick={() => onActionClick('REVISE')}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white shadow-xs transition flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white shadow-xs transition flex items-center justify-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>ขอแก้ไข</span>
@@ -339,7 +341,7 @@ export default function ProjectQuickPreviewModal({
 
             <button
               onClick={() => onActionClick('REJECT')}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-xs transition flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-xs transition flex items-center justify-center gap-1.5"
             >
               <X className="w-3.5 h-3.5" />
               <span>ไม่อนุมัติ</span>
@@ -347,7 +349,7 @@ export default function ProjectQuickPreviewModal({
 
             <button
               onClick={() => onActionClick('APPROVE')}
-              className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition flex items-center gap-1.5"
+              className="col-span-2 sm:col-auto px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition flex items-center justify-center gap-1.5"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>อนุมัติ / เห็นชอบโครงการ</span>
