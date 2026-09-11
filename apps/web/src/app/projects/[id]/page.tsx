@@ -379,20 +379,17 @@ export default function ProjectDetailPage() {
   const isRejected = project.status === 'rejected';
   const latestRevisionOrReject = [...(project.approvals || [])].reverse().find((a: any) => a.status === 'REVISION_REQUESTED' || a.status === 'REJECTED');
   const hasRevisionRequested = isDraft && latestRevisionOrReject?.status === 'REVISION_REQUESTED';
-  const isOwnerOrAdmin = user && (user.id === project.leader?.id || user.role === 'ADMIN');
+  const isOwnerOrAdmin = user && (user.id === project.leader?.id || user.role === 'ADMIN' || user.role === 'PLANNING_OFFICER' || user.role === 'HEAD_DEPT' || user.role === 'DEPUTY_DIRECTOR');
   const isAdmin = user?.role === 'ADMIN';
 
-  // Check if project has reached or passed Director approval stage (Step 4 / planning_approved / approved / completed)
-  const isAtOrPastDirectorStage =
-    project.status === 'planning_approved' ||
+  // Check if project is completely approved or completed
+  const isFinalApprovedOrCompleted =
     project.status === 'approved' ||
     project.status === 'in_progress' ||
-    project.status === 'completed' ||
-    (pendingApproval && pendingApproval.step_order >= 4) ||
-    project.approvals?.some((a: any) => a.step_order === 4 && (a.status === 'APPROVED' || a.status === 'PENDING'));
+    project.status === 'completed';
 
-  const canEditProject = isOwnerOrAdmin && (isDraft || isRejected) && !isAtOrPastDirectorStage;
-  const canDeleteProject = !isAtOrPastDirectorStage && (isAdmin || (isOwnerOrAdmin && (isDraft || isRejected)));
+  const canEditProject = isOwnerOrAdmin && !isFinalApprovedOrCompleted;
+  const canDeleteProject = !isFinalApprovedOrCompleted && (isAdmin || (user && user.id === project.leader?.id && (isDraft || isRejected)));
   const canUploadDoc = user && (user.id === project.leader?.id || user.role === 'ADMIN' || user.role === 'PLANNING_OFFICER');
   const canApprove =
     user &&

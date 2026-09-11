@@ -323,12 +323,27 @@ export default function ProjectQuickPreviewModal({
 
         {/* Modal Action Footer */}
         <div className="bg-slate-50 p-3.5 sm:p-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition text-center"
-          >
-            ปิดหน้าต่าง
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition text-center"
+            >
+              ปิดหน้าต่าง
+            </button>
+            <Link
+              href={`/projects/${project.id}`}
+              className="px-3 py-2 rounded-xl text-xs font-semibold text-blue-900 hover:bg-blue-50 transition flex items-center gap-1"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>ดูฉบับเต็ม</span>
+            </Link>
+            <Link
+              href={`/projects/${project.id}/edit`}
+              className="px-3 py-2 rounded-xl text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition flex items-center gap-1"
+            >
+              <span>แก้ไขโครงการ</span>
+            </Link>
+          </div>
 
           <div className="grid grid-cols-2 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
             <button

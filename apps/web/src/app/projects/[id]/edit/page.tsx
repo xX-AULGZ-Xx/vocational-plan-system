@@ -77,9 +77,10 @@ export default function EditProjectPage() {
       const data = await res.json();
       if (data.success && data.data) {
         const proj = data.data;
-        if (proj.status !== 'draft' && proj.status !== 'rejected') {
-          await showAlert.warning('ไม่สามารถแก้ไขได้', 'ไม่สามารถแก้ไขโครงการที่กำลังอยู่ในขั้นตอนการพิจารณาหรืออนุมัติแล้วได้');
-          router.push('/my-projects');
+        const isApprovedOrCompleted = proj.status === 'approved' || proj.status === 'in_progress' || proj.status === 'completed';
+        if (isApprovedOrCompleted) {
+          await showAlert.warning('ไม่สามารถแก้ไขได้', 'ไม่สามารถแก้ไขโครงการที่ได้รับการอนุมัติขั้นสุดท้ายหรือเสร็จสิ้นแล้วได้');
+          router.push(`/projects/${projectId}`);
           return;
         }
 

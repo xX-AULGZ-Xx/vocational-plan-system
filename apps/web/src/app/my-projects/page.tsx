@@ -485,7 +485,7 @@ export default function MyProjectsPage() {
 
                   {/* Actions */}
                   <div className="flex flex-wrap items-center gap-2 shrink-0 self-start md:self-auto">
-                    {(p.status === 'draft' || p.status === 'rejected' || stepInfo.isRevision) && (
+                    {(p.status !== 'approved' && p.status !== 'in_progress' && p.status !== 'completed') && (
                       <Link
                         href={`/projects/${p.id}/edit`}
                         className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-theme border border-amber-200 transition"
