@@ -93,6 +93,8 @@ export default function ApprovalsPage() {
   useEffect(() => {
     fetchInbox();
     fetchStats();
+    fetchHistory();
+    fetchTracking();
   }, [token]);
 
   useEffect(() => {
@@ -111,15 +113,12 @@ export default function ApprovalsPage() {
       if (event.scope === 'PROJECTS' || event.scope === 'APPROVALS') {
         fetchInbox();
         fetchStats();
-        if (currentTab === 'history') {
-          fetchHistory();
-        } else if (currentTab === 'tracking') {
-          fetchTracking();
-        }
+        fetchHistory();
+        fetchTracking();
       }
     });
     return () => unsubscribe();
-  }, [subscribeDataUpdate, currentTab, token]);
+  }, [subscribeDataUpdate, token]);
 
   const getAuthToken = () => {
     return token || (typeof window !== 'undefined' ? (localStorage.getItem('vps_token') || localStorage.getItem('token') || localStorage.getItem('access_token')) : null);
@@ -451,7 +450,7 @@ export default function ApprovalsPage() {
         >
           <ListChecks className="w-4 h-4 shrink-0" />
           <span>รายการรอพิจารณา</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] ${currentTab === 'inbox' ? 'bg-theme-primary text-white' : 'bg-slate-200 text-slate-700'}`}>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${currentTab === 'inbox' ? 'bg-theme-primary text-white' : 'bg-slate-200 text-slate-700'}`}>
             {inbox.length}
           </span>
         </button>
@@ -466,11 +465,9 @@ export default function ApprovalsPage() {
         >
           <History className="w-4 h-4 shrink-0" />
           <span>ประวัติที่พิจารณาแล้ว</span>
-          {historyList.length > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[11px] bg-slate-200 text-slate-700">
-              {historyList.length}
-            </span>
-          )}
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${currentTab === 'history' ? 'bg-theme-primary text-white' : 'bg-slate-200 text-slate-700'}`}>
+            {historyList.length}
+          </span>
         </button>
 
         <button
@@ -483,11 +480,9 @@ export default function ApprovalsPage() {
         >
           <PlayCircle className="w-4 h-4 shrink-0" />
           <span>ติดตามการดำเนินโครงการ</span>
-          {trackingList.length > 0 && (
-            <span className={`px-2 py-0.5 rounded-full text-[11px] ${currentTab === 'tracking' ? 'bg-theme-primary text-white' : 'bg-slate-200 text-slate-700'}`}>
-              {trackingList.length}
-            </span>
-          )}
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${currentTab === 'tracking' ? 'bg-theme-primary text-white' : 'bg-slate-200 text-slate-700'}`}>
+            {trackingList.length}
+          </span>
         </button>
 
         <button
