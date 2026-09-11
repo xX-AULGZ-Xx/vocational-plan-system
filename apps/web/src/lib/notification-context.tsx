@@ -1,6 +1,7 @@
-'use client';
+﻿'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { useAuth } from './auth-context';
 import { showAlert } from './sweetalert';
 
@@ -17,8 +18,8 @@ export interface NotificationItem {
 }
 
 export interface DataUpdateEvent {
-  scope: 'PROJECTS' | 'APPROVALS' | 'SYSTEM';
-  action: 'CREATED' | 'UPDATED' | 'DELETED' | 'SUBMITTED' | 'APPROVED' | 'REVISED' | 'REJECTED';
+  scope: 'PROJECTS' | 'APPROVALS' | 'SYSTEM' | 'EVALUATION';
+  action: 'CREATED' | 'UPDATED' | 'DELETED' | 'SUBMITTED' | 'APPROVED' | 'REVISED' | 'REJECTED' | string;
   projectId?: string;
   status?: string;
   stepOrder?: number;
@@ -26,13 +27,16 @@ export interface DataUpdateEvent {
   leaderId?: string;
   departmentId?: number;
   approverId?: string;
+  execution_status?: string;
   timestamp: string;
+  [key: string]: any;
 }
 
 interface NotificationContextType {
   notifications: NotificationItem[];
   unreadCount: number;
   isLoading: boolean;
+  isConnected: boolean;
   lastDataUpdate: DataUpdateEvent | null;
   fetchNotifications: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
@@ -45,6 +49,7 @@ const NotificationContext = createContext<NotificationContextType>({
   notifications: [],
   unreadCount: 0,
   isLoading: false,
+  isConnected: false,
   lastDataUpdate: null,
   fetchNotifications: async () => {},
   markAsRead: async () => {},
@@ -58,7 +63,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
   const [lastDataUpdate, setLastDataUpdate] = useState<DataUpdateEvent | null>(null);
+
+  const socketRef = useRef<Socket | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const dataUpdateListenersRef = useRef<Set<(event: DataUpdateEvent) => void>>(new Set());
 
@@ -69,7 +77,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     };
   }, []);
 
-  // Play subtle notification audio if supported
+  // Play subtle chime sound when real-time notification arrives
   const playNotificationSound = () => {
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -88,6 +96,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       // AudioContext might be blocked until user interaction
     }
   };
+
+  const handleIncomingNotification = useCallback((newNoti: NotificationItem) => {
+    setNotifications((prev) => [newNoti, ...prev.filter((item) => item.id !== newNoti.id)]);
+    setUnreadCount((prev) => prev + 1);
+    playNotificationSound();
+    showAlert.toast?.(newNoti.title, 'info');
+  }, []);
+
+  const handleIncomingDataUpdate = useCallback((data: DataUpdateEvent) => {
+    setLastDataUpdate(data);
+    dataUpdateListenersRef.current.forEach((listener) => {
+      try {
+        listener(data);
+      } catch (listenerErr) {
+        console.error('[Realtime] Listener error on data_update:', listenerErr);
+      }
+    });
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
     if (!token) return;
@@ -112,88 +138,140 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [token]);
 
-  // Initial fetch and SSE Connection setup
+  // Establish Real-time Connection (WebSocket with SSE Fallback)
   useEffect(() => {
     if (!token || !user) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
       setNotifications([]);
       setUnreadCount(0);
+      setIsConnected(false);
       return;
     }
 
     fetchNotifications();
 
-    // Setup Server-Sent Events (SSE) Stream
-    const sseUrl = `/api/v1/notifications/stream?token=${encodeURIComponent(token)}`;
-    const eventSource = new EventSource(sseUrl);
-    eventSourceRef.current = eventSource;
+    let isSocketConnected = false;
 
-    eventSource.addEventListener('connected', () => {
-      console.log('[SSE] Connected to real-time notification stream');
+    // 1. Primary Real-time Transport: WebSocket (Socket.IO)
+    const socket = io({
+      path: '/socket.io',
+      auth: { token },
+      query: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
-    eventSource.addEventListener('unread_count', (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (typeof data.count === 'number') {
-          setUnreadCount(data.count);
-        }
-      } catch (err) {
-        console.error('SSE unread_count parse error:', err);
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('⚡ [WebSocket] Connected successfully to notification gateway');
+      isSocketConnected = true;
+      setIsConnected(true);
+
+      // If SSE fallback was active, we can close it
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
       }
     });
 
-    eventSource.addEventListener('notification', (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.action === 'NEW_NOTIFICATION' && data.notification) {
-          const newNoti: NotificationItem = data.notification;
-          setNotifications((prev) => [newNoti, ...prev.filter((item) => item.id !== newNoti.id)]);
-          setUnreadCount((prev) => prev + 1);
-          playNotificationSound();
+    socket.on('disconnect', (reason) => {
+      console.log('🔌 [WebSocket] Disconnected:', reason);
+      isSocketConnected = false;
+      setIsConnected(false);
+    });
 
-          // Display lightweight toast
-          showAlert.toast?.(newNoti.title, 'info');
-        }
-      } catch (err) {
-        console.error('SSE notification parse error:', err);
+    socket.on('notification', (payload: any) => {
+      if (payload?.action === 'NEW_NOTIFICATION' && payload?.notification) {
+        handleIncomingNotification(payload.notification);
       }
     });
 
-    eventSource.addEventListener('data_update', (e) => {
+    socket.on('unread_count', (payload: any) => {
+      if (typeof payload?.count === 'number') {
+        setUnreadCount(payload.count);
+      }
+    });
+
+    socket.on('data_update', (data: DataUpdateEvent) => {
+      handleIncomingDataUpdate(data);
+    });
+
+    // 2. Secondary Fallback Transport: Server-Sent Events (SSE) if WebSocket fails
+    const connectSSEFallback = () => {
+      if (isSocketConnected || eventSourceRef.current) return;
       try {
-        const data = JSON.parse(e.data) as DataUpdateEvent;
-        setLastDataUpdate(data);
-        // Notify all active page subscribers
-        dataUpdateListenersRef.current.forEach((listener) => {
-          try {
-            listener(data);
-          } catch (listenerErr) {
-            console.error('[SSE] Listener error on data_update:', listenerErr);
-          }
+        const sseUrl = `/api/v1/notifications/stream?token=${encodeURIComponent(token)}`;
+        const eventSource = new EventSource(sseUrl);
+        eventSourceRef.current = eventSource;
+
+        eventSource.addEventListener('connected', () => {
+          console.log('📡 [SSE Fallback] Connected to notification stream');
+          setIsConnected(true);
         });
-      } catch (err) {
-        console.error('SSE data_update parse error:', err);
-      }
-    });
 
-    eventSource.onerror = (err) => {
-      // If EventSource fails due to 401 Unauthorized or broken connection, close and do not loop endlessly
-      if (eventSource.readyState === EventSource.CLOSED) {
-        console.warn('[SSE] EventSource connection closed.');
-      } else {
-        console.warn('[SSE] EventSource error or reconnection attempt:', err);
+        eventSource.addEventListener('unread_count', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (typeof data.count === 'number') {
+              setUnreadCount(data.count);
+            }
+          } catch (err) {}
+        });
+
+        eventSource.addEventListener('notification', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.action === 'NEW_NOTIFICATION' && data.notification) {
+              handleIncomingNotification(data.notification);
+            }
+          } catch (err) {}
+        });
+
+        eventSource.addEventListener('data_update', (e) => {
+          try {
+            const data = JSON.parse(e.data) as DataUpdateEvent;
+            handleIncomingDataUpdate(data);
+          } catch (err) {}
+        });
+
+        eventSource.onerror = () => {
+          if (eventSource.readyState === EventSource.CLOSED) {
+            console.warn('[SSE Fallback] Connection closed.');
+          }
+        };
+      } catch (sseErr) {
+        console.warn('[SSE Fallback] Initialization error:', sseErr);
       }
     };
+
+    socket.on('connect_error', () => {
+      if (!isSocketConnected) {
+        connectSSEFallback();
+      }
+    });
 
     return () => {
-      eventSource.close();
-      eventSourceRef.current = null;
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
     };
-  }, [token, user, fetchNotifications]);
+  }, [token, user, fetchNotifications, handleIncomingNotification, handleIncomingDataUpdate]);
 
   const markAsRead = async (id: string) => {
     if (!token) return;
@@ -261,6 +339,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         notifications,
         unreadCount,
         isLoading,
+        isConnected,
         lastDataUpdate,
         fetchNotifications,
         markAsRead,

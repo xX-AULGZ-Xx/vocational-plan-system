@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import http from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -17,9 +18,14 @@ import evaluationRouter from './modules/evaluation/evaluation.controller';
 import notificationsRouter from './modules/notifications/notifications.controller';
 import setupRouter from './modules/setup/setup.controller';
 import systemUpdateRouter from './modules/system-update/update.controller';
+import { wsManager } from './modules/notifications/socket.manager';
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+
+// Initialize WebSocket (Socket.IO)
+wsManager.initialize(server);
 
 // Middlewares
 app.use(cors({ origin: true, credentials: true }));
@@ -104,10 +110,10 @@ async function autoSyncDatabase() {
   }
 }
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(`  วก.เชียงราย - ระบบบริหารจัดการงานแผนงานและโครงการ API`);
-  console.log(`  Server running on http://localhost:${PORT}`);
+  console.log(`  Server & WebSocket running on http://localhost:${PORT}`);
   console.log(`=======================================================`);
   autoSyncDatabase();
 });

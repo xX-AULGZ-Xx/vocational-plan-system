@@ -19,7 +19,7 @@ import {
 
 export default function NotificationBell() {
   const router = useRouter();
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, isLoading } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, isLoading, isConnected } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -92,7 +92,7 @@ export default function NotificationBell() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition focus:outline-hidden"
-        title="การแจ้งเตือน (Notifications)"
+        title={isConnected ? "การแจ้งเตือน Realtime (ออนไลน์)" : "การแจ้งเตือน (Notifications)"}
         aria-label="การแจ้งเตือน"
       >
         <Bell className="w-5 h-5" />
@@ -110,6 +110,12 @@ export default function NotificationBell() {
           <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm text-slate-800">การแจ้งเตือน</span>
+              {isConnected && (
+                <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200" title="เชื่อมต่อ WebSocket แบบ Real-time สำเร็จ">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live
+                </span>
+              )}
               {unreadCount > 0 && (
                 <span className="bg-rose-100 text-rose-700 text-[11px] font-semibold px-2 py-0.5 rounded-full">
                   {unreadCount} ใหม่

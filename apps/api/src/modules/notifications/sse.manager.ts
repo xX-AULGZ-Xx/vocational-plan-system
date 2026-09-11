@@ -1,4 +1,5 @@
-﻿import { Response } from 'express';
+import { Response } from 'express';
+import { wsManager } from './socket.manager';
 
 interface SSEClient {
   userId: string;
@@ -36,6 +37,11 @@ class SSEManager {
   }
 
   public sendToUser(userId: string, eventName: string, data: any) {
+    // Forward to WebSocket
+    try {
+      wsManager.sendToUser(userId, eventName, data);
+    } catch (e) {}
+
     const targetClients = this.clients.filter((c) => c.userId === userId.toString());
     const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
 
@@ -49,6 +55,11 @@ class SSEManager {
   }
 
   public broadcast(eventName: string, data: any) {
+    // Forward to WebSocket
+    try {
+      wsManager.broadcast(eventName, data);
+    } catch (e) {}
+
     const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
     this.clients.forEach((client) => {
       try {

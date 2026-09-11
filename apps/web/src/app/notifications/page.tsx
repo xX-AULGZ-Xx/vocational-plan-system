@@ -23,7 +23,7 @@ import {
 export default function NotificationsPage() {
   const { user, token } = useAuth();
   const router = useRouter();
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, fetchNotifications, isLoading } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, fetchNotifications, isLoading, isConnected } = useNotifications();
   const [filterType, setFilterType] = useState<string>('all'); // all, unread, approval, revision
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -96,14 +96,20 @@ export default function NotificationsPage() {
             <Bell className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <span>ศูนย์การแจ้งเตือน</span>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-black text-slate-900">ศูนย์การแจ้งเตือน</h1>
+              {isConnected && (
+                <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200" title="เชื่อมต่อ WebSocket Real-time">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Real-time
+                </span>
+              )}
               {unreadCount > 0 && (
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold border border-rose-200">
                   {unreadCount} ข้อความใหม่
                 </span>
               )}
-            </h1>
+            </div>
             <p className="text-xs text-slate-500 mt-0.5">
               ติดตามความเคลื่อนไหว ผลการพิจารณาอนุมัติโครงการ และข้อเสนอแนะแบบ Real-time
             </p>
