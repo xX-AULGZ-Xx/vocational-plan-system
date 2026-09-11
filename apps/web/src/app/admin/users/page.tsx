@@ -1358,7 +1358,7 @@ export default function AdminUsersPage() {
                     {[
                       { role: 'TEACHER', title: 'ครู / ผู้เสนอโครงการ', desc: 'เสนอโครงการและติดตามสถานะ' },
                       { role: 'HEAD_OF_DEPT', title: 'หัวหน้างาน / หัวหน้าแผนก', desc: 'ลงนามพิจารณาขั้นที่ 1' },
-                      { role: 'DEPUTY_DIRECTOR', title: 'รองผู้อำนวยการ', desc: 'ลงนามพิจารณาขั้นที่ 2' },
+                      { role: 'DEPUTY_DIRECTOR', title: 'รองผู้อำนวยการ', desc: 'ลงนามพิจารณาขั้นที่ 2 (กำกับดูแล 4 ฝ่าย)' },
                       { role: 'PLANNING_OFFICER', title: 'เจ้าหน้าที่งานแผนงาน', desc: 'ตรวจงบประมาณ ออกรหัส (ขั้นที่ 3)' },
                       { role: 'DIRECTOR', title: 'ผู้อำนวยการ', desc: 'อนุมัติขั้นสุดท้าย (ขั้นที่ 4)' },
                       { role: 'ADMIN', title: 'ผู้ดูแลระบบ (Admin)', desc: 'จัดการระบบ ตั้งค่า และผู้ใช้งานทั้งหมด' },
@@ -1378,7 +1378,12 @@ export default function AdminUsersPage() {
                             name="role_radio"
                             value={r.role}
                             checked={isSelected}
-                            onChange={() => setFormData({ ...formData, role: r.role })}
+                            onChange={() => {
+                              setFormData((prev) => ({ ...prev, role: r.role }));
+                              if (r.role === 'DEPUTY_DIRECTOR' && !formData.position.includes('รองผู้อำนวยการ')) {
+                                setFormData((prev) => ({ ...prev, role: r.role, position: 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ' }));
+                              }
+                            }}
                             className="mt-0.5 w-4 h-4 text-theme-primary focus:ring-theme-primary border-slate-300 cursor-pointer"
                           />
                           <div>
@@ -1391,6 +1396,108 @@ export default function AdminUsersPage() {
                       );
                     })}
                   </div>
+
+                  {/* Sub-options for DEPUTY_DIRECTOR (4 Divisions) */}
+                  {formData.role === 'DEPUTY_DIRECTOR' && (
+                    <div className="mt-3 p-3.5 bg-purple-50/80 rounded-xl border border-purple-200 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                          <span>🏛️</span>
+                          <span>ระบุฝ่ายงานที่รองผู้อำนวยการกำกับดูแล (4 ฝ่ายหลัก)</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                          คลิกเลือกเพื่อตั้งค่าด่วน
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {[
+                          {
+                            code: 'strat',
+                            name: 'ฝ่ายแผนงานและความร่วมมือ',
+                            pos: 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ',
+                            desc: 'กำกับดูแลงานวางแผน งบประมาณ และความร่วมมือ',
+                            icon: '📊',
+                          },
+                          {
+                            code: 'acad',
+                            name: 'ฝ่ายวิชาการ',
+                            pos: 'รองผู้อำนวยการฝ่ายวิชาการ',
+                            desc: 'กำกับดูแลแผนกวิชา งานหลักสูตร และการจัดการเรียนการสอน',
+                            icon: '📚',
+                          },
+                          {
+                            code: 'res',
+                            name: 'ฝ่ายบริหารทรัพยากร',
+                            pos: 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร',
+                            desc: 'กำกับดูแลงานบุคลากร การเงิน พัสดุ และอาคารสถานที่',
+                            icon: '🏢',
+                          },
+                          {
+                            code: 'dev',
+                            name: 'ฝ่ายพัฒนากิจการนักเรียน นักศึกษา',
+                            pos: 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียน นักศึกษา',
+                            desc: 'กำกับดูแลงานกิจกรรม งานปกครอง และแนะแนวอาชีพ',
+                            icon: '🎓',
+                          },
+                        ].map((divItem) => {
+                          const targetDiv = divisions.find(
+                            (d) => d.code === divItem.code || d.name.includes(divItem.name.replace('ฝ่าย', ''))
+                          );
+                          const isDivSelected = targetDiv && selectedDivisionIds.includes(targetDiv.id);
+                          const isPosMatched = formData.position === divItem.pos;
+
+                          return (
+                            <button
+                              key={divItem.code}
+                              type="button"
+                              onClick={() => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  position: divItem.pos,
+                                }));
+                                if (targetDiv) {
+                                  setSelectedDivisionIds([targetDiv.id]);
+                                  const deptsInDiv = targetDiv.departments || [];
+                                  if (deptsInDiv.length > 0) {
+                                    setSelectedDepartmentIds([deptsInDiv[0].id]);
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      position: divItem.pos,
+                                      department_id: String(deptsInDiv[0].id),
+                                    }));
+                                  }
+                                }
+                              }}
+                              className={`p-2.5 rounded-lg border text-left transition flex items-start gap-2.5 ${
+                                isPosMatched || isDivSelected
+                                  ? 'bg-white border-purple-500 ring-2 ring-purple-400/30 shadow-xs'
+                                  : 'bg-white/80 border-purple-100 hover:bg-white hover:border-purple-300'
+                              }`}
+                            >
+                              <span className="text-base shrink-0">{divItem.icon}</span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className={`text-xs font-bold truncate ${isPosMatched || isDivSelected ? 'text-purple-950 font-black' : 'text-slate-800'}`}>
+                                    {divItem.name}
+                                  </span>
+                                  {(isPosMatched || isDivSelected) && (
+                                    <span className="w-2 h-2 rounded-full bg-purple-600 shrink-0 animate-pulse" />
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-purple-800/80 font-medium truncate mt-0.5">
+                                  {divItem.pos}
+                                </div>
+                                <div className="text-[9.5px] text-slate-500 line-clamp-1 mt-0.5">
+                                  {divItem.desc}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 8. Active Status */}
