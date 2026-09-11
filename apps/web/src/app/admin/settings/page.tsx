@@ -94,6 +94,7 @@ export default function AdminSettingsPage() {
   // In-app & Real-time Notification Test states
   const [testingNotification, setTestingNotification] = useState(false);
   const [testNotiResult, setTestNotiResult] = useState<{ success: boolean; message: string; timestamp?: string } | null>(null);
+  const [testNotiTarget, setTestNotiTarget] = useState<'ALL' | 'ME'>('ALL');
   const [testNotiType, setTestNotiType] = useState<string>('PROJECT_APPROVED');
   const [testNotiTitle, setTestNotiTitle] = useState('🔔 ทดสอบระบบแจ้งเตือน Real-time');
   const [testNotiMessage, setTestNotiMessage] = useState('โครงการ "นวัตกรรมสิ่งประดิษฐ์เพื่อชุมชน" ได้รับการอนุมัติในขั้นตอนที่ ๔ เรียบร้อยแล้ว');
@@ -396,6 +397,7 @@ export default function AdminSettingsPage() {
           type: testNotiType || 'PROJECT_APPROVED',
           linkUrl: '/admin/settings',
           sendEmail: testNotiSendEmail && isSmtpEnabled,
+          target: testNotiTarget,
         }),
       });
 
@@ -1961,6 +1963,37 @@ export default function AdminSettingsPage() {
                         placeholder="ข้อความที่ต้องการให้ปรากฏในการแจ้งเตือน..."
                         className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 bg-white shadow-2xs"
                       />
+                    </div>
+                  </div>
+
+                  {/* Target Recipient Selector */}
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                      <span>👥 ผู้รับการแจ้งเตือน:</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setTestNotiTarget('ALL')}
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${
+                          testNotiTarget === 'ALL'
+                            ? 'bg-blue-900 text-white border-blue-900 shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span>📢 ทุกคนในระบบ (All Active Users)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTestNotiTarget('ME')}
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${
+                          testNotiTarget === 'ME'
+                            ? 'bg-blue-900 text-white border-blue-900 shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span>👤 เฉพาะฉัน (Only Me)</span>
+                      </button>
                     </div>
                   </div>
 

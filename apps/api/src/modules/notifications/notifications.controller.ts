@@ -181,11 +181,10 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// POST /api/v1/notifications/test - Trigger test notification for current user
+// POST /api/v1/notifications/test - Trigger test notification for all users or current user
 router.post('/test', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = BigInt(req.user!.id);
-    const { title, message, type, linkUrl, sendEmail } = req.body;
+    const { title, message, type, linkUrl, sendEmail, target = 'ALL' } = req.body;
 
     const notiTitle = title || '🔔 ทดสอบระบบแจ้งเตือน (Test Notification)';
     const notiMessage =
@@ -194,18 +193,50 @@ router.post('/test', authenticate, async (req: AuthRequest, res: Response) => {
     const notiType = type || NotificationType.PROJECT_APPROVED;
     const notiLink = linkUrl || '/admin/settings';
 
-    // 1. Create DB record and push via SSE/WebSocket & optional email
-    const notification = await notificationService.createNotification({
-      userId,
-      title: notiTitle,
-      message: notiMessage,
-      type: notiType,
-      linkUrl: notiLink,
-      sendEmailNotification: sendEmail === true,
-    });
+    // 1. Determine target recipients
+    let targetUsers: { id: bigint; full_name?: string }[] = [];
+    if (target === 'ME') {
+      targetUsers = [{ id: BigInt(req.user!.id), full_name: req.user!.full_name }];
+    } else {
+      const dbUsers = await prisma.user.findMany({
+        where: { is_active: true },
+        select: { id: true, full_name: true },
+      });
+      targetUsers = dbUsers.map((u) => ({ id: u.id, full_name: u.full_name }));
+    }
 
-    // 2. Broadcast realtime system event
+    if (targetUsers.length === 0) {
+      targetUsers = [{ id: BigInt(req.user!.id), full_name: req.user!.full_name }];
+    }
+
+    // 2. Create DB records and push via SSE/WebSocket & optional email for each user
+    const createdNotifications = await Promise.all(
+      targetUsers.map((u) =>
+        notificationService.createNotification({
+          userId: u.id,
+          title: notiTitle,
+          message: notiMessage,
+          type: notiType,
+          linkUrl: notiLink,
+          sendEmailNotification: sendEmail === true,
+        })
+      )
+    );
+
+    // 3. Broadcast realtime global event
     try {
+      sseManager.broadcast('notification', {
+        action: 'NEW_NOTIFICATION',
+        notification: {
+          id: Date.now().toString(),
+          title: notiTitle,
+          message: notiMessage,
+          type: notiType,
+          link_url: notiLink,
+          created_at: new Date().toISOString(),
+        },
+      });
+
       sseManager.broadcast('data_update', {
         scope: 'SYSTEM',
         action: 'TEST_NOTIFICATION',
@@ -213,10 +244,16 @@ router.post('/test', authenticate, async (req: AuthRequest, res: Response) => {
       });
     } catch (bErr) {}
 
+    const successMsg =
+      target === 'ME'
+        ? 'ส่งการแจ้งเตือนทดสอบถึงคุณเรียบร้อยแล้ว (Real-time Sent)'
+        : `ส่งการแจ้งเตือนทดสอบถึงทุกคนในระบบ (${targetUsers.length} คน) เรียบร้อยแล้ว`;
+
     return res.json({
       success: true,
-      message: 'ส่งการแจ้งเตือนทดสอบเรียบร้อยแล้ว (Real-time Notification Sent)',
-      data: serializeBigInt(notification),
+      message: successMsg,
+      recipientCount: targetUsers.length,
+      data: serializeBigInt(createdNotifications[0] || null),
     });
   } catch (error: any) {
     console.error('Test notification error:', error);
