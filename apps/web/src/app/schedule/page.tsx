@@ -67,21 +67,73 @@ export default function SchedulePage() {
     }
   };
 
-  // Flatten all activities
+  // Flatten all activities (including timelines and post-approval permitted execution dates)
   const allActivities = useMemo(() => {
-    return projects.flatMap((p) =>
-      (p.timelines || []).map((t: any) => ({
-        ...t,
-        project_id: p.id,
-        project_title: p.title,
-        project_code: p.project_code,
-        division_code: p.department?.division?.code,
-        division_name: p.department?.division?.name,
-        department_name: p.department?.name,
-        leader_name: p.leader?.full_name,
-        total_budget: p.total_budget,
-      }))
-    ).sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+    return projects.flatMap((p) => {
+      const items: any[] = [];
+      const divCode = p.department?.division?.code;
+      const divName = p.department?.division?.name;
+      const deptName = p.department?.name;
+      const leaderName = p.leader?.full_name;
+      const budget = p.total_budget;
+
+      // 1. Standard project timelines
+      (p.timelines || []).forEach((t: any) => {
+        items.push({
+          ...t,
+          project_id: p.id,
+          project_title: p.title,
+          project_code: p.project_code,
+          division_code: divCode,
+          division_name: divName,
+          department_name: deptName,
+          leader_name: leaderName,
+          total_budget: budget,
+        });
+      });
+
+      // 2. Parse dynamic_data.execution_dates if available
+      let dyn: any = {};
+      if (p.dynamic_data) {
+        try {
+          dyn = typeof p.dynamic_data === 'string' ? JSON.parse(p.dynamic_data) : p.dynamic_data;
+        } catch {}
+      }
+
+      if (Array.isArray(dyn?.execution_dates)) {
+        dyn.execution_dates.forEach((ed: any, edIdx: number) => {
+          const s = ed.start_date || ed.startDate;
+          const e = ed.end_date || ed.endDate || s;
+          if (s) {
+            // Only add if not already in timelines by ID
+            const isAlreadyAdded = (p.timelines || []).some(
+              (t: any) => t.activity_name?.includes('📍 การดำเนินโครงการ') && t.start_date === s
+            );
+            if (!isAlreadyAdded) {
+              items.push({
+                id: `exec-${p.id}-${edIdx}`,
+                project_id: p.id,
+                project_title: p.title,
+                project_code: p.project_code,
+                activity_name: `📍 ดำเนินโครงการ: ${ed.title || p.title}${dyn.execution_dates.length > 1 ? ` (ช่วงที่ ${edIdx + 1})` : ''}`,
+                start_date: s,
+                end_date: e,
+                location: ed.location || dyn.execution_status_location || '',
+                is_execution: true,
+                is_milestone: true,
+                division_code: divCode,
+                division_name: divName,
+                department_name: deptName,
+                leader_name: leaderName,
+                total_budget: budget,
+              });
+            }
+          }
+        });
+      }
+
+      return items;
+    }).sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
   }, [projects]);
 
   // Filtered activities based on filters

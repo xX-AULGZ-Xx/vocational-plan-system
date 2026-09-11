@@ -1883,7 +1883,7 @@ router.post('/:id/export-summary-pdf', handleExportSummaryPdf);
 router.patch('/:id/execution-status', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { execution_status, note } = req.body;
+    const { execution_status, note, execution_dates, location } = req.body;
     const projectId = BigInt(id);
 
     const userRole = String(req.user?.role || '');
@@ -1900,7 +1900,7 @@ router.patch('/:id/execution-status', authenticate, async (req: AuthRequest, res
 
     const project = await prisma.project.findUnique({
       where: { id: projectId },
-      include: { leader: true },
+      include: { leader: true, timelines: true },
     });
 
     if (!project) {
@@ -1917,7 +1917,7 @@ router.patch('/:id/execution-status', authenticate, async (req: AuthRequest, res
       dbStatus = ProjectStatus.approved;
     }
 
-    // Parse and update dynamic_data to store execution_sub_status & timestamps
+    // Parse and update dynamic_data to store execution_sub_status, execution_dates & timestamps
     let dynamicDataObj: any = {};
     if (project.dynamic_data) {
       try {
@@ -1930,8 +1930,54 @@ router.patch('/:id/execution-status', authenticate, async (req: AuthRequest, res
     dynamicDataObj.execution_sub_status = execution_status;
     dynamicDataObj.execution_status_updated_at = new Date().toISOString();
     dynamicDataObj.execution_status_updated_by = req.user?.full_name || userRole;
-    if (note) {
+    if (note !== undefined) {
       dynamicDataObj.execution_status_note = note;
+    }
+
+    // Handle execution_dates (support multiple dates or ranges)
+    if (Array.isArray(execution_dates)) {
+      const cleanedDates = execution_dates
+        .map((d: any) => {
+          if (typeof d === 'string' && d.trim()) {
+            return { start_date: d.trim(), end_date: d.trim(), title: 'ช่วงดำเนินโครงการ' };
+          }
+          if (d && typeof d === 'object' && (d.start_date || d.startDate)) {
+            const s = (d.start_date || d.startDate || '').trim();
+            const e = (d.end_date || d.endDate || s).trim();
+            const title = (d.title || d.activity_name || 'ช่วงดำเนินโครงการ').trim();
+            const loc = (d.location || location || '').trim();
+            return s ? { start_date: s, end_date: e, title, location: loc } : null;
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      dynamicDataObj.execution_dates = cleanedDates;
+
+      // Synchronize with ProjectTimeline database records
+      if (cleanedDates.length > 0) {
+        // Delete previous system-generated execution timeline entries
+        await prisma.projectTimeline.deleteMany({
+          where: {
+            project_id: projectId,
+            activity_name: { startsWith: '📍 การดำเนินโครงการ' },
+          },
+        });
+
+        // Insert new timeline entries for calendar
+        await prisma.projectTimeline.createMany({
+          data: cleanedDates.map((item: any, idx: number) => {
+            const startD = new Date(item.start_date);
+            const endD = new Date(item.end_date || item.start_date);
+            return {
+              project_id: projectId,
+              activity_name: `📍 การดำเนินโครงการ${cleanedDates.length > 1 ? ` (ช่วงที่ ${idx + 1})` : ''}: ${item.title || project.title}`,
+              start_date: isNaN(startD.getTime()) ? new Date() : startD,
+              end_date: isNaN(endD.getTime()) ? (isNaN(startD.getTime()) ? new Date() : startD) : endD,
+            };
+          }),
+        });
+      }
     }
 
     const updated = await prisma.project.update({
@@ -1943,6 +1989,7 @@ router.patch('/:id/execution-status', authenticate, async (req: AuthRequest, res
       include: {
         department: { include: { division: true } },
         leader: true,
+        timelines: true,
       },
     });
 

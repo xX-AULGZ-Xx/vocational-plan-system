@@ -38,6 +38,10 @@ import {
   DollarSign,
   Coins,
   ClipboardCheck,
+  Calendar,
+  Plus,
+  MapPin,
+  PlayCircle,
 } from 'lucide-react';
 
 const formatThaiDate = (dateStr: string) => {
@@ -108,6 +112,15 @@ export default function ProjectDetailPage() {
   const [comment, setComment] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
+
+  // Post-Approval Permitted Execution Dates Modal State
+  const [showExecutionModal, setShowExecutionModal] = useState(false);
+  const [pendingTargetStatus, setPendingTargetStatus] = useState<string>('permitted');
+  const [executionDateItems, setExecutionDateItems] = useState<Array<{ start_date: string; end_date: string; title: string; location: string }>>([
+    { start_date: new Date().toISOString().split('T')[0], end_date: new Date().toISOString().split('T')[0], title: 'ดำเนินโครงการ', location: '' },
+  ]);
+  const [executionNote, setExecutionNote] = useState('');
+  const [savingExecution, setSavingExecution] = useState(false);
 
   useEffect(() => {
     fetchProject();
@@ -721,6 +734,35 @@ export default function ProjectDetailPage() {
                         <button
                           key={st.id}
                           onClick={async () => {
+                            if (st.id === 'permitted' || st.id === 'in_progress') {
+                              // Open Execution Dates configuration modal
+                              setPendingTargetStatus(st.id);
+                              // Populate existing dates from parsedDynamicData or project timelines
+                              let initialDates: Array<{ start_date: string; end_date: string; title: string; location: string }> = [];
+                              if (Array.isArray(parsedDynamicData?.execution_dates) && parsedDynamicData.execution_dates.length > 0) {
+                                initialDates = parsedDynamicData.execution_dates.map((d: any) => ({
+                                  start_date: d.start_date || d.startDate || new Date().toISOString().split('T')[0],
+                                  end_date: d.end_date || d.endDate || d.start_date || new Date().toISOString().split('T')[0],
+                                  title: d.title || d.activity_name || 'ดำเนินโครงการ',
+                                  location: d.location || '',
+                                }));
+                              } else if (Array.isArray(project.timelines) && project.timelines.length > 0) {
+                                initialDates = project.timelines.map((t: any) => ({
+                                  start_date: typeof t.start_date === 'string' ? t.start_date.split('T')[0] : new Date(t.start_date).toISOString().split('T')[0],
+                                  end_date: typeof t.end_date === 'string' ? t.end_date.split('T')[0] : new Date(t.end_date).toISOString().split('T')[0],
+                                  title: t.activity_name || 'ดำเนินโครงการ',
+                                  location: t.location || '',
+                                }));
+                              } else {
+                                initialDates = [{ start_date: new Date().toISOString().split('T')[0], end_date: new Date().toISOString().split('T')[0], title: 'ดำเนินโครงการ', location: '' }];
+                              }
+                              setExecutionDateItems(initialDates);
+                              setExecutionNote(parsedDynamicData?.execution_status_note || '');
+                              setShowExecutionModal(true);
+                              return;
+                            }
+
+                            // For other statuses (approved / completed), direct submit
                             try {
                               const res = await fetch(`/api/v1/projects/${project.id}/execution-status`, {
                                 method: 'PATCH',
@@ -739,9 +781,11 @@ export default function ProjectDetailPage() {
                             }
                           }}
                           disabled={sub === st.id}
-                          className={`px-2 py-1 rounded text-[11px] font-semibold transition ${
+                          className={`px-2.5 py-1 rounded text-[11px] font-semibold transition ${
                             sub === st.id
                               ? 'bg-slate-200 text-slate-400 cursor-default'
+                              : st.id === 'permitted'
+                              ? 'bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 border border-indigo-200 font-bold'
                               : 'bg-slate-100 hover:bg-theme-primary hover:text-white text-slate-700 border border-slate-200'
                           }`}
                           title={`เปลี่ยนสถานะเป็น ${st.label}`}
@@ -754,6 +798,49 @@ export default function ProjectDetailPage() {
                 </div>
               );
             })()}
+
+            {/* Display Configured Execution Dates (If any) */}
+            {Array.isArray(parsedDynamicData?.execution_dates) && parsedDynamicData.execution_dates.length > 0 && (
+              <div className="pt-2 border-t border-slate-100 mt-2 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-950">
+                    <Calendar className="w-4 h-4 text-indigo-600" />
+                    <span>กำหนดการดำเนินโครงการที่ได้รับอนุญาต (ซิงค์เข้าปฏิทินแล้ว):</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-slate-700">
+                    {parsedDynamicData.execution_dates.map((item: any, idx: number) => (
+                      <span key={idx} className="bg-white px-2.5 py-1 rounded-md border border-indigo-200 font-medium shadow-2xs inline-flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                        <span className="font-bold text-indigo-900">{item.title || `ช่วงที่ ${idx + 1}`}:</span>
+                        <span>{formatThaiDate(item.start_date)} - {formatThaiDate(item.end_date)}</span>
+                        {item.location && <span className="text-slate-500 font-normal">({item.location})</span>}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {user && ['PLANNING_OFFICER', 'ADMIN', 'DIRECTOR'].includes(user.role) && (
+                  <button
+                    onClick={() => {
+                      setPendingTargetStatus(parsedDynamicData?.execution_sub_status || 'permitted');
+                      setExecutionDateItems(
+                        parsedDynamicData.execution_dates.map((d: any) => ({
+                          start_date: d.start_date || new Date().toISOString().split('T')[0],
+                          end_date: d.end_date || d.start_date || new Date().toISOString().split('T')[0],
+                          title: d.title || 'ดำเนินโครงการ',
+                          location: d.location || '',
+                        }))
+                      );
+                      setExecutionNote(parsedDynamicData?.execution_status_note || '');
+                      setShowExecutionModal(true);
+                    }}
+                    className="px-3 py-1 bg-white border border-indigo-300 hover:bg-indigo-50 text-indigo-800 text-xs font-bold rounded-lg transition shrink-0 shadow-2xs"
+                  >
+                    ✏️ แก้ไขวันดำเนินโครงการ
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1549,6 +1636,249 @@ export default function ProjectDetailPage() {
                     title={previewDoc.file_name}
                   />
                 )}
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Post-Approval Execution Dates (Multiple Dates / Ranges) Modal */}
+      {showExecutionModal && (
+        <ModalPortal>
+          <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col my-auto animate-in fade-in zoom-in-95 duration-150">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-900 to-blue-900 text-white">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-white/10 text-white shrink-0">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold">
+                      {pendingTargetStatus === 'permitted' ? '๒. อนุญาตดำเนินโครงการ - กำหนดวันดำเนินงาน' : 'กำหนดวันดำเนินงานโครงการ'}
+                    </h3>
+                    <p className="text-xs text-blue-100/90">
+                      ระบุวันที่สำหรับการดำเนินโครงการ (รองรับหลายวัน/หลายช่วง) ข้อมูลจะถูกนำไปเพิ่มลงในปฏิทินของระบบโดยอัตโนมัติ
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowExecutionModal(false)}
+                  className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div className="bg-blue-50 border border-blue-200 p-3.5 rounded-xl flex items-start gap-2.5 text-xs text-blue-950">
+                  <PlayCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">โครงการ: </span>
+                    <span>{project.title}</span>
+                    {project.project_code && (
+                      <span className="ml-2 font-mono font-bold text-blue-900 bg-white px-2 py-0.5 rounded border border-blue-200">
+                        {project.project_code}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Multiple Execution Dates Input List */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-indigo-600" />
+                      <span>วันที่ดำเนินโครงการ (Execution Dates):</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExecutionDateItems((prev) => [
+                          ...prev,
+                          {
+                            start_date: new Date().toISOString().split('T')[0],
+                            end_date: new Date().toISOString().split('T')[0],
+                            title: `ดำเนินโครงการ (ช่วงที่ ${prev.length + 1})`,
+                            location: '',
+                          },
+                        ]);
+                      }}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>เพิ่มช่วงวันดำเนินงาน</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {executionDateItems.map((item, idx) => (
+                      <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-700">ช่วงที่ {idx + 1}</span>
+                          {executionDateItems.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setExecutionDateItems((prev) => prev.filter((_, i) => i !== idx));
+                              }}
+                              className="text-xs text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>ลบช่วงนี้</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              วันที่เริ่มต้น:
+                            </label>
+                            <input
+                              type="date"
+                              value={item.start_date}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setExecutionDateItems((prev) =>
+                                  prev.map((d, i) =>
+                                    i === idx
+                                      ? { ...d, start_date: val, end_date: d.end_date < val ? val : d.end_date }
+                                      : d
+                                  )
+                                );
+                              }}
+                              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              วันที่สิ้นสุด:
+                            </label>
+                            <input
+                              type="date"
+                              value={item.end_date}
+                              min={item.start_date}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setExecutionDateItems((prev) =>
+                                  prev.map((d, i) => (i === idx ? { ...d, end_date: val } : d))
+                                );
+                              }}
+                              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              ชื่อกิจกรรม / รายละเอียดช่วงนี้ (แสดงในปฏิทิน):
+                            </label>
+                            <input
+                              type="text"
+                              value={item.title}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setExecutionDateItems((prev) =>
+                                  prev.map((d, i) => (i === idx ? { ...d, title: val } : d))
+                                );
+                              }}
+                              placeholder="เช่น จัดอบรมเชิงปฏิบัติการ, จัดกิจกรรมภาคสนาม"
+                              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              สถานที่ดำเนินงาน:
+                            </label>
+                            <input
+                              type="text"
+                              value={item.location}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setExecutionDateItems((prev) =>
+                                  prev.map((d, i) => (i === idx ? { ...d, location: val } : d))
+                                );
+                              }}
+                              placeholder="เช่น หอประชุมวิทยาลัย, ห้องประชุม 1"
+                              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Additional Notes */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    หมายเหตุ / ข้อความเพิ่มเติมจากงานแผนงาน:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={executionNote}
+                    onChange={(e) => setExecutionNote(e.target.value)}
+                    placeholder="ระบุข้อกำหนด เงื่อนไข หรือข้อความแจ้งเตือนถึงผู้รับผิดชอบโครงการ..."
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowExecutionModal(false)}
+                  disabled={savingExecution}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 rounded-xl transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setSavingExecution(true);
+                    try {
+                      const res = await fetch(`/api/v1/projects/${project.id}/execution-status`, {
+                        method: 'PATCH',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({
+                          execution_status: pendingTargetStatus,
+                          execution_dates: executionDateItems,
+                          note: executionNote.trim() || undefined,
+                        }),
+                      });
+
+                      const data = await res.json();
+                      if (!data.success) throw new Error(data.message);
+
+                      setShowExecutionModal(false);
+                      setActionMsg(data.message || 'บันทึกวันดำเนินโครงการและซิงค์เข้าปฏิทินเรียบร้อยแล้ว');
+                      showAlert.success('สำเร็จ', 'บันทึกกำหนดการดำเนินโครงการและนำเข้าสู่ปฏิทินกิจกรรมเรียบร้อยแล้ว');
+                      fetchProject();
+                    } catch (err: any) {
+                      showAlert.error('ผิดพลาด', err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+                    } finally {
+                      setSavingExecution(false);
+                    }
+                  }}
+                  disabled={savingExecution}
+                  className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition flex items-center gap-1.5"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>{savingExecution ? 'กำลังบันทึกและนำเข้าปฏิทิน...' : 'บันทึกสถานะ & เพิ่มลงปฏิทิน'}</span>
+                </button>
               </div>
             </div>
           </div>
