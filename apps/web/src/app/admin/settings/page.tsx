@@ -35,6 +35,10 @@ import {
   Plus,
   Edit2,
   X,
+  Bell,
+  Send,
+  Volume2,
+  Radio,
 } from 'lucide-react';
 import { showAlert } from '@/lib/sweetalert';
 
@@ -86,6 +90,15 @@ export default function AdminSettingsPage() {
   const [testEmailRecipient, setTestEmailRecipient] = useState('');
   const [testingEmail, setTestingEmail] = useState(false);
   const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  // In-app & Real-time Notification Test states
+  const [testingNotification, setTestingNotification] = useState(false);
+  const [testNotiResult, setTestNotiResult] = useState<{ success: boolean; message: string; timestamp?: string } | null>(null);
+  const [testNotiType, setTestNotiType] = useState<string>('PROJECT_APPROVED');
+  const [testNotiTitle, setTestNotiTitle] = useState('🔔 ทดสอบระบบแจ้งเตือน Real-time');
+  const [testNotiMessage, setTestNotiMessage] = useState('โครงการ "นวัตกรรมสิ่งประดิษฐ์เพื่อชุมชน" ได้รับการอนุมัติในขั้นตอนที่ ๔ เรียบร้อยแล้ว');
+  const [testNotiSendEmail, setTestNotiSendEmail] = useState(false);
+
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [existingFiscalYears, setExistingFiscalYears] = useState<any[]>([]);
   const [deletingYear, setDeletingYear] = useState<number | null>(null);
@@ -350,6 +363,65 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const applyNotiPreset = (type: string) => {
+    setTestNotiType(type);
+    if (type === 'PROJECT_APPROVED') {
+      setTestNotiTitle('✅ โครงการได้รับการอนุมัติเรียบร้อย');
+      setTestNotiMessage('โครงการ "นวัตกรรมและสิ่งประดิษฐ์เพื่อชุมชน" ผ่านการลงนามอนุมัติจาก ผอ.วิทยาลัย ครบ ๔ ขั้นตอนแล้ว');
+    } else if (type === 'PROJECT_SUBMITTED') {
+      setTestNotiTitle('📥 มีคำขอพิจารณาโครงการใหม่');
+      setTestNotiMessage('แผนกวิชาช่างยนต์ ได้ยื่นเสนอโครงการใหม่เข้าสู่ระบบ รอการพิจารณาในบทบาทของท่าน');
+    } else if (type === 'PROJECT_REVISED') {
+      setTestNotiTitle('📝 ขอให้แก้ไขรายละเอียดโครงการ');
+      setTestNotiMessage('รอง ผอ. ประจำฝ่าย มีข้อเสนอแนะเพิ่มเติม กรุณาปรับแก้ตารางค่าใช้จ่ายตามแบบฟอร์ม');
+    } else if (type === 'SYSTEM') {
+      setTestNotiTitle('📢 แจ้งเตือนจากผู้ดูแลระบบ');
+      setTestNotiMessage('ระบบบริหารจัดการโครงการและแผนงานปฏิบัติการ ทำงานได้ตามปกติและพร้อมใช้งาน');
+    }
+  };
+
+  const handleTestNotification = async () => {
+    setTestingNotification(true);
+    setTestNotiResult(null);
+    try {
+      const res = await fetch('/api/v1/notifications/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: testNotiTitle.trim() || undefined,
+          message: testNotiMessage.trim() || undefined,
+          type: testNotiType || 'PROJECT_APPROVED',
+          linkUrl: '/admin/settings',
+          sendEmail: testNotiSendEmail && isSmtpEnabled,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setTestNotiResult({
+          success: true,
+          message: data.message || 'ส่งการแจ้งเตือนทดสอบเรียบร้อยแล้ว (Real-time Notification Sent)',
+          timestamp: new Date().toLocaleTimeString('th-TH'),
+        });
+        showAlert.success(
+          '🔔 ทดสอบส่งการแจ้งเตือนสำเร็จ!',
+          'ระบบได้ทำการส่งสัญญาณ Real-time (WebSocket & SSE), แสดงข้อความ และเล่นเสียงแจ้งเตือนเรียบร้อยแล้ว'
+        );
+      } else {
+        setTestNotiResult({ success: false, message: data.message || 'ส่งการแจ้งเตือนไม่สำเร็จ' });
+        showAlert.error('ผิดพลาด', data.message || 'ส่งการแจ้งเตือนไม่สำเร็จ');
+      }
+    } catch (err: any) {
+      setTestNotiResult({ success: false, message: `เกิดข้อผิดพลาด: ${err.message}` });
+      showAlert.error('ข้อผิดพลาด', err.message || 'เชื่อมต่อกับเซิร์ฟเวอร์ไม่สำเร็จ');
+    } finally {
+      setTestingNotification(false);
+    }
+  };
+
   const isSubmissionOpen = settings.is_submission_open !== 'false';
   const isSmtpEnabled = settings.smtp_enabled === 'true';
   const hasGoogleClientId = Boolean(
@@ -463,8 +535,8 @@ export default function AdminSettingsPage() {
             activeTab === 'email' ? 'bg-white text-blue-900 font-bold shadow-sm' : 'hover:text-slate-900'
           }`}
         >
-          <Mail className="w-4 h-4 text-blue-600" />
-          ระบบอีเมล & SMTP
+          <Bell className="w-4 h-4 text-blue-600" />
+          การแจ้งเตือน & อีเมล
         </button>
         <button
           type="button"
@@ -1541,24 +1613,37 @@ export default function AdminSettingsPage() {
           {/* Section 4: Email & SMTP Notification Settings */}
           {(activeTab === 'all' || activeTab === 'email') && (
             <div className="bg-white p-5 sm:p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
                 <div className="flex items-center gap-2.5">
                   <div className="p-1.5 bg-blue-50 text-blue-900 rounded-md">
-                    <Mail className="w-4 h-4" />
+                    <Bell className="w-4 h-4" />
                   </div>
                   <div>
-                    <h2 className="font-bold text-slate-900 text-sm sm:text-base">๔. ระบบอีเมลแจ้งเตือน (SMTP & Notifications)</h2>
+                    <h2 className="font-bold text-slate-900 text-sm sm:text-base">๔. ระบบการแจ้งเตือน & อีเมล (Real-time Notifications & SMTP)</h2>
                     <p className="text-[11px] sm:text-xs text-slate-500">
-                      กำหนดค่า Mail Server สำหรับส่งอีเมลแจ้งเตือนเมื่อมีโครงการเข้าคิวรออนุมัติ หรือสถานะโครงการเปลี่ยน
+                      ระบบแจ้งเตือน Real-time บนหน้าจอ, เสียงเตือน Chime, และกำหนดค่า Mail Server สำหรับส่งอีเมลแจ้งเตือน
                     </p>
                   </div>
                 </div>
 
-                <div className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
-                  isSmtpEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                }`}>
-                  <span className={`w-2 h-2 rounded-full ${isSmtpEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                  {isSmtpEnabled ? 'เปิดใช้งานอีเมลแจ้งเตือน' : 'ปิดใช้งานอีเมล'}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleTestNotification}
+                    disabled={testingNotification}
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-900 hover:bg-blue-800 text-white shadow-xs transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                    title="ส่งการแจ้งเตือนทดสอบทันทีเพื่อตรวจสอบระบบ Real-time และเสียง"
+                  >
+                    <Bell className={`w-3.5 h-3.5 ${testingNotification ? 'animate-bounce' : ''}`} />
+                    <span>{testingNotification ? 'กำลังส่ง...' : '🔔 ทดสอบแจ้งเตือน Real-time'}</span>
+                  </button>
+
+                  <div className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+                    isSmtpEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    <span className={`w-2 h-2 rounded-full ${isSmtpEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                    {isSmtpEnabled ? 'เปิดใช้อีเมล' : 'ปิดใช้อีเมล'}
+                  </div>
                 </div>
               </div>
 
@@ -1769,6 +1854,165 @@ export default function AdminSettingsPage() {
                       <li>คัดลอกรหัส 16 ตัวอักษรที่ได้มาวางในช่อง <strong>"SMTP Password / App Password"</strong> ด้านบน</li>
                     </ol>
                   </div>
+                </div>
+
+                {/* Test Real-time In-App Notification Card */}
+                <div className="mt-5 p-4 sm:p-5 bg-gradient-to-br from-blue-50/70 via-indigo-50/40 to-slate-50 rounded-xl border border-blue-200 shadow-2xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-blue-100/80">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-blue-900 text-white rounded-lg shadow-xs shrink-0">
+                        <Bell className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 flex flex-wrap items-center gap-1.5">
+                          <span>ทดสอบระบบแจ้งเตือนในระบบ (In-App & Real-Time Notification Test)</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-900 border border-blue-200">
+                            WebSocket / SSE + ระบบเสียง
+                          </span>
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          จำลองการส่งแจ้งเตือนทันทีเพื่อทดสอบ Pop-up แจ้งเตือน, Badge ตัวเลข Unread, และเสียงแจ้งเตือน Chime
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-white px-3 py-1 rounded-lg border border-slate-200 self-start sm:self-auto shadow-2xs">
+                      <Volume2 className="w-3.5 h-3.5 text-blue-700" />
+                      <span className="text-[11px] font-medium">มีระบบเสียง Chime อัตโนมัติ</span>
+                    </div>
+                  </div>
+
+                  {/* Preset Buttons */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-600 block">เลือกรูปแบบข้อความตัวอย่าง:</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => applyNotiPreset('PROJECT_APPROVED')}
+                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          testNotiType === 'PROJECT_APPROVED'
+                            ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold ring-2 ring-emerald-400/50 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="block truncate font-bold text-[11px]">✅ อนุมัติโครงการ</span>
+                        <span className="text-[10px] text-slate-500 font-normal">ผอ. อนุมัติครบ ๔ ขั้นตอน</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => applyNotiPreset('PROJECT_SUBMITTED')}
+                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          testNotiType === 'PROJECT_SUBMITTED'
+                            ? 'bg-blue-50 border-blue-400 text-blue-950 font-bold ring-2 ring-blue-400/50 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="block truncate font-bold text-[11px]">📥 ยื่นเสนอโครงการ</span>
+                        <span className="text-[10px] text-slate-500 font-normal">มีคิวรอพิจารณาใหม่</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => applyNotiPreset('PROJECT_REVISED')}
+                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          testNotiType === 'PROJECT_REVISED'
+                            ? 'bg-amber-50 border-amber-400 text-amber-950 font-bold ring-2 ring-amber-400/50 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="block truncate font-bold text-[11px]">📝 ส่งกลับแก้ไข</span>
+                        <span className="text-[10px] text-slate-500 font-normal">มีข้อเสนอแนะให้ปรับแก้</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => applyNotiPreset('SYSTEM')}
+                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          testNotiType === 'SYSTEM'
+                            ? 'bg-purple-50 border-purple-400 text-purple-950 font-bold ring-2 ring-purple-400/50 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="block truncate font-bold text-[11px]">📢 ประกาศระบบ</span>
+                        <span className="text-[10px] text-slate-500 font-normal">ข้อความประกาศทั่วไป</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Input Fields */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">หัวข้อการแจ้งเตือน (Notification Title)</label>
+                      <input
+                        type="text"
+                        value={testNotiTitle}
+                        onChange={(e) => setTestNotiTitle(e.target.value)}
+                        placeholder="เช่น 🔔 ทดสอบระบบแจ้งเตือน Real-time"
+                        className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 bg-white shadow-2xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">ข้อความรายละเอียด (Notification Message)</label>
+                      <input
+                        type="text"
+                        value={testNotiMessage}
+                        onChange={(e) => setTestNotiMessage(e.target.value)}
+                        placeholder="ข้อความที่ต้องการให้ปรากฏในการแจ้งเตือน..."
+                        className="w-full px-3.5 py-2 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 bg-white shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Action row */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-600 select-none">
+                      <input
+                        type="checkbox"
+                        checked={testNotiSendEmail}
+                        onChange={(e) => setTestNotiSendEmail(e.target.checked)}
+                        disabled={!isSmtpEnabled}
+                        className="w-4 h-4 rounded text-blue-900 focus:ring-blue-900 disabled:opacity-40 cursor-pointer"
+                      />
+                      <span className={!isSmtpEnabled ? 'text-slate-400' : 'font-medium'}>
+                        ส่งสำเนาเข้าอีเมลด้วย {isSmtpEnabled ? `(${settings.smtp_user || user?.email || 'ตามอีเมลผู้ใช้'})` : '(เปิดใช้อีเมลด้านบนก่อน)'}
+                      </span>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={handleTestNotification}
+                      disabled={testingNotification}
+                      className="px-5 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-blue-900 hover:bg-blue-800 text-white shadow-sm hover:shadow transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Send className={`w-4 h-4 ${testingNotification ? 'animate-spin' : ''}`} />
+                      <span>{testingNotification ? 'กำลังส่งแจ้งเตือน...' : '🚀 ยิงแจ้งเตือนทดสอบทันที (Trigger Test)'}</span>
+                    </button>
+                  </div>
+
+                  {testNotiResult && (
+                    <div
+                      className={`p-3.5 rounded-lg text-xs font-medium flex items-center justify-between gap-2 border animate-in fade-in ${
+                        testNotiResult.success
+                          ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                          : 'bg-rose-50 text-rose-900 border-rose-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {testNotiResult.success ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        )}
+                        <span>{testNotiResult.message}</span>
+                      </div>
+                      {testNotiResult.timestamp && (
+                        <span className="text-[10px] text-emerald-700/90 font-mono shrink-0 font-bold">
+                          ส่งเมื่อ {testNotiResult.timestamp}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Test Email Box */}

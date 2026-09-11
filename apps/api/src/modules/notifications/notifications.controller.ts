@@ -1,7 +1,9 @@
-﻿import { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, AuthRequest } from '../../middlewares/auth';
 import { sseManager } from './sse.manager';
+import { notificationService } from './notification.service';
+import { NotificationType } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
 const router = Router();
@@ -176,6 +178,53 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Delete notification error:', error);
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด', error: error.message });
+  }
+});
+
+// POST /api/v1/notifications/test - Trigger test notification for current user
+router.post('/test', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = BigInt(req.user!.id);
+    const { title, message, type, linkUrl, sendEmail } = req.body;
+
+    const notiTitle = title || '🔔 ทดสอบระบบแจ้งเตือน (Test Notification)';
+    const notiMessage =
+      message ||
+      `นี่คือข้อความทดสอบการแจ้งเตือน Real-time และระบบเสียง จากผู้ดูแลระบบ (${req.user!.full_name})`;
+    const notiType = type || NotificationType.PROJECT_APPROVED;
+    const notiLink = linkUrl || '/admin/settings';
+
+    // 1. Create DB record and push via SSE/WebSocket & optional email
+    const notification = await notificationService.createNotification({
+      userId,
+      title: notiTitle,
+      message: notiMessage,
+      type: notiType,
+      linkUrl: notiLink,
+      sendEmailNotification: sendEmail === true,
+    });
+
+    // 2. Broadcast realtime system event
+    try {
+      sseManager.broadcast('data_update', {
+        scope: 'SYSTEM',
+        action: 'TEST_NOTIFICATION',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (bErr) {}
+
+    return res.json({
+      success: true,
+      message: 'ส่งการแจ้งเตือนทดสอบเรียบร้อยแล้ว (Real-time Notification Sent)',
+      data: serializeBigInt(notification),
+    });
+  } catch (error: any) {
+    console.error('Test notification error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการส่งการแจ้งเตือนทดสอบ',
+      error: error.message,
+    });
   }
 });
 
