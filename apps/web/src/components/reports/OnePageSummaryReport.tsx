@@ -65,12 +65,52 @@ export default function OnePageSummaryReport({
         @media print {
           @page {
             size: ${isLandscape ? 'A4 landscape' : 'A4 portrait'};
-            margin: 8mm;
+            margin: 0 !important;
+          }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            width: 100% !important;
+            height: 100% !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          #one-page-summary-report,
+          #one-page-summary-report * {
+            visibility: visible !important;
+          }
+          #one-page-summary-report {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: ${isLandscape ? '297mm' : '210mm'} !important;
+            height: ${isLandscape ? '210mm' : '297mm'} !important;
+            max-width: ${isLandscape ? '297mm' : '210mm'} !important;
+            max-height: ${isLandscape ? '210mm' : '297mm'} !important;
+            margin: 0 !important;
+            padding: ${isLandscape ? '5mm 7mm' : '7mm 9mm'} !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: white !important;
+            box-sizing: border-box !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            overflow: hidden !important;
+            z-index: 999999 !important;
+          }
+          .no-print {
+            display: none !important;
           }
         }
       `}</style>
 
       <div
+        id="one-page-summary-report"
         className={`w-full mx-auto bg-white text-slate-800 shadow-xl border border-slate-200 print:shadow-none print:border-none print:p-0 print:m-0 font-sans flex flex-col justify-between box-border transition-all duration-200 ${
           isLandscape
             ? 'max-w-[297mm] min-h-[200mm] p-6'

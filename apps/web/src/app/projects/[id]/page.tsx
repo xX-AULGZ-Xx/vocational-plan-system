@@ -555,7 +555,7 @@ export default function ProjectDetailPage() {
 
         {/* Feedback banner if Rejected */}
         {isRejected && (
-          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-start justify-between gap-3 shadow-xs">
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-start justify-between gap-3 shadow-xs no-print">
             <div className="flex items-start gap-2.5">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
               <div>
@@ -594,7 +594,7 @@ export default function ProjectDetailPage() {
 
         {/* Feedback banner if Revision Requested */}
         {hasRevisionRequested && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start justify-between gap-3 shadow-xs">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start justify-between gap-3 shadow-xs no-print">
             <div className="flex items-start gap-2.5">
               <RotateCcw className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div>
@@ -631,7 +631,7 @@ export default function ProjectDetailPage() {
 
         {/* Post-Approval Execution Stages Tracker & Planning Officer Control */}
         {['approved', 'in_progress', 'completed'].includes(project.status) && (
-          <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs space-y-3">
+          <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs space-y-3 no-print">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -761,7 +761,7 @@ export default function ProjectDetailPage() {
         )}
 
         {actionMsg && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-theme text-xs font-medium">
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-theme text-xs font-medium no-print">
             {actionMsg}
           </div>
         )}
