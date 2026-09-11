@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
+import { useNotifications } from '@/lib/notification-context';
 import {
   LayoutDashboard,
   Calendar,
@@ -29,8 +30,42 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const { unreadCount, subscribeDataUpdate } = useNotifications();
   const { themeSidebarStyle, themePrimaryColor, collegeLogoUrl, collegeName, developerInfo, divisions } = useSettings();
+
+  const [pendingApprovalCount, setPendingApprovalCount] = useState<number>(0);
+  const isApprover = user && ['HEAD_DEPT', 'DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'].includes(user.role);
+
+  const fetchPendingApprovals = useCallback(async () => {
+    if (!user || !isApprover) return;
+    try {
+      const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('vps_token') || localStorage.getItem('token') || localStorage.getItem('access_token')) : null);
+      const headers: any = {};
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+      const res = await fetch('/api/v1/approvals/inbox', { headers });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setPendingApprovalCount(data.data.length);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [user, token, isApprover]);
+
+  useEffect(() => {
+    fetchPendingApprovals();
+  }, [fetchPendingApprovals]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeDataUpdate((event) => {
+      if (event.scope === 'PROJECTS' || event.scope === 'APPROVALS') {
+        fetchPendingApprovals();
+      }
+    });
+    return () => unsubscribe();
+  }, [subscribeDataUpdate, fetchPendingApprovals]);
 
   const shortName = collegeName?.replace('วิทยาลัยการอาชีพ', 'วก.').replace('วิทยาลัยอาชีวศึกษา', 'วอศ.').replace('วิทยาลัยเทคนิค', 'วท.') || 'วก.';
 
@@ -179,12 +214,46 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                           }
                         : {}
                     }
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-theme text-sm font-medium transition ${
+                    className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-theme text-sm font-medium transition ${
                       active ? '' : inactiveLink
                     }`}
                   >
-                    <Icon className={`w-4 h-4 ${active ? 'text-white' : isLightSidebar ? 'text-slate-500' : 'text-slate-400'}`} />
-                    <span>{item.name}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : isLightSidebar ? 'text-slate-500' : 'text-slate-400'}`} />
+                      <span className="truncate">{item.name}</span>
+                    </div>
+
+                    {/* Badge for approvals queue */}
+                    {item.href === '/approvals' && isApprover && (
+                      <span
+                        className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${
+                          active
+                            ? pendingApprovalCount > 0
+                              ? 'bg-amber-400 text-amber-950 font-black shadow-xs'
+                              : 'bg-white/20 text-white'
+                            : pendingApprovalCount > 0
+                            ? 'bg-amber-500 text-white font-black shadow-xs animate-pulse'
+                            : isLightSidebar
+                            ? 'bg-slate-100 text-slate-600'
+                            : 'bg-slate-800 text-slate-400'
+                        }`}
+                      >
+                        {pendingApprovalCount}
+                      </span>
+                    )}
+
+                    {/* Badge for notifications */}
+                    {item.href === '/notifications' && unreadCount > 0 && (
+                      <span
+                        className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${
+                          active
+                            ? 'bg-rose-500 text-white font-black shadow-xs'
+                            : 'bg-rose-500 text-white font-black shadow-xs'
+                        }`}
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
