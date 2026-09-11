@@ -46,8 +46,22 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
   const [copied, setCopied] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
+  const [exportingType, setExportingType] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const qrRef = useRef<SVGSVGElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Determine public survey URL
   const [origin, setOrigin] = useState('');
@@ -177,6 +191,43 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
       }
     };
     image.src = blobURL;
+  };
+
+  const handleExport = async (type: 'summary' | 'raw', format: 'excel' | 'csv') => {
+    try {
+      setExportingType(`${type}-${format}`);
+      const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('vps_token') || sessionStorage.getItem('auth_token')) : '');
+      const headers: Record<string, string> = {};
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
+      const res = await fetch(`/api/v1/projects/${projectId}/evaluation/export?type=${type}&format=${format}`, {
+        headers,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'ไม่สามารถส่งออกข้อมูลผลการประเมินได้');
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeTitle = (project?.title || 'evaluation').replace(/[/\\:*?"<>|]/g, '_').slice(0, 30);
+      const ext = format === 'excel' ? 'xls' : 'csv';
+      const prefix = type === 'summary' ? 'สรุปผลประเมิน' : 'คำตอบประเมินรายบุคคล';
+      a.download = `${prefix}_${project?.project_code || 'PRJ'}_${safeTitle}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      setShowExportMenu(false);
+      showAlert.success('ส่งออกข้อมูลสำเร็จ', `ดาวน์โหลดไฟล์ ${format.toUpperCase()} เรียบร้อยแล้ว`);
+    } catch (e: any) {
+      showAlert.error('เกิดข้อผิดพลาด', e.message || 'ไม่สามารถดาวน์โหลดไฟล์ได้');
+    } finally {
+      setExportingType(null);
+    }
   };
 
   const handleResetResponses = async () => {
@@ -354,7 +405,87 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
               <p className="text-xs text-slate-500 mt-0.5">{formMeta.title}</p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Export Dropdown */}
+              <div className="relative" ref={exportMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  disabled={Boolean(exportingType) || totalResp === 0}
+                  className="px-3.5 py-1.5 rounded-theme text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50"
+                  title={totalResp === 0 ? 'ยังไม่มีผู้ตอบแบบประเมิน' : 'ส่งออกผลการประเมินเป็น Excel หรือ CSV'}
+                >
+                  {exportingType ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>กำลังส่งออก...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5" />
+                      <span>ส่งออกผลประเมิน</span>
+                      <ChevronDown className="w-3 h-3 ml-0.5" />
+                    </>
+                  )}
+                </button>
+
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-1.5 w-64 bg-white rounded-theme shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                      สรุปผลและค่าสถิติ (Summary)
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleExport('summary', 'excel')}
+                      className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center gap-2.5 transition-colors"
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                      <div>
+                        <div className="font-bold">สรุปผลประเมิน (Excel .xls)</div>
+                        <div className="text-[10px] text-slate-400">ตาราง X̄, S.D., แจกแจงความพึงพอใจ</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExport('summary', 'csv')}
+                      className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center gap-2.5 transition-colors"
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0" />
+                      <div>
+                        <div className="font-bold">สรุปผลประเมิน (CSV .csv)</div>
+                        <div className="text-[10px] text-slate-400">ไฟล์ UTF-8 รองรับ Excel ทุกเวอร์ชัน</div>
+                      </div>
+                    </button>
+
+                    <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-t border-b border-slate-100 mt-1">
+                      ข้อมูลคำตอบดิบรายบุคคล (Raw Data)
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleExport('raw', 'excel')}
+                      className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-800 flex items-center gap-2.5 transition-colors"
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />
+                      <div>
+                        <div className="font-bold">คำตอบรายบุคคล (Excel .xls)</div>
+                        <div className="text-[10px] text-slate-400">ข้อมูลผู้ตอบทุกคนแบบละเอียดทุกข้อ</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExport('raw', 'csv')}
+                      className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50 hover:text-blue-800 flex items-center gap-2.5 transition-colors"
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0" />
+                      <div>
+                        <div className="font-bold">คำตอบรายบุคคล (CSV .csv)</div>
+                        <div className="text-[10px] text-slate-400">ข้อมูลดิบสำหรับวิเคราะห์ต่อ</div>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={handleToggleStatus}
