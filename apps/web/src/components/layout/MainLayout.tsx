@@ -41,9 +41,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="min-h-screen flex flex-col bg-slate-100 antialiased">
       <Navbar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
-      <div className="flex flex-1 relative overflow-x-hidden">
+      <div className="flex flex-1 relative">
         <Sidebar mobileOpen={mobileMenuOpen} setMobileOpen={setMobileMenuOpen} />
-        <main className="flex-1 p-3 sm:p-5 lg:p-6 overflow-y-auto w-full min-w-0">
+        <main className="flex-1 p-3 sm:p-5 lg:p-6 w-full min-w-0 overflow-x-hidden">
           {children}
         </main>
       </div>

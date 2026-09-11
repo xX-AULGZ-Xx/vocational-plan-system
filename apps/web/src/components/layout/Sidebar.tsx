@@ -120,7 +120,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
 
       {/* Sidebar / Slide-over Drawer */}
       <aside
-        className={`fixed lg:static top-16 lg:top-0 left-0 bottom-0 z-30 lg:z-auto w-72 lg:w-64 h-[calc(100vh-4rem)] min-h-[calc(100vh-4rem)] p-4 flex flex-col justify-between shrink-0 no-print border-r transform lg:transform-none transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none overflow-y-auto ${sidebarBg} ${
+        className={`fixed lg:sticky top-16 left-0 bottom-0 z-30 lg:z-10 w-72 lg:w-64 h-[calc(100vh-4rem)] p-4 flex flex-col justify-between shrink-0 no-print border-r transform lg:transform-none transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none overflow-y-auto ${sidebarBg} ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
