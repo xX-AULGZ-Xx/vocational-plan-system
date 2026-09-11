@@ -29,8 +29,6 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
   const [activeView, setActiveView] = useState<'preview' | 'edit'>('preview');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [isSaving, setIsSaving] = useState(false);
-  const [isExportingDocx, setIsExportingDocx] = useState(false);
-  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingFullDocx, setIsExportingFullDocx] = useState(false);
   const [isExportingFullPdf, setIsExportingFullPdf] = useState(false);
   const [selectingImageSlot, setSelectingImageSlot] = useState<number | null>(null);
@@ -123,82 +121,15 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
     }
   };
 
-  // Export Short Summary DOCX (One-page summary)
-  const handleExportShortDocx = async () => {
-    try {
-      setIsExportingDocx(true);
-      const authToken = token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-      const res = await fetch(`/api/v1/projects/${project.id}/export-summary-docx`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          type: 'SHORT_SUMMARY',
-          dynamicData: summaryData,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'ดาวน์โหลดเอกสารไม่สำเร็จ');
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const safeTitle = (project.title || 'project_summary').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 40);
-      a.download = `สรุปโครงการ_แผ่นเดียว_${safeTitle}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error: any) {
-      console.error('Export short summary docx error:', error);
-      showAlert.error('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถสร้างไฟล์ Word สรุปโครงการได้');
-    } finally {
-      setIsExportingDocx(false);
-    }
-  };
-
-  // Export Short Summary PDF (One-page summary)
-  const handleExportShortPdf = async () => {
-    try {
-      setIsExportingPdf(true);
-      const authToken = token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
-      const res = await fetch(`/api/v1/projects/${project.id}/export-summary-pdf`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          type: 'SHORT_SUMMARY',
-          dynamicData: summaryData,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'ดาวน์โหลดเอกสาร PDF ไม่สำเร็จ');
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const safeTitle = (project.title || 'project_summary').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 40);
-      a.download = `สรุปโครงการ_แผ่นเดียว_${safeTitle}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error: any) {
-      console.error('Export short summary pdf error:', error);
-      showAlert.error('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถสร้างไฟล์ PDF สรุปโครงการได้');
-    } finally {
-      setIsExportingPdf(false);
-    }
+  // Print or Save One-Page Summary PDF
+  const handlePrintOnePagePdf = () => {
+    const originalTitle = document.title;
+    const safeTitle = (project?.title || 'project_summary').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 40);
+    document.title = `สรุปโครงการ_แผ่นเดียว_${safeTitle}`;
+    window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1500);
   };
 
   // Export Full Summary Booklet DOCX (เล่มสรุปผล)
@@ -351,7 +282,7 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
 
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={handlePrintOnePagePdf}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition"
               >
                 <Printer className="w-4 h-4" />
@@ -360,42 +291,12 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
 
               <button
                 type="button"
-                onClick={handleExportShortDocx}
-                disabled={isExportingDocx}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
-                title="ดาวน์โหลดสรุปโครงการแผ่นเดียวเป็นไฟล์ Word (.docx)"
+                onClick={handlePrintOnePagePdf}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs transition"
+                title="ดาวน์โหลด/พิมพ์สรุปโครงการแผ่นเดียวเป็นไฟล์ PDF"
               >
-                {isExportingDocx ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>กำลังส่งออก...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4" />
-                    <span>ดาวน์โหลด Word (.docx)</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleExportShortPdf}
-                disabled={isExportingPdf}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
-                title="ดาวน์โหลดสรุปโครงการแผ่นเดียวเป็นไฟล์ PDF"
-              >
-                {isExportingPdf ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>กำลังสร้าง PDF...</span>
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-4 h-4" />
-                    <span>ดาวน์โหลด PDF (.pdf)</span>
-                  </>
-                )}
+                <FileText className="w-4 h-4" />
+                <span>ดาวน์โหลด PDF (.pdf)</span>
               </button>
             </>
           )}
