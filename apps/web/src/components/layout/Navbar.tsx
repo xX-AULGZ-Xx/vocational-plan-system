@@ -210,10 +210,10 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
 
                 {/* Switcher Dropdown Menu */}
                 {showSwitcher && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 space-y-1">
+                  <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-72 max-w-sm mx-auto sm:mx-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 space-y-1">
                     <div className="px-3 py-2 border-b border-slate-100">
                       <p className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                         <span>สลับบทบาทผู้ใช้งาน (Demo / RBAC)</span>
                       </p>
                       <p className="text-[10px] text-slate-400">
@@ -236,7 +236,7 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
                                 : 'hover:bg-slate-50 text-slate-700'
                             }`}
                           >
-                            <div className="overflow-hidden">
+                            <div className="overflow-hidden min-w-0 pr-2">
                               <p className="font-semibold truncate">{acc.full_name}</p>
                               <p className="text-[10px] text-slate-400 truncate">
                                 {accBadge.label} {acc.department_name ? `• ${acc.department_name}` : ''}
@@ -244,7 +244,7 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
                             </div>
                             {isCurrent && (
                               <span
-                                className="text-[10px] text-white px-1.5 py-0.5 rounded shrink-0"
+                                className="text-[10px] text-white px-1.5 py-0.5 rounded shrink-0 font-semibold"
                                 style={{ backgroundColor: 'var(--color-primary, #1e3a8a)' }}
                               >
                                 ใช้งานอยู่
@@ -301,7 +301,7 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
 
                 {/* Dropdown Popup */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 space-y-1">
+                  <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-64 max-w-xs mx-auto sm:mx-0 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 space-y-1">
                     {/* Header in dropdown */}
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-3">
                       <div className="relative shrink-0">
