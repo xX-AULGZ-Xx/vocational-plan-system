@@ -294,7 +294,7 @@ export default function EvaluationFormEditor({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[60] bg-black/65 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-5xl w-full max-h-[94vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Header */}

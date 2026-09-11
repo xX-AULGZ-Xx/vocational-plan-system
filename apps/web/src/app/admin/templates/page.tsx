@@ -552,7 +552,7 @@ export default function AdminTemplatesPage() {
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col relative my-auto animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-slate-800">
               <h2 className="text-lg font-bold flex items-center gap-2">
@@ -601,7 +601,7 @@ export default function AdminTemplatesPage() {
 
       {/* Tag Manager Modal */}
       {selectedTemplate && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl w-full h-full sm:max-w-5xl sm:h-[90vh] flex flex-col overflow-hidden relative my-auto animate-in fade-in zoom-in-95 duration-200">
             
             <div className="bg-white px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">

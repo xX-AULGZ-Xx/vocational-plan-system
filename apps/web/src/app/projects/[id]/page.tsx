@@ -1378,7 +1378,7 @@ export default function ProjectDetailPage() {
 
       {/* Action Dialog / Modal */}
       {actionType && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -1483,7 +1483,7 @@ export default function ProjectDetailPage() {
 
       {/* Document Inline Preview Modal (PDF & Images) */}
       {previewDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-xs">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-slate-50">

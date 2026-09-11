@@ -31,7 +31,7 @@ export default function ProjectSummaryModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:fixed-none">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:fixed-none">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-5xl w-full max-h-[96vh] flex flex-col overflow-hidden print:max-h-none print:shadow-none print:border-none print:rounded-none">
         {/* Header Bar - Hidden on Print */}
         <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 shrink-0 no-print">

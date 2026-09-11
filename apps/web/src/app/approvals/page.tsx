@@ -1222,7 +1222,7 @@ export default function ApprovalsPage() {
       {/* FLOATING BATCH ACTIONS BAR */}
       {/* ======================================================== */}
       {selectedIds.length > 0 && currentTab === 'inbox' && (
-        <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center px-4 animate-in slide-in-from-bottom-5">
+        <div className="fixed bottom-6 inset-x-0 z-30 flex justify-center px-4 animate-in slide-in-from-bottom-5">
           <div className="bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4 max-w-2xl w-full justify-between">
             <div className="flex items-center gap-3">
               <span className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-xs">
@@ -1292,7 +1292,7 @@ export default function ApprovalsPage() {
       {/* SINGLE ACTION MODAL */}
       {/* ======================================================== */}
       {actionType && selectedApproval && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
@@ -1343,7 +1343,7 @@ export default function ApprovalsPage() {
               {/* Quick Preset Comment Chips */}
               <div className="space-y-1 mb-2">
                 <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-500" /> ข้อความมาตรฐานด่วน (คลิกเลือก):
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" /> ข้อความมาตรฐานด่วน (คลิกเลือก):
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {getQuickComments(selectedApproval.step_order, actionType).map((text, idx) => (
@@ -1413,7 +1413,7 @@ export default function ApprovalsPage() {
       {/* BATCH ACTION CONFIRMATION MODAL */}
       {/* ======================================================== */}
       {batchActionType && selectedIds.length > 0 && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
