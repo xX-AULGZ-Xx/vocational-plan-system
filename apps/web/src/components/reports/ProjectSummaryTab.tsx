@@ -31,6 +31,8 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingFullDocx, setIsExportingFullDocx] = useState(false);
+  const [isExportingFullPdf, setIsExportingFullPdf] = useState(false);
   const [selectingImageSlot, setSelectingImageSlot] = useState<number | null>(null);
 
   const imageDocuments = useMemo(() => {
@@ -121,15 +123,23 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
     }
   };
 
-  const handleExportDocx = async () => {
+  // Export Short Summary DOCX (One-page summary)
+  const handleExportShortDocx = async () => {
     try {
       setIsExportingDocx(true);
       const authToken = token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
-      const res = await fetch(`/api/v1/projects/${project.id}/export-summary-docx`, { headers });
+      const res = await fetch(`/api/v1/projects/${project.id}/export-summary-docx`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          type: 'SHORT_SUMMARY',
+          dynamicData: summaryData,
+        }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || 'ดาวน์โหลดเอกสารไม่สำเร็จ');
@@ -139,28 +149,36 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
       const a = document.createElement('a');
       a.href = url;
       const safeTitle = (project.title || 'project_summary').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 40);
-      a.download = `สรุปผลโครงการ_${safeTitle}.docx`;
+      a.download = `สรุปโครงการ_แผ่นเดียว_${safeTitle}.docx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
-      console.error('Export docx error:', error);
-      showAlert.error('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถสร้างไฟล์ Word ได้');
+      console.error('Export short summary docx error:', error);
+      showAlert.error('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถสร้างไฟล์ Word สรุปโครงการได้');
     } finally {
       setIsExportingDocx(false);
     }
   };
 
-  const handleExportPdf = async () => {
+  // Export Short Summary PDF (One-page summary)
+  const handleExportShortPdf = async () => {
     try {
       setIsExportingPdf(true);
       const authToken = token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
-      const res = await fetch(`/api/v1/projects/${project.id}/export-summary-pdf`, { headers });
+      const res = await fetch(`/api/v1/projects/${project.id}/export-summary-pdf`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          type: 'SHORT_SUMMARY',
+          dynamicData: summaryData,
+        }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || 'ดาวน์โหลดเอกสาร PDF ไม่สำเร็จ');
@@ -170,16 +188,94 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
       const a = document.createElement('a');
       a.href = url;
       const safeTitle = (project.title || 'project_summary').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 40);
-      a.download = `สรุปผลโครงการ_${safeTitle}.pdf`;
+      a.download = `สรุปโครงการ_แผ่นเดียว_${safeTitle}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
-      console.error('Export pdf error:', error);
-      showAlert.error('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถสร้างไฟล์ PDF ได้');
+      console.error('Export short summary pdf error:', error);
+      showAlert.error('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถสร้างไฟล์ PDF สรุปโครงการได้');
     } finally {
       setIsExportingPdf(false);
+    }
+  };
+
+  // Export Full Summary Booklet DOCX (เล่มสรุปผล)
+  const handleExportFullDocx = async () => {
+    try {
+      setIsExportingFullDocx(true);
+      const authToken = token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      const res = await fetch(`/api/v1/projects/${project.id}/export-summary-docx`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          type: 'FULL_SUMMARY',
+          dynamicData: summaryData,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'ดาวน์โหลดเล่มสรุปโครงการไม่สำเร็จ');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeTitle = (project.title || 'project_summary').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 40);
+      a.download = `เล่มสรุปผลโครงการ_${safeTitle}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Export full summary docx error:', error);
+      showAlert.error('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถสร้างเล่มสรุปโครงการ Word ได้');
+    } finally {
+      setIsExportingFullDocx(false);
+    }
+  };
+
+  // Export Full Summary Booklet PDF (เล่มสรุปผล)
+  const handleExportFullPdf = async () => {
+    try {
+      setIsExportingFullPdf(true);
+      const authToken = token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      const res = await fetch(`/api/v1/projects/${project.id}/export-summary-pdf`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          type: 'FULL_SUMMARY',
+          dynamicData: summaryData,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'ดาวน์โหลดเล่มสรุปโครงการ PDF ไม่สำเร็จ');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeTitle = (project.title || 'project_summary').replace(/[\/\\:*?"<>|]/g, '_').slice(0, 40);
+      a.download = `เล่มสรุปผลโครงการ_${safeTitle}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Export full summary pdf error:', error);
+      showAlert.error('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถสร้างเล่มสรุปโครงการ PDF ได้');
+    } finally {
+      setIsExportingFullPdf(false);
     }
   };
 
@@ -225,102 +321,146 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
 
         <div className="flex items-center gap-2">
           {activeView === 'preview' && (
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-theme border border-slate-200 mr-1">
+            <>
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-theme border border-slate-200 mr-1">
+                <button
+                  type="button"
+                  onClick={() => setOrientation('portrait')}
+                  className={`px-2.5 py-1.5 rounded-theme text-xs font-bold transition flex items-center gap-1 ${
+                    orientation === 'portrait'
+                      ? 'bg-white text-indigo-950 shadow-2xs font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title="สลับเป็นแนวตั้ง (A4 Portrait)"
+                >
+                  <span>แนวตั้ง</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrientation('landscape')}
+                  className={`px-2.5 py-1.5 rounded-theme text-xs font-bold transition flex items-center gap-1 ${
+                    orientation === 'landscape'
+                      ? 'bg-white text-indigo-950 shadow-2xs font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title="สลับเป็นแนวนอน (A4 Landscape)"
+                >
+                  <span>แนวนอน</span>
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={() => setOrientation('portrait')}
-                className={`px-2.5 py-1.5 rounded-theme text-xs font-bold transition flex items-center gap-1 ${
-                  orientation === 'portrait'
-                    ? 'bg-white text-indigo-950 shadow-2xs font-black'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="สลับเป็นแนวตั้ง (A4 Portrait)"
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition"
               >
-                <span>แนวตั้ง</span>
+                <Printer className="w-4 h-4" />
+                <span>พิมพ์รายงาน A4</span>
               </button>
+
               <button
                 type="button"
-                onClick={() => setOrientation('landscape')}
-                className={`px-2.5 py-1.5 rounded-theme text-xs font-bold transition flex items-center gap-1 ${
-                  orientation === 'landscape'
-                    ? 'bg-white text-indigo-950 shadow-2xs font-black'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title="สลับเป็นแนวนอน (A4 Landscape)"
+                onClick={handleExportShortDocx}
+                disabled={isExportingDocx}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
+                title="ดาวน์โหลดสรุปโครงการแผ่นเดียวเป็นไฟล์ Word (.docx)"
               >
-                <span>แนวนอน</span>
+                {isExportingDocx ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>กำลังส่งออก...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span>ดาวน์โหลด Word (.docx)</span>
+                  </>
+                )}
               </button>
-            </div>
+
+              <button
+                type="button"
+                onClick={handleExportShortPdf}
+                disabled={isExportingPdf}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
+                title="ดาวน์โหลดสรุปโครงการแผ่นเดียวเป็นไฟล์ PDF"
+              >
+                {isExportingPdf ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>กำลังสร้าง PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4" />
+                    <span>ดาวน์โหลด PDF (.pdf)</span>
+                  </>
+                )}
+              </button>
+            </>
           )}
 
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition"
-          >
-            <Printer className="w-4 h-4" />
-            <span>พิมพ์รายงาน A4</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExportDocx}
-            disabled={isExportingDocx}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
-            title="ดาวน์โหลดไฟล์ Word (.docx)"
-          >
-            {isExportingDocx ? (
-              <>
-                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>กำลังส่งออก...</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4" />
-                <span>ดาวน์โหลด Word (.docx)</span>
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            disabled={isExportingPdf}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
-            title="ดาวน์โหลดเอกสารสรุปโครงการเป็นไฟล์ PDF"
-          >
-            {isExportingPdf ? (
-              <>
-                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>กำลังสร้าง PDF...</span>
-              </>
-            ) : (
-              <>
-                <FileText className="w-4 h-4" />
-                <span>ดาวน์โหลด PDF (.pdf)</span>
-              </>
-            )}
-          </button>
-
           {activeView === 'edit' && (
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-xs transition"
-            >
-              {isSaving ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>กำลังบันทึก...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>บันทึกข้อมูล</span>
-                </>
-              )}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-theme bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>กำลังบันทึก...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>บันทึกข้อมูล</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportFullDocx}
+                disabled={isExportingFullDocx}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
+                title="ดาวน์โหลดเล่มสรุปผลโครงการเป็นไฟล์ Word (.docx)"
+              >
+                {isExportingFullDocx ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>กำลังส่งออก...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span>ดาวน์โหลดเล่มสรุป Word (.docx)</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportFullPdf}
+                disabled={isExportingFullPdf}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-theme bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs transition disabled:opacity-50"
+                title="ดาวน์โหลดเล่มสรุปผลโครงการเป็นไฟล์ PDF"
+              >
+                {isExportingFullPdf ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>กำลังสร้าง PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4" />
+                    <span>ดาวน์โหลดเล่มสรุป PDF (.pdf)</span>
+                  </>
+                )}
+              </button>
+            </>
           )}
         </div>
       </div>

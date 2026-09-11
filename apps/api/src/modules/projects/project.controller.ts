@@ -1452,7 +1452,7 @@ router.patch('/:id/summary', authenticate, async (req: AuthRequest, res: Respons
   }
 });
 
-async function generateProjectSummaryDocx(id: string | bigint) {
+async function generateProjectSummaryDocx(id: string | bigint, options?: { templateType?: string; templateId?: number | string; dynamicDataOverride?: any }) {
   const projectId = BigInt(id);
 
   const project = await prisma.project.findUnique({
@@ -1481,6 +1481,14 @@ async function generateProjectSummaryDocx(id: string | bigint) {
     dynamicData = temp || {};
   }
 
+  // Merge override dynamic data if provided
+  if (options?.dynamicDataOverride && typeof options.dynamicDataOverride === 'object') {
+    dynamicData = {
+      ...dynamicData,
+      ...options.dynamicDataOverride,
+    };
+  }
+
   // Find summary template
   const templates = await (prisma as any).documentTemplate.findMany({
     where: { is_active: true },
@@ -1488,12 +1496,37 @@ async function generateProjectSummaryDocx(id: string | bigint) {
     orderBy: [{ created_at: 'desc' }],
   });
 
-  let summaryTpl = templates.find((t: any) =>
-    t.default_type === 'FULL_SUMMARY' ||
-    t.default_type === 'SUMMARY' ||
-    (t.name && (t.name.includes('สรุป') || t.name.includes('แผ่นเดียว') || t.name.includes('เล่ม'))) ||
-    (t.file_name && (t.file_name.includes('สรุป') || t.file_name.includes('แผ่นเดียว') || t.file_name.includes('เล่ม')))
-  );
+  let summaryTpl: any = null;
+
+  if (options?.templateId) {
+    summaryTpl = templates.find((t: any) => String(t.id) === String(options.templateId));
+  }
+
+  if (!summaryTpl && options?.templateType === 'SHORT_SUMMARY') {
+    summaryTpl = templates.find((t: any) =>
+      t.default_type === 'SHORT_SUMMARY' ||
+      (t.name && (t.name.includes('แผ่นเดียว') || t.name.toLowerCase().includes('one-page') || t.name.toLowerCase().includes('short_summary'))) ||
+      (t.file_name && (t.file_name.includes('แผ่นเดียว') || t.file_name.toLowerCase().includes('one-page') || t.file_name.toLowerCase().includes('short_summary')))
+    );
+  }
+
+  if (!summaryTpl && options?.templateType === 'FULL_SUMMARY') {
+    summaryTpl = templates.find((t: any) =>
+      t.default_type === 'FULL_SUMMARY' ||
+      (t.name && (t.name.includes('เล่ม') || t.name.includes('รายงานผล') || t.name.toLowerCase().includes('full_summary'))) ||
+      (t.file_name && (t.file_name.includes('เล่ม') || t.file_name.includes('รายงานผล') || t.file_name.toLowerCase().includes('full_summary')))
+    );
+  }
+
+  if (!summaryTpl) {
+    summaryTpl = templates.find((t: any) =>
+      t.default_type === 'FULL_SUMMARY' ||
+      t.default_type === 'SHORT_SUMMARY' ||
+      t.default_type === 'SUMMARY' ||
+      (t.name && (t.name.includes('สรุป') || t.name.includes('แผ่นเดียว') || t.name.includes('เล่ม'))) ||
+      (t.file_name && (t.file_name.includes('สรุป') || t.file_name.includes('แผ่นเดียว') || t.file_name.includes('เล่ม')))
+    );
+  }
 
   if (!summaryTpl && templates.length > 0) {
     summaryTpl = templates[0];
@@ -1756,13 +1789,28 @@ async function generateProjectSummaryDocx(id: string | bigint) {
   };
 }
 
-// GET /api/v1/projects/:id/export-summary-docx (Download project summary report as DOCX)
-router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
+// Handler helper for export summary docx
+const handleExportSummaryDocx = async (req: any, res: Response) => {
   try {
     const { id } = req.params;
-    const { project, renderResult, safeTitle } = await generateProjectSummaryDocx(id);
+    const templateType = (req.query.type as string) || req.body?.type;
+    const templateId = req.query.templateId || req.body?.templateId;
+    const dynamicDataOverride = req.body?.dynamicData || req.body?.dynamic_data;
 
-    const downloadFileName = 'สรุปผลโครงการ_' + safeTitle + '.docx';
+    const { project, summaryTpl, renderResult, safeTitle } = await generateProjectSummaryDocx(id, {
+      templateType,
+      templateId,
+      dynamicDataOverride,
+    });
+
+    let prefix = 'สรุปผลโครงการ_';
+    if (templateType === 'SHORT_SUMMARY' || summaryTpl?.default_type === 'SHORT_SUMMARY') {
+      prefix = 'สรุปโครงการ_แผ่นเดียว_';
+    } else if (templateType === 'FULL_SUMMARY' || summaryTpl?.default_type === 'FULL_SUMMARY') {
+      prefix = 'เล่มสรุปผลโครงการ_';
+    }
+
+    const downloadFileName = prefix + safeTitle + '.docx';
     const encodedFileName = encodeURIComponent(downloadFileName);
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -1777,13 +1825,21 @@ router.get('/:id/export-summary-docx', async (req: any, res: Response) => {
     }
     return res.status(500).json({ success: false, message: detailedMsg, error: detailedMsg });
   }
-});
+};
 
-// GET /api/v1/projects/:id/export-summary-pdf (Download project summary report as PDF)
-router.get('/:id/export-summary-pdf', async (req: any, res: Response) => {
+// Handler helper for export summary pdf
+const handleExportSummaryPdf = async (req: any, res: Response) => {
   try {
     const { id } = req.params;
-    const { project, renderResult, safeTitle } = await generateProjectSummaryDocx(id);
+    const templateType = (req.query.type as string) || req.body?.type;
+    const templateId = req.query.templateId || req.body?.templateId;
+    const dynamicDataOverride = req.body?.dynamicData || req.body?.dynamic_data;
+
+    const { project, summaryTpl, renderResult, safeTitle } = await generateProjectSummaryDocx(id, {
+      templateType,
+      templateId,
+      dynamicDataOverride,
+    });
 
     const docxPath = renderResult.filePath;
     const pdfName = renderResult.fileName.replace(/\.docx$/i, '.pdf');
@@ -1795,7 +1851,14 @@ router.get('/:id/export-summary-pdf', async (req: any, res: Response) => {
       throw new Error('ไม่สามารถแปลงไฟล์เอกสารเป็น PDF ได้');
     }
 
-    const downloadFileName = 'สรุปผลโครงการ_' + safeTitle + '.pdf';
+    let prefix = 'สรุปผลโครงการ_';
+    if (templateType === 'SHORT_SUMMARY' || summaryTpl?.default_type === 'SHORT_SUMMARY') {
+      prefix = 'สรุปโครงการ_แผ่นเดียว_';
+    } else if (templateType === 'FULL_SUMMARY' || summaryTpl?.default_type === 'FULL_SUMMARY') {
+      prefix = 'เล่มสรุปผลโครงการ_';
+    }
+
+    const downloadFileName = prefix + safeTitle + '.pdf';
     const encodedFileName = encodeURIComponent(downloadFileName);
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -1808,7 +1871,13 @@ router.get('/:id/export-summary-pdf', async (req: any, res: Response) => {
     let detailedMsg = error.message || 'เกิดข้อผิดพลาดในการสร้างไฟล์ PDF สรุปโครงการ';
     return res.status(500).json({ success: false, message: detailedMsg, error: detailedMsg });
   }
-});
+};
+
+router.get('/:id/export-summary-docx', handleExportSummaryDocx);
+router.post('/:id/export-summary-docx', handleExportSummaryDocx);
+
+router.get('/:id/export-summary-pdf', handleExportSummaryPdf);
+router.post('/:id/export-summary-pdf', handleExportSummaryPdf);
 
 // PATCH /api/v1/projects/:id/execution-status (Update post-approval execution sub-status)
 router.patch('/:id/execution-status', authenticate, async (req: AuthRequest, res: Response) => {
