@@ -526,20 +526,33 @@ export default function MyProjectsPage() {
                         </button>
                         
                         {dropdownOpenId === p.id && (
-                          <div className="absolute right-0 bottom-full mb-1 w-64 bg-white border border-slate-200 rounded-theme shadow-lg z-50 py-1 overflow-hidden">
-                            <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                              เลือกแบบฟอร์มสรุป
+                          <>
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setDropdownOpenId(null)}
+                            />
+                            <div className="absolute left-0 bottom-full mb-1.5 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-theme shadow-xl z-50 py-1 overflow-hidden">
+                              <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                                <span>เลือกแบบฟอร์มสรุป</span>
+                                <button
+                                  onClick={() => setDropdownOpenId(null)}
+                                  className="text-slate-400 hover:text-slate-600"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                              {summaryTemplates.map(tpl => (
+                                <Link
+                                  key={tpl.id}
+                                  href={`/projects/${p.id}/summary?templateId=${tpl.id}`}
+                                  onClick={() => setDropdownOpenId(null)}
+                                  className="block px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-theme-primary-light hover:text-theme-primary transition-colors border-b border-slate-50 last:border-0"
+                                >
+                                  {tpl.name}
+                                </Link>
+                              ))}
                             </div>
-                            {summaryTemplates.map(tpl => (
-                              <Link
-                                key={tpl.id}
-                                href={`/projects/${p.id}/summary?templateId=${tpl.id}`}
-                                className="block px-4 py-2 text-xs font-medium text-slate-700 hover:bg-theme-primary-light hover:text-theme-primary transition-colors"
-                              >
-                                {tpl.name}
-                              </Link>
-                            ))}
-                          </div>
+                          </>
                         )}
                       </div>
                     )}
