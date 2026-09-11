@@ -1357,7 +1357,7 @@ export default function AdminUsersPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {[
                       { role: 'TEACHER', title: 'ครู / ผู้เสนอโครงการ', desc: 'เสนอโครงการและติดตามสถานะ' },
-                      { role: 'HEAD_OF_DEPT', title: 'หัวหน้างาน / หัวหน้าแผนก', desc: 'ลงนามพิจารณาขั้นที่ 1' },
+                      { role: 'HEAD_DEPT', title: 'หัวหน้างาน / หัวหน้าแผนก', desc: 'ลงนามพิจารณาขั้นที่ 1' },
                       { role: 'DEPUTY_DIRECTOR', title: 'รองผู้อำนวยการ', desc: 'ลงนามพิจารณาขั้นที่ 2 (กำกับดูแล 4 ฝ่าย)' },
                       { role: 'PLANNING_OFFICER', title: 'เจ้าหน้าที่งานแผนงาน', desc: 'ตรวจงบประมาณ ออกรหัส (ขั้นที่ 3)' },
                       { role: 'DIRECTOR', title: 'ผู้อำนวยการ', desc: 'อนุมัติขั้นสุดท้าย (ขั้นที่ 4)' },

@@ -1228,6 +1228,8 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
 
     const password_hash = password ? await bcrypt.hash(password, 10) : null;
 
+    const normalizedRole = role === 'HEAD_OF_DEPT' ? 'HEAD_DEPT' : (role as Role);
+
     const newUser = await (prisma as any).user.create({
       data: {
         username: username.trim(),
@@ -1235,7 +1237,7 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
         email: email ? email.trim().toLowerCase() : null,
         full_name: full_name.trim(),
         position: position ? position.trim() : null,
-        role: role as Role,
+        role: normalizedRole,
         department_id: department_id ? parseInt(department_id) : null,
         is_active: is_active !== undefined ? Boolean(is_active) : true,
       },
@@ -1315,11 +1317,13 @@ router.put('/users/:id', async (req: AuthRequest, res: Response) => {
       }
     }
 
+    const normalizedRole = role !== undefined ? (role === 'HEAD_OF_DEPT' ? 'HEAD_DEPT' : (role as Role)) : existing.role;
+
     const data: any = {
       full_name: full_name !== undefined ? full_name.trim() : existing.full_name,
       email: email !== undefined ? (email ? email.trim().toLowerCase() : null) : existing.email,
       position: position !== undefined ? (position ? position.trim() : null) : existing.position,
-      role: role !== undefined ? (role as Role) : existing.role,
+      role: normalizedRole,
       department_id: department_id !== undefined ? (department_id ? parseInt(department_id) : null) : existing.department_id,
       is_active: is_active !== undefined ? Boolean(is_active) : existing.is_active,
     };
