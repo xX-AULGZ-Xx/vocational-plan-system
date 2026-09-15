@@ -3,6 +3,85 @@ import { prisma, serializeBigInt } from '../../lib/prisma';
 
 const router = Router();
 
+export async function syncDivisionDeputy(
+  division: { id: number; name: string; code: string },
+  deputyName: string,
+  deputyPosition?: string | null
+) {
+  const codeLower = division.code.toLowerCase();
+  const nameVal = (deputyName || '').trim();
+  const posVal = (deputyPosition || `รองผู้อำนวยการ${division.name}`).trim();
+
+  const keysToUpdate: Record<string, string> = {
+    [`deputy_name_${codeLower}`]: nameVal,
+    [`deputy_${codeLower}_name`]: nameVal,
+    [`deputy_name_div_${division.id}`]: nameVal,
+    [`deputy_position_${codeLower}`]: posVal,
+    [`deputy_${codeLower}_position`]: posVal,
+    [`deputy_pos_div_${division.id}`]: posVal,
+  };
+
+  if (codeLower === 'acad') {
+    keysToUpdate['deputy_acad_name'] = nameVal;
+    keysToUpdate['deputy_acad_position'] = posVal;
+  } else if (codeLower === 'res') {
+    keysToUpdate['deputy_res_name'] = nameVal;
+    keysToUpdate['deputy_res_position'] = posVal;
+  } else if (codeLower === 'dev') {
+    keysToUpdate['deputy_dev_name'] = nameVal;
+    keysToUpdate['deputy_dev_position'] = posVal;
+  } else if (codeLower === 'strat') {
+    keysToUpdate['deputy_strat_name'] = nameVal;
+    keysToUpdate['deputy_strat_position'] = posVal;
+  }
+
+  for (const [k, v] of Object.entries(keysToUpdate)) {
+    await (prisma as any).systemSetting.upsert({
+      where: { key: k },
+      update: { value: v },
+      create: { key: k, value: v, description: `ข้อมูลรองผู้อำนวยการ (${division.name})` },
+    });
+  }
+
+  // Also sync with DEPUTY_DIRECTOR user in this division if any
+  try {
+    const depts = await prisma.department.findMany({ where: { division_id: division.id } });
+    const deptIds = depts.map((d) => d.id);
+    const deputyUser = await prisma.user.findFirst({
+      where: {
+        role: 'DEPUTY_DIRECTOR',
+        department_id: { in: deptIds },
+      },
+    });
+
+    if (deputyUser && nameVal) {
+      await prisma.user.update({
+        where: { id: deputyUser.id },
+        data: {
+          full_name: nameVal,
+          ...(posVal ? { position: posVal } : {}),
+        },
+      });
+    }
+  } catch (userSyncErr) {
+    console.warn('Sync deputy user warning:', userSyncErr);
+  }
+
+  // Broadcast realtime update
+  try {
+    const { sseManager } = require('../notifications/sse.manager');
+    sseManager.broadcast('data_update', {
+      scope: 'DIVISION',
+      action: 'DEPUTY_UPDATED',
+      divisionCode: division.code,
+      divisionId: division.id,
+      deputyName: nameVal,
+      deputyPosition: posVal,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) {}
+}
+
 // GET /api/v1/divisions
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -15,6 +94,12 @@ router.get('/', async (req: Request, res: Response) => {
     const settings = await (prisma as any).systemSetting.findMany();
     const settingsMap = new Map<string, string>(settings.map((s: any) => [s.key, s.value]));
 
+    // Fetch active DEPUTY_DIRECTOR users to use as live sync fallback
+    const deputyUsers = await prisma.user.findMany({
+      where: { role: 'DEPUTY_DIRECTOR', is_active: true },
+      include: { department: true },
+    });
+
     const enriched = divisions.map((div) => {
       const divCodeLower = div.code.toLowerCase();
       let deputyName = settingsMap.get(`deputy_name_${divCodeLower}`) || 
@@ -24,6 +109,15 @@ router.get('/', async (req: Request, res: Response) => {
                            settingsMap.get(`deputy_${divCodeLower}_position`) || 
                            settingsMap.get(`deputy_pos_div_${div.id}`) || 
                            `รองผู้อำนวยการ${div.name}`;
+
+      // If deputyName is not set in settings, fallback to active DEPUTY_DIRECTOR user in this division
+      if (!deputyName) {
+        const matchedDeputyUser = deputyUsers.find((u) => u.department?.division_id === div.id);
+        if (matchedDeputyUser) {
+          deputyName = matchedDeputyUser.full_name;
+          if (matchedDeputyUser.position) deputyPosition = matchedDeputyUser.position;
+        }
+      }
 
       const departments = div.departments.map((dept) => {
         let headName = settingsMap.get(`head_name_dept_${dept.id}`) || 
@@ -141,6 +235,22 @@ router.get('/:code', async (req: Request, res: Response) => {
     let deputyName = deputySetting ? deputySetting.value : '';
     let deputyPosition = deputyPosSetting ? deputyPosSetting.value : `รองผู้อำนวยการ${division.name}`;
 
+    // Live sync fallback from DEPUTY_DIRECTOR user if deputyName is empty
+    if (!deputyName) {
+      const deptIds = division.departments.map((d) => d.id);
+      const deputyUser = await prisma.user.findFirst({
+        where: {
+          role: 'DEPUTY_DIRECTOR',
+          is_active: true,
+          department_id: { in: deptIds },
+        },
+      });
+      if (deputyUser) {
+        deputyName = deputyUser.full_name;
+        if (deputyUser.position) deputyPosition = deputyUser.position;
+      }
+    }
+
     const data = {
       ...division,
       departments: mappedDepartments,
@@ -169,32 +279,7 @@ router.put('/:code/deputy', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลฝ่าย' });
     }
 
-    const settingKey = `deputy_name_${upperCode.toLowerCase()}`;
-    const settingPosKey = `deputy_position_${upperCode.toLowerCase()}`;
-
-    if (deputy_name !== undefined) {
-      await (prisma as any).systemSetting.upsert({
-        where: { key: settingKey },
-        update: { value: String(deputy_name || '') },
-        create: {
-          key: settingKey,
-          value: String(deputy_name || ''),
-          description: `ชื่อรองผู้อำนวยการ (${division.name})`,
-        },
-      });
-    }
-
-    if (deputy_position !== undefined) {
-      await (prisma as any).systemSetting.upsert({
-        where: { key: settingPosKey },
-        update: { value: String(deputy_position || '') },
-        create: {
-          key: settingPosKey,
-          value: String(deputy_position || ''),
-          description: `ตำแหน่งรองผู้อำนวยการ (${division.name})`,
-        },
-      });
-    }
+    await syncDivisionDeputy(division, deputy_name, deputy_position);
 
     return res.json({
       success: true,
@@ -268,42 +353,8 @@ router.put('/:id', async (req: Request, res: Response) => {
       },
     });
 
-    const divCodeLower = (code || division.code).toLowerCase();
-    if (deputy_name !== undefined) {
-      const val = String(deputy_name || '');
-      await (prisma as any).systemSetting.upsert({
-        where: { key: `deputy_name_${divCodeLower}` },
-        update: { value: val },
-        create: { key: `deputy_name_${divCodeLower}`, value: val, description: `ชื่อรองผู้อำนวยการ (${division.name})` },
-      });
-      await (prisma as any).systemSetting.upsert({
-        where: { key: `deputy_${divCodeLower}_name` },
-        update: { value: val },
-        create: { key: `deputy_${divCodeLower}_name`, value: val, description: `ชื่อรองผู้อำนวยการ (${division.name})` },
-      });
-      await (prisma as any).systemSetting.upsert({
-        where: { key: `deputy_name_div_${id}` },
-        update: { value: val },
-        create: { key: `deputy_name_div_${id}`, value: val, description: `ชื่อรองผู้อำนวยการ (${division.name})` },
-      });
-    }
-    if (deputy_position !== undefined) {
-      const posVal = String(deputy_position || '');
-      await (prisma as any).systemSetting.upsert({
-        where: { key: `deputy_position_${divCodeLower}` },
-        update: { value: posVal },
-        create: { key: `deputy_position_${divCodeLower}`, value: posVal, description: `ตำแหน่งรองผู้อำนวยการ (${division.name})` },
-      });
-      await (prisma as any).systemSetting.upsert({
-        where: { key: `deputy_${divCodeLower}_position` },
-        update: { value: posVal },
-        create: { key: `deputy_${divCodeLower}_position`, value: posVal, description: `ตำแหน่งรองผู้อำนวยการ (${division.name})` },
-      });
-      await (prisma as any).systemSetting.upsert({
-        where: { key: `deputy_pos_div_${id}` },
-        update: { value: posVal },
-        create: { key: `deputy_pos_div_${id}`, value: posVal, description: `ตำแหน่งรองผู้อำนวยการ (${division.name})` },
-      });
+    if (deputy_name !== undefined || deputy_position !== undefined) {
+      await syncDivisionDeputy(division, deputy_name, deputy_position);
     }
 
     return res.json({ success: true, message: 'อัปเดตฝ่าย / กลุ่มงานสำเร็จ', data: serializeBigInt(division) });

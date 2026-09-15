@@ -1078,6 +1078,52 @@ router.put('/settings', async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Sync deputy settings to DEPUTY_DIRECTOR users if deputy names are updated
+    try {
+      const deputyMappings: { keys: string[]; posKeys: string[]; code: string }[] = [
+        { keys: ['deputy_acad_name', 'deputy_name_acad'], posKeys: ['deputy_acad_position', 'deputy_position_acad'], code: 'acad' },
+        { keys: ['deputy_res_name', 'deputy_name_res'], posKeys: ['deputy_res_position', 'deputy_position_res'], code: 'res' },
+        { keys: ['deputy_dev_name', 'deputy_name_dev'], posKeys: ['deputy_dev_position', 'deputy_position_dev'], code: 'dev' },
+        { keys: ['deputy_strat_name', 'deputy_name_strat'], posKeys: ['deputy_strat_position', 'deputy_position_strat'], code: 'strat' },
+      ];
+
+      for (const map of deputyMappings) {
+        const matchedKey = map.keys.find((k) => payload[k] !== undefined);
+        if (matchedKey) {
+          const nameVal = String(payload[matchedKey] || '').trim();
+          const matchedPosKey = map.posKeys.find((k) => payload[k] !== undefined);
+          const posVal = matchedPosKey ? String(payload[matchedPosKey] || '').trim() : undefined;
+
+          const targetDiv = await prisma.division.findUnique({
+            where: { code: map.code },
+            include: { departments: true },
+          });
+
+          if (targetDiv) {
+            const deptIds = targetDiv.departments.map((d) => d.id);
+            const deputyUser = await prisma.user.findFirst({
+              where: {
+                role: 'DEPUTY_DIRECTOR',
+                department_id: { in: deptIds },
+              },
+            });
+
+            if (deputyUser && nameVal) {
+              await prisma.user.update({
+                where: { id: deputyUser.id },
+                data: {
+                  full_name: nameVal,
+                  ...(posVal ? { position: posVal } : {}),
+                },
+              });
+            }
+          }
+        }
+      }
+    } catch (depErr) {
+      console.warn('Sync deputy user on settings update error:', depErr);
+    }
+
     // Broadcast Realtime Data Update
     try {
       sseManager.broadcast('data_update', {
@@ -1155,17 +1201,13 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
       where.department_id = parseInt(String(department_id));
     }
 
-    if (is_active !== undefined && is_active !== '' && is_active !== 'ALL') {
-      where.is_active = is_active === 'true';
+    if (is_active !== undefined && is_active !== 'ALL') {
+      where.is_active = is_active === 'true' || is_active === 'ACTIVE';
     }
 
     const users = await (prisma as any).user.findMany({
       where,
-      orderBy: [
-        { is_active: 'desc' },
-        { role: 'asc' },
-        { created_at: 'desc' }
-      ],
+      orderBy: { created_at: 'desc' },
       include: {
         department: {
           include: {
@@ -1193,9 +1235,9 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
       is_active: u.is_active,
       created_at: u.created_at,
       department_id: u.department_id,
-      department_name: u.department?.name || '-',
-      division_name: u.department?.division?.name || '-',
-      division_code: u.department?.division?.code || '-',
+      department_name: u.department?.name || 'ไม่ได้ระบุ',
+      division_name: u.department?.division?.name || 'ไม่ได้ระบุ',
+      division_code: u.department?.division?.code || '',
       projects_count: u._count?.projects || 0,
       approvals_count: u._count?.approvals || 0,
     }));
@@ -1210,7 +1252,7 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
 // POST /api/v1/admin/users
 router.post('/users', async (req: AuthRequest, res: Response) => {
   try {
-    const { username, password, email, full_name, position, role, department_id, is_active, head_dept_ids } = req.body;
+    const { username, password, email, full_name, position, role, department_id, is_active, head_dept_ids, division_id } = req.body;
 
     if (!username || (!password && !email) || !full_name || !role) {
       return res.status(400).json({
@@ -1257,6 +1299,44 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
         },
       },
     });
+
+    // Sync Deputy Director to Division and Settings
+    if (normalizedRole === 'DEPUTY_DIRECTOR') {
+      try {
+        let targetDivision: any = null;
+        if (department_id) {
+          const dept = await prisma.department.findUnique({
+            where: { id: parseInt(department_id) },
+            include: { division: true },
+          });
+          if (dept?.division) targetDivision = dept.division;
+        }
+        if (!targetDivision && division_id) {
+          targetDivision = await prisma.division.findUnique({
+            where: { id: parseInt(division_id) },
+          });
+        }
+        if (!targetDivision) {
+          const pos = (position || '').toLowerCase();
+          if (pos.includes('วิชาการ')) {
+            targetDivision = await prisma.division.findFirst({ where: { code: 'acad' } });
+          } else if (pos.includes('ทรัพยากร') || pos.includes('บริหาร')) {
+            targetDivision = await prisma.division.findFirst({ where: { code: 'res' } });
+          } else if (pos.includes('พัฒนา') || pos.includes('กิจกรรม') || pos.includes('นักเรียน')) {
+            targetDivision = await prisma.division.findFirst({ where: { code: 'dev' } });
+          } else if (pos.includes('แผนงาน') || pos.includes('ความร่วมมือ')) {
+            targetDivision = await prisma.division.findFirst({ where: { code: 'strat' } });
+          }
+        }
+
+        if (targetDivision) {
+          const { syncDivisionDeputy } = require('../divisions/division.controller');
+          await syncDivisionDeputy(targetDivision, full_name, position);
+        }
+      } catch (depErr) {
+        console.warn('Sync deputy on create user error:', depErr);
+      }
+    }
 
     // Update head settings if head_dept_ids provided
     if (Array.isArray(head_dept_ids) && head_dept_ids.length > 0) {
@@ -1307,11 +1387,16 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
 router.put('/users/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { full_name, email, position, role, department_id, is_active, password, head_dept_ids } = req.body;
+    const { full_name, email, position, role, department_id, is_active, password, head_dept_ids, division_id } = req.body;
 
     const userId = BigInt(id);
     const existing = await (prisma as any).user.findUnique({
       where: { id: userId },
+      include: {
+        department: {
+          include: { division: true },
+        },
+      },
     });
 
     if (!existing) {
@@ -1351,6 +1436,47 @@ router.put('/users/:id', async (req: AuthRequest, res: Response) => {
         },
       },
     });
+
+    // Sync Deputy Director to Division and Settings
+    if (normalizedRole === 'DEPUTY_DIRECTOR') {
+      try {
+        let targetDivision: any = null;
+        if (data.department_id) {
+          const dept = await prisma.department.findUnique({
+            where: { id: data.department_id },
+            include: { division: true },
+          });
+          if (dept?.division) targetDivision = dept.division;
+        }
+        if (!targetDivision && division_id) {
+          targetDivision = await prisma.division.findUnique({
+            where: { id: parseInt(division_id) },
+          });
+        }
+        if (!targetDivision && existing.department?.division) {
+          targetDivision = existing.department.division;
+        }
+        if (!targetDivision) {
+          const pos = (data.position || '').toLowerCase();
+          if (pos.includes('วิชาการ')) {
+            targetDivision = await prisma.division.findFirst({ where: { code: 'acad' } });
+          } else if (pos.includes('ทรัพยากร') || pos.includes('บริหาร')) {
+            targetDivision = await prisma.division.findFirst({ where: { code: 'res' } });
+          } else if (pos.includes('พัฒนา') || pos.includes('กิจกรรม') || pos.includes('นักเรียน')) {
+            targetDivision = await prisma.division.findFirst({ where: { code: 'dev' } });
+          } else if (pos.includes('แผนงาน') || pos.includes('ความร่วมมือ')) {
+            targetDivision = await prisma.division.findFirst({ where: { code: 'strat' } });
+          }
+        }
+
+        if (targetDivision) {
+          const { syncDivisionDeputy } = require('../divisions/division.controller');
+          await syncDivisionDeputy(targetDivision, updated.full_name, updated.position);
+        }
+      } catch (depErr) {
+        console.warn('Sync deputy on update user error:', depErr);
+      }
+    }
 
     // Update head settings if head_dept_ids provided
     if (Array.isArray(head_dept_ids) && head_dept_ids.length > 0) {
