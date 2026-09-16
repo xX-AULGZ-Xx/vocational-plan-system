@@ -58,9 +58,13 @@ export default function MyProjectsPage() {
   // Scope State (For Admin & Planning Officer)
   const [projectScope, setProjectScope] = useState<'ALL' | 'MINE'>(user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER' ? 'ALL' : 'MINE');
 
+  const [allProjectsCount, setAllProjectsCount] = useState<number>(0);
+  const [myProjectsCount, setMyProjectsCount] = useState<number>(0);
+
   useEffect(() => {
     fetchMyProjects();
     fetchSummaryTemplates();
+    fetchCounts();
   }, [token, projectScope]);
 
   // Real-time Data Update Listener: Automatically refresh project list when changes occur
@@ -68,10 +72,31 @@ export default function MyProjectsPage() {
     const unsubscribe = subscribeDataUpdate((event) => {
       if (event.scope === 'PROJECTS' || event.scope === 'APPROVALS') {
         fetchMyProjects();
+        fetchCounts();
       }
     });
     return () => unsubscribe();
   }, [subscribeDataUpdate, token, projectScope]);
+
+  const fetchCounts = async () => {
+    if (!token) return;
+    if (user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER') {
+      try {
+        const [resAll, resMine] = await Promise.all([
+          fetch('/api/v1/projects', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/v1/projects?my_projects=true', { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+        const dataAll = await resAll.json();
+        const dataMine = await resMine.json();
+        if (dataAll.success && Array.isArray(dataAll.data)) {
+          setAllProjectsCount(dataAll.data.length);
+        }
+        if (dataMine.success && Array.isArray(dataMine.data)) {
+          setMyProjectsCount(dataMine.data.length);
+        }
+      } catch (err) {}
+    }
+  };
 
   const fetchSummaryTemplates = async () => {
     if (!token) return;
@@ -104,7 +129,13 @@ export default function MyProjectsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setProjects(data.data || []);
+        const list = data.data || [];
+        setProjects(list);
+        if (projectScope === 'ALL') {
+          setAllProjectsCount(list.length);
+        } else {
+          setMyProjectsCount(list.length);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -338,23 +369,33 @@ export default function MyProjectsPage() {
             <div className="flex items-center bg-slate-100 p-1 rounded-theme border border-slate-200">
               <button
                 onClick={() => setProjectScope('ALL')}
-                className={`px-3 py-1.5 rounded-theme text-xs font-bold transition ${
+                className={`px-3 py-1.5 rounded-theme text-xs font-bold transition flex items-center gap-1.5 ${
                   projectScope === 'ALL'
                     ? 'bg-white text-theme-primary shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                โครงการทั้งหมด ({projects.length})
+                <span>โครงการทั้งหมด</span>
+                <span className={`px-1.5 py-0.2 text-[11px] rounded-full font-bold ${
+                  projectScope === 'ALL' ? 'bg-theme-primary/10 text-theme-primary' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {allProjectsCount}
+                </span>
               </button>
               <button
                 onClick={() => setProjectScope('MINE')}
-                className={`px-3 py-1.5 rounded-theme text-xs font-bold transition ${
+                className={`px-3 py-1.5 rounded-theme text-xs font-bold transition flex items-center gap-1.5 ${
                   projectScope === 'MINE'
                     ? 'bg-white text-theme-primary shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                โครงการของฉัน
+                <span>โครงการของฉัน</span>
+                <span className={`px-1.5 py-0.2 text-[11px] rounded-full font-bold ${
+                  projectScope === 'MINE' ? 'bg-theme-primary/10 text-theme-primary' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {myProjectsCount}
+                </span>
               </button>
             </div>
           )}
