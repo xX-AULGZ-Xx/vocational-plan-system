@@ -245,8 +245,11 @@ export default function MyProjectsPage() {
   };
 
   const handleExportReport = () => {
-    if (filteredProjects.length === 0) {
-      showAlert.warning('ไม่มีข้อมูลโครงการสำหรับส่งออก');
+    // Exclude draft projects from export
+    const exportProjects = filteredProjects.filter((p) => p.status !== 'draft');
+
+    if (exportProjects.length === 0) {
+      showAlert.warning('ไม่มีข้อมูลโครงการที่ยื่นเสนอสำหรับส่งออก (ไม่รวมแบบร่าง)');
       return;
     }
 
@@ -281,7 +284,7 @@ export default function MyProjectsPage() {
       return '-';
     };
 
-    const rows = filteredProjects.map((p, idx) => {
+    const rows = exportProjects.map((p, idx) => {
       const stepInfo = getApprovalStepInfo(p);
       const escapeCsv = (str: any) => {
         if (str === null || str === undefined) return '""';
