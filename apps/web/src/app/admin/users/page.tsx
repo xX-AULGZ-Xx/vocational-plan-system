@@ -63,6 +63,8 @@ interface UserItem {
   is_active: boolean;
   created_at: string;
   department_id: number | null;
+  department_ids?: number[];
+  division_ids?: number[];
   department_name: string;
   division_name: string;
   division_code: string;
@@ -437,29 +439,40 @@ export default function AdminUsersPage() {
     setCustomPosition(pCustom);
 
     // Find division and department
-    const dept = allDepartments.find((d) => d.id === u.department_id);
-    if (dept) {
-      setSelectedDivisionIds([dept.division_id]);
-      setSelectedDepartmentIds([dept.id]);
-    } else if (u.role === 'DEPUTY_DIRECTOR') {
-      const pos = (u.position || '').toLowerCase();
-      let matchedDiv: Division | undefined;
-      if (pos.includes('วิชาการ')) matchedDiv = divisions.find((d) => d.code === 'acad' || d.code === 'ACAD');
-      else if (pos.includes('ทรัพยากร') || pos.includes('บริหาร')) matchedDiv = divisions.find((d) => d.code === 'res' || d.code === 'RES');
-      else if (pos.includes('พัฒนา') || pos.includes('กิจกรรม') || pos.includes('นักเรียน')) matchedDiv = divisions.find((d) => d.code === 'dev' || d.code === 'DEV');
-      else if (pos.includes('แผนงาน') || pos.includes('ความร่วมมือ')) matchedDiv = divisions.find((d) => d.code === 'strat' || d.code === 'STRAT');
+    const userDivIds = Array.isArray(u.division_ids) && u.division_ids.length > 0
+      ? u.division_ids
+      : [];
+    const userDeptIds = Array.isArray(u.department_ids) && u.department_ids.length > 0
+      ? u.department_ids
+      : (u.department_id ? [u.department_id] : []);
 
-      if (matchedDiv) {
-        setSelectedDivisionIds([matchedDiv.id]);
-        if (matchedDiv.departments?.length > 0) {
-          setSelectedDepartmentIds([matchedDiv.departments[0].id]);
+    if (userDivIds.length > 0) {
+      setSelectedDivisionIds(userDivIds);
+    } else {
+      const dept = allDepartments.find((d) => d.id === u.department_id);
+      if (dept) {
+        setSelectedDivisionIds([dept.division_id]);
+      } else if (u.role === 'DEPUTY_DIRECTOR') {
+        const pos = (u.position || '').toLowerCase();
+        let matchedDiv: Division | undefined;
+        if (pos.includes('วิชาการ')) matchedDiv = divisions.find((d) => d.code === 'acad' || d.code === 'ACAD');
+        else if (pos.includes('ทรัพยากร') || pos.includes('บริหาร')) matchedDiv = divisions.find((d) => d.code === 'res' || d.code === 'RES');
+        else if (pos.includes('พัฒนา') || pos.includes('กิจกรรม') || pos.includes('นักเรียน')) matchedDiv = divisions.find((d) => d.code === 'dev' || d.code === 'DEV');
+        else if (pos.includes('แผนงาน') || pos.includes('ความร่วมมือ')) matchedDiv = divisions.find((d) => d.code === 'strat' || d.code === 'STRAT');
+
+        if (matchedDiv) {
+          setSelectedDivisionIds([matchedDiv.id]);
+        } else if (divisions.length > 0) {
+          setSelectedDivisionIds([divisions[0].id]);
         }
       } else if (divisions.length > 0) {
         setSelectedDivisionIds([divisions[0].id]);
-        setSelectedDepartmentIds([]);
       }
-    } else if (divisions.length > 0) {
-      setSelectedDivisionIds([divisions[0].id]);
+    }
+
+    if (userDeptIds.length > 0) {
+      setSelectedDepartmentIds(userDeptIds);
+    } else {
       setSelectedDepartmentIds([]);
     }
 
@@ -501,6 +514,8 @@ export default function AdminUsersPage() {
         position: effectivePosition || null,
         role: formData.role,
         department_id: effectiveDeptId ? parseInt(String(effectiveDeptId)) : null,
+        department_ids: selectedDepartmentIds.length > 0 ? selectedDepartmentIds : (effectiveDeptId ? [parseInt(String(effectiveDeptId))] : []),
+        division_ids: selectedDivisionIds.length > 0 ? selectedDivisionIds : [],
         division_id: selectedDivisionIds.length > 0 ? selectedDivisionIds[0] : undefined,
         is_active: formData.is_active,
         head_dept_ids: headDeptIds,

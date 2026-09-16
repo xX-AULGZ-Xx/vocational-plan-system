@@ -1223,24 +1223,36 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
       },
     });
 
-    const serialized = users.map((u: any) => ({
-      id: u.id.toString(),
-      username: u.username,
-      email: u.email,
-      google_id: u.google_id,
-      avatar_url: u.avatar_url,
-      full_name: u.full_name,
-      position: u.position,
-      role: u.role,
-      is_active: u.is_active,
-      created_at: u.created_at,
-      department_id: u.department_id,
-      department_name: u.department?.name || 'ไม่ได้ระบุ',
-      division_name: u.department?.division?.name || 'ไม่ได้ระบุ',
-      division_code: u.department?.division?.code || '',
-      projects_count: u._count?.projects || 0,
-      approvals_count: u._count?.approvals || 0,
-    }));
+    const { getUserAssignedDepartments } = require('../auth/auth.controller');
+
+    const serialized = await Promise.all(
+      users.map(async (u: any) => {
+        const assignedInfo = await getUserAssignedDepartments(u.id, u.department_id);
+
+        return {
+          id: u.id.toString(),
+          username: u.username,
+          email: u.email,
+          google_id: u.google_id,
+          avatar_url: u.avatar_url,
+          full_name: u.full_name,
+          position: u.position,
+          role: u.role,
+          is_active: u.is_active,
+          created_at: u.created_at,
+          department_id: u.department_id,
+          department_ids: assignedInfo.department_ids,
+          division_ids: assignedInfo.division_ids,
+          department_name: assignedInfo.department_name,
+          division_name: assignedInfo.division_name,
+          division_code: assignedInfo.division_code,
+          departments: assignedInfo.departments,
+          divisions: assignedInfo.divisions,
+          projects_count: u._count?.projects || 0,
+          approvals_count: u._count?.approvals || 0,
+        };
+      })
+    );
 
     return res.json({ success: true, data: serialized });
   } catch (error: any) {
@@ -1252,7 +1264,7 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
 // POST /api/v1/admin/users
 router.post('/users', async (req: AuthRequest, res: Response) => {
   try {
-    const { username, password, email, full_name, position, role, department_id, is_active, head_dept_ids, division_id } = req.body;
+    const { username, password, email, full_name, position, role, department_id, department_ids, division_ids, is_active, head_dept_ids, division_id } = req.body;
 
     if (!username || (!password && !email) || !full_name || !role) {
       return res.status(400).json({
@@ -1282,6 +1294,10 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
 
     const normalizedRole = role === 'HEAD_OF_DEPT' ? 'HEAD_DEPT' : (role as Role);
 
+    const effectiveDeptId = department_id
+      ? parseInt(String(department_id))
+      : (Array.isArray(department_ids) && department_ids.length > 0 ? parseInt(String(department_ids[0])) : null);
+
     const newUser = await (prisma as any).user.create({
       data: {
         username: username.trim(),
@@ -1290,7 +1306,7 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
         full_name: full_name.trim(),
         position: position ? position.trim() : null,
         role: normalizedRole,
-        department_id: department_id ? parseInt(department_id) : null,
+        department_id: effectiveDeptId,
         is_active: is_active !== undefined ? Boolean(is_active) : true,
       },
       include: {
@@ -1300,13 +1316,17 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Save multi-department and multi-division assignments
+    const { saveUserAssignedDepartments } = require('../auth/auth.controller');
+    await saveUserAssignedDepartments(newUser.id, department_ids, division_ids, effectiveDeptId);
+
     // Sync Deputy Director to Division and Settings
     if (normalizedRole === 'DEPUTY_DIRECTOR') {
       try {
         let targetDivision: any = null;
-        if (department_id) {
+        if (effectiveDeptId) {
           const dept = await prisma.department.findUnique({
-            where: { id: parseInt(department_id) },
+            where: { id: effectiveDeptId },
             include: { division: true },
           });
           if (dept?.division) targetDivision = dept.division;
@@ -1314,6 +1334,11 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
         if (!targetDivision && division_id) {
           targetDivision = await prisma.division.findUnique({
             where: { id: parseInt(division_id) },
+          });
+        }
+        if (!targetDivision && Array.isArray(division_ids) && division_ids.length > 0) {
+          targetDivision = await prisma.division.findUnique({
+            where: { id: parseInt(String(division_ids[0])) },
           });
         }
         if (!targetDivision) {
@@ -1387,7 +1412,7 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
 router.put('/users/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { full_name, email, position, role, department_id, is_active, password, head_dept_ids, division_id } = req.body;
+    const { full_name, email, position, role, department_id, department_ids, division_ids, is_active, password, head_dept_ids, division_id } = req.body;
 
     const userId = BigInt(id);
     const existing = await (prisma as any).user.findUnique({
@@ -1414,12 +1439,16 @@ router.put('/users/:id', async (req: AuthRequest, res: Response) => {
 
     const normalizedRole = role !== undefined ? (role === 'HEAD_OF_DEPT' ? 'HEAD_DEPT' : (role as Role)) : existing.role;
 
+    const effectiveDeptId = department_id !== undefined
+      ? (department_id ? parseInt(String(department_id)) : null)
+      : (Array.isArray(department_ids) && department_ids.length > 0 ? parseInt(String(department_ids[0])) : existing.department_id);
+
     const data: any = {
       full_name: full_name !== undefined ? full_name.trim() : existing.full_name,
       email: email !== undefined ? (email ? email.trim().toLowerCase() : null) : existing.email,
       position: position !== undefined ? (position ? position.trim() : null) : existing.position,
       role: normalizedRole,
-      department_id: department_id !== undefined ? (department_id ? parseInt(department_id) : null) : existing.department_id,
+      department_id: effectiveDeptId,
       is_active: is_active !== undefined ? Boolean(is_active) : existing.is_active,
     };
 
@@ -1437,6 +1466,10 @@ router.put('/users/:id', async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Save multi-department and multi-division assignments
+    const { saveUserAssignedDepartments } = require('../auth/auth.controller');
+    await saveUserAssignedDepartments(userId, department_ids, division_ids, effectiveDeptId);
+
     // Sync Deputy Director to Division and Settings
     if (normalizedRole === 'DEPUTY_DIRECTOR') {
       try {
@@ -1451,6 +1484,11 @@ router.put('/users/:id', async (req: AuthRequest, res: Response) => {
         if (!targetDivision && division_id) {
           targetDivision = await prisma.division.findUnique({
             where: { id: parseInt(division_id) },
+          });
+        }
+        if (!targetDivision && Array.isArray(division_ids) && division_ids.length > 0) {
+          targetDivision = await prisma.division.findUnique({
+            where: { id: parseInt(String(division_ids[0])) },
           });
         }
         if (!targetDivision && existing.department?.division) {
@@ -1611,12 +1649,21 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
         deactivated: true,
       });
     }
-
     await (prisma as any).user.delete({
       where: { id: userId },
     });
 
-    return res.json({ success: true, message: 'ลบบัญชีผู้ใช้เรียบร้อยแล้ว' });
+    try {
+      await (prisma as any).systemSetting.deleteMany({
+        where: {
+          key: {
+            in: [`user_${userId}_department_ids`, `user_${userId}_division_ids`],
+          },
+        },
+      });
+    } catch (cleanErr) {}
+
+    return res.json({ success: true, message: `ลบบัญชีผู้ใช้ "${user.full_name}" สำเร็จ` });
   } catch (error: any) {
     console.error('Delete user error:', error);
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการลบผู้ใช้', error: error.message });

@@ -217,22 +217,27 @@ export default function ProfileSettingsPage() {
           }
         }
 
-        const deptId = u.department?.id ? Number(u.department.id) : ((u as any).department_id ? Number((u as any).department_id) : null);
-        const divId = u.department?.division_id ? Number(u.department.division_id) : ((u as any).division_id ? Number((u as any).division_id) : null);
+        const deptIds: number[] = Array.isArray(u.department_ids) && u.department_ids.length > 0
+          ? u.department_ids.map(Number)
+          : (u.department?.id ? [Number(u.department.id)] : ((u as any).department_id ? [Number((u as any).department_id)] : []));
 
-        if (divId) {
-          setSelectedDivisionIds([divId]);
-          setPrimaryDivisionId(divId);
+        const divIds: number[] = Array.isArray(u.division_ids) && u.division_ids.length > 0
+          ? u.division_ids.map(Number)
+          : (u.department?.division_id ? [Number(u.department.division_id)] : ((u as any).division_id ? [Number((u as any).division_id)] : []));
+
+        if (divIds.length > 0) {
+          setSelectedDivisionIds(divIds);
+          setPrimaryDivisionId(divIds[0]);
         } else if (divList.length > 0) {
           setSelectedDivisionIds([divList[0].id]);
           setPrimaryDivisionId(divList[0].id);
         }
 
-        if (deptId) {
-          setSelectedDepartmentId(deptId);
-          setSelectedDepartmentIds([deptId]);
+        if (deptIds.length > 0) {
+          setSelectedDepartmentId(deptIds[0]);
+          setSelectedDepartmentIds(deptIds);
           if (u.role === 'HEAD_DEPT') {
-            setHeadDeptIds([deptId]);
+            setHeadDeptIds((u as any).head_dept_ids || deptIds);
           }
         }
       }
@@ -493,6 +498,8 @@ export default function ProfileSettingsPage() {
           email: email.trim() || user?.email || '',
           position: effectivePosition,
           department_id: effectiveDeptId ? Number(effectiveDeptId) : null,
+          department_ids: selectedDepartmentIds.length > 0 ? selectedDepartmentIds : (effectiveDeptId ? [Number(effectiveDeptId)] : []),
+          division_ids: selectedDivisionIds.length > 0 ? selectedDivisionIds : (primaryDivisionId ? [Number(primaryDivisionId)] : []),
           is_head: headDeptIds.length > 0,
           head_dept_ids: headDeptIds,
           signature_img: signatureImg,

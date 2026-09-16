@@ -245,6 +245,131 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
+export async function getUserAssignedDepartments(userId: bigint | string | number, primaryDeptId?: number | null) {
+  try {
+    const uId = userId.toString();
+    const deptSetting = await (prisma as any).systemSetting.findUnique({
+      where: { key: `user_${uId}_department_ids` },
+    });
+    const divSetting = await (prisma as any).systemSetting.findUnique({
+      where: { key: `user_${uId}_division_ids` },
+    });
+
+    let deptIds: number[] = [];
+    if (deptSetting?.value) {
+      try {
+        const parsed = JSON.parse(deptSetting.value);
+        if (Array.isArray(parsed)) deptIds = parsed.map(Number).filter(Boolean);
+      } catch {}
+    }
+    if (deptIds.length === 0 && primaryDeptId) {
+      deptIds = [Number(primaryDeptId)];
+    }
+
+    let divIds: number[] = [];
+    if (divSetting?.value) {
+      try {
+        const parsed = JSON.parse(divSetting.value);
+        if (Array.isArray(parsed)) divIds = parsed.map(Number).filter(Boolean);
+      } catch {}
+    }
+
+    // Load actual departments with their divisions
+    let assignedDepts: any[] = [];
+    if (deptIds.length > 0) {
+      assignedDepts = await prisma.department.findMany({
+        where: { id: { in: deptIds } },
+        include: { division: true },
+      });
+    }
+
+    if (divIds.length === 0 && assignedDepts.length > 0) {
+      divIds = Array.from(new Set(assignedDepts.map((d) => d.division_id)));
+    }
+
+    let assignedDivs: any[] = [];
+    if (divIds.length > 0) {
+      assignedDivs = await prisma.division.findMany({
+        where: { id: { in: divIds } },
+      });
+    }
+
+    const deptNames = assignedDepts.map((d) => d.name).join(', ');
+    const divNames = assignedDivs.map((d) => d.name).join(', ');
+    const divCodes = assignedDivs.map((d) => d.code).join(', ');
+
+    return {
+      department_ids: deptIds,
+      division_ids: divIds,
+      departments: assignedDepts,
+      divisions: assignedDivs,
+      department_name: deptNames || (assignedDepts[0]?.name || 'ไม่ได้ระบุ'),
+      division_name: divNames || (assignedDivs[0]?.name || 'ไม่ได้ระบุ'),
+      division_code: divCodes || (assignedDivs[0]?.code || ''),
+    };
+  } catch (e) {
+    console.error('getUserAssignedDepartments error:', e);
+    return {
+      department_ids: primaryDeptId ? [Number(primaryDeptId)] : [],
+      division_ids: [],
+      departments: [],
+      divisions: [],
+      department_name: 'ไม่ได้ระบุ',
+      division_name: 'ไม่ได้ระบุ',
+      division_code: '',
+    };
+  }
+}
+
+export async function saveUserAssignedDepartments(
+  userId: bigint | string | number,
+  departmentIds?: number[] | null,
+  divisionIds?: number[] | null,
+  primaryDeptId?: number | null
+) {
+  try {
+    const uId = userId.toString();
+    const finalDeptIds = Array.isArray(departmentIds) && departmentIds.length > 0
+      ? Array.from(new Set(departmentIds.map(Number).filter(Boolean)))
+      : (primaryDeptId ? [Number(primaryDeptId)] : []);
+
+    let finalDivIds = Array.isArray(divisionIds) && divisionIds.length > 0
+      ? Array.from(new Set(divisionIds.map(Number).filter(Boolean)))
+      : [];
+
+    if (finalDivIds.length === 0 && finalDeptIds.length > 0) {
+      const depts = await prisma.department.findMany({
+        where: { id: { in: finalDeptIds } },
+      });
+      finalDivIds = Array.from(new Set(depts.map((d) => d.division_id)));
+    }
+
+    await (prisma as any).systemSetting.upsert({
+      where: { key: `user_${uId}_department_ids` },
+      update: { value: JSON.stringify(finalDeptIds) },
+      create: {
+        key: `user_${uId}_department_ids`,
+        value: JSON.stringify(finalDeptIds),
+        description: `รหัสแผนก/งานของผู้ใช้ ${uId}`,
+      },
+    });
+
+    await (prisma as any).systemSetting.upsert({
+      where: { key: `user_${uId}_division_ids` },
+      update: { value: JSON.stringify(finalDivIds) },
+      create: {
+        key: `user_${uId}_division_ids`,
+        value: JSON.stringify(finalDivIds),
+        description: `รหัสฝ่ายของผู้ใช้ ${uId}`,
+      },
+    });
+
+    return { department_ids: finalDeptIds, division_ids: finalDivIds };
+  } catch (e) {
+    console.error('saveUserAssignedDepartments error:', e);
+  }
+}
+
 // GET /api/v1/auth/me
 router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -263,6 +388,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลผู้ใช้' });
     }
 
+    const assignedInfo = await getUserAssignedDepartments(user.id, user.department_id);
+
     return res.json({
       success: true,
       user: serializeBigInt({
@@ -276,6 +403,14 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
         google_id: user.google_id,
         signature_img: user.signature_img,
         is_profile_completed: (user as any).is_profile_completed ?? false,
+        department_id: user.department_id,
+        department_ids: assignedInfo.department_ids,
+        division_ids: assignedInfo.division_ids,
+        department_name: assignedInfo.department_name,
+        division_name: assignedInfo.division_name,
+        division_code: assignedInfo.division_code,
+        departments: assignedInfo.departments,
+        divisions: assignedInfo.divisions,
         department: user.department,
       }),
     });
@@ -288,7 +423,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
 router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const userId = BigInt(req.user!.id);
-    const { full_name, position, department_id, signature_img, avatar_url, email, role, is_head, head_dept_ids } = req.body;
+    const { full_name, position, department_id, department_ids, division_ids, signature_img, avatar_url, email, role, is_head, head_dept_ids } = req.body;
 
     // Check existing user first
     const existingUser = await prisma.user.findUnique({ where: { id: userId } });
@@ -296,7 +431,9 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
       return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลผู้ใช้ในระบบ' });
     }
 
-    const effectiveDeptId = department_id ? parseInt(String(department_id)) : (existingUser.department_id || null);
+    const effectiveDeptId = department_id
+      ? parseInt(String(department_id))
+      : (Array.isArray(department_ids) && department_ids.length > 0 ? parseInt(String(department_ids[0])) : (existingUser.department_id || null));
 
     if (existingUser.role !== 'ADMIN' && !effectiveDeptId) {
       return res.status(400).json({ success: false, message: 'กรุณาเลือกแผนกวิชาหรือฝ่ายงานที่สังกัด' });
@@ -346,6 +483,9 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
       updateData.signature_img = signature_img;
     }
 
+    // Save multiple assigned departments and divisions
+    await saveUserAssignedDepartments(userId, department_ids, division_ids, effectiveDeptId);
+
     // Update head settings for each department marked as head
     for (const hId of headIds) {
       try {
@@ -391,6 +531,8 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
       },
     });
 
+    const assignedInfo = await getUserAssignedDepartments(userId, updatedUser.department_id);
+
     const payload = {
       id: updatedUser.id.toString(),
       username: updatedUser.username,
@@ -399,10 +541,10 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
       full_name: updatedUser.full_name,
       is_profile_completed: true,
       department_id: updatedUser.department_id,
-      department_name: updatedUser.department?.name,
+      department_name: assignedInfo.department_name,
       division_id: updatedUser.department?.division_id,
-      division_code: updatedUser.department?.division?.code,
-      division_name: updatedUser.department?.division?.name,
+      division_code: assignedInfo.division_code,
+      division_name: assignedInfo.division_name,
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
@@ -422,6 +564,14 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
         google_id: updatedUser.google_id,
         signature_img: updatedUser.signature_img,
         is_profile_completed: true,
+        department_id: updatedUser.department_id,
+        department_ids: assignedInfo.department_ids,
+        division_ids: assignedInfo.division_ids,
+        department_name: assignedInfo.department_name,
+        division_name: assignedInfo.division_name,
+        division_code: assignedInfo.division_code,
+        departments: assignedInfo.departments,
+        divisions: assignedInfo.divisions,
         department: updatedUser.department,
       }),
     });
