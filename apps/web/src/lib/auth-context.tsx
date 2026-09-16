@@ -13,6 +13,26 @@ export interface User {
   google_id?: string | null;
   is_profile_completed?: boolean;
   role: 'TEACHER' | 'HEAD_DEPT' | 'DEPUTY_DIRECTOR' | 'PLANNING_OFFICER' | 'DIRECTOR' | 'ADMIN';
+  department_ids?: number[];
+  division_ids?: number[];
+  department_name?: string;
+  division_name?: string;
+  division_code?: string;
+  departments?: {
+    id: number;
+    name: string;
+    division_id: number;
+    division?: {
+      id: number;
+      name: string;
+      code: string;
+    };
+  }[];
+  divisions?: {
+    id: number;
+    name: string;
+    code: string;
+  }[];
   department?: {
     id: number;
     name: string;

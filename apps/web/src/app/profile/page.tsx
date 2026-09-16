@@ -249,7 +249,7 @@ export default function ProfileDashboardPage() {
                   {roleInfo.label}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-white/90 flex flex-wrap items-center gap-2">
+              <div className="text-xs sm:text-sm text-white/90 flex flex-wrap items-center gap-y-1.5 gap-x-2">
                 <span className="flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-white/80" />
                   {user?.email || 'ยังไม่ได้ระบุอีเมล'}
@@ -260,13 +260,45 @@ export default function ProfileDashboardPage() {
                     <span className="text-white font-medium">{user.position}</span>
                   </>
                 )}
-                {user?.department?.name && (
+                {(user?.department_name || user?.department?.name) && (
                   <>
                     <span className="text-white/40">•</span>
-                    <span className="text-white/95 font-medium underline underline-offset-2">{user.department.name}</span>
+                    <span className="text-white/95 font-medium underline underline-offset-2">
+                      {user.department_name || user.department?.name}
+                    </span>
                   </>
                 )}
-              </p>
+                {(user?.division_name || user?.department?.division?.name) && (
+                  <>
+                    <span className="text-white/40">•</span>
+                    <span className="text-white/80 text-xs">
+                      ({user.division_name || user.department?.division?.name})
+                    </span>
+                  </>
+                )}
+              </div>
+              {/* Badges for Multiple Departments and Divisions */}
+              {((user?.departments && user.departments.length > 1) || (user?.divisions && user.divisions.length > 1)) && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  {user?.divisions && user.divisions.map((div) => (
+                    <span
+                      key={div.id}
+                      className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/15 text-white border border-white/25 backdrop-blur-xs flex items-center gap-1"
+                    >
+                      <Building className="w-3 h-3 text-white/80" />
+                      <span>ฝ่าย{div.name}</span>
+                    </span>
+                  ))}
+                  {user?.departments && user.departments.map((dept) => (
+                    <span
+                      key={dept.id}
+                      className="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-white/90 border border-white/20 backdrop-blur-xs"
+                    >
+                      {dept.name}
+                    </span>
+                  ))}
+                </div>
+              )}
               <p className="text-[11px] text-white/70">
                 สังกัดสถานศึกษา: <span className="text-white font-medium">{collegeName}</span>
               </p>
@@ -588,8 +620,34 @@ export default function ProfileDashboardPage() {
                   <p className="font-semibold text-slate-700">{user?.position || 'ยังไม่ระบุ'}</p>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[11px]">แผนกวิชา / ฝ่ายงาน</span>
-                  <p className="font-semibold text-slate-700">{user?.department?.name || 'ยังไม่ระบุ'}</p>
+                  <span className="text-slate-400 block text-[11px]">ฝ่ายที่สังกัด</span>
+                  {user?.divisions && user.divisions.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {user.divisions.map((div) => (
+                        <span key={div.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                          <Building className="w-3 h-3 text-purple-500" />
+                          <span>ฝ่าย{div.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="font-semibold text-slate-700">{user?.division_name || user?.department?.division?.name || 'ยังไม่ระบุ'}</p>
+                  )}
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">แผนกวิชา / งานที่รับผิดชอบ</span>
+                  {user?.departments && user.departments.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {user.departments.map((dept) => (
+                        <span key={dept.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                          <Briefcase className="w-3 h-3 text-blue-500" />
+                          <span>{dept.name}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="font-semibold text-slate-700">{user?.department_name || user?.department?.name || 'ยังไม่ระบุ'}</p>
+                  )}
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[11px]">ชื่อผู้ใช้งาน (Username)</span>
