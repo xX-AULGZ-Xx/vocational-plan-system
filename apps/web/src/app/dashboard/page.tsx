@@ -519,15 +519,17 @@ export default function DashboardPage() {
               <option value="rejected">ไม่อนุมัติ</option>
             </select>
 
-            <button
-              type="button"
-              onClick={handleExportReport}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-theme text-xs font-bold shadow-xs transition active:scale-95"
-              title="ส่งออกรายงานโครงการและสถานะเป็นไฟล์ CSV / Excel"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>ส่งออกไฟล์ (CSV)</span>
-            </button>
+            {(user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER') && (
+              <button
+                type="button"
+                onClick={handleExportReport}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-theme text-xs font-bold shadow-xs transition active:scale-95"
+                title="ส่งออกรายงานโครงการและสถานะเป็นไฟล์ CSV / Excel"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>ส่งออกไฟล์ (CSV)</span>
+              </button>
+            )}
           </div>
         </div>
 

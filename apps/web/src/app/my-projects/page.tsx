@@ -477,15 +477,18 @@ export default function MyProjectsPage() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={handleExportReport}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-theme shadow-sm font-bold text-xs sm:text-sm transition active:scale-95"
-            title="ส่งออกสรุปโครงการทั้งหมดเป็นไฟล์ Excel / CSV"
-          >
-            <Download className="w-4 h-4" />
-            <span>ส่งออกสรุปไฟล์ (CSV)</span>
-          </button>
+          {/* Export Report Button for Admin & Planning Officer */}
+          {(user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER') && (
+            <button
+              type="button"
+              onClick={handleExportReport}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-theme shadow-sm font-bold text-xs sm:text-sm transition active:scale-95"
+              title="ส่งออกสรุปโครงการทั้งหมดเป็นไฟล์ Excel / CSV"
+            >
+              <Download className="w-4 h-4" />
+              <span>ส่งออกสรุปไฟล์ (CSV)</span>
+            </button>
+          )}
 
           <Link
             href="/projects/new"
