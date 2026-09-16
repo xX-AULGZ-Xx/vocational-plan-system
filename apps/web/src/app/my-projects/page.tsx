@@ -244,6 +244,83 @@ export default function MyProjectsPage() {
     }
   };
 
+  const handleExportReport = () => {
+    if (filteredProjects.length === 0) {
+      showAlert.warning('ไม่มีข้อมูลโครงการสำหรับส่งออก');
+      return;
+    }
+
+    const headers = [
+      'ลำดับ',
+      'รหัสโครงการ',
+      'ชื่อโครงการ',
+      'ปีงบประมาณ',
+      'ฝ่ายบริหาร',
+      'แผนกวิชา/งาน',
+      'ผู้รับผิดชอบโครงการ',
+      'งบประมาณรวม (บาท)',
+      'สถานะภาพรวม',
+      'ขั้นตอนที่ 1 (หน.แผนก/งาน)',
+      'ขั้นตอนที่ 2 (รอง ผอ. ประจำฝ่าย)',
+      'ขั้นตอนที่ 3 (งานแผนงานฯ)',
+      'ขั้นตอนที่ 4 (ผอ.วิทยาลัย)',
+      'วันที่เสนอ',
+    ];
+
+    const formatAppStep = (p: any, stepOrder: number) => {
+      const app = p.approvals?.find((a: any) => a.step_order === stepOrder);
+      if (app) {
+        if (app.status === 'APPROVED') return `อนุมัติแล้ว (${app.approver?.full_name || ''})`;
+        if (app.status === 'REJECTED') return `ไม่อนุมัติ (${app.comment || ''})`;
+        if (app.status === 'REVISION_REQUESTED') return `ขอแก้ไข (${app.comment || ''})`;
+        if (app.status === 'PENDING') return 'รอพิจารณา';
+      }
+      if (p.status === 'approved' || p.status === 'in_progress' || p.status === 'completed') {
+        return 'อนุมัติแล้ว';
+      }
+      return '-';
+    };
+
+    const rows = filteredProjects.map((p, idx) => {
+      const stepInfo = getApprovalStepInfo(p);
+      const escapeCsv = (str: any) => {
+        if (str === null || str === undefined) return '""';
+        const s = String(str).replace(/"/g, '""');
+        return `"${s}"`;
+      };
+
+      return [
+        idx + 1,
+        escapeCsv(p.project_code || 'รอออกรหัส'),
+        escapeCsv(p.title || p.name_th || ''),
+        p.fiscal_year || '',
+        escapeCsv(p.department?.division?.name || ''),
+        escapeCsv(p.department?.name || ''),
+        escapeCsv(p.leader?.full_name || ''),
+        Number(p.total_budget || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        escapeCsv(stepInfo.label),
+        escapeCsv(formatAppStep(p, 1)),
+        escapeCsv(formatAppStep(p, 2)),
+        escapeCsv(formatAppStep(p, 3)),
+        escapeCsv(formatAppStep(p, 4)),
+        escapeCsv(p.created_at ? new Date(p.created_at).toLocaleDateString('th-TH') : '-'),
+      ].join(',');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `รายงานสรุปโครงการและสถานะการอนุมัติ_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showAlert.success('ส่งออกไฟล์สรุปโครงการเรียบร้อยแล้ว');
+  };
+
   const getApprovalStepInfo = (p: any) => {
     if (p.status === 'draft') {
       return {
@@ -399,6 +476,16 @@ export default function MyProjectsPage() {
               </button>
             </div>
           )}
+
+          <button
+            type="button"
+            onClick={handleExportReport}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-theme shadow-sm font-bold text-xs sm:text-sm transition active:scale-95"
+            title="ส่งออกสรุปโครงการทั้งหมดเป็นไฟล์ Excel / CSV"
+          >
+            <Download className="w-4 h-4" />
+            <span>ส่งออกสรุปไฟล์ (CSV)</span>
+          </button>
 
           <Link
             href="/projects/new"

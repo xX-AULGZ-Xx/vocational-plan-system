@@ -179,6 +179,90 @@ export default function DashboardPage() {
     return true;
   });
 
+  const handleExportReport = () => {
+    if (filteredProjects.length === 0) {
+      alert('ไม่มีข้อมูลโครงการสำหรับส่งออก');
+      return;
+    }
+
+    const headers = [
+      'ลำดับ',
+      'รหัสโครงการ',
+      'ชื่อโครงการ',
+      'ปีงบประมาณ',
+      'ฝ่ายบริหาร',
+      'แผนกวิชา/งาน',
+      'ผู้รับผิดชอบโครงการ',
+      'งบประมาณรวม (บาท)',
+      'สถานะการอนุมัติ',
+      'ขั้นตอนที่ 1 (หน.แผนก/งาน)',
+      'ขั้นตอนที่ 2 (รอง ผอ. ประจำฝ่าย)',
+      'ขั้นตอนที่ 3 (งานแผนงานฯ)',
+      'ขั้นตอนที่ 4 (ผอ.วิทยาลัย)',
+      'วันที่เสนอ',
+    ];
+
+    const formatAppStep = (p: any, stepOrder: number) => {
+      const app = p.approvals?.find((a: any) => a.step_order === stepOrder);
+      if (app) {
+        if (app.status === 'APPROVED') return `อนุมัติแล้ว (${app.approver?.full_name || ''})`;
+        if (app.status === 'REJECTED') return `ไม่อนุมัติ (${app.comment || ''})`;
+        if (app.status === 'REVISION_REQUESTED') return `ขอแก้ไข (${app.comment || ''})`;
+        if (app.status === 'PENDING') return 'รอพิจารณา';
+      }
+      if (p.status === 'approved' || p.status === 'in_progress' || p.status === 'completed') {
+        return 'อนุมัติแล้ว';
+      }
+      return '-';
+    };
+
+    const rows = filteredProjects.map((p, idx) => {
+      const escapeCsv = (str: any) => {
+        if (str === null || str === undefined) return '""';
+        const s = String(str).replace(/"/g, '""');
+        return `"${s}"`;
+      };
+
+      let statusLabel = p.status;
+      if (p.status === 'approved' || p.status === 'in_progress' || p.status === 'completed') statusLabel = 'อนุมัติแล้ว (ครบ 4 ขั้นตอน)';
+      else if (p.status === 'rejected') statusLabel = 'ไม่อนุมัติ';
+      else if (p.status === 'revision_requested') statusLabel = 'ขอให้แก้ไข';
+      else if (p.status === 'submitted') statusLabel = 'รอหัวหน้าแผนกพิจารณา';
+      else if (p.status === 'dept_approved') statusLabel = 'รอรอง ผอ. พิจารณา';
+      else if (p.status === 'deputy_approved') statusLabel = 'รองานแผนออกรหัส';
+      else if (p.status === 'planning_approved') statusLabel = 'รอ ผอ. อนุมัติ';
+
+      return [
+        idx + 1,
+        escapeCsv(p.project_code || 'รอออกรหัส'),
+        escapeCsv(p.title || p.name_th || ''),
+        p.fiscal_year || '',
+        escapeCsv(p.department?.division?.name || ''),
+        escapeCsv(p.department?.name || ''),
+        escapeCsv(p.leader?.full_name || ''),
+        Number(p.total_budget || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        escapeCsv(statusLabel),
+        escapeCsv(formatAppStep(p, 1)),
+        escapeCsv(formatAppStep(p, 2)),
+        escapeCsv(formatAppStep(p, 3)),
+        escapeCsv(formatAppStep(p, 4)),
+        escapeCsv(p.created_at ? new Date(p.created_at).toLocaleDateString('th-TH') : '-'),
+      ].join(',');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `รายงานแผนและสถานะโครงการ_${fiscalYear}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Top Banner */}
@@ -434,6 +518,16 @@ export default function DashboardPage() {
               <option value="approved">อนุมัติแล้ว</option>
               <option value="rejected">ไม่อนุมัติ</option>
             </select>
+
+            <button
+              type="button"
+              onClick={handleExportReport}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-theme text-xs font-bold shadow-xs transition active:scale-95"
+              title="ส่งออกรายงานโครงการและสถานะเป็นไฟล์ CSV / Excel"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>ส่งออกไฟล์ (CSV)</span>
+            </button>
           </div>
         </div>
 
