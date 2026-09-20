@@ -136,7 +136,7 @@ function LoginForm() {
     .replace('วิทยาลัยอาชีวศึกษา', 'วอศ.')
     .replace('วิทยาลัยเทคนิค', 'วท.');
 
-  const allowedDomainsList = (googleAllowedDomains || 'cric.ac.th, vec.mail.go.th')
+  const allowedDomainsList = (googleAllowedDomains || 'cric.ac.th')
     .split(',')
     .map((d) => d.trim().replace(/^@/, ''))
     .filter(Boolean);
@@ -178,7 +178,7 @@ function LoginForm() {
           <div className="space-y-2">
             <h2 className="text-2xl font-bold text-slate-100">ระบบบริหารจัดการงานแผนงานและโครงการ</h2>
             <p className="text-sm text-slate-300 leading-relaxed">
-              รองรับกระบวนการเสนอโครงการดิจิทัล ระบบสายการอนุมัติ 4 ขั้นตอน ตรวจสอบงบประมาณ 4 ฝ่าย และ Live Preview เอกสารสารบรรณไทยตามระเบียบสำนักนายกฯ
+              รองรับกระบวนการเสนอโครงการดิจิทัล ระบบสายการอนุมัติ 4 ขั้นตอน ตรวจสอบงบประมาณ 4 ฝ่าย
             </p>
           </div>
 
