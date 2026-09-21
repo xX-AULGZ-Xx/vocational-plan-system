@@ -352,6 +352,23 @@ async function ensureTemplateTablesExist() {
         CONSTRAINT \`template_tags_template_id_fkey\` FOREIGN KEY (\`template_id\`) REFERENCES \`document_templates\` (\`id\`) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS \`evaluation_templates\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`title\` varchar(255) NOT NULL,
+        \`description\` text DEFAULT NULL,
+        \`category\` varchar(100) DEFAULT 'GENERAL',
+        \`target_responses\` int NOT NULL DEFAULT '50',
+        \`theme_config\` json DEFAULT NULL,
+        \`sections\` json NOT NULL,
+        \`is_default\` tinyint(1) NOT NULL DEFAULT '0',
+        \`is_active\` tinyint(1) NOT NULL DEFAULT '1',
+        \`created_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        \`updated_at\` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+        PRIMARY KEY (\`id\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
   } catch (e: any) {
     console.warn('ensureTemplateTablesExist warning:', e.message);
   }
@@ -1013,6 +1030,343 @@ router.delete('/templates/:id', async (req: AuthRequest, res: Response) => {
     return res.json({ success: true, message: 'ลบเทมเพลตเอกสารเรียบร้อยแล้ว' });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการลบเทมเพลต', error: error.message });
+  }
+});
+
+// ====================================================
+// Evaluation Templates Management Endpoints (CRUD)
+// ====================================================
+
+// Default Standard Evaluation Template Seed Helper
+async function seedDefaultEvaluationTemplateIfEmpty() {
+  try {
+    const count: any[] = await prisma.$queryRawUnsafe(`SELECT count(*) as cnt FROM \`evaluation_templates\``);
+    const total = count && count[0] ? Number(count[0].cnt || count[0].count || 0) : 0;
+    if (total === 0) {
+      const defaultStandardSections = [
+        {
+          title: 'ตอนที่ 1: ข้อมูลทั่วไปของผู้ตอบแบบประเมิน',
+          description: 'กรุณาเลือกข้อมูลตามความเป็นจริง',
+          order_index: 1,
+          questions: [
+            {
+              question_text: 'เพศ',
+              question_type: 'RADIO',
+              options: ['ชาย', 'หญิง', 'เพศทางเลือก / อื่นๆ'],
+              order_index: 1,
+              is_required: true,
+            },
+            {
+              question_text: 'สถานะ / ตำแหน่งของผู้ตอบแบบประเมิน',
+              question_type: 'RADIO',
+              options: ['นักเรียน / นักศึกษา', 'ครู / อาจารย์', 'บุคลากรทางการศึกษา', 'ผู้ปกครอง / ประชาชนทั่วไป', 'อื่นๆ'],
+              order_index: 2,
+              is_required: true,
+            },
+          ],
+        },
+        {
+          title: 'ตอนที่ 2: ระดับความพึงพอใจต่อการดำเนินงานโครงการ',
+          description: 'ระดับคะแนน: 5 = มากที่สุด, 4 = มาก, 3 = ปานกลาง, 2 = น้อย, 1 = น้อยที่สุด',
+          order_index: 2,
+          questions: [
+            { question_text: '1. การประชาสัมพันธ์โครงการและการแจ้งข้อมูลข่าวสาร', question_type: 'RATING_5', order_index: 1, is_required: true },
+            { question_text: '2. ความเหมาะสมของขั้นตอนและรูปแบบการจัดกิจกรรม', question_type: 'RATING_5', order_index: 2, is_required: true },
+            { question_text: '3. ความชัดเจนในการถ่ายทอดความรู้และคำแนะนำของวิทยากร / ผู้รับผิดชอบ', question_type: 'RATING_5', order_index: 3, is_required: true },
+            { question_text: '4. ความเหมาะสมของสถานที่ บรรยากาศ และสิ่งอำนวยความสะดวก', question_type: 'RATING_5', order_index: 4, is_required: true },
+            { question_text: '5. ความพร้อมของสื่อ อุปกรณ์ และเอกสารประกอบการจัดกิจกรรม', question_type: 'RATING_5', order_index: 5, is_required: true },
+            { question_text: '6. ความเหมาะสมของระยะเวลาและกำหนดการดำเนินงาน', question_type: 'RATING_5', order_index: 6, is_required: true },
+            { question_text: '7. ความรู้ ความเข้าใจ หรือทักษะที่ได้รับจากการเข้าร่วมกิจกรรม', question_type: 'RATING_5', order_index: 7, is_required: true },
+            { question_text: '8. สามารถนำความรู้และประสบการณ์ที่ได้รับไปประยุกต์ใช้ประโยชน์ได้จริง', question_type: 'RATING_5', order_index: 8, is_required: true },
+            { question_text: '9. ความพึงพอใจในภาพรวมต่อการดำเนินงานโครงการนี้', question_type: 'RATING_5', order_index: 9, is_required: true },
+          ],
+        },
+        {
+          title: 'ตอนที่ 3: ข้อคิดเห็นและข้อเสนอแนะเพิ่มเติม',
+          description: 'ข้อเสนอแนะเพื่อการพัฒนาและปรับปรุงในครั้งต่อไป',
+          order_index: 3,
+          questions: [
+            { question_text: 'สิ่งที่ท่านพึงพอใจหรือประทับใจมากที่สุดในโครงการนี้', question_type: 'TEXT', order_index: 1, is_required: false },
+            { question_text: 'ข้อเสนอแนะหรือสิ่งที่ควรปรับปรุงสำหรับการจัดโครงการครั้งต่อไป', question_type: 'TEXT', order_index: 2, is_required: false },
+          ],
+        },
+      ];
+
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO \`evaluation_templates\` (\`title\`, \`description\`, \`category\`, \`target_responses\`, \`theme_config\`, \`sections\`, \`is_default\`, \`is_active\`, \`created_at\`, \`updated_at\`)
+        VALUES (?, ?, ?, ?, ?, ?, 1, 1, NOW(), NOW())
+      `,
+        'แบบประเมินความพึงพอใจมาตรฐาน (มาตรฐาน สอศ.)',
+        'แม่แบบมาตรฐาน 3 ตอน (ข้อมูลทั่วไป, ความพึงพอใจ 9 ข้อ Likert 5 ระดับ, ข้อเสนอแนะปลายเปิด)',
+        'VOCATIONAL_STANDARD',
+        50,
+        JSON.stringify({ preset: 'vocational_official', font: 'prompt', color: 'indigo', bg_style: 'gradient', rating_style: 'buttons', border_radius: 'rounded-3xl' }),
+        JSON.stringify(defaultStandardSections)
+      );
+
+      // Add a training / seminar template as well
+      const seminarSections = [
+        {
+          title: 'ตอนที่ 1: ข้อมูลทั่วไปของผู้เข้ารับการอบรม/สัมมนา',
+          description: 'กรุณาระบุข้อมูลส่วนบุคคล',
+          order_index: 1,
+          questions: [
+            { question_text: 'เพศ', question_type: 'RADIO', options: ['ชาย', 'หญิง', 'อื่นๆ'], order_index: 1, is_required: true },
+            { question_text: 'สังกัด / แผนกวิชา / หน่วยงาน', question_type: 'TEXT', order_index: 2, is_required: true },
+          ],
+        },
+        {
+          title: 'ตอนที่ 2: ความพึงพอใจต่อเนื้อหาและการจัดอบรมสัมมนา',
+          description: 'ระดับคะแนน: 5 = มากที่สุด, 4 = มาก, 3 = ปานกลาง, 2 = น้อย, 1 = น้อยที่สุด',
+          order_index: 2,
+          questions: [
+            { question_text: '1. เนื้อหาการอบรมมีความน่าสนใจและทันสมัย', question_type: 'RATING_5', order_index: 1, is_required: true },
+            { question_text: '2. ความสามารถในการถ่ายทอดและตอบข้อซักถามของวิทยากร', question_type: 'RATING_5', order_index: 2, is_required: true },
+            { question_text: '3. ความชัดเจนและประโยชน์ของเอกสาร / สื่อการอบรม', question_type: 'RATING_5', order_index: 3, is_required: true },
+            { question_text: '4. การบริหารเวลาและระยะเวลาของการอบรม', question_type: 'RATING_5', order_index: 4, is_required: true },
+            { question_text: '5. สามารถนำทักษะที่ได้ไปใช้พัฒนาการเรียนการสอน/การปฏิบัติงาน', question_type: 'RATING_5', order_index: 5, is_required: true },
+          ],
+        },
+        {
+          title: 'ตอนที่ 3: ข้อเสนอแนะสำหรับหัวข้ออบรมครั้งต่อไป',
+          description: 'หัวข้อหรือทักษะที่ต้องการให้จัดอบรมเพิ่มเติม',
+          order_index: 3,
+          questions: [
+            { question_text: 'หัวข้อหรือเทคโนโลยีที่ต้องการให้จัดอบรมในครั้งต่อไป', question_type: 'TEXT', order_index: 1, is_required: false },
+          ],
+        },
+      ];
+
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO \`evaluation_templates\` (\`title\`, \`description\`, \`category\`, \`target_responses\`, \`theme_config\`, \`sections\`, \`is_default\`, \`is_active\`, \`created_at\`, \`updated_at\`)
+        VALUES (?, ?, ?, ?, ?, ?, 0, 1, NOW(), NOW())
+      `,
+        'แบบประเมินโครงการฝึกอบรม / สัมมนาเชิงปฏิบัติการ (Workshop & Seminar)',
+        'เหมาะสำหรับโครงการอบรมเชิงปฏิบัติการ อบรมครู-นักเรียน การพัฒนาทักษะวิชาชีพ',
+        'TRAINING',
+        40,
+        JSON.stringify({ preset: 'modern_tech', font: 'sarabun', color: 'emerald', bg_style: 'clean', rating_style: 'stars', border_radius: 'rounded-2xl' }),
+        JSON.stringify(seminarSections)
+      );
+    }
+  } catch (e: any) {
+    console.warn('seedDefaultEvaluationTemplate notice:', e.message);
+  }
+}
+
+// GET /api/v1/admin/evaluation-templates
+router.get('/evaluation-templates', async (req: AuthRequest, res: Response) => {
+  try {
+    await ensureTemplateTablesExist();
+    await seedDefaultEvaluationTemplateIfEmpty();
+
+    const rows: any[] = await prisma.$queryRawUnsafe(`
+      SELECT * FROM \`evaluation_templates\` ORDER BY \`is_default\` DESC, \`created_at\` DESC
+    `);
+
+    const formatted = rows.map((r: any) => {
+      let parsedSections = r.sections;
+      if (typeof parsedSections === 'string') {
+        try { parsedSections = JSON.parse(parsedSections); } catch { parsedSections = []; }
+      }
+      let parsedTheme = r.theme_config;
+      if (typeof parsedTheme === 'string') {
+        try { parsedTheme = JSON.parse(parsedTheme); } catch { parsedTheme = {}; }
+      }
+
+      const totalQuestions = Array.isArray(parsedSections)
+        ? parsedSections.reduce((sum: number, sec: any) => sum + (Array.isArray(sec.questions) ? sec.questions.length : 0), 0)
+        : 0;
+
+      return {
+        ...r,
+        sections: parsedSections || [],
+        theme_config: parsedTheme || {},
+        total_sections: Array.isArray(parsedSections) ? parsedSections.length : 0,
+        total_questions: totalQuestions,
+        is_default: Boolean(r.is_default),
+        is_active: Boolean(r.is_active),
+      };
+    });
+
+    return res.json({ success: true, data: formatted });
+  } catch (error: any) {
+    console.error('GET /evaluation-templates error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการโหลดแม่แบบแบบประเมิน', error: error.message });
+  }
+});
+
+// GET /api/v1/admin/evaluation-templates/:id
+router.get('/evaluation-templates/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    await ensureTemplateTablesExist();
+    const id = parseInt(req.params.id);
+
+    const rows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT * FROM \`evaluation_templates\` WHERE \`id\` = ? LIMIT 1`,
+      id
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'ไม่พบแม่แบบแบบประเมิน' });
+    }
+
+    const item = rows[0];
+    let parsedSections = item.sections;
+    if (typeof parsedSections === 'string') {
+      try { parsedSections = JSON.parse(parsedSections); } catch { parsedSections = []; }
+    }
+    let parsedTheme = item.theme_config;
+    if (typeof parsedTheme === 'string') {
+      try { parsedTheme = JSON.parse(parsedTheme); } catch { parsedTheme = {}; }
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        ...item,
+        sections: parsedSections || [],
+        theme_config: parsedTheme || {},
+        is_default: Boolean(item.is_default),
+        is_active: Boolean(item.is_active),
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด', error: error.message });
+  }
+});
+
+// POST /api/v1/admin/evaluation-templates (Create template)
+router.post('/evaluation-templates', async (req: AuthRequest, res: Response) => {
+  try {
+    await ensureTemplateTablesExist();
+    const { title, description, category, target_responses, theme_config, sections, is_default } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'กรุณาระบุชื่อแม่แบบแบบประเมิน' });
+    }
+
+    if (is_default) {
+      // Unset previous defaults
+      await prisma.$executeRawUnsafe(`UPDATE \`evaluation_templates\` SET \`is_default\` = 0`);
+    }
+
+    const sectionsJson = JSON.stringify(Array.isArray(sections) ? sections : []);
+    const themeJson = JSON.stringify(theme_config || {});
+
+    await prisma.$executeRawUnsafe(`
+      INSERT INTO \`evaluation_templates\` (\`title\`, \`description\`, \`category\`, \`target_responses\`, \`theme_config\`, \`sections\`, \`is_default\`, \`is_active\`, \`created_at\`, \`updated_at\`)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())
+    `,
+      title.trim(),
+      description ? description.trim() : '',
+      category ? category.trim() : 'GENERAL',
+      Number(target_responses) || 50,
+      themeJson,
+      sectionsJson,
+      is_default ? 1 : 0
+    );
+
+    return res.json({ success: true, message: 'สร้างแม่แบบแบบประเมินสำเร็จ' });
+  } catch (error: any) {
+    console.error('Create evaluation template error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการสร้างแม่แบบ: ' + error.message, error: error.message });
+  }
+});
+
+// PUT /api/v1/admin/evaluation-templates/:id (Update template)
+router.put('/evaluation-templates/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    await ensureTemplateTablesExist();
+    const id = parseInt(req.params.id);
+    const { title, description, category, target_responses, theme_config, sections, is_default, is_active } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: 'กรุณาระบุชื่อแม่แบบแบบประเมิน' });
+    }
+
+    if (is_default) {
+      await prisma.$executeRawUnsafe(`UPDATE \`evaluation_templates\` SET \`is_default\` = 0 WHERE \`id\` != ?`, id);
+    }
+
+    const sectionsJson = JSON.stringify(Array.isArray(sections) ? sections : []);
+    const themeJson = JSON.stringify(theme_config || {});
+
+    await prisma.$executeRawUnsafe(`
+      UPDATE \`evaluation_templates\`
+      SET \`title\` = ?,
+          \`description\` = ?,
+          \`category\` = ?,
+          \`target_responses\` = ?,
+          \`theme_config\` = ?,
+          \`sections\` = ?,
+          \`is_default\` = ?,
+          \`is_active\` = ?,
+          \`updated_at\` = NOW()
+      WHERE \`id\` = ?
+    `,
+      title.trim(),
+      description !== undefined ? description.trim() : '',
+      category || 'GENERAL',
+      Number(target_responses) || 50,
+      themeJson,
+      sectionsJson,
+      is_default ? 1 : 0,
+      is_active !== undefined ? (is_active ? 1 : 0) : 1,
+      id
+    );
+
+    return res.json({ success: true, message: 'บันทึกการแก้ไขแม่แบบแบบประเมินสำเร็จ' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกแม่แบบ: ' + error.message, error: error.message });
+  }
+});
+
+// PUT /api/v1/admin/evaluation-templates/:id/default (Set as default)
+router.put('/evaluation-templates/:id/default', async (req: AuthRequest, res: Response) => {
+  try {
+    await ensureTemplateTablesExist();
+    const id = parseInt(req.params.id);
+
+    await prisma.$executeRawUnsafe(`UPDATE \`evaluation_templates\` SET \`is_default\` = 0`);
+    await prisma.$executeRawUnsafe(`UPDATE \`evaluation_templates\` SET \`is_default\` = 1 WHERE \`id\` = ?`, id);
+
+    return res.json({ success: true, message: 'ตั้งเป็นแม่แบบแบบประเมินเริ่มต้นเรียบร้อยแล้ว' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด: ' + error.message });
+  }
+});
+
+// PUT /api/v1/admin/evaluation-templates/:id/toggle (Toggle active)
+router.put('/evaluation-templates/:id/toggle', async (req: AuthRequest, res: Response) => {
+  try {
+    await ensureTemplateTablesExist();
+    const id = parseInt(req.params.id);
+    const { is_active } = req.body;
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE \`evaluation_templates\` SET \`is_active\` = ?, \`updated_at\` = NOW() WHERE \`id\` = ?`,
+      is_active ? 1 : 0,
+      id
+    );
+
+    return res.json({ success: true, message: 'อัปเดตสถานะแม่แบบเรียบร้อยแล้ว' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด: ' + error.message });
+  }
+});
+
+// DELETE /api/v1/admin/evaluation-templates/:id
+router.delete('/evaluation-templates/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    await ensureTemplateTablesExist();
+    const id = parseInt(req.params.id);
+
+    await prisma.$executeRawUnsafe(`DELETE FROM \`evaluation_templates\` WHERE \`id\` = ?`, id);
+
+    return res.json({ success: true, message: 'ลบแม่แบบแบบประเมินเรียบร้อยแล้ว' });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการลบ: ' + error.message });
   }
 });
 

@@ -25,7 +25,10 @@ import {
   Check,
   ChevronDown,
   Palette,
-  Type
+  Type,
+  Layers,
+  FileText,
+  X
 } from 'lucide-react';
 import { showAlert } from '@/lib/sweetalert';
 import { getSurveyTheme } from '@/lib/survey-themes';
@@ -48,6 +51,9 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
   const [togglingStatus, setTogglingStatus] = useState(false);
   const [exportingType, setExportingType] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [availableTemplates, setAvailableTemplates] = useState<any[]>([]);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [creatingFromTemplate, setCreatingFromTemplate] = useState(false);
 
   const qrRef = useRef<SVGSVGElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -76,8 +82,23 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
   useEffect(() => {
     if (projectId && token) {
       loadEvaluation();
+      loadTemplates();
     }
   }, [projectId, token]);
+
+  const loadTemplates = async () => {
+    try {
+      const res = await fetch(`/api/v1/projects/${projectId}/evaluation/templates`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAvailableTemplates(data.data || []);
+      }
+    } catch (e) {
+      console.error('Failed to load evaluation templates:', e);
+    }
+  };
 
   const loadEvaluation = async () => {
     setLoading(true);
@@ -112,16 +133,29 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
     }
   };
 
-  const handleCreateDefaultForm = async () => {
-    setLoading(true);
+  const handleCreateFromTemplate = async (templateId?: number) => {
+    if (hasForm) {
+      const confirmed = await showAlert.confirm(
+        'ยืนยันการเปลี่ยนแม่แบบแบบประเมิน?',
+        'การเปลี่ยนแม่แบบจะสร้างชุดคำถามใหม่ตามแม่แบบที่เลือก และอาจล้างผลการประเมินเดิมทั้งหมดที่เคยตอบไว้ คุณต้องการดำเนินการต่อหรือไม่?'
+      );
+      if (!confirmed) return;
+    }
+
+    setCreatingFromTemplate(true);
     try {
       const res = await fetch(`/api/v1/projects/${projectId}/evaluation/init-default`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(templateId ? { template_id: templateId } : {}),
       });
       const data = await res.json();
       if (data.success) {
-        showAlert.success('สร้างแบบประเมินสำเร็จ', 'ระบบได้สร้างแบบประเมินมาตรฐานอาชีวศึกษาให้เรียบร้อยแล้ว');
+        showAlert.success('สร้างแบบประเมินสำเร็จ', 'ระบบได้ปรับใช้แม่แบบแบบประเมินเรียบร้อยแล้ว');
+        setShowTemplateModal(false);
         loadEvaluation();
       } else {
         showAlert.error('เกิดข้อผิดพลาด', data.message);
@@ -129,7 +163,7 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
     } catch (e) {
       showAlert.error('ข้อผิดพลาด', 'ไม่สามารถสร้างแบบประเมินได้');
     } finally {
-      setLoading(false);
+      setCreatingFromTemplate(false);
     }
   };
 
@@ -254,6 +288,121 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
     }
   };
 
+  const renderTemplateModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        
+        {/* Modal Header */}
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <Layers className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">เลือกแม่แบบแบบประเมินความพึงพอใจ</h3>
+              <p className="text-xs text-slate-500 mt-0.5">เลือกแม่แบบเพื่อเริ่มต้นสร้างแบบประเมินสำหรับโครงการนี้</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowTemplateModal(false)}
+            disabled={creatingFromTemplate}
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Body: Templates List */}
+        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+          {availableTemplates.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
+              <p className="text-sm font-medium">ยังไม่มีแม่แบบในระบบ</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {availableTemplates.map((t: any) => {
+                const totalQ = (t.sections || []).reduce((acc: number, s: any) => acc + (s.questions?.length || 0), 0);
+                const categoryLabel = 
+                  t.category === 'VOCATIONAL_STANDARD' ? 'มาตรฐานอาชีวศึกษา' :
+                  t.category === 'TRAINING' ? 'การฝึกอบรม/สัมมนา' :
+                  t.category === 'ACTIVITY' ? 'กิจกรรมเสริมหลักสูตร' : 'ทั่วไป';
+
+                return (
+                  <div
+                    key={t.id}
+                    className="p-5 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col justify-between bg-white group"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                          {categoryLabel}
+                        </span>
+                        {t.is_default && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                            ⭐ แม่แบบหลัก
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">
+                        {t.title}
+                      </h4>
+                      {t.description && (
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                          {t.description}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-3 mt-4 text-[11px] text-slate-400 font-medium">
+                        <span>{t.sections?.length || 0} ตอน</span>
+                        <span>•</span>
+                        <span>{totalQ} คำถาม</span>
+                        <span>•</span>
+                        <span>เป้าหมาย {t.target_responses || 50} คน</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-end">
+                      <button
+                        onClick={() => handleCreateFromTemplate(t.id)}
+                        disabled={creatingFromTemplate}
+                        className="w-full py-2 px-4 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-1.5 transition-all shadow-sm hover:shadow disabled:opacity-50"
+                      >
+                        {creatingFromTemplate ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>กำลังสร้าง...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>เลือกใช้แม่แบบนี้</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+          <button
+            onClick={() => setShowTemplateModal(false)}
+            disabled={creatingFromTemplate}
+            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-xl hover:bg-slate-100 transition-colors"
+          >
+            ปิด
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 flex flex-col items-center justify-center space-y-3">
@@ -265,6 +414,8 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
 
   // If no evaluation form is created yet
   if (!hasForm) {
+    const defaultTmpl = availableTemplates.find((t) => t.is_default) || availableTemplates[0];
+
     return (
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-8 sm:p-12 text-center max-w-2xl mx-auto my-6 space-y-6">
         <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl mx-auto flex items-center justify-center shadow-inner">
@@ -280,13 +431,31 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
           <button
-            onClick={handleCreateDefaultForm}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-theme-primary hover:bg-theme-primary-hover text-white font-semibold text-sm rounded-theme shadow-md transition-all hover:scale-[1.02]"
+            onClick={() => handleCreateFromTemplate(defaultTmpl?.id)}
+            disabled={creatingFromTemplate}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-theme-primary hover:bg-theme-primary-hover text-white font-semibold text-sm rounded-theme shadow-md transition-all hover:scale-[1.02] disabled:opacity-50"
           >
-            <Sparkles className="w-4 h-4" />
-            <span>สร้างแบบประเมินมาตรฐาน (3 ตอน 9 ตัวชี้วัด)</span>
+            {creatingFromTemplate ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            <span>{defaultTmpl ? `สร้างด้วยแม่แบบ: ${defaultTmpl.title}` : 'สร้างแบบประเมินมาตรฐาน'}</span>
           </button>
+
+          {availableTemplates.length > 1 && (
+            <button
+              onClick={() => setShowTemplateModal(true)}
+              disabled={creatingFromTemplate}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-theme transition-all disabled:opacity-50"
+            >
+              <span>เลือกแม่แบบอื่น ({availableTemplates.length})</span>
+            </button>
+          )}
         </div>
+
+        {/* Template Modal for empty state */}
+        {showTemplateModal && renderTemplateModal()}
       </div>
     );
   }
@@ -405,7 +574,20 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
               <p className="text-xs text-slate-500 mt-0.5">{formMeta.title}</p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+              {/* Change Template button */}
+              {availableTemplates.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowTemplateModal(true)}
+                  className="px-3 py-1.5 rounded-theme text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-1.5 transition-all shadow-xs"
+                  title="เปลี่ยนหรือรีเซ็ตคำถามตามแม่แบบ"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>เปลี่ยนแม่แบบ</span>
+                </button>
+              )}
+
               {/* Export Dropdown */}
               <div className="relative" ref={exportMenuRef}>
                 <button
@@ -777,6 +959,9 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
           }}
         />
       )}
+
+      {/* Template Selector Modal */}
+      {showTemplateModal && renderTemplateModal()}
     </div>
   );
 }

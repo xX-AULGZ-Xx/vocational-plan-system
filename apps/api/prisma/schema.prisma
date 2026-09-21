@@ -413,4 +413,18 @@ model Notification {
   @@map("notifications")
 }
 
+model EvaluationTemplate {
+  id               Int      @id @default(autoincrement())
+  title            String   @db.VarChar(255)
+  description      String?  @db.Text
+  category         String?  @default("GENERAL") @db.VarChar(100)
+  target_responses Int      @default(50)
+  theme_config     Json?    @default("{}")
+  sections         Json     @default("[]")
+  is_default       Boolean  @default(false)
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @default(now()) @updatedAt
 
+  @@map("evaluation_templates")
+}

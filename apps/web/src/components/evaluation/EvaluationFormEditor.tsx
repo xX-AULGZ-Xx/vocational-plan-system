@@ -54,11 +54,14 @@ interface Section {
 }
 
 interface EvaluationFormEditorProps {
-  projectId: string;
+  projectId?: string;
   token: string | null;
   initialData: any;
   onClose: () => void;
   onSaved: () => void;
+  isTemplateMode?: boolean;
+  customSaveUrl?: string;
+  saveMethod?: 'POST' | 'PUT';
 }
 
 export default function EvaluationFormEditor({
@@ -67,6 +70,9 @@ export default function EvaluationFormEditor({
   initialData,
   onClose,
   onSaved,
+  isTemplateMode = false,
+  customSaveUrl,
+  saveMethod = 'POST',
 }: EvaluationFormEditorProps) {
   const [activeEditorTab, setActiveEditorTab] = useState<'content' | 'theme'>('content');
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
@@ -208,8 +214,9 @@ export default function EvaluationFormEditor({
 
     setSaving(true);
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/evaluation`, {
-        method: 'POST',
+      const targetUrl = customSaveUrl || `/api/v1/projects/${projectId}/evaluation`;
+      const res = await fetch(targetUrl, {
+        method: saveMethod || 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -217,8 +224,10 @@ export default function EvaluationFormEditor({
         body: JSON.stringify({
           title: title.trim(),
           description: description.trim(),
+          category: initialData?.category || 'GENERAL',
           target_responses: Number(targetResponses) || 0,
           is_active: isActive,
+          is_default: Boolean(initialData?.is_default),
           theme_config: {
             preset: selectedPreset,
             font: selectedFont,
@@ -244,7 +253,7 @@ export default function EvaluationFormEditor({
 
       const data = await res.json();
       if (data.success) {
-        showAlert.success('บันทึกสำเร็จ', 'อัปเดตแบบประเมินและธีมเรียบร้อยแล้ว');
+        showAlert.success('บันทึกสำเร็จ', isTemplateMode ? 'บันทึกแม่แบบแบบประเมินเรียบร้อยแล้ว' : 'อัปเดตแบบประเมินและธีมเรียบร้อยแล้ว');
         onSaved();
       } else {
         showAlert.error('บันทึกไม่สำเร็จ', data.message);

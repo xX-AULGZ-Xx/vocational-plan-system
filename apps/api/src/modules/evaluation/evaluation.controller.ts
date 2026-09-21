@@ -204,12 +204,52 @@ router.get('/projects/:projectId/evaluation', authenticate, async (req: AuthRequ
 });
 
 // ----------------------------------------------------
+// GET /api/v1/projects/:projectId/evaluation/templates
+// Fetch available evaluation templates for applying to a project
+// ----------------------------------------------------
+router.get('/projects/:projectId/evaluation/templates', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    let rows: any[] = [];
+    try {
+      rows = await prisma.$queryRawUnsafe(`
+        SELECT * FROM \`evaluation_templates\` WHERE \`is_active\` = 1 ORDER BY \`is_default\` DESC, \`created_at\` DESC
+      `);
+    } catch {
+      rows = [];
+    }
+
+    const formatted = rows.map((r: any) => {
+      let parsedSections = r.sections;
+      if (typeof parsedSections === 'string') {
+        try { parsedSections = JSON.parse(parsedSections); } catch { parsedSections = []; }
+      }
+      let parsedTheme = r.theme_config;
+      if (typeof parsedTheme === 'string') {
+        try { parsedTheme = JSON.parse(parsedTheme); } catch { parsedTheme = {}; }
+      }
+      return {
+        ...r,
+        sections: parsedSections || [],
+        theme_config: parsedTheme || {},
+        is_default: Boolean(r.is_default),
+        is_active: Boolean(r.is_active),
+      };
+    });
+
+    return res.json({ success: true, data: formatted });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message || 'Internal server error' });
+  }
+});
+
+// ----------------------------------------------------
 // 2. POST /api/v1/projects/:projectId/evaluation/init-default
-// Initialize or reset default vocational evaluation template
+// Initialize or reset default vocational evaluation template (or custom template_id)
 // ----------------------------------------------------
 router.post('/projects/:projectId/evaluation/init-default', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const projectId = BigInt(req.params.projectId);
+    const { template_id } = req.body || {};
 
     // Verify project existence
     const project = await prisma.project.findUnique({
@@ -219,6 +259,54 @@ router.post('/projects/:projectId/evaluation/init-default', authenticate, async 
 
     if (!project) {
       return res.status(404).json({ success: false, message: 'ไม่พบโครงการที่ระบุ' });
+    }
+
+    // Determine template data
+    let chosenTemplate = { ...defaultEvaluationData };
+    if (template_id) {
+      try {
+        const rows: any[] = await prisma.$queryRawUnsafe(
+          `SELECT * FROM \`evaluation_templates\` WHERE \`id\` = ? LIMIT 1`,
+          parseInt(template_id)
+        );
+        if (rows && rows.length > 0) {
+          const t = rows[0];
+          let sec = t.sections;
+          if (typeof sec === 'string') { try { sec = JSON.parse(sec); } catch { sec = []; } }
+          let th = t.theme_config;
+          if (typeof th === 'string') { try { th = JSON.parse(th); } catch { th = {}; } }
+          chosenTemplate = {
+            title: t.title || chosenTemplate.title,
+            description: t.description || chosenTemplate.description,
+            target_responses: t.target_responses || chosenTemplate.target_responses,
+            theme_config: th || chosenTemplate.theme_config,
+            sections: Array.isArray(sec) && sec.length > 0 ? sec : chosenTemplate.sections,
+          };
+        }
+      } catch (err) {
+        console.warn('Load custom template warning:', err);
+      }
+    } else {
+      // Check if there is an active default template configured in evaluation_templates
+      try {
+        const defaultRows: any[] = await prisma.$queryRawUnsafe(
+          `SELECT * FROM \`evaluation_templates\` WHERE \`is_default\` = 1 AND \`is_active\` = 1 LIMIT 1`
+        );
+        if (defaultRows && defaultRows.length > 0) {
+          const t = defaultRows[0];
+          let sec = t.sections;
+          if (typeof sec === 'string') { try { sec = JSON.parse(sec); } catch { sec = []; } }
+          let th = t.theme_config;
+          if (typeof th === 'string') { try { th = JSON.parse(th); } catch { th = {}; } }
+          chosenTemplate = {
+            title: t.title || chosenTemplate.title,
+            description: t.description || chosenTemplate.description,
+            target_responses: t.target_responses || chosenTemplate.target_responses,
+            theme_config: th || chosenTemplate.theme_config,
+            sections: Array.isArray(sec) && sec.length > 0 ? sec : chosenTemplate.sections,
+          };
+        }
+      } catch {}
     }
 
     // Delete existing form if any (and cascading sections/questions/responses)
@@ -237,12 +325,12 @@ router.post('/projects/:projectId/evaluation/init-default', authenticate, async 
       data: {
         project_id: projectId,
         title: `แบบประเมินความพึงพอใจ - ${project.title}`,
-        description: defaultEvaluationData.description,
+        description: chosenTemplate.description,
         is_active: true,
-        target_responses: defaultEvaluationData.target_responses,
-        theme_config: defaultEvaluationData.theme_config,
+        target_responses: chosenTemplate.target_responses,
+        theme_config: chosenTemplate.theme_config,
         sections: {
-          create: defaultEvaluationData.sections.map((s) => ({
+          create: chosenTemplate.sections.map((s) => ({
             title: s.title,
             description: s.description,
             order_index: s.order_index,
@@ -272,7 +360,7 @@ router.post('/projects/:projectId/evaluation/init-default', authenticate, async 
 
     return res.json({
       success: true,
-      message: 'สร้างแบบประเมินมาตรฐานเรียบร้อยแล้ว',
+      message: 'สร้างแบบประเมินจากแม่แบบเรียบร้อยแล้ว',
       data: serializeBigInt(createdForm),
     });
   } catch (error: any) {

@@ -19,10 +19,17 @@ import {
   Check,
   AlertCircle,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ClipboardCheck,
+  Edit,
+  Sliders,
+  Layers,
+  Star,
+  BookOpen
 } from 'lucide-react';
 import AccessDenied from '@/components/common/AccessDenied';
 import ModalPortal from '@/components/ui/ModalPortal';
+import EvaluationFormEditor from '@/components/evaluation/EvaluationFormEditor';
 
 export default function AdminTemplatesPage() {
   const { user, token } = useAuth();
@@ -31,8 +38,18 @@ export default function AdminTemplatesPage() {
     return <AccessDenied allowedRoles={['ผู้ดูแลระบบ (ADMIN)', 'เจ้าหน้าที่งานแผนงาน (PLANNING_OFFICER)']} />;
   }
 
+  // Active Tab: 'documents' (Word DOCX) vs 'evaluations' (Survey Form Templates)
+  const [activeTab, setActiveTab] = useState<'documents' | 'evaluations'>('documents');
+
+  // DOCX Templates state
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Evaluation Form Templates state
+  const [evalTemplates, setEvalTemplates] = useState<any[]>([]);
+  const [loadingEval, setLoadingEval] = useState(false);
+  const [editingEvalTemplate, setEditingEvalTemplate] = useState<any | null>(null);
+  const [isCreatingEval, setIsCreatingEval] = useState(false);
 
   // Upload modal state
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -53,6 +70,7 @@ export default function AdminTemplatesPage() {
   useEffect(() => {
     if (token) {
       fetchTemplates();
+      fetchEvalTemplates();
     }
   }, [token]);
 
@@ -71,6 +89,24 @@ export default function AdminTemplatesPage() {
       console.error('Failed to load templates', e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEvalTemplates = async () => {
+    setLoadingEval(true);
+    try {
+      const headers: any = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/v1/admin/evaluation-templates', { headers });
+      const data = await res.json();
+      if (data.success) {
+        setEvalTemplates(data.data);
+      }
+    } catch (e) {
+      console.error('Failed to load evaluation templates', e);
+    } finally {
+      setLoadingEval(false);
     }
   };
 
@@ -358,6 +394,110 @@ export default function AdminTemplatesPage() {
     setTags(newTags);
   };
 
+  const handleToggleEvalActive = async (id: number, currentActive: boolean) => {
+    try {
+      const res = await fetch(`/api/v1/admin/evaluation-templates/${id}/toggle`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ is_active: !currentActive }),
+      });
+      if (res.ok) {
+        fetchEvalTemplates();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSetDefaultEval = async (id: number) => {
+    try {
+      const res = await fetch(`/api/v1/admin/evaluation-templates/${id}/default`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        showAlert.success('สำเร็จ', 'ตั้งค่าเป็นแม่แบบแบบประเมินเริ่มต้นแล้ว');
+        fetchEvalTemplates();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteEval = async (id: number) => {
+    const confirmed = await showAlert.confirm('ยืนยันการลบ', 'คุณแน่ใจหรือไม่ว่าต้องการลบแม่แบบแบบประเมินนี้?');
+    if (!confirmed) return;
+    try {
+      const res = await fetch(`/api/v1/admin/evaluation-templates/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        showAlert.success('ลบแม่แบบเรียบร้อยแล้ว');
+        fetchEvalTemplates();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCreateNewEval = () => {
+    setIsCreatingEval(true);
+    setEditingEvalTemplate({
+      title: 'แบบประเมินความพึงพอใจโครงการ (ใหม่)',
+      description: 'แบบสำรวจความคิดเห็นและความพึงพอใจของผู้เข้าร่วมโครงการ',
+      category: 'GENERAL',
+      target_responses: 50,
+      is_default: false,
+      is_active: true,
+      theme_config: {
+        preset: 'vocational_official',
+        font: 'prompt',
+        color: 'indigo',
+        bg_style: 'gradient',
+        rating_style: 'buttons',
+        border_radius: 'rounded-3xl',
+      },
+      sections: [
+        {
+          title: 'ตอนที่ 1: ข้อมูลทั่วไปของผู้ตอบแบบประเมิน',
+          description: 'กรุณาเลือกข้อมูลตามความเป็นจริง',
+          order_index: 1,
+          questions: [
+            { question_text: 'เพศ', question_type: 'RADIO', options: ['ชาย', 'หญิง', 'อื่นๆ'], order_index: 1, is_required: true },
+            { question_text: 'สถานะ / บทบาท', question_type: 'RADIO', options: ['นักเรียน / นักศึกษา', 'ครู / อาจารย์', 'บุคลากร', 'ผู้ปกครอง / ประชาชนทั่วไป'], order_index: 2, is_required: true },
+          ],
+        },
+        {
+          title: 'ตอนที่ 2: ระดับความพึงพอใจต่อการดำเนินงานโครงการ',
+          description: 'ระดับคะแนน: 5 = มากที่สุด, 4 = มาก, 3 = ปานกลาง, 2 = น้อย, 1 = น้อยที่สุด',
+          order_index: 2,
+          questions: [
+            { question_text: '1. การประชาสัมพันธ์และการแจ้งข้อมูลข่าวสาร', question_type: 'RATING_5', order_index: 1, is_required: true },
+            { question_text: '2. ความเหมาะสมของขั้นตอนและรูปแบบกิจกรรม', question_type: 'RATING_5', order_index: 2, is_required: true },
+            { question_text: '3. ความชัดเจนและประโยชน์ของความรู้/ทักษะที่ได้รับ', question_type: 'RATING_5', order_index: 3, is_required: true },
+            { question_text: '4. ความเหมาะสมของสถานที่ บรรยากาศ และอุปกรณ์', question_type: 'RATING_5', order_index: 4, is_required: true },
+            { question_text: '5. ความพึงพอใจในภาพรวมต่อโครงการนี้', question_type: 'RATING_5', order_index: 5, is_required: true },
+          ],
+        },
+        {
+          title: 'ตอนที่ 3: ข้อคิดเห็นและข้อเสนอแนะเพิ่มเติม',
+          description: 'ข้อเสนอแนะสำหรับการปรับปรุงในครั้งต่อไป',
+          order_index: 3,
+          questions: [
+            { question_text: 'สิ่งที่ท่านประทับใจหรือข้อเสนอแนะเพิ่มเติม', question_type: 'TEXT', order_index: 1, is_required: false },
+          ],
+        },
+      ],
+    });
+  };
+
   return (
     <div className="space-y-6">
       <input 
@@ -367,17 +507,63 @@ export default function AdminTemplatesPage() {
         accept=".docx" 
         className="hidden" 
       />
+
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">จัดการแม่แบบเอกสาร (Template Manager)</h1>
-          <p className="text-slate-500 mt-1">อัปโหลด ตั้งค่าตัวแปร และจัดการเอกสารแม่แบบ (.docx)</p>
+          <h1 className="text-2xl font-bold text-slate-900">จัดการแม่แบบระบบ (Template Manager)</h1>
+          <p className="text-slate-500 mt-1">จัดการแม่แบบเอกสาร Word (.docx) และแม่แบบฟอร์มแบบประเมินความพึงพอใจ</p>
         </div>
+        
+        {activeTab === 'documents' ? (
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="inline-flex items-center px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme shadow-sm transition-colors text-xs font-bold"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            อัปโหลดแม่แบบเอกสาร Word
+          </button>
+        ) : (
+          <button
+            onClick={handleCreateNewEval}
+            className="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-theme shadow-sm transition-colors text-xs font-bold"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            สร้างแม่แบบแบบประเมินใหม่
+          </button>
+        )}
+      </div>
+
+      {/* Tabs Switcher */}
+      <div className="flex items-center gap-2 border-b border-slate-200">
         <button
-          onClick={() => setShowUploadModal(true)}
-          className="inline-flex items-center px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme shadow-sm transition-colors text-xs font-bold"
+          onClick={() => setActiveTab('documents')}
+          className={`flex items-center gap-2 px-4 py-3 border-b-2 text-sm font-bold transition ${
+            activeTab === 'documents'
+              ? 'border-theme-primary text-theme-primary bg-theme-primary-light/50 rounded-t-theme'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
         >
-          <Upload className="w-4 h-4 mr-2" />
-          อัปโหลดแม่แบบใหม่
+          <FileText className="w-4 h-4" />
+          <span>แม่แบบเอกสาร Word (.docx)</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'documents' ? 'bg-theme-primary text-white' : 'bg-slate-200 text-slate-700'}`}>
+            {templates.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('evaluations')}
+          className={`flex items-center gap-2 px-4 py-3 border-b-2 text-sm font-bold transition ${
+            activeTab === 'evaluations'
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/70 rounded-t-theme'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <ClipboardCheck className="w-4 h-4" />
+          <span>แม่แบบแบบประเมินความพึงพอใจ</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${activeTab === 'evaluations' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+            {evalTemplates.length}
+          </span>
         </button>
       </div>
 
@@ -388,180 +574,356 @@ export default function AdminTemplatesPage() {
         </div>
       )}
 
-      {loading ? (
-        <div className="flex justify-center items-center py-20">
-          <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* ========================================================= */}
+      {/* TAB 1: DOCX TEMPLATES */}
+      {/* ========================================================= */}
+      {activeTab === 'documents' && (
+        <div>
+          {loading ? (
+            <div className="flex justify-center items-center py-20">
+              <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="hidden md:block overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อแม่แบบ / ไฟล์</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ประเภทแม่แบบ (Default)</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {templates.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+                          <FileText className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                          <p>ยังไม่มีข้อมูลแม่แบบเอกสาร</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      templates.map((tpl) => (
+                        <tr key={tpl.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-start">
+                              <FileText className="w-5 h-5 text-blue-500 mr-3 mt-0.5" />
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{tpl.name}</div>
+                                <div className="text-xs text-gray-500">{tpl.file_name} (v{tpl.version})</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <select
+                              value={tpl.default_type || 'NONE'}
+                              onChange={(e) => handleSetDefaultType(tpl.id, e.target.value)}
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            >
+                              <option value="NONE">- ไม่ได้ตั้งค่า -</option>
+                              <option value="PROPOSAL">แบบเสนอโครงการ (Proposal)</option>
+                              <option value="FULL_SUMMARY">สรุปแบบเต็ม (Full Summary)</option>
+                              <option value="SHORT_SUMMARY">สรุปหน้าเดียว (Short Summary)</option>
+                            </select>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => handleToggleActive(tpl.id, tpl.is_active)}
+                              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${tpl.is_active ? 'bg-blue-600' : 'bg-gray-200'}`}
+                            >
+                              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${tpl.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
+                          </td>
+                          <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
+                            <button
+                              onClick={() => openTagManager(tpl)}
+                              className="inline-flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-md transition-colors"
+                            >
+                              <Tag className="w-4 h-4 mr-1.5" />
+                              Tag Manager
+                            </button>
+                            <button
+                              onClick={() => handleUpdateFileClick(tpl.id)}
+                              className="inline-flex items-center p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors mr-1"
+                              title="อัปเดตไฟล์ (Upload new version)"
+                            >
+                              <Upload className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(tpl.id)}
+                              className="inline-flex items-center p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                              title="ลบ"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-          <div className="hidden md:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ชื่อแม่แบบ / ไฟล์</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ประเภทแม่แบบ (Default)</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">สถานะ</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <div className="md:hidden">
                 {templates.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                      <FileText className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                      <p>ยังไม่มีข้อมูลแม่แบบเอกสาร</p>
-                    </td>
-                  </tr>
+                  <div className="p-8 text-center text-gray-500 border-t border-gray-100">
+                    <FileText className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                    <p className="text-sm">ยังไม่มีข้อมูลแม่แบบเอกสาร</p>
+                  </div>
                 ) : (
-                  templates.map((tpl) => (
-                    <tr key={tpl.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-start">
-                          <FileText className="w-5 h-5 text-blue-500 mr-3 mt-0.5" />
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{tpl.name}</div>
-                            <div className="text-xs text-gray-500">{tpl.file_name} (v{tpl.version})</div>
+                  <div className="divide-y divide-gray-100">
+                    {templates.map((tpl) => (
+                      <div key={tpl.id} className="p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-start flex-1 pr-3">
+                            <FileText className="w-5 h-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900 leading-tight">{tpl.name}</div>
+                              <div className="text-xs text-gray-500 mt-0.5">{tpl.file_name} (v{tpl.version})</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleToggleActive(tpl.id, tpl.is_active)}
+                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${tpl.is_active ? 'bg-blue-600' : 'bg-gray-200'}`}
+                          >
+                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${tpl.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
+                          </button>
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="block text-xs text-gray-500 mb-1">ประเภทแม่แบบ (Default):</label>
+                          <select
+                            value={tpl.default_type || 'NONE'}
+                            onChange={(e) => handleSetDefaultType(tpl.id, e.target.value)}
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-sm py-1.5"
+                          >
+                            <option value="NONE">- ไม่ได้ตั้งค่า -</option>
+                            <option value="PROPOSAL">แบบเสนอโครงการ (Proposal)</option>
+                            <option value="FULL_SUMMARY">สรุปแบบเต็ม (Full Summary)</option>
+                            <option value="SHORT_SUMMARY">สรุปหน้าเดียว (Short Summary)</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                          <button
+                            onClick={() => openTagManager(tpl)}
+                            className="inline-flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-md transition-colors text-xs font-medium"
+                          >
+                            <Tag className="w-3.5 h-3.5 mr-1.5" />
+                            Tag Manager
+                          </button>
+                          
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={() => handleUpdateFileClick(tpl.id)}
+                              className="inline-flex items-center p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                              title="อัปเดตไฟล์"
+                            >
+                              <Upload className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(tpl.id)}
+                              className="inline-flex items-center p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                              title="ลบ"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <select
-                          value={tpl.default_type || 'NONE'}
-                          onChange={(e) => handleSetDefaultType(tpl.id, e.target.value)}
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                        >
-                          <option value="NONE">- ไม่ได้ตั้งค่า -</option>
-                          <option value="PROPOSAL">แบบเสนอโครงการ (Proposal)</option>
-                          <option value="FULL_SUMMARY">สรุปแบบเต็ม (Full Summary)</option>
-                          <option value="SHORT_SUMMARY">สรุปหน้าเดียว (Short Summary)</option>
-                        </select>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <button
-                          onClick={() => handleToggleActive(tpl.id, tpl.is_active)}
-                          className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${tpl.is_active ? 'bg-blue-600' : 'bg-gray-200'}`}
-                        >
-                          <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${tpl.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
-                        <button
-                          onClick={() => openTagManager(tpl)}
-                          className="inline-flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-md transition-colors"
-                        >
-                          <Tag className="w-4 h-4 mr-1.5" />
-                          Tag Manager
-                        </button>
-                          <button
-                            onClick={() => handleUpdateFileClick(tpl.id)}
-                            className="inline-flex items-center p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors mr-1"
-                            title="อัปเดตไฟล์ (Upload new version)"
-                          >
-                            <Upload className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(tpl.id)}
-                            className="inline-flex items-center p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                            title="ลบ"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                      </td>
-                    </tr>
-                  ))
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </tbody>
-            </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 2: EVALUATION FORM TEMPLATES */}
+      {/* ========================================================= */}
+      {activeTab === 'evaluations' && (
+        <div className="space-y-4">
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-indigo-900">
+            <div className="flex items-start gap-3">
+              <ClipboardCheck className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" />
+              <div>
+                <h3 className="font-bold text-sm">คลังแม่แบบแบบประเมินความพึงพอใจมาตรฐาน</h3>
+                <p className="text-xs text-indigo-700 mt-0.5">
+                  เมื่อผู้ใช้กดสร้างแบบประเมินในโครงการ ระบบจะใช้แม่แบบที่ตั้งเป็น <strong>&quot;แม่แบบเริ่มต้น (Default)&quot;</strong> ให้โดยอัตโนมัติ และผู้ใช้สามารถเลือกแม่แบบเฉพาะทางอื่น ๆ ได้
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleCreateNewEval}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>สร้างแม่แบบใหม่</span>
+            </button>
           </div>
 
-          <div className="md:hidden">
-            {templates.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 border-t border-gray-100">
-                <FileText className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                <p className="text-sm">ยังไม่มีข้อมูลแม่แบบเอกสาร</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {templates.map((tpl) => (
-                  <div key={tpl.id} className="p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-start flex-1 pr-3">
-                        <FileText className="w-5 h-5 text-blue-500 mr-2 mt-0.5 flex-shrink-0" />
+          {loadingEval ? (
+            <div className="flex justify-center items-center py-20">
+              <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
+            </div>
+          ) : evalTemplates.length === 0 ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500 space-y-3">
+              <ClipboardCheck className="w-12 h-12 text-slate-300 mx-auto" />
+              <h4 className="font-bold text-slate-700">ยังไม่มีแม่แบบแบบประเมินในระบบ</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                เริ่มต้นสร้างแม่แบบประเมินความพึงพอใจมาตรฐานเพื่ออำนวยความสะดวกให้แก่ครูและบุคลากรในการประเมินโครงการ
+              </p>
+              <button
+                onClick={handleCreateNewEval}
+                className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg shadow-sm"
+              >
+                + สร้างแม่แบบแรก
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {evalTemplates.map((item) => (
+                <div
+                  key={item.id}
+                  className={`bg-white rounded-2xl border p-5 transition-all shadow-xs flex flex-col justify-between ${
+                    item.is_default ? 'border-indigo-500/80 ring-2 ring-indigo-500/10' : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
+                          <ClipboardCheck className="w-4 h-4" />
+                        </span>
                         <div>
-                          <div className="text-sm font-semibold text-gray-900 leading-tight">{tpl.name}</div>
-                          <div className="text-xs text-gray-500 mt-0.5">{tpl.file_name} (v{tpl.version})</div>
+                          <h4 className="font-bold text-slate-900 text-sm leading-snug line-clamp-1">{item.title}</h4>
+                          <span className="text-[11px] font-semibold text-slate-400">
+                            หมวดหมู่: {item.category || 'ทั่วไป'} • เป้าหมาย {item.target_responses || 50} ชุด
+                          </span>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleToggleActive(tpl.id, tpl.is_active)}
-                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${tpl.is_active ? 'bg-blue-600' : 'bg-gray-200'}`}
-                      >
-                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${tpl.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
-                      </button>
+
+                      {item.is_default && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-bold shrink-0">
+                          <Star className="w-3 h-3 fill-indigo-600 text-indigo-600" />
+                          ค่าเริ่มต้น (Default)
+                        </span>
+                      )}
                     </div>
 
-                    <div className="mb-3">
-                      <label className="block text-xs text-gray-500 mb-1">ประเภทแม่แบบ (Default):</label>
-                      <select
-                        value={tpl.default_type || 'NONE'}
-                        onChange={(e) => handleSetDefaultType(tpl.id, e.target.value)}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-sm py-1.5"
-                      >
-                        <option value="NONE">- ไม่ได้ตั้งค่า -</option>
-                        <option value="PROPOSAL">แบบเสนอโครงการ (Proposal)</option>
-                        <option value="FULL_SUMMARY">สรุปแบบเต็ม (Full Summary)</option>
-                        <option value="SHORT_SUMMARY">สรุปหน้าเดียว (Short Summary)</option>
-                      </select>
-                    </div>
+                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                      {item.description || 'ไม่มีคำอธิบายเพิ่มเติม'}
+                    </p>
 
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-                      <button
-                        onClick={() => openTagManager(tpl)}
-                        className="inline-flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-md transition-colors text-xs font-medium"
-                      >
-                        <Tag className="w-3.5 h-3.5 mr-1.5" />
-                        Tag Manager
-                      </button>
-                      
-                      <div className="flex space-x-1">
-                        <button
-                          onClick={() => handleUpdateFileClick(tpl.id)}
-                          className="inline-flex items-center p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                          title="อัปเดตไฟล์"
-                        >
-                          <Upload className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(tpl.id)}
-                          className="inline-flex items-center p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                          title="ลบ"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                    {/* Summary Info */}
+                    <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
+                      <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[11px] font-medium text-slate-700 flex items-center gap-1">
+                        <Layers className="w-3 h-3 text-slate-500" />
+                        {item.total_sections || item.sections?.length || 0} ตอน
+                      </span>
+                      <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[11px] font-medium text-slate-700 flex items-center gap-1">
+                        <ClipboardCheck className="w-3 h-3 text-slate-500" />
+                        {item.total_questions || 0} ข้อคำถาม
+                      </span>
+                      <span className="px-2.5 py-1 bg-slate-100 rounded-lg text-[11px] font-medium text-slate-700 flex items-center gap-1">
+                        <Sliders className="w-3 h-3 text-slate-500" />
+                        ธีม: {item.theme_config?.color || 'indigo'} / {item.theme_config?.font || 'prompt'}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
 
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleEvalActive(item.id, item.is_active)}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                          item.is_active ? 'bg-indigo-600' : 'bg-slate-300'
+                        }`}
+                        title={item.is_active ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            item.is_active ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                      <span className="text-[11px] font-medium text-slate-500">
+                        {item.is_active ? 'พร้อมใช้งาน' : 'ปิดใช้งาน'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {!item.is_default && (
+                        <button
+                          onClick={() => handleSetDefaultEval(item.id)}
+                          className="px-2.5 py-1 text-xs text-indigo-700 hover:bg-indigo-50 font-semibold rounded-lg transition"
+                          title="ตั้งเป็นแม่แบบเริ่มต้นสำหรับทุกโครงการ"
+                        >
+                          ตั้งเป็น Default
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setIsCreatingEval(false);
+                          setEditingEvalTemplate(item);
+                        }}
+                        className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                        title="แก้ไขโครงสร้างและธีมแม่แบบ"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEval(item.id)}
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                        title="ลบแม่แบบ"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+      )}
 
+      {/* Evaluation Template Editor Modal */}
+      {editingEvalTemplate && (
+        <EvaluationFormEditor
+          token={token}
+          initialData={editingEvalTemplate}
+          isTemplateMode={true}
+          saveMethod={isCreatingEval ? 'POST' : 'PUT'}
+          customSaveUrl={
+            isCreatingEval
+              ? '/api/v1/admin/evaluation-templates'
+              : `/api/v1/admin/evaluation-templates/${editingEvalTemplate.id}`
+          }
+          onClose={() => {
+            setEditingEvalTemplate(null);
+            setIsCreatingEval(false);
+          }}
+          onSaved={() => {
+            setEditingEvalTemplate(null);
+            setIsCreatingEval(false);
+            fetchEvalTemplates();
+          }}
+        />
       )}
 
       {/* Upload Modal */}
       {showUploadModal && (
         <ModalPortal>
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col relative my-auto animate-in fade-in zoom-in-95 duration-200">
-              <div className="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-slate-800">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-400" />
-                  อัปโหลดแม่แบบใหม่
-                </h2>
-                <button onClick={() => setShowUploadModal(false)} className="p-1 hover:bg-white/10 rounded-lg transition text-slate-400 hover:text-white">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="text-lg font-bold text-slate-800">อัปโหลดแม่แบบเอกสารใหม่</h3>
+                <button onClick={() => setShowUploadModal(false)} className="text-slate-400 hover:text-slate-600">
                   <X className="w-5 h-5" />
                 </button>
               </div>
