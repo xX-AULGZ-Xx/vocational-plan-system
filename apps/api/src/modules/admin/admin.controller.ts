@@ -2139,8 +2139,8 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
         include: {
           department: { include: { division: true } },
           leader: { select: { id: true, full_name: true, role: true } },
-          approvals: { take: 4 },
-          alignments: { take: 3 },
+          approvals: true,
+          alignments: true,
         },
       });
       moduleLatencies.projects_pipeline.push(Math.max(1, Date.now() - t0));
@@ -2171,7 +2171,6 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       await prisma.division.findMany({
         include: {
           departments: {
-            take: 20,
             include: {
               _count: { select: { users: true, projects: true } },
             },
@@ -2199,7 +2198,7 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       const t0 = Date.now();
       await prisma.strategicPlan.findMany({
         take: 5,
-        include: { indicators: { take: 10 } },
+        include: { indicators: true },
       });
       moduleLatencies.strategic_kpis.push(Math.max(1, Date.now() - t0));
     };
@@ -2251,8 +2250,9 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
         const actionLatency = Math.max(1, Date.now() - actionStart);
         return { success: true, latency: actionLatency };
       } catch (err: any) {
+        console.error('Load test simulated action error:', err);
         const actionLatency = Math.max(1, Date.now() - actionStart);
-        return { success: false, latency: actionLatency, error: err.message || 'Query error' };
+        return { success: false, latency: actionLatency, error: err?.message || 'Query error' };
       }
     };
 
