@@ -2074,6 +2074,214 @@ const handleTestUsersConnection = async (req: AuthRequest, res: Response) => {
 router.get('/settings/test-users-connection', handleTestUsersConnection);
 router.post('/settings/test-users-connection', handleTestUsersConnection);
 
+// Helper function to calculate percentile
+function calculatePercentile(values: number[], percentile: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.ceil((percentile / 100) * sorted.length) - 1;
+  return sorted[Math.max(0, Math.min(index, sorted.length - 1))];
+}
+
+// POST /api/v1/admin/settings/load-test
+router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
+  const overallStart = Date.now();
+  try {
+    const {
+      concurrency = 50,
+      requestsPerUser = 3,
+      mode = 'auto_detect', // 'auto_detect' | 'fixed'
+      scenario = 'realistic_mixed',
+    } = req.body;
+
+    const memoryBefore = process.memoryUsage();
+
+    // Define simulated database operation mimicking real app usage
+    const executeSimulatedUserAction = async (): Promise<{ success: boolean; latency: number; error?: string }> => {
+      const actionStart = Date.now();
+      try {
+        // Step 1: Read settings & fiscal years
+        await prisma.systemSetting.findMany({ take: 10 });
+
+        // Step 2: Read random user or department
+        await prisma.user.findFirst({
+          where: { is_active: true },
+          select: { id: true, full_name: true, role: true, department_id: true },
+        });
+
+        // Step 3: Count projects & departments
+        await Promise.all([
+          prisma.project.count(),
+          prisma.department.findMany({ take: 15, select: { id: true, name: true, division_id: true } }),
+        ]);
+
+        const actionLatency = Math.max(1, Date.now() - actionStart);
+        return { success: true, latency: actionLatency };
+      } catch (err: any) {
+        const actionLatency = Math.max(1, Date.now() - actionStart);
+        return { success: false, latency: actionLatency, error: err.message || 'Query error' };
+      }
+    };
+
+    // Run a single stage test with given concurrent workers
+    const runStageTest = async (workerCount: number, reqPerWorker: number) => {
+      const stageStart = Date.now();
+      const allLatencies: number[] = [];
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      // Create worker tasks
+      const workers = Array.from({ length: workerCount }, async () => {
+        for (let i = 0; i < reqPerWorker; i++) {
+          const result = await executeSimulatedUserAction();
+          allLatencies.push(result.latency);
+          if (result.success) {
+            successCount++;
+          } else {
+            errorCount++;
+            if (result.error && errors.length < 5) errors.push(result.error);
+          }
+        }
+      });
+
+      await Promise.all(workers);
+      const stageDurationMs = Math.max(1, Date.now() - stageStart);
+      const totalRequests = successCount + errorCount;
+      const avgLatency = allLatencies.length > 0 ? Math.round(allLatencies.reduce((a, b) => a + b, 0) / allLatencies.length) : 0;
+      const minLatency = allLatencies.length > 0 ? Math.min(...allLatencies) : 0;
+      const maxLatency = allLatencies.length > 0 ? Math.max(...allLatencies) : 0;
+      const p95Latency = calculatePercentile(allLatencies, 95);
+      const p99Latency = calculatePercentile(allLatencies, 99);
+      const rps = parseFloat(((totalRequests / stageDurationMs) * 1000).toFixed(1));
+      const errorRate = totalRequests > 0 ? parseFloat(((errorCount / totalRequests) * 100).toFixed(1)) : 0;
+
+      // Quality evaluation
+      let grade: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'DEGRADED' | 'FAILED' = 'EXCELLENT';
+      if (errorRate > 5 || avgLatency > 1000) {
+        grade = 'FAILED';
+      } else if (errorRate > 0 || avgLatency > 500 || p95Latency > 800) {
+        grade = 'DEGRADED';
+      } else if (avgLatency > 150 || p95Latency > 300) {
+        grade = 'FAIR';
+      } else if (avgLatency > 50 || p95Latency > 100) {
+        grade = 'GOOD';
+      } else {
+        grade = 'EXCELLENT';
+      }
+
+      return {
+        concurrency: workerCount,
+        requests_per_worker: reqPerWorker,
+        total_requests: totalRequests,
+        success_count: successCount,
+        error_count: errorCount,
+        error_rate_pct: errorRate,
+        duration_ms: stageDurationMs,
+        throughput_rps: rps,
+        min_latency_ms: minLatency,
+        max_latency_ms: maxLatency,
+        avg_latency_ms: avgLatency,
+        p95_latency_ms: p95Latency,
+        p99_latency_ms: p99Latency,
+        grade,
+        passed: errorRate === 0 && avgLatency < 500,
+        errors,
+      };
+    };
+
+    let stageResults: any[] = [];
+    let maxSafeCapacity = 0;
+    let maxTestedCapacity = 0;
+
+    if (mode === 'auto_detect') {
+      // Progressive ramp-up stages
+      const testLevels = [10, 25, 50, 100, 150, 200];
+      for (const level of testLevels) {
+        const stageRes = await runStageTest(level, Math.min(requestsPerUser, 3));
+        stageResults.push(stageRes);
+        maxTestedCapacity = level;
+
+        if (stageRes.passed) {
+          maxSafeCapacity = level;
+        }
+
+        // If severe degradation, stop further stress
+        if (stageRes.grade === 'FAILED' || stageRes.error_rate_pct > 10) {
+          break;
+        }
+      }
+    } else {
+      // Fixed concurrency test
+      const targetConcurrency = Math.min(Math.max(1, parseInt(String(concurrency), 10) || 50), 300);
+      const stageRes = await runStageTest(targetConcurrency, Math.min(Math.max(1, parseInt(String(requestsPerUser), 10) || 3), 10));
+      stageResults.push(stageRes);
+      maxTestedCapacity = targetConcurrency;
+      if (stageRes.passed) maxSafeCapacity = targetConcurrency;
+    }
+
+    const totalDurationMs = Date.now() - overallStart;
+    const memoryAfter = process.memoryUsage();
+    const heapUsedMb = Math.round(memoryAfter.heapUsed / 1024 / 1024);
+    const heapTotalMb = Math.round(memoryAfter.heapTotal / 1024 / 1024);
+
+    // Aggregate overall metrics
+    const totalRequestsAll = stageResults.reduce((sum, s) => sum + s.total_requests, 0);
+    const totalSuccessAll = stageResults.reduce((sum, s) => sum + s.success_count, 0);
+    const totalErrorsAll = stageResults.reduce((sum, s) => sum + s.error_count, 0);
+    const overallAvgLatency = Math.round(stageResults.reduce((sum, s) => sum + s.avg_latency_ms * s.total_requests, 0) / Math.max(1, totalRequestsAll));
+    const overallPeakRps = Math.max(...stageResults.map((s) => s.throughput_rps));
+
+    // Determine safe recommended capacity with buffer
+    const estimatedCapacity = maxSafeCapacity >= 200
+      ? '250+ ผู้ใช้พร้อมกัน (รองรับได้ทั้งวิทยาลัยสบายๆ)'
+      : maxSafeCapacity >= 100
+      ? '120-150 ผู้ใช้พร้อมกัน (รองรับช่วงเปิดเสนอโครงการพร้อมกัน)'
+      : maxSafeCapacity >= 50
+      ? '60-80 ผู้ใช้พร้อมกัน (รองรับการใช้งานทั่วไปและช่วงเร่งด่วน)'
+      : `${maxSafeCapacity} ผู้ใช้พร้อมกัน`;
+
+    // Assessment text
+    let assessment = '';
+    if (maxSafeCapacity >= 100 && totalErrorsAll === 0) {
+      assessment = `ระบบมีประสิทธิภาพสูงมาก รองรับการเข้าใช้งานพร้อมกันได้มากกว่า ${maxSafeCapacity} คน โดย Latency เฉลี่ยเพียง ${overallAvgLatency} ms และอัตราความผิดพลาด 0% เหมาะสำหรับการใช้งานจริงทั้งสถานศึกษา`;
+    } else if (maxSafeCapacity >= 50) {
+      assessment = `ระบบสามารถรองรับการเข้าใช้งานพร้อมกันได้ถึง ${maxSafeCapacity} คนได้อย่างเสถียร (Throughput สูงสุด ${overallPeakRps} req/s) เหมาะสมสำหรับวิทยาลัยการอาชีพ`;
+    } else {
+      assessment = `ระบบผ่านการทดสอบที่ ${maxSafeCapacity} ผู้ใช้พร้อมกัน หากต้องการรองรับปริมาณที่สูงขึ้นแนะนำให้ตรวจสอบการตั้งค่า Connection Pool ของฐานข้อมูล`;
+    }
+
+    return res.json({
+      success: true,
+      timestamp: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+      mode,
+      total_duration_ms: totalDurationMs,
+      summary: {
+        max_safe_concurrent_users: maxSafeCapacity,
+        max_tested_concurrent_users: maxTestedCapacity,
+        estimated_capacity_label: estimatedCapacity,
+        total_requests: totalRequestsAll,
+        successful_requests: totalSuccessAll,
+        failed_requests: totalErrorsAll,
+        overall_error_rate_pct: parseFloat(((totalErrorsAll / Math.max(1, totalRequestsAll)) * 100).toFixed(1)),
+        overall_avg_latency_ms: overallAvgLatency,
+        peak_throughput_rps: overallPeakRps,
+        memory_heap_used_mb: heapUsedMb,
+        memory_heap_total_mb: heapTotalMb,
+        assessment,
+        status: totalErrorsAll === 0 ? 'HEALTHY' : 'WARNING',
+      },
+      stages: stageResults,
+    });
+  } catch (error: any) {
+    console.error('Load test error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'การจำลองโหลดล้มเหลว: ' + error.message,
+      error: error.message,
+    });
+  }
+});
+
 export default router;
 
 

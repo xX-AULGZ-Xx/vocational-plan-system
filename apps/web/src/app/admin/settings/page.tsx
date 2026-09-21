@@ -46,6 +46,12 @@ import {
   XCircle,
   Database,
   Shield,
+  Zap,
+  Gauge,
+  TrendingUp,
+  BarChart3,
+  Cpu,
+  Layers,
 } from 'lucide-react';
 import { showAlert } from '@/lib/sweetalert';
 
@@ -147,6 +153,52 @@ export default function AdminSettingsPage() {
       has_password: boolean;
       has_google: boolean;
       can_login: boolean;
+    }>;
+    message?: string;
+  } | null>(null);
+
+  // Load Test / Concurrency Test states
+  const [testingLoad, setTestingLoad] = useState(false);
+  const [loadTestMode, setLoadTestMode] = useState<'auto_detect' | 'fixed'>('auto_detect');
+  const [loadTestConcurrency, setLoadTestConcurrency] = useState<number>(50);
+  const [loadTestRequestsPerUser, setLoadTestRequestsPerUser] = useState<number>(3);
+  const [loadTestResult, setLoadTestResult] = useState<{
+    success: boolean;
+    timestamp?: string;
+    mode?: string;
+    total_duration_ms?: number;
+    summary?: {
+      max_safe_concurrent_users: number;
+      max_tested_concurrent_users: number;
+      estimated_capacity_label: string;
+      total_requests: number;
+      successful_requests: number;
+      failed_requests: number;
+      overall_error_rate_pct: number;
+      overall_avg_latency_ms: number;
+      peak_throughput_rps: number;
+      memory_heap_used_mb: number;
+      memory_heap_total_mb: number;
+      assessment: string;
+      status: 'HEALTHY' | 'WARNING';
+    };
+    stages?: Array<{
+      concurrency: number;
+      requests_per_worker: number;
+      total_requests: number;
+      success_count: number;
+      error_count: number;
+      error_rate_pct: number;
+      duration_ms: number;
+      throughput_rps: number;
+      min_latency_ms: number;
+      max_latency_ms: number;
+      avg_latency_ms: number;
+      p95_latency_ms: number;
+      p99_latency_ms: number;
+      grade: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'DEGRADED' | 'FAILED';
+      passed: boolean;
+      errors?: string[];
     }>;
     message?: string;
   } | null>(null);
@@ -508,6 +560,54 @@ export default function AdminSettingsPage() {
       showAlert.error('ผิดพลาด', err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     } finally {
       setTestingUsers(false);
+    }
+  };
+
+  const handleStartLoadTest = async () => {
+    setTestingLoad(true);
+    setLoadTestResult(null);
+    try {
+      const res = await fetch('/api/v1/admin/settings/load-test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          mode: loadTestMode,
+          concurrency: loadTestConcurrency,
+          requestsPerUser: loadTestRequestsPerUser,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setLoadTestResult(data);
+        if (data.summary?.overall_error_rate_pct === 0) {
+          showAlert.success(
+            'การจำลองโหลดสำเร็จ',
+            `ระบบรองรับได้อย่างปลอดภัยสูงสุด ${data.summary?.max_safe_concurrent_users} ผู้ใช้พร้อมกัน (ความเร็วเฉลี่ย ${data.summary?.overall_avg_latency_ms} ms)`
+          );
+        } else {
+          showAlert.warning(
+            'ผลการจำลองโหลด',
+            `ผ่านการทดสอบที่ ${data.summary?.max_safe_concurrent_users} ผู้ใช้พร้อมกัน (มีข้อผิดพลาดบางส่วนที่ระดับสูง)`
+          );
+        }
+      } else {
+        setLoadTestResult({
+          success: false,
+          message: data.message || 'ไม่สามารถดำเนินการจำลองโหลดได้',
+        });
+        showAlert.error('ผิดพลาด', data.message || 'ไม่สามารถดำเนินการจำลองโหลดได้');
+      }
+    } catch (err: any) {
+      setLoadTestResult({
+        success: false,
+        message: err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์',
+      });
+      showAlert.error('ผิดพลาด', err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    } finally {
+      setTestingLoad(false);
     }
   };
 
@@ -1676,6 +1776,283 @@ export default function AdminSettingsPage() {
                                 </div>
                               );
                             })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Concurrency & Load Test Simulator Card */}
+                <div className="p-4 bg-gradient-to-br from-indigo-50/50 via-purple-50/20 to-slate-50 rounded-xl border border-indigo-200/80 space-y-4 shadow-2xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-100">
+                    <div className="flex items-start gap-2.5">
+                      <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-2xs shrink-0 mt-0.5 sm:mt-0">
+                        <Gauge className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                            จำลองการโหลดและการใช้งานพร้อมกัน (Concurrency & Load Test)
+                          </h3>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-200">
+                            Stress & Capacity Test
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          จำลองและทดสอบการยื่นคำขอพร้อมกัน เพื่อประเมินขีดความสามารถรองรับผู้ใช้งานพร้อมกันสูงสุด (Max Concurrent Users)
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleStartLoadTest}
+                      disabled={testingLoad}
+                      className="px-4 py-2 text-xs font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-xs transition disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto"
+                    >
+                      <Zap className={`w-3.5 h-3.5 ${testingLoad ? 'animate-bounce text-amber-300' : ''}`} />
+                      <span>{testingLoad ? 'กำลังจำลองโหลด (Testing Stress)...' : '🚀 เริ่มการจำลองโหลด (Start Load Test)'}</span>
+                    </button>
+                  </div>
+
+                  {/* Mode & Preset Selection */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-bold text-slate-700 block">เลือกระดับการจำลองโหลด (Test Scenario):</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoadTestMode('auto_detect');
+                          setLoadTestConcurrency(50);
+                        }}
+                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          loadTestMode === 'auto_detect'
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="block truncate font-bold text-[11px]">🎯 ค้นหาขีดจำกัดอัตโนมัติ</span>
+                        <span className="text-[10px] text-slate-500 font-normal">Ramp-up (10 ➔ 200 คน)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoadTestMode('fixed');
+                          setLoadTestConcurrency(20);
+                        }}
+                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          loadTestMode === 'fixed' && loadTestConcurrency === 20
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="block truncate font-bold text-[11px]">🚀 ทั่วไป (20 คน)</span>
+                        <span className="text-[10px] text-slate-500 font-normal">การใช้งานประจำวัน</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoadTestMode('fixed');
+                          setLoadTestConcurrency(50);
+                        }}
+                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          loadTestMode === 'fixed' && loadTestConcurrency === 50
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="block truncate font-bold text-[11px]">🔥 ปานกลาง (50 คน)</span>
+                        <span className="text-[10px] text-slate-500 font-normal">ช่วงเปิดเสนอโครงการ</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoadTestMode('fixed');
+                          setLoadTestConcurrency(100);
+                        }}
+                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          loadTestMode === 'fixed' && loadTestConcurrency === 100
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="block truncate font-bold text-[11px]">⚡ หนาแน่น (100 คน)</span>
+                        <span className="text-[10px] text-slate-500 font-normal">ช่วงเร่งด่วนใกล้วันปิด</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoadTestMode('fixed');
+                          setLoadTestConcurrency(200);
+                        }}
+                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          loadTestMode === 'fixed' && loadTestConcurrency === 200
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="block truncate font-bold text-[11px]">💥 ขีดจำกัดสูง (200 คน)</span>
+                        <span className="text-[10px] text-slate-500 font-normal">Stress Testing สูงสุด</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Load Testing Results Dashboard */}
+                  {loadTestResult && (
+                    <div className="space-y-4 pt-1 animate-in fade-in duration-200">
+                      {/* Capacity Highlight Card */}
+                      <div className="p-4 bg-gradient-to-r from-indigo-900 via-indigo-800 to-blue-900 text-white rounded-xl shadow-sm space-y-2.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <span className="text-indigo-200 text-[11px] uppercase font-bold tracking-wider block">
+                              ผลการประเมินความสามารถรองรับการใช้งานพร้อมกัน (Estimated Capacity)
+                            </span>
+                            <h4 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 mt-0.5">
+                              <span>รองรับได้อย่างปลอดภัย:</span>
+                              <span className="text-amber-300 underline decoration-amber-400/60 underline-offset-4 font-mono">
+                                {loadTestResult.summary?.max_safe_concurrent_users || 0}+ ผู้ใช้พร้อมกัน
+                              </span>
+                            </h4>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 self-start sm:self-auto bg-white/10 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-white/20 text-xs font-bold">
+                            <CheckCircle className="w-4 h-4 text-emerald-400" />
+                            <span>{loadTestResult.summary?.estimated_capacity_label}</span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-indigo-100/90 leading-relaxed bg-black/15 p-2.5 rounded-lg border border-white/10">
+                          💡 <strong>สรุปผลการวิเคราะห์:</strong> {loadTestResult.summary?.assessment}
+                        </p>
+                      </div>
+
+                      {/* 4 Metrics Cards */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                          <span className="text-[10px] text-slate-500 block font-medium">Throughput สูงสุด</span>
+                          <span className="font-bold text-slate-900 flex items-center gap-1.5 text-sm font-mono">
+                            <TrendingUp className="w-4 h-4 text-emerald-600" />
+                            {loadTestResult.summary?.peak_throughput_rps || 0} req/s
+                          </span>
+                          <span className="text-[10px] text-slate-400 block">ปริมาณคำขอต่อวินาที</span>
+                        </div>
+
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                          <span className="text-[10px] text-slate-500 block font-medium">Latency เฉลี่ยรวม</span>
+                          <span className="font-bold text-slate-900 flex items-center gap-1.5 text-sm font-mono">
+                            <Activity className="w-4 h-4 text-blue-600" />
+                            {loadTestResult.summary?.overall_avg_latency_ms || 0} ms
+                          </span>
+                          <span className="text-[10px] text-slate-400 block">เวลาตอบสนองต่อคำขอ</span>
+                        </div>
+
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                          <span className="text-[10px] text-slate-500 block font-medium">ความสำเร็จ (Success Rate)</span>
+                          <span className="font-bold text-emerald-700 flex items-center gap-1.5 text-sm font-mono">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            {loadTestResult.summary?.successful_requests || 0}/{loadTestResult.summary?.total_requests || 0} ({100 - (loadTestResult.summary?.overall_error_rate_pct || 0)}%)
+                          </span>
+                          <span className="text-[10px] text-slate-400 block">
+                            ข้อผิดพลาด: {loadTestResult.summary?.failed_requests || 0} ({loadTestResult.summary?.overall_error_rate_pct || 0}%)
+                          </span>
+                        </div>
+
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                          <span className="text-[10px] text-slate-500 block font-medium">การใช้ Memory Heap</span>
+                          <span className="font-bold text-slate-900 flex items-center gap-1.5 text-sm font-mono">
+                            <Cpu className="w-4 h-4 text-purple-600" />
+                            {loadTestResult.summary?.memory_heap_used_mb || 0} MB
+                          </span>
+                          <span className="text-[10px] text-slate-400 block">
+                            จาก Total {loadTestResult.summary?.memory_heap_total_mb || 0} MB
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Stage-by-stage Performance Table */}
+                      {loadTestResult.stages && loadTestResult.stages.length > 0 && (
+                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+                          <div className="p-3 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                              <BarChart3 className="w-3.5 h-3.5 text-indigo-600" />
+                              <span>ตารางผลการทดสอบแยกตามระดับโหลด (Stage Breakdown)</span>
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              รวม {loadTestResult.total_duration_ms} ms
+                            </span>
+                          </div>
+
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead>
+                                <tr className="bg-slate-50 text-[10px] text-slate-500 font-bold border-b border-slate-200">
+                                  <th className="p-2.5">ผู้ใช้พร้อมกัน</th>
+                                  <th className="p-2.5">จำนวน Requests</th>
+                                  <th className="p-2.5">Avg Latency</th>
+                                  <th className="p-2.5">P95 Latency</th>
+                                  <th className="p-2.5">Throughput</th>
+                                  <th className="p-2.5">ข้อผิดพลาด</th>
+                                  <th className="p-2.5 text-center">ระดับประสิทธิภาพ</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {loadTestResult.stages.map((stg, sIdx) => {
+                                  return (
+                                    <tr key={sIdx} className="hover:bg-slate-50/60 transition">
+                                      <td className="p-2.5 font-bold text-slate-800 flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                        <span>{stg.concurrency} ผู้ใช้</span>
+                                      </td>
+                                      <td className="p-2.5 text-slate-600 font-mono text-[11px]">
+                                        {stg.total_requests} reqs
+                                      </td>
+                                      <td className="p-2.5 font-mono text-slate-800 font-bold">
+                                        {stg.avg_latency_ms} ms
+                                      </td>
+                                      <td className="p-2.5 font-mono text-slate-600 text-[11px]">
+                                        {stg.p95_latency_ms} ms
+                                      </td>
+                                      <td className="p-2.5 font-mono text-emerald-700 font-bold">
+                                        {stg.throughput_rps} req/s
+                                      </td>
+                                      <td className="p-2.5 font-mono">
+                                        {stg.error_count === 0 ? (
+                                          <span className="text-emerald-600 font-medium">0%</span>
+                                        ) : (
+                                          <span className="text-rose-600 font-bold">{stg.error_rate_pct}% ({stg.error_count})</span>
+                                        )}
+                                      </td>
+                                      <td className="p-2.5 text-center">
+                                        <span
+                                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border inline-block ${
+                                            stg.grade === 'EXCELLENT'
+                                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                              : stg.grade === 'GOOD'
+                                              ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                              : stg.grade === 'FAIR'
+                                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                                              : 'bg-rose-50 text-rose-800 border-rose-200'
+                                          }`}
+                                        >
+                                          {stg.grade === 'EXCELLENT'
+                                            ? 'ยอดเยี่ยม'
+                                            : stg.grade === 'GOOD'
+                                            ? 'ดีมาก'
+                                            : stg.grade === 'FAIR'
+                                            ? 'ปานกลาง'
+                                            : 'ชะลอตัว'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
                       )}
