@@ -315,22 +315,20 @@ export default function SetupWizardPage() {
             return (
               <div
                 key={s.num}
-                className={`p-3 rounded-xl border transition flex items-center gap-2.5 ${
-                  isActive
+                className={`p-3 rounded-xl border transition flex items-center gap-2.5 ${isActive
                     ? 'bg-blue-600/20 border-blue-500 text-white shadow-sm'
                     : isDone
-                    ? 'bg-slate-900 border-slate-800 text-emerald-400'
-                    : 'bg-slate-900/50 border-slate-800/60 text-slate-500'
-                }`}
+                      ? 'bg-slate-900 border-slate-800 text-emerald-400'
+                      : 'bg-slate-900/50 border-slate-800/60 text-slate-500'
+                  }`}
               >
                 <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
-                    isActive
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${isActive
                       ? 'bg-blue-600 text-white'
                       : isDone
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-slate-800 text-slate-400'
-                  }`}
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
                 >
                   {isDone ? <Check className="w-4 h-4" /> : s.num}
                 </div>
@@ -473,11 +471,10 @@ export default function SetupWizardPage() {
 
                     {dbTestMsg && (
                       <div
-                        className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${
-                          dbTestMsg.success
+                        className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${dbTestMsg.success
                             ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                             : 'bg-red-500/15 text-red-300 border border-red-500/30'
-                        }`}
+                          }`}
                       >
                         {dbTestMsg.success ? (
                           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -654,11 +651,10 @@ export default function SetupWizardPage() {
                             theme_accent_color: preset.accent,
                           }));
                         }}
-                        className={`p-3 rounded-xl border text-left transition flex items-center justify-between ${
-                          isSelected
+                        className={`p-3 rounded-xl border text-left transition flex items-center justify-between ${isSelected
                             ? 'border-blue-500 bg-blue-500/15 ring-1 ring-blue-500/40 text-white'
                             : 'border-slate-800 bg-slate-800/60 hover:bg-slate-800 text-slate-300'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: preset.primary }} />
@@ -893,7 +889,7 @@ export default function SetupWizardPage() {
 
       {/* Footer */}
       <div className="text-center text-[11px] text-slate-600 mt-6">
-        Vocational Planning & Project Management System — Designed for Thai Vocational Education Commission (สอศ.)
+        Vocational Planning & Project Management System
       </div>
     </div>
   );
