@@ -552,7 +552,14 @@ export default function AdminSettingsPage() {
           Authorization: `Bearer ${token}`,
         },
       });
-      const data = await res.json();
+      const contentType = res.headers.get('content-type');
+      let data: any;
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(text || `เซิร์ฟเวอร์ตอบกลับด้วยรหัส ${res.status}`);
+      }
       if (res.ok && data.success) {
         setUsersTestResult(data);
         if (data.summary?.all_ready) {
@@ -595,7 +602,14 @@ export default function AdminSettingsPage() {
           requestsPerUser: loadTestRequestsPerUser,
         }),
       });
-      const data = await res.json();
+      const contentType = res.headers.get('content-type');
+      let data: any;
+      if (contentType && contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        throw new Error(text || `เซิร์ฟเวอร์ตอบกลับด้วยรหัส ${res.status}`);
+      }
       if (res.ok && data.success) {
         setLoadTestResult(data);
         if (data.summary?.overall_error_rate_pct === 0) {
