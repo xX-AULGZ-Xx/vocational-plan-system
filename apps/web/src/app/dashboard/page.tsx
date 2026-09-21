@@ -53,7 +53,7 @@ export default function DashboardPage() {
           const list = data.data.map((item: any) => item.fiscal_year).filter((y: number) => !isNaN(y) && y > 2500);
           setAvailableYears(list);
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     fetchYears();
   }, [token, currentFiscalYear]);
@@ -275,7 +275,7 @@ export default function DashboardPage() {
           </div>
           <h1 className="text-xl sm:text-2xl font-black tracking-tight">ระบบติดตามแผนปฏิบัติราชการและงบประมาณ</h1>
           <p className="text-xs sm:text-sm text-white/80">
-            ควบคุมสายงานอนุมัติดิจิทัล ตรวจสอบงบประมาณ 4 ฝ่ายบริหาร และจัดทำเอกสารราชการอัตโนมัติ
+            ควบคุมสายงานอนุมัติดิจิทัล ตรวจสอบงบประมาณ 4 ฝ่ายบริหาร
           </p>
         </div>
 
@@ -442,9 +442,6 @@ export default function DashboardPage() {
               <PieChart className="w-5 h-5 text-teal-600" />
               <h2 className="font-bold text-slate-900 text-base">สัดส่วนตามยุทธศาสตร์สถานศึกษา</h2>
             </div>
-            <span className="text-xs text-teal-700 font-semibold bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
-              เฉพาะที่ ผอ. อนุมัติแล้ว
-            </span>
           </div>
 
           <div className="space-y-3">
