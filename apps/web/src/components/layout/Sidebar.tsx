@@ -35,49 +35,93 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
   const { themeSidebarStyle, themePrimaryColor, collegeLogoUrl, collegeName, developerInfo, divisions } = useSettings();
 
   const [pendingApprovalCount, setPendingApprovalCount] = useState<number>(0);
+  const [scheduleActivityCount, setScheduleActivityCount] = useState<number>(0);
   const isApprover = user && ['HEAD_DEPT', 'DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'].includes(user.role);
 
-  const fetchPendingApprovals = useCallback(async () => {
-    if (!user || !isApprover) return;
+  const fetchSidebarCounts = useCallback(async () => {
     try {
       const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('vps_token') || localStorage.getItem('token') || localStorage.getItem('access_token')) : null);
       const headers: any = {};
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
-      const [inboxRes, trackingRes] = await Promise.all([
-        fetch('/api/v1/approvals/inbox', { headers }),
-        fetch('/api/v1/projects/execution/tracking', { headers }),
+      const fetchApprovalsPromise = (user && isApprover)
+        ? Promise.all([
+            fetch('/api/v1/approvals/inbox', { headers }),
+            fetch('/api/v1/projects/execution/tracking', { headers }),
+          ])
+        : Promise.resolve([null, null]);
+
+      const fetchProjectsPromise = fetch('/api/v1/projects', { headers });
+
+      const [[inboxRes, trackingRes], projectsRes] = await Promise.all([
+        fetchApprovalsPromise,
+        fetchProjectsPromise,
       ]);
 
-      let total = 0;
-      const inboxData = await inboxRes.json();
-      if (inboxData.success && Array.isArray(inboxData.data)) {
-        total += inboxData.data.length;
+      // Calculate Approvals Count
+      if (inboxRes && trackingRes) {
+        let total = 0;
+        const inboxData = await inboxRes.json();
+        if (inboxData.success && Array.isArray(inboxData.data)) {
+          total += inboxData.data.length;
+        }
+
+        const trackingData = await trackingRes.json();
+        if (trackingData.success && Array.isArray(trackingData.data)) {
+          total += trackingData.data.length;
+        }
+        setPendingApprovalCount(total);
       }
 
-      const trackingData = await trackingRes.json();
-      if (trackingData.success && Array.isArray(trackingData.data)) {
-        total += trackingData.data.length;
+      // Calculate Schedule Activities Count
+      const projectsData = await projectsRes.json();
+      if (projectsData.success && Array.isArray(projectsData.data)) {
+        let totalAct = 0;
+        projectsData.data.forEach((p: any) => {
+          // 1. Timelines
+          if (Array.isArray(p.timelines)) {
+            totalAct += p.timelines.length;
+          }
+          // 2. Extra dynamic_data execution dates not covered in timelines
+          let dyn: any = {};
+          if (p.dynamic_data) {
+            try {
+              dyn = typeof p.dynamic_data === 'string' ? JSON.parse(p.dynamic_data) : p.dynamic_data;
+            } catch {}
+          }
+          if (Array.isArray(dyn?.execution_dates)) {
+            dyn.execution_dates.forEach((ed: any) => {
+              const s = ed.start_date || ed.startDate;
+              if (s) {
+                const isAlreadyAdded = (p.timelines || []).some(
+                  (t: any) =>
+                    (t.activity_name?.includes('ดำเนินโครงการ') || t.activity_name?.includes('📍')) &&
+                    (typeof t.start_date === 'string' ? t.start_date.startsWith(s) : new Date(t.start_date).toISOString().startsWith(s))
+                );
+                if (!isAlreadyAdded) totalAct += 1;
+              }
+            });
+          }
+        });
+        setScheduleActivityCount(totalAct);
       }
-
-      setPendingApprovalCount(total);
     } catch (e) {
       // ignore
     }
   }, [user, token, isApprover]);
 
   useEffect(() => {
-    fetchPendingApprovals();
-  }, [fetchPendingApprovals]);
+    fetchSidebarCounts();
+  }, [fetchSidebarCounts]);
 
   useEffect(() => {
     const unsubscribe = subscribeDataUpdate((event) => {
       if (event.scope === 'PROJECTS' || event.scope === 'APPROVALS') {
-        fetchPendingApprovals();
+        fetchSidebarCounts();
       }
     });
     return () => unsubscribe();
-  }, [subscribeDataUpdate, fetchPendingApprovals]);
+  }, [subscribeDataUpdate, fetchSidebarCounts]);
 
   const shortName = collegeName?.replace('วิทยาลัยการอาชีพ', 'วก.').replace('วิทยาลัยอาชีวศึกษา', 'วอศ.').replace('วิทยาลัยเทคนิค', 'วท.') || 'วก.';
 
@@ -248,6 +292,20 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                           }`}
                       >
                         {pendingApprovalCount}
+                      </span>
+                    )}
+
+                    {/* Badge for schedule activities */}
+                    {item.href === '/schedule' && scheduleActivityCount > 0 && (
+                      <span
+                        className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${active
+                            ? 'bg-white/20 text-white'
+                            : isLightSidebar
+                              ? 'bg-slate-100 text-slate-600'
+                              : 'bg-slate-800 text-slate-400'
+                          }`}
+                      >
+                        {scheduleActivityCount}
                       </span>
                     )}
 
