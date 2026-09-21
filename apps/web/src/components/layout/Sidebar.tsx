@@ -97,23 +97,23 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
     { name: 'ฝ่ายวิชาการ', href: '/divisions/acad', code: 'acad', icon: BookOpen },
     { name: 'ฝ่ายบริหารทรัพยากร', href: '/divisions/res', code: 'res', icon: Building2 },
     { name: 'ฝ่ายพัฒนากิจการนักเรียน นักศึกษา', href: '/divisions/dev', code: 'dev', icon: Users },
-    { name: 'ฝ่ายแผนงานและความร่วมมือ', href: '/divisions/strat', code: 'strat', icon: Compass },
+    { name: 'ฝ่ายยุทธศาสตร์และแผนงาน', href: '/divisions/strat', code: 'strat', icon: Compass },
   ];
 
   const allDivisionNav = (divisions && divisions.length > 0)
     ? divisions.map((d) => ({
-        name: d.name,
-        href: `/divisions/${d.code.toLowerCase()}`,
-        code: d.code.toLowerCase(),
-        icon: getDivisionIcon(d.code),
-      }))
+      name: d.name,
+      href: `/divisions/${d.code.toLowerCase()}`,
+      code: d.code.toLowerCase(),
+      icon: getDivisionIcon(d.code),
+    }))
     : defaultDivisionList;
 
   const allAdminNav = [
     { name: 'จัดการผู้ใช้งาน', href: '/admin/users', icon: Users, roles: ['ADMIN'] },
     { name: 'จัดการฝ่ายและแผนกวิชา/งาน', href: '/admin/departments', icon: Building2, roles: ['ADMIN'] },
     { name: 'จัดการเทมเพลตเอกสาร', href: '/admin/templates', icon: FileText, roles: ['ADMIN', 'PLANNING_OFFICER'] },
-    { name: 'ตั้งค่าระบบสถานศึกษา', href: '/admin/settings', icon: Settings, roles: ['ADMIN'] },
+    { name: 'ตั้งค่าระบบ', href: '/admin/settings', icon: Settings, roles: ['ADMIN'] },
     { name: 'อัปเดตและสำรองระบบ', href: '/admin/system-update', icon: ArrowUpCircle, roles: ['ADMIN'] },
   ];
 
@@ -121,9 +121,9 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
   const mainNav = user
     ? allMainNav.filter((item) => item.roles.includes(role))
     : [
-        { name: 'ภาพรวมระบบ (Dashboard)', href: '/dashboard', icon: LayoutDashboard },
-        { name: 'แผนปฏิบัติงาน / ปฏิทิน', href: '/schedule', icon: Calendar },
-      ];
+      { name: 'ภาพรวมระบบ (Dashboard)', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'แผนปฏิบัติงาน / ปฏิทิน', href: '/schedule', icon: Calendar },
+    ];
 
   // Division navigation available to all users
   const showDivisions = true;
@@ -156,9 +156,8 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
 
       {/* Sidebar / Slide-over Drawer */}
       <aside
-        className={`fixed lg:sticky top-16 left-0 bottom-0 z-30 lg:z-10 w-72 lg:w-64 h-[calc(100vh-4rem)] p-4 flex flex-col justify-between shrink-0 no-print border-r transform lg:transform-none transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none overflow-y-auto ${sidebarBg} ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
+        className={`fixed lg:sticky top-16 left-0 bottom-0 z-30 lg:z-10 w-72 lg:w-64 h-[calc(100vh-4rem)] p-4 flex flex-col justify-between shrink-0 no-print border-r transform lg:transform-none transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none overflow-y-auto ${sidebarBg} ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          }`}
       >
         <div className="space-y-6">
           {/* Mobile Drawer Header */}
@@ -208,15 +207,14 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                     style={
                       active
                         ? {
-                            backgroundColor: 'var(--color-primary, #1e3a8a)',
-                            color: '#ffffff',
-                            boxShadow: '0 4px 12px color-mix(in srgb, var(--color-primary, #1e3a8a) 40%, transparent)',
-                          }
+                          backgroundColor: 'var(--color-primary, #1e3a8a)',
+                          color: '#ffffff',
+                          boxShadow: '0 4px 12px color-mix(in srgb, var(--color-primary, #1e3a8a) 40%, transparent)',
+                        }
                         : {}
                     }
-                    className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-theme text-sm font-medium transition ${
-                      active ? '' : inactiveLink
-                    }`}
+                    className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-theme text-sm font-medium transition ${active ? '' : inactiveLink
+                      }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : isLightSidebar ? 'text-slate-500' : 'text-slate-400'}`} />
@@ -226,17 +224,16 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                     {/* Badge for approvals queue */}
                     {item.href === '/approvals' && isApprover && (
                       <span
-                        className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${
-                          active
+                        className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${active
                             ? pendingApprovalCount > 0
                               ? 'bg-amber-400 text-amber-950 font-black shadow-xs'
                               : 'bg-white/20 text-white'
                             : pendingApprovalCount > 0
-                            ? 'bg-amber-500 text-white font-black shadow-xs animate-pulse'
-                            : isLightSidebar
-                            ? 'bg-slate-100 text-slate-600'
-                            : 'bg-slate-800 text-slate-400'
-                        }`}
+                              ? 'bg-amber-500 text-white font-black shadow-xs animate-pulse'
+                              : isLightSidebar
+                                ? 'bg-slate-100 text-slate-600'
+                                : 'bg-slate-800 text-slate-400'
+                          }`}
                       >
                         {pendingApprovalCount}
                       </span>
@@ -245,11 +242,10 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                     {/* Badge for notifications */}
                     {item.href === '/notifications' && unreadCount > 0 && (
                       <span
-                        className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${
-                          active
+                        className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${active
                             ? 'bg-rose-500 text-white font-black shadow-xs'
                             : 'bg-rose-500 text-white font-black shadow-xs'
-                        }`}
+                          }`}
                       >
                         {unreadCount > 99 ? '99+' : unreadCount}
                       </span>
@@ -277,15 +273,14 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                       style={
                         active
                           ? {
-                              backgroundColor: 'var(--color-primary, #1e3a8a)',
-                              color: '#ffffff',
-                              boxShadow: '0 4px 12px color-mix(in srgb, var(--color-primary, #1e3a8a) 40%, transparent)',
-                            }
+                            backgroundColor: 'var(--color-primary, #1e3a8a)',
+                            color: '#ffffff',
+                            boxShadow: '0 4px 12px color-mix(in srgb, var(--color-primary, #1e3a8a) 40%, transparent)',
+                          }
                           : {}
                       }
-                      className={`flex items-center gap-3 px-3 py-2 rounded-theme text-xs font-medium transition ${
-                        active ? '' : inactiveDivision
-                      }`}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-theme text-xs font-medium transition ${active ? '' : inactiveDivision
+                        }`}
                     >
                       <Icon className={`w-3.5 h-3.5 ${active ? 'text-white' : ''}`} />
                       <span>{item.name}</span>
@@ -313,16 +308,15 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                       style={
                         active
                           ? {
-                              backgroundColor: isLightSidebar ? '#fef3c7' : '#1e293b',
-                              color: isLightSidebar ? '#92400e' : '#fbbf24',
-                              borderLeftWidth: '3px',
-                              borderLeftColor: '#f59e0b',
-                            }
+                            backgroundColor: isLightSidebar ? '#fef3c7' : '#1e293b',
+                            color: isLightSidebar ? '#92400e' : '#fbbf24',
+                            borderLeftWidth: '3px',
+                            borderLeftColor: '#f59e0b',
+                          }
                           : {}
                       }
-                      className={`flex items-center gap-3 px-3 py-2 rounded-theme text-xs font-medium transition ${
-                        active ? '' : inactiveDivision
-                      }`}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-theme text-xs font-medium transition ${active ? '' : inactiveDivision
+                        }`}
                     >
                       <Icon className="w-3.5 h-3.5" />
                       <span>{item.name}</span>
@@ -334,18 +328,16 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
           )}
         </div>
 
-        <div className={`p-3 rounded-theme border text-xs mt-6 transition-colors ${
-          isLightSidebar
+        <div className={`p-3 rounded-theme border text-xs mt-6 transition-colors ${isLightSidebar
             ? 'bg-slate-50 border-slate-200 text-slate-600'
             : 'bg-slate-800/80 border-slate-700/80 text-slate-300'
-        }`}>
+          }`}>
           <div className={`font-semibold mb-1 flex items-center justify-between ${isLightSidebar ? 'text-slate-900' : 'text-slate-100'}`}>
             <span>ข้อมูลผู้พัฒนา</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
-              isLightSidebar
+            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${isLightSidebar
                 ? 'bg-slate-200 text-slate-800'
                 : 'bg-slate-700 text-slate-200'
-            }`}>v1.0</span>
+              }`}>v1.0</span>
           </div>
           <p className="text-[11px] leading-relaxed">
             {developerInfo || 'พัฒนาระบบโดย งานส่งเสริมการวิจัย นวัตกรรม และสิ่งประดิษฐ์ ร่วมกับ งานศูนย์ข้อมูลสารสนเทศ'}
