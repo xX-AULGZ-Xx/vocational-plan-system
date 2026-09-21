@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ModalPortal from '@/components/ui/ModalPortal';
 import {
   X,
@@ -74,9 +74,11 @@ export default function EvaluationFormEditor({
   customSaveUrl,
   saveMethod = 'POST',
 }: EvaluationFormEditorProps) {
-  const [activeEditorTab, setActiveEditorTab] = useState<'content' | 'theme'>('content');
+  const [activeEditorTab, setActiveEditorTab] = useState<'content' | 'theme' | 'templates'>('content');
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
   const [previewRatingScore, setPreviewRatingScore] = useState<number>(5);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // Form Base Info
   const [title, setTitle] = useState(initialData?.title || 'แบบประเมินความพึงพอใจโครงการ');
@@ -118,6 +120,60 @@ export default function EvaluationFormEditor({
   );
 
   const [saving, setSaving] = useState(false);
+
+  // Fetch available templates for in-editor selection
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      setLoadingTemplates(true);
+      try {
+        const url = projectId
+          ? `/api/v1/projects/${projectId}/evaluation/templates`
+          : `/api/v1/admin/evaluation-templates`;
+        const res = await fetch(url, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setTemplates(data.data.filter((t: any) => t.is_active));
+        }
+      } catch (err) {
+        console.warn('Failed to load templates in editor:', err);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    fetchTemplates();
+  }, [projectId, token]);
+
+  const handleApplyTemplate = async (tmpl: any) => {
+    const confirmed = await showAlert.confirm(
+      `นำเข้าแม่แบบ "${tmpl.title}"?`,
+      'การกระทำนี้จะแทนที่ข้อคำถามและธีมปัจจุบันด้วยแม่แบบที่เลือก คุณสามารถปรับแต่งต่อและกดยืนยันบันทึกได้'
+    );
+    if (!confirmed) return;
+
+    if (tmpl.description) {
+      setDescription(tmpl.description);
+    }
+    if (tmpl.target_responses) {
+      setTargetResponses(tmpl.target_responses);
+    }
+    if (tmpl.theme_config) {
+      const th = tmpl.theme_config;
+      if (th.preset) setSelectedPreset(th.preset);
+      if (th.font) setSelectedFont(th.font);
+      if (th.color) setSelectedColor(th.color);
+      if (th.bg_style) setSelectedBg(th.bg_style);
+      if (th.rating_style) setSelectedRatingStyle(th.rating_style);
+      if (th.border_radius) setSelectedBorderRadius(th.border_radius);
+    }
+    if (Array.isArray(tmpl.sections) && tmpl.sections.length > 0) {
+      setSections(JSON.parse(JSON.stringify(tmpl.sections)));
+    }
+
+    showAlert.success('นำเข้าแม่แบบสำเร็จ', 'ระบบได้โหลดชุดคำถามและธีมเรียบร้อยแล้ว คุณสามารถปรับแต่งเพิ่มเติมได้');
+    setActiveEditorTab('content');
+  };
 
   // Computed theme for live preview
   const liveTheme = getSurveyTheme({
@@ -345,7 +401,19 @@ export default function EvaluationFormEditor({
                 }`}
               >
                 <Palette className="w-3.5 h-3.5 text-indigo-600" />
-                <span>ธีมและฟอนต์ (Theme)</span>
+                <span>ธีมและฟอนต์</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveEditorTab('templates')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  activeEditorTab === 'templates'
+                    ? 'bg-white text-amber-700 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>แม่แบบ ({templates.length})</span>
               </button>
             </div>
 
@@ -364,24 +432,24 @@ export default function EvaluationFormEditor({
           {/* TAB 1: CONTENT EDITOR */}
           {activeEditorTab === 'content' && (
             <div className="space-y-6">
-              {/* Quick Preset Action */}
+              {/* Quick Template Picker Action Banner */}
               <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 p-4 rounded-2xl border border-indigo-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
                   <div className="font-semibold text-xs text-indigo-900 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-indigo-600" />
-                    <span>เทมเพลตมาตรฐานอาชีวศึกษา (3 ตอน 9 ตัวชี้วัด)</span>
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>แม่แบบแบบประเมินความพึงพอใจ ({templates.length} แม่แบบ)</span>
                   </div>
                   <p className="text-xs text-indigo-700/80 mt-0.5">
-                    ครอบคลุมข้อมูลทั่วไป, ความพึงพอใจ 5 ระดับ (ด้านกิจกรรม, ด้านสถานที่, ด้านประโยชน์ที่ได้รับ) และข้อเสนอแนะ
+                    นำเข้าโครงสร้างข้อคำถามมาตรฐานอาชีวศึกษา หรือเลือกแม่แบบอื่นๆ ของระบบเพื่อตั้งต้นคำถามได้อย่างรวดเร็ว
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={handleResetToDefault}
-                  disabled={saving}
-                  className="px-3.5 py-1.5 bg-white text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200 font-medium text-xs rounded-xl shadow-sm transition-all whitespace-nowrap"
+                  onClick={() => setActiveEditorTab('templates')}
+                  className="px-3.5 py-1.5 bg-white text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200 font-bold text-xs rounded-xl shadow-xs transition-all whitespace-nowrap flex items-center gap-1.5 hover:scale-[1.02]"
                 >
-                  โหลดเทมเพลตมาตรฐาน
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>เลือกใช้แม่แบบ</span>
                 </button>
               </div>
 
@@ -1021,6 +1089,96 @@ export default function EvaluationFormEditor({
                 </div>
               </div>
 
+            </div>
+          )}
+
+          {/* TAB 3: TEMPLATES SELECTOR */}
+          {activeEditorTab === 'templates' && (
+            <div className="space-y-6">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-indigo-600" />
+                    <span>คลังแม่แบบแบบประเมินความพึงพอใจ</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    เลือกแม่แบบที่ต้องการนำมาใช้เป็นโครงสร้างตั้งต้นสำหรับแบบประเมินนี้ โดยสามารถปรับแต่งแก้ไขข้อคำถามต่อได้ตามต้องการ
+                  </p>
+                </div>
+                <span className="px-3 py-1 bg-indigo-50 text-indigo-700 font-semibold text-xs rounded-full border border-indigo-100 whitespace-nowrap">
+                  {templates.length} แม่แบบพร้อมใช้
+                </span>
+              </div>
+
+              {loadingTemplates ? (
+                <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 text-slate-400">
+                  <Sparkles className="w-8 h-8 mx-auto mb-3 text-indigo-600 animate-spin" />
+                  <p className="text-xs font-semibold text-slate-500">กำลังโหลดแม่แบบแบบประเมิน...</p>
+                </div>
+              ) : templates.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 text-slate-400">
+                  <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-30 text-indigo-600" />
+                  <p className="text-sm font-semibold text-slate-600">ยังไม่มีแม่แบบที่เปิดใช้งานในระบบ</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {templates.map((tmpl: any) => {
+                    const totalQ = (tmpl.sections || []).reduce((acc: number, s: any) => acc + (s.questions?.length || 0), 0);
+                    const categoryLabel =
+                      tmpl.category === 'VOCATIONAL_STANDARD' ? 'มาตรฐานอาชีวศึกษา' :
+                      tmpl.category === 'TRAINING' ? 'การฝึกอบรม/สัมมนา' :
+                      tmpl.category === 'ACTIVITY' ? 'กิจกรรมเสริมหลักสูตร' : 'ทั่วไป';
+
+                    return (
+                      <div
+                        key={tmpl.id}
+                        className="bg-white p-5 rounded-3xl border border-slate-200 hover:border-indigo-400 hover:shadow-lg transition-all flex flex-col justify-between group"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              {categoryLabel}
+                            </span>
+                            {tmpl.is_default && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                ⭐ แม่แบบหลัก
+                              </span>
+                            )}
+                          </div>
+
+                          <h4 className="text-base font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">
+                            {tmpl.title}
+                          </h4>
+                          {tmpl.description && (
+                            <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
+                              {tmpl.description}
+                            </p>
+                          )}
+
+                          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3 text-xs text-slate-500">
+                            <span className="font-semibold text-slate-700">{tmpl.sections?.length || 0} ตอน</span>
+                            <span>•</span>
+                            <span className="font-semibold text-slate-700">{totalQ} คำถาม</span>
+                            <span>•</span>
+                            <span>เป้าหมาย {tmpl.target_responses || 50} คน</span>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 pt-3 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={() => handleApplyTemplate(tmpl)}
+                            className="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-2 transition-all shadow-sm group-hover:shadow-indigo-200 hover:scale-[1.01]"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>นำแม่แบบนี้มาใช้</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

@@ -575,19 +575,6 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
             </div>
 
             <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
-              {/* Change Template button */}
-              {availableTemplates.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowTemplateModal(true)}
-                  className="px-3 py-1.5 rounded-theme text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-1.5 transition-all shadow-xs"
-                  title="เปลี่ยนหรือรีเซ็ตคำถามตามแม่แบบ"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>เปลี่ยนแม่แบบ</span>
-                </button>
-              )}
-
               {/* Export Dropdown */}
               <div className="relative" ref={exportMenuRef}>
                 <button
