@@ -199,8 +199,15 @@ input, button, select, textarea, optgroup {
 }
 
 .swal2-toast {
-  border-radius: var(--app-radius, 8px) !important;
+  border-radius: var(--app-radius, 12px) !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+}
+
+@media (max-width: 768px) {
+  .swal2-container.swal2-center > .swal2-popup.swal2-toast {
+    margin: auto !important;
+    justify-self: center !important;
+  }
 }
 
 @media print {
