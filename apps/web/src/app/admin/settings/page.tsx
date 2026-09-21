@@ -52,6 +52,11 @@ import {
   BarChart3,
   Cpu,
   Layers,
+  CheckSquare,
+  FolderGit2,
+  LayoutDashboard,
+  Target,
+  Building2,
 } from 'lucide-react';
 import { showAlert } from '@/lib/sweetalert';
 
@@ -160,12 +165,14 @@ export default function AdminSettingsPage() {
   // Load Test / Concurrency Test states
   const [testingLoad, setTestingLoad] = useState(false);
   const [loadTestMode, setLoadTestMode] = useState<'auto_detect' | 'fixed'>('auto_detect');
+  const [loadTestScenario, setLoadTestScenario] = useState<'full_system' | 'high_traffic_submission' | 'approval_storm' | 'analytics_reporting'>('full_system');
   const [loadTestConcurrency, setLoadTestConcurrency] = useState<number>(50);
   const [loadTestRequestsPerUser, setLoadTestRequestsPerUser] = useState<number>(3);
   const [loadTestResult, setLoadTestResult] = useState<{
     success: boolean;
     timestamp?: string;
     mode?: string;
+    scenario?: string;
     total_duration_ms?: number;
     summary?: {
       max_safe_concurrent_users: number;
@@ -199,6 +206,14 @@ export default function AdminSettingsPage() {
       grade: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'DEGRADED' | 'FAILED';
       passed: boolean;
       errors?: string[];
+    }>;
+    modules?: Array<{
+      key: string;
+      name_th: string;
+      icon: string;
+      count: number;
+      avg_latency_ms: number;
+      p95_latency_ms: number;
     }>;
     message?: string;
   } | null>(null);
@@ -575,6 +590,7 @@ export default function AdminSettingsPage() {
         },
         body: JSON.stringify({
           mode: loadTestMode,
+          scenario: loadTestScenario,
           concurrency: loadTestConcurrency,
           requestsPerUser: loadTestRequestsPerUser,
         }),
@@ -1784,23 +1800,23 @@ export default function AdminSettingsPage() {
                 </div>
 
                 {/* Concurrency & Load Test Simulator Card */}
-                <div className="p-4 bg-gradient-to-br from-indigo-50/50 via-purple-50/20 to-slate-50 rounded-xl border border-indigo-200/80 space-y-4 shadow-2xs">
+                <div className="p-4 sm:p-5 bg-gradient-to-br from-indigo-50/60 via-purple-50/30 to-slate-50 rounded-xl border border-indigo-200/90 space-y-4 shadow-2xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-100">
                     <div className="flex items-start gap-2.5">
-                      <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-2xs shrink-0 mt-0.5 sm:mt-0">
-                        <Gauge className="w-4 h-4" />
+                      <div className="p-2.5 bg-indigo-600 text-white rounded-lg shadow-2xs shrink-0 mt-0.5 sm:mt-0">
+                        <Gauge className="w-4 h-4 sm:w-5 sm:h-5" />
                       </div>
                       <div>
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <h3 className="text-xs sm:text-sm font-bold text-slate-900">
-                            จำลองการโหลดและการใช้งานพร้อมกัน (Concurrency & Load Test)
+                          <h3 className="text-xs sm:text-base font-bold text-slate-900">
+                            จำลองการโหลดและการใช้งานพร้อมกันแบบเต็มระบบ (Full-System Load Test)
                           </h3>
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-200">
-                            Stress & Capacity Test
+                            End-to-End Stress & Capacity Test
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500">
-                          จำลองและทดสอบการยื่นคำขอพร้อมกัน เพื่อประเมินขีดความสามารถรองรับผู้ใช้งานพร้อมกันสูงสุด (Max Concurrent Users)
+                        <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                          ทดสอบการทำงานของมอดูลหลักครบทั้งระบบ (ตรวจสอบสิทธิ์, แดชบอร์ด, โครงการ, อนุมัติ ๔ ขั้นตอน, โครงสร้างฝ่าย, แจ้งเตือน และแผนยุทธศาสตร์)
                         </p>
                       </div>
                     </div>
@@ -1809,47 +1825,128 @@ export default function AdminSettingsPage() {
                       type="button"
                       onClick={handleStartLoadTest}
                       disabled={testingLoad}
-                      className="px-4 py-2 text-xs font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-xs transition disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto"
+                      className="px-4 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-xs transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shrink-0 self-start sm:self-auto"
                     >
-                      <Zap className={`w-3.5 h-3.5 ${testingLoad ? 'animate-bounce text-amber-300' : ''}`} />
-                      <span>{testingLoad ? 'กำลังจำลองโหลด (Testing Stress)...' : '🚀 เริ่มการจำลองโหลด (Start Load Test)'}</span>
+                      <Zap className={`w-4 h-4 ${testingLoad ? 'animate-bounce text-amber-300' : ''}`} />
+                      <span>{testingLoad ? 'กำลังรัน Load Test เต็มระบบ...' : '🚀 เริ่มทดสอบเต็มระบบ (Run Full Load Test)'}</span>
                     </button>
                   </div>
 
-                  {/* Mode & Preset Selection */}
-                  <div className="space-y-2">
-                    <span className="text-[11px] font-bold text-slate-700 block">เลือกระดับการจำลองโหลด (Test Scenario):</span>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {/* Scenario Selector */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>เลือกรูปแบบการจำลองโหลด (Load Test Scenario):</span>
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setLoadTestScenario('full_system')}
+                        className={`p-2.5 text-left rounded-xl border text-xs transition cursor-pointer flex flex-col justify-between gap-1 ${
+                          loadTestScenario === 'full_system'
+                            ? 'bg-indigo-50/90 border-indigo-600 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">🌟</span>
+                          <span className="font-bold text-[11px]">เต็มระบบ (Full System)</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-normal">
+                          รันครบทั้ง ๗ มอดูลหลักในระบบพร้อมกัน
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setLoadTestScenario('high_traffic_submission')}
+                        className={`p-2.5 text-left rounded-xl border text-xs transition cursor-pointer flex flex-col justify-between gap-1 ${
+                          loadTestScenario === 'high_traffic_submission'
+                            ? 'bg-indigo-50/90 border-indigo-600 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">📥</span>
+                          <span className="font-bold text-[11px]">ยื่นเสนอโครงการ (Proposals)</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-normal">
+                          เน้นโครงการ งบประมาณ และสังกัดแผนก
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setLoadTestScenario('approval_storm')}
+                        className={`p-2.5 text-left rounded-xl border text-xs transition cursor-pointer flex flex-col justify-between gap-1 ${
+                          loadTestScenario === 'approval_storm'
+                            ? 'bg-indigo-50/90 border-indigo-600 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">⚖️</span>
+                          <span className="font-bold text-[11px]">อนุมัติ ๔ ขั้นตอน (Approvals)</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-normal">
+                          เน้นคิวพิจารณาของ หน.แผนก, รอง ผอ., งานแผน, ผอ.
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setLoadTestScenario('analytics_reporting')}
+                        className={`p-2.5 text-left rounded-xl border text-xs transition cursor-pointer flex flex-col justify-between gap-1 ${
+                          loadTestScenario === 'analytics_reporting'
+                            ? 'bg-indigo-50/90 border-indigo-600 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">📊</span>
+                          <span className="font-bold text-[11px]">ประมวลผลรายงาน (Analytics)</span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-normal">
+                          เน้นสถิติ แดชบอร์ด และตัวชี้วัดยุทธศาสตร์
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Concurrency Scale Selector */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-700 block">เลือกระดับ Concurrency (ผู้ใช้พร้อมกัน):</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
                       <button
                         type="button"
                         onClick={() => {
                           setLoadTestMode('auto_detect');
                           setLoadTestConcurrency(50);
                         }}
-                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                        className={`p-2 text-left rounded-lg border text-xs transition cursor-pointer ${
                           loadTestMode === 'auto_detect'
                             ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
                             : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
                         <span className="block truncate font-bold text-[11px]">🎯 ค้นหาขีดจำกัดอัตโนมัติ</span>
-                        <span className="text-[10px] text-slate-500 font-normal">Ramp-up (10 ➔ 200 คน)</span>
+                        <span className="text-[10px] text-slate-500 font-normal">Ramp (10➔300 คน)</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => {
                           setLoadTestMode('fixed');
-                          setLoadTestConcurrency(20);
+                          setLoadTestConcurrency(25);
                         }}
-                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
-                          loadTestMode === 'fixed' && loadTestConcurrency === 20
+                        className={`p-2 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          loadTestMode === 'fixed' && loadTestConcurrency === 25
                             ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
                             : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
-                        <span className="block truncate font-bold text-[11px]">🚀 ทั่วไป (20 คน)</span>
-                        <span className="text-[10px] text-slate-500 font-normal">การใช้งานประจำวัน</span>
+                        <span className="block truncate font-bold text-[11px]">🚀 ๒๕ คน</span>
+                        <span className="text-[10px] text-slate-500 font-normal">ใช้งานทั่วไป</span>
                       </button>
 
                       <button
@@ -1858,14 +1955,14 @@ export default function AdminSettingsPage() {
                           setLoadTestMode('fixed');
                           setLoadTestConcurrency(50);
                         }}
-                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                        className={`p-2 text-left rounded-lg border text-xs transition cursor-pointer ${
                           loadTestMode === 'fixed' && loadTestConcurrency === 50
                             ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
                             : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
-                        <span className="block truncate font-bold text-[11px]">🔥 ปานกลาง (50 คน)</span>
-                        <span className="text-[10px] text-slate-500 font-normal">ช่วงเปิดเสนอโครงการ</span>
+                        <span className="block truncate font-bold text-[11px]">🔥 ๕๐ คน</span>
+                        <span className="text-[10px] text-slate-500 font-normal">เปิดเสนอโครงการ</span>
                       </button>
 
                       <button
@@ -1874,14 +1971,14 @@ export default function AdminSettingsPage() {
                           setLoadTestMode('fixed');
                           setLoadTestConcurrency(100);
                         }}
-                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                        className={`p-2 text-left rounded-lg border text-xs transition cursor-pointer ${
                           loadTestMode === 'fixed' && loadTestConcurrency === 100
                             ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
                             : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
-                        <span className="block truncate font-bold text-[11px]">⚡ หนาแน่น (100 คน)</span>
-                        <span className="text-[10px] text-slate-500 font-normal">ช่วงเร่งด่วนใกล้วันปิด</span>
+                        <span className="block truncate font-bold text-[11px]">⚡ ๑๐๐ คน</span>
+                        <span className="text-[10px] text-slate-500 font-normal">ช่วงเร่งด่วน</span>
                       </button>
 
                       <button
@@ -1890,14 +1987,30 @@ export default function AdminSettingsPage() {
                           setLoadTestMode('fixed');
                           setLoadTestConcurrency(200);
                         }}
-                        className={`p-2.5 text-left rounded-lg border text-xs transition cursor-pointer ${
+                        className={`p-2 text-left rounded-lg border text-xs transition cursor-pointer ${
                           loadTestMode === 'fixed' && loadTestConcurrency === 200
                             ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
                             : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
-                        <span className="block truncate font-bold text-[11px]">💥 ขีดจำกัดสูง (200 คน)</span>
-                        <span className="text-[10px] text-slate-500 font-normal">Stress Testing สูงสุด</span>
+                        <span className="block truncate font-bold text-[11px]">💥 ๒๐๐ คน</span>
+                        <span className="text-[10px] text-slate-500 font-normal">Stress ระดับสูง</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLoadTestMode('fixed');
+                          setLoadTestConcurrency(300);
+                        }}
+                        className={`p-2 text-left rounded-lg border text-xs transition cursor-pointer ${
+                          loadTestMode === 'fixed' && loadTestConcurrency === 300
+                            ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="block truncate font-bold text-[11px]">🛡️ ๓๐๐ คน</span>
+                        <span className="text-[10px] text-slate-500 font-normal">Stress สูงสุด</span>
                       </button>
                     </div>
                   </div>
@@ -1910,7 +2023,7 @@ export default function AdminSettingsPage() {
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
                             <span className="text-indigo-200 text-[11px] uppercase font-bold tracking-wider block">
-                              ผลการประเมินความสามารถรองรับการใช้งานพร้อมกัน (Estimated Capacity)
+                              ผลการประเมินความสามารถรองรับการใช้งานพร้อมกันแบบเต็มระบบ (Full-System Capacity)
                             </span>
                             <h4 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 mt-0.5">
                               <span>รองรับได้อย่างปลอดภัย:</span>
@@ -1943,7 +2056,7 @@ export default function AdminSettingsPage() {
                         </div>
 
                         <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
-                          <span className="text-[10px] text-slate-500 block font-medium">Latency เฉลี่ยรวม</span>
+                          <span className="text-[10px] text-slate-500 block font-medium">Latency เฉลี่ยรวมทั้งระบบ</span>
                           <span className="font-bold text-slate-900 flex items-center gap-1.5 text-sm font-mono">
                             <Activity className="w-4 h-4 text-blue-600" />
                             {loadTestResult.summary?.overall_avg_latency_ms || 0} ms
@@ -1973,6 +2086,39 @@ export default function AdminSettingsPage() {
                           </span>
                         </div>
                       </div>
+
+                      {/* Module Performance Breakdown Cards */}
+                      {loadTestResult.modules && loadTestResult.modules.length > 0 && (
+                        <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2.5 shadow-2xs">
+                          <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <BarChart3 className="w-4 h-4 text-indigo-600" />
+                            <span>ความเร็วการตอบสนองจำแนกตามมอดูล (Module Latency Breakdown):</span>
+                          </span>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {loadTestResult.modules.map((mod) => (
+                              <div key={mod.key} className="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center justify-between gap-2">
+                                <div className="space-y-0.5 truncate">
+                                  <span className="text-[11px] font-bold text-slate-800 block truncate">
+                                    {mod.name_th}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 font-mono">
+                                    P95: {mod.p95_latency_ms} ms ({mod.count} ops)
+                                  </span>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <span className="font-mono font-bold text-xs text-indigo-900 block">
+                                    {mod.avg_latency_ms} ms
+                                  </span>
+                                  <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded">
+                                    ปกติ
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Stage-by-stage Performance Table */}
                       {loadTestResult.stages && loadTestResult.stages.length > 0 && (

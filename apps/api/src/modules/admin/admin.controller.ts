@@ -2090,29 +2090,163 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       concurrency = 50,
       requestsPerUser = 3,
       mode = 'auto_detect', // 'auto_detect' | 'fixed'
-      scenario = 'realistic_mixed',
+      scenario = 'full_system', // 'full_system' | 'high_traffic_submission' | 'approval_storm' | 'analytics_reporting'
     } = req.body;
 
     const memoryBefore = process.memoryUsage();
 
-    // Define simulated database operation mimicking real app usage
+    // Module latency tracking
+    const moduleLatencies: Record<string, number[]> = {
+      auth_user: [],
+      dashboard_stats: [],
+      projects_pipeline: [],
+      approvals_workflow: [],
+      divisions_departments: [],
+      notifications_feed: [],
+      strategic_kpis: [],
+    };
+
+    // 1. Auth & User Profile Simulation
+    const runAuthAction = async () => {
+      const t0 = Date.now();
+      await (prisma as any).user.findFirst({
+        where: { is_active: true },
+        include: { department: { include: { division: true } } },
+      });
+      moduleLatencies.auth_user.push(Math.max(1, Date.now() - t0));
+    };
+
+    // 2. Dashboard Stats Aggregation Simulation
+    const runDashboardAction = async () => {
+      const t0 = Date.now();
+      await Promise.all([
+        prisma.project.count(),
+        prisma.project.count({ where: { status: 'approved' } }),
+        prisma.project.count({ where: { status: 'submitted' } }),
+        prisma.project.count({ where: { status: 'draft' } }),
+        prisma.department.count(),
+        prisma.division.count(),
+      ]);
+      moduleLatencies.dashboard_stats.push(Math.max(1, Date.now() - t0));
+    };
+
+    // 3. Projects Pipeline & Details Simulation
+    const runProjectsAction = async () => {
+      const t0 = Date.now();
+      await prisma.project.findMany({
+        take: 10,
+        orderBy: { updated_at: 'desc' },
+        include: {
+          department: { include: { division: true } },
+          leader: { select: { id: true, full_name: true, role: true } },
+          approvals: { take: 4 },
+          alignments: { take: 3 },
+        },
+      });
+      moduleLatencies.projects_pipeline.push(Math.max(1, Date.now() - t0));
+    };
+
+    // 4. Approvals 4-Step Workflow Queue Simulation
+    const runApprovalsAction = async () => {
+      const t0 = Date.now();
+      await Promise.all([
+        prisma.projectApproval.findMany({
+          take: 10,
+          where: { status: 'PENDING' },
+          orderBy: { step_order: 'asc' },
+          include: { project: { select: { id: true, title: true, department_id: true } } },
+        }),
+        prisma.projectApproval.findMany({
+          take: 10,
+          where: { status: 'APPROVED' },
+          orderBy: { id: 'desc' },
+        }),
+      ]);
+      moduleLatencies.approvals_workflow.push(Math.max(1, Date.now() - t0));
+    };
+
+    // 5. Divisions & Departments Tree Simulation
+    const runDivisionsAction = async () => {
+      const t0 = Date.now();
+      await prisma.division.findMany({
+        include: {
+          departments: {
+            take: 20,
+            include: {
+              _count: { select: { users: true, projects: true } },
+            },
+          },
+        },
+      });
+      moduleLatencies.divisions_departments.push(Math.max(1, Date.now() - t0));
+    };
+
+    // 6. Notifications Feed Simulation
+    const runNotificationsAction = async () => {
+      const t0 = Date.now();
+      await Promise.all([
+        prisma.notification.findMany({
+          take: 10,
+          orderBy: { created_at: 'desc' },
+        }),
+        prisma.systemSetting.findMany({ take: 15 }),
+      ]);
+      moduleLatencies.notifications_feed.push(Math.max(1, Date.now() - t0));
+    };
+
+    // 7. Strategic Plans & KPIs Simulation
+    const runStrategicAction = async () => {
+      const t0 = Date.now();
+      await prisma.strategicPlan.findMany({
+        take: 5,
+        include: { indicators: { take: 10 } },
+      });
+      moduleLatencies.strategic_kpis.push(Math.max(1, Date.now() - t0));
+    };
+
+    // Execute full-system simulated action
     const executeSimulatedUserAction = async (): Promise<{ success: boolean; latency: number; error?: string }> => {
       const actionStart = Date.now();
       try {
-        // Step 1: Read settings & fiscal years
-        await prisma.systemSetting.findMany({ take: 10 });
-
-        // Step 2: Read random user or department
-        await prisma.user.findFirst({
-          where: { is_active: true },
-          select: { id: true, full_name: true, role: true, department_id: true },
-        });
-
-        // Step 3: Count projects & departments
-        await Promise.all([
-          prisma.project.count(),
-          prisma.department.findMany({ take: 15, select: { id: true, name: true, division_id: true } }),
-        ]);
+        if (scenario === 'full_system') {
+          // Complete end-to-end full system workflow simulation
+          await Promise.all([
+            runAuthAction(),
+            runDashboardAction(),
+            runProjectsAction(),
+            runApprovalsAction(),
+            runDivisionsAction(),
+            runNotificationsAction(),
+            runStrategicAction(),
+          ]);
+        } else if (scenario === 'high_traffic_submission') {
+          await Promise.all([
+            runAuthAction(),
+            runProjectsAction(),
+            runDivisionsAction(),
+            runStrategicAction(),
+          ]);
+        } else if (scenario === 'approval_storm') {
+          await Promise.all([
+            runAuthAction(),
+            runApprovalsAction(),
+            runNotificationsAction(),
+            runDashboardAction(),
+          ]);
+        } else if (scenario === 'analytics_reporting') {
+          await Promise.all([
+            runDashboardAction(),
+            runProjectsAction(),
+            runStrategicAction(),
+          ]);
+        } else {
+          // Default realistic mix
+          await Promise.all([
+            runAuthAction(),
+            runDashboardAction(),
+            runProjectsAction(),
+          ]);
+        }
 
         const actionLatency = Math.max(1, Date.now() - actionStart);
         return { success: true, latency: actionLatency };
@@ -2130,7 +2264,7 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       let errorCount = 0;
       const errors: string[] = [];
 
-      // Create worker tasks
+      // Create concurrent worker tasks
       const workers = Array.from({ length: workerCount }, async () => {
         for (let i = 0; i < reqPerWorker; i++) {
           const result = await executeSimulatedUserAction();
@@ -2157,13 +2291,13 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
 
       // Quality evaluation
       let grade: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'DEGRADED' | 'FAILED' = 'EXCELLENT';
-      if (errorRate > 5 || avgLatency > 1000) {
+      if (errorRate > 5 || avgLatency > 1500) {
         grade = 'FAILED';
-      } else if (errorRate > 0 || avgLatency > 500 || p95Latency > 800) {
+      } else if (errorRate > 0 || avgLatency > 800 || p95Latency > 1200) {
         grade = 'DEGRADED';
-      } else if (avgLatency > 150 || p95Latency > 300) {
+      } else if (avgLatency > 250 || p95Latency > 500) {
         grade = 'FAIR';
-      } else if (avgLatency > 50 || p95Latency > 100) {
+      } else if (avgLatency > 80 || p95Latency > 180) {
         grade = 'GOOD';
       } else {
         grade = 'EXCELLENT';
@@ -2184,7 +2318,7 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
         p95_latency_ms: p95Latency,
         p99_latency_ms: p99Latency,
         grade,
-        passed: errorRate === 0 && avgLatency < 500,
+        passed: errorRate === 0 && avgLatency < 800,
         errors,
       };
     };
@@ -2194,10 +2328,10 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     let maxTestedCapacity = 0;
 
     if (mode === 'auto_detect') {
-      // Progressive ramp-up stages
-      const testLevels = [10, 25, 50, 100, 150, 200];
+      // Progressive full-system ramp-up stages: 10 -> 25 -> 50 -> 100 -> 150 -> 200 -> 300
+      const testLevels = [10, 25, 50, 100, 150, 200, 300];
       for (const level of testLevels) {
-        const stageRes = await runStageTest(level, Math.min(requestsPerUser, 3));
+        const stageRes = await runStageTest(level, Math.min(requestsPerUser, 2));
         stageResults.push(stageRes);
         maxTestedCapacity = level;
 
@@ -2205,14 +2339,14 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
           maxSafeCapacity = level;
         }
 
-        // If severe degradation, stop further stress
+        // If severe degradation or high errors, stop further stress
         if (stageRes.grade === 'FAILED' || stageRes.error_rate_pct > 10) {
           break;
         }
       }
     } else {
       // Fixed concurrency test
-      const targetConcurrency = Math.min(Math.max(1, parseInt(String(concurrency), 10) || 50), 300);
+      const targetConcurrency = Math.min(Math.max(1, parseInt(String(concurrency), 10) || 50), 500);
       const stageRes = await runStageTest(targetConcurrency, Math.min(Math.max(1, parseInt(String(requestsPerUser), 10) || 3), 10));
       stageResults.push(stageRes);
       maxTestedCapacity = targetConcurrency;
@@ -2231,29 +2365,108 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     const overallAvgLatency = Math.round(stageResults.reduce((sum, s) => sum + s.avg_latency_ms * s.total_requests, 0) / Math.max(1, totalRequestsAll));
     const overallPeakRps = Math.max(...stageResults.map((s) => s.throughput_rps));
 
-    // Determine safe recommended capacity with buffer
-    const estimatedCapacity = maxSafeCapacity >= 200
-      ? '250+ ผู้ใช้พร้อมกัน (รองรับได้ทั้งวิทยาลัยสบายๆ)'
+    // Module breakdown calculation
+    const moduleStats = [
+      {
+        key: 'auth_user',
+        name_th: 'ระบบตรวจสอบสิทธิ์และผู้ใช้ (Auth & Profile)',
+        icon: 'ShieldCheck',
+        count: moduleLatencies.auth_user.length,
+        avg_latency_ms: moduleLatencies.auth_user.length > 0
+          ? Math.round(moduleLatencies.auth_user.reduce((a, b) => a + b, 0) / moduleLatencies.auth_user.length)
+          : 0,
+        p95_latency_ms: calculatePercentile(moduleLatencies.auth_user, 95),
+      },
+      {
+        key: 'dashboard_stats',
+        name_th: 'แดชบอร์ดและสถิติภาพรวม (Dashboard & Analytics)',
+        icon: 'LayoutDashboard',
+        count: moduleLatencies.dashboard_stats.length,
+        avg_latency_ms: moduleLatencies.dashboard_stats.length > 0
+          ? Math.round(moduleLatencies.dashboard_stats.reduce((a, b) => a + b, 0) / moduleLatencies.dashboard_stats.length)
+          : 0,
+        p95_latency_ms: calculatePercentile(moduleLatencies.dashboard_stats, 95),
+      },
+      {
+        key: 'projects_pipeline',
+        name_th: 'ระบบโครงการและงบประมาณ (Projects & Pipeline)',
+        icon: 'FolderGit2',
+        count: moduleLatencies.projects_pipeline.length,
+        avg_latency_ms: moduleLatencies.projects_pipeline.length > 0
+          ? Math.round(moduleLatencies.projects_pipeline.reduce((a, b) => a + b, 0) / moduleLatencies.projects_pipeline.length)
+          : 0,
+        p95_latency_ms: calculatePercentile(moduleLatencies.projects_pipeline, 95),
+      },
+      {
+        key: 'approvals_workflow',
+        name_th: 'ระบบพิจารณาอนุมัติ ๔ ขั้นตอน (4-Step Approvals)',
+        icon: 'CheckSquare',
+        count: moduleLatencies.approvals_workflow.length,
+        avg_latency_ms: moduleLatencies.approvals_workflow.length > 0
+          ? Math.round(moduleLatencies.approvals_workflow.reduce((a, b) => a + b, 0) / moduleLatencies.approvals_workflow.length)
+          : 0,
+        p95_latency_ms: calculatePercentile(moduleLatencies.approvals_workflow, 95),
+      },
+      {
+        key: 'divisions_departments',
+        name_th: 'โครงสร้างฝ่ายและแผนกวิชา (Divisions & Depts)',
+        icon: 'Building2',
+        count: moduleLatencies.divisions_departments.length,
+        avg_latency_ms: moduleLatencies.divisions_departments.length > 0
+          ? Math.round(moduleLatencies.divisions_departments.reduce((a, b) => a + b, 0) / moduleLatencies.divisions_departments.length)
+          : 0,
+        p95_latency_ms: calculatePercentile(moduleLatencies.divisions_departments, 95),
+      },
+      {
+        key: 'notifications_feed',
+        name_th: 'ระบบการแจ้งเตือนและการตั้งค่า (Notifications & Settings)',
+        icon: 'Bell',
+        count: moduleLatencies.notifications_feed.length,
+        avg_latency_ms: moduleLatencies.notifications_feed.length > 0
+          ? Math.round(moduleLatencies.notifications_feed.reduce((a, b) => a + b, 0) / moduleLatencies.notifications_feed.length)
+          : 0,
+        p95_latency_ms: calculatePercentile(moduleLatencies.notifications_feed, 95),
+      },
+      {
+        key: 'strategic_kpis',
+        name_th: 'แผนยุทธศาสตร์และตัวชี้วัด (Strategic Plans & KPIs)',
+        icon: 'Target',
+        count: moduleLatencies.strategic_kpis.length,
+        avg_latency_ms: moduleLatencies.strategic_kpis.length > 0
+          ? Math.round(moduleLatencies.strategic_kpis.reduce((a, b) => a + b, 0) / moduleLatencies.strategic_kpis.length)
+          : 0,
+        p95_latency_ms: calculatePercentile(moduleLatencies.strategic_kpis, 95),
+      },
+    ].filter((m) => m.count > 0);
+
+    // Determine safe recommended capacity
+    const estimatedCapacity = maxSafeCapacity >= 300
+      ? '350+ ผู้ใช้พร้อมกัน (รองรับได้ทั้งสถานศึกษาแบบไร้รอยต่อ)'
+      : maxSafeCapacity >= 200
+      ? '250-300 ผู้ใช้พร้อมกัน (รองรับช่วงเปิดเสนอโครงการพร้อมกันทั้งวิทยาลัย)'
       : maxSafeCapacity >= 100
-      ? '120-150 ผู้ใช้พร้อมกัน (รองรับช่วงเปิดเสนอโครงการพร้อมกัน)'
+      ? '120-150 ผู้ใช้พร้อมกัน (รองรับช่วงเร่งด่วนได้อย่างราบรื่น)'
       : maxSafeCapacity >= 50
-      ? '60-80 ผู้ใช้พร้อมกัน (รองรับการใช้งานทั่วไปและช่วงเร่งด่วน)'
+      ? '60-80 ผู้ใช้พร้อมกัน (รองรับการใช้งานทั่วไปประจำวัน)'
       : `${maxSafeCapacity} ผู้ใช้พร้อมกัน`;
 
     // Assessment text
     let assessment = '';
-    if (maxSafeCapacity >= 100 && totalErrorsAll === 0) {
-      assessment = `ระบบมีประสิทธิภาพสูงมาก รองรับการเข้าใช้งานพร้อมกันได้มากกว่า ${maxSafeCapacity} คน โดย Latency เฉลี่ยเพียง ${overallAvgLatency} ms และอัตราความผิดพลาด 0% เหมาะสำหรับการใช้งานจริงทั้งสถานศึกษา`;
+    if (maxSafeCapacity >= 200 && totalErrorsAll === 0) {
+      assessment = `ผลการทดสอบแบบเต็มระบบ (Full-System Load Test): ยอดเยี่ยมมาก! ระบบสามารถประมวลผลงานครบทุกมอดูลพร้อมกันได้อย่างไร้ข้อผิดพลาด รองรับผู้ใช้งานพร้อมกันได้มากกว่า ${maxSafeCapacity} คน โดย Latency เฉลี่ยรวมทั้งระบบเพียง ${overallAvgLatency} ms และ Throughput สูงสุด ${overallPeakRps} req/s`;
+    } else if (maxSafeCapacity >= 100) {
+      assessment = `ผลการทดสอบแบบเต็มระบบ: ผ่านเกณฑ์มาตรฐานระดับสูง รองรับการเข้าใช้งานพร้อมกัน ${maxSafeCapacity} คนได้อย่างเสถียร ครอบคลุมทั้งการยื่นข้อเสนอโครงการ การพิจารณาอนุมัติ ๔ ขั้นตอน และการประมวลผลสถิติ`;
     } else if (maxSafeCapacity >= 50) {
-      assessment = `ระบบสามารถรองรับการเข้าใช้งานพร้อมกันได้ถึง ${maxSafeCapacity} คนได้อย่างเสถียร (Throughput สูงสุด ${overallPeakRps} req/s) เหมาะสมสำหรับวิทยาลัยการอาชีพ`;
+      assessment = `ระบบสามารถรองรับการเข้าใช้งานพร้อมกันได้ ${maxSafeCapacity} คนแบบเต็มระบบ โดยอัตรา Latency อยู่ในเกณฑ์ที่สามารถใช้งานได้ดี`;
     } else {
-      assessment = `ระบบผ่านการทดสอบที่ ${maxSafeCapacity} ผู้ใช้พร้อมกัน หากต้องการรองรับปริมาณที่สูงขึ้นแนะนำให้ตรวจสอบการตั้งค่า Connection Pool ของฐานข้อมูล`;
+      assessment = `ระบบผ่านการทดสอบเต็มระบบที่ ${maxSafeCapacity} ผู้ใช้พร้อมกัน แนะนำตรวจสอบประสิทธิภาพฐานข้อมูลและการเชื่อมต่อเมื่อมีปริมาณผู้ใช้หนาแน่น`;
     }
 
     return res.json({
       success: true,
       timestamp: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
       mode,
+      scenario,
       total_duration_ms: totalDurationMs,
       summary: {
         max_safe_concurrent_users: maxSafeCapacity,
@@ -2271,12 +2484,13 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
         status: totalErrorsAll === 0 ? 'HEALTHY' : 'WARNING',
       },
       stages: stageResults,
+      modules: moduleStats,
     });
   } catch (error: any) {
-    console.error('Load test error:', error);
+    console.error('Full system load test error:', error);
     return res.status(500).json({
       success: false,
-      message: 'การจำลองโหลดล้มเหลว: ' + error.message,
+      message: 'การจำลองโหลดเต็มระบบล้มเหลว: ' + error.message,
       error: error.message,
     });
   }
