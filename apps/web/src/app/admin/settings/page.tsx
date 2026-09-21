@@ -39,6 +39,13 @@ import {
   Send,
   Volume2,
   Radio,
+  Users,
+  RefreshCw,
+  Activity,
+  CheckCircle,
+  XCircle,
+  Database,
+  Shield,
 } from 'lucide-react';
 import { showAlert } from '@/lib/sweetalert';
 
@@ -99,6 +106,50 @@ export default function AdminSettingsPage() {
   const [testNotiTitle, setTestNotiTitle] = useState('🔔 ทดสอบระบบแจ้งเตือน Real-time');
   const [testNotiMessage, setTestNotiMessage] = useState('โครงการ "นวัตกรรมสิ่งประดิษฐ์เพื่อชุมชน" ได้รับการอนุมัติในขั้นตอนที่ ๔ เรียบร้อยแล้ว');
   const [testNotiSendEmail, setTestNotiSendEmail] = useState(false);
+
+  // Users Connection Test states
+  const [testingUsers, setTestingUsers] = useState(false);
+  const [usersTestResult, setUsersTestResult] = useState<{
+    success: boolean;
+    timestamp?: string;
+    latency_ms?: number;
+    database?: {
+      connected: boolean;
+      total_users: number;
+      active_users: number;
+      inactive_users: number;
+    };
+    summary?: {
+      total_roles: number;
+      ready_count: number;
+      missing_count: number;
+      inactive_count: number;
+      incomplete_count: number;
+      all_ready: boolean;
+    };
+    roles?: Array<{
+      key: string;
+      role: string;
+      role_name_th: string;
+      step_label: string;
+      expected_username: string;
+      status: 'READY' | 'MISSING' | 'INACTIVE' | 'INCOMPLETE';
+      status_label: string;
+      matched_by: string | null;
+      user_id: string | null;
+      username: string | null;
+      full_name: string | null;
+      position: string;
+      email: string;
+      department_name: string;
+      division_name: string;
+      is_active: boolean;
+      has_password: boolean;
+      has_google: boolean;
+      can_login: boolean;
+    }>;
+    message?: string;
+  } | null>(null);
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [existingFiscalYears, setExistingFiscalYears] = useState<any[]>([]);
@@ -421,6 +472,42 @@ export default function AdminSettingsPage() {
       showAlert.error('ข้อผิดพลาด', err.message || 'เชื่อมต่อกับเซิร์ฟเวอร์ไม่สำเร็จ');
     } finally {
       setTestingNotification(false);
+    }
+  };
+
+  const handleTestUsersConnection = async () => {
+    setTestingUsers(true);
+    try {
+      const res = await fetch('/api/v1/admin/settings/test-users-connection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setUsersTestResult(data);
+        if (data.summary?.all_ready) {
+          showAlert.success('การเชื่อมต่อสมบูรณ์', `พบบัญชีผู้ใช้พร้อมใช้งานครบทั้ง ${data.summary?.ready_count} บทบาทหลัก (ความเร็ว ${data.latency_ms} ms)`);
+        } else {
+          showAlert.warning('ผลการตรวจสอบบัญชี', `พร้อมใช้งาน ${data.summary?.ready_count || 0}/${data.summary?.total_roles || 0} บทบาท กรุณาตรวจสอบสถานะด้านล่าง`);
+        }
+      } else {
+        setUsersTestResult({
+          success: false,
+          message: data.message || 'ไม่สามารถทดสอบการเชื่อมต่อบัญชีผู้ใช้ได้',
+        });
+        showAlert.error('ทดสอบไม่สำเร็จ', data.message || 'ไม่สามารถทดสอบการเชื่อมต่อได้');
+      }
+    } catch (err: any) {
+      setUsersTestResult({
+        success: false,
+        message: err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์',
+      });
+      showAlert.error('ผิดพลาด', err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+    } finally {
+      setTestingUsers(false);
     }
   };
 
@@ -1379,7 +1466,7 @@ export default function AdminSettingsPage() {
               </div>
 
               {/* 1-Click Test Mode Settings */}
-              <div className="pt-2 border-t border-slate-100">
+              <div className="pt-2 border-t border-slate-100 space-y-4">
                 <div className="flex items-center justify-between p-3 bg-amber-50/50 rounded-xl border border-amber-200/80">
                   <div className="space-y-0.5">
                     <p className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-1.5">
@@ -1412,6 +1499,188 @@ export default function AdminSettingsPage() {
                       }`}
                     />
                   </button>
+                </div>
+
+                {/* Users Connection Test Card */}
+                <div className="p-4 bg-gradient-to-br from-amber-50/40 via-orange-50/20 to-slate-50 rounded-xl border border-amber-200/70 space-y-3.5 shadow-2xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-amber-200/50">
+                    <div className="flex items-start gap-2.5">
+                      <div className="p-2 bg-amber-600 text-white rounded-lg shadow-2xs shrink-0 mt-0.5 sm:mt-0">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                            ทดสอบการเชื่อมต่อบัญชีผู้ใช้ระบบ (Users Connection Test)
+                          </h3>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                            ๙ บทบาทหลัก
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          ตรวจสอบการเชื่อมต่อฐานข้อมูล ความพร้อมใช้งาน และสถานะบัญชีของทุกบทบาทในกระบวนการเสนอและอนุมัติโครงการ
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleTestUsersConnection}
+                      disabled={testingUsers}
+                      className="px-3.5 py-2 text-xs font-bold rounded-lg bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white shadow-xs transition disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer shrink-0 self-start sm:self-auto"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${testingUsers ? 'animate-spin' : ''}`} />
+                      <span>{testingUsers ? 'กำลังทดสอบการเชื่อมต่อ...' : 'ทดสอบการเชื่อมต่อผู้ใช้'}</span>
+                    </button>
+                  </div>
+
+                  {usersTestResult && (
+                    <div className="space-y-3 animate-in fade-in duration-200">
+                      {/* Summary Metrics Bar */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-2xs space-y-0.5">
+                          <span className="text-[10px] text-slate-500 block font-medium">ผลการทดสอบบทบาท</span>
+                          <span className={`font-bold flex items-center gap-1 text-xs ${
+                            usersTestResult.summary?.all_ready ? 'text-emerald-700' : 'text-amber-700'
+                          }`}>
+                            {usersTestResult.summary?.all_ready ? (
+                              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                            )}
+                            พร้อม {usersTestResult.summary?.ready_count || 0}/{usersTestResult.summary?.total_roles || 0} บทบาท
+                          </span>
+                        </div>
+
+                        <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-2xs space-y-0.5">
+                          <span className="text-[10px] text-slate-500 block font-medium">ความเร็ว Query DB</span>
+                          <span className="font-bold text-slate-800 flex items-center gap-1 text-xs font-mono">
+                            <Activity className="w-3.5 h-3.5 text-blue-600" />
+                            {usersTestResult.latency_ms || 0} ms
+                          </span>
+                        </div>
+
+                        <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-2xs space-y-0.5">
+                          <span className="text-[10px] text-slate-500 block font-medium">ผู้ใช้ทั้งหมดในฐานข้อมูล</span>
+                          <span className="font-bold text-slate-800 flex items-center gap-1 text-xs">
+                            <Database className="w-3.5 h-3.5 text-indigo-600" />
+                            {usersTestResult.database?.total_users || 0} บัญชี (เปิดใช้ {usersTestResult.database?.active_users || 0})
+                          </span>
+                        </div>
+
+                        <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-2xs space-y-0.5">
+                          <span className="text-[10px] text-slate-500 block font-medium">เวลาที่ทดสอบล่าสุด</span>
+                          <span className="font-bold text-slate-700 flex items-center gap-1 text-[11px] font-mono">
+                            <Clock className="w-3.5 h-3.5 text-slate-500" />
+                            {usersTestResult.timestamp || '-'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Roles Status Cards Grid */}
+                      {usersTestResult.roles && usersTestResult.roles.length > 0 && (
+                        <div className="space-y-1.5">
+                          <span className="text-[11px] font-bold text-slate-700 block">
+                            สถานะการเชื่อมต่อแยกตามบทบาท (Roles Connection Status):
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                            {usersTestResult.roles.map((r) => {
+                              const isReady = r.status === 'READY';
+                              const isMissing = r.status === 'MISSING';
+                              const isInactive = r.status === 'INACTIVE';
+                              const isIncomplete = r.status === 'INCOMPLETE';
+
+                              return (
+                                <div
+                                  key={r.key}
+                                  className={`p-3 rounded-xl border transition flex flex-col justify-between gap-2 shadow-2xs ${
+                                    isReady
+                                      ? 'bg-white border-emerald-200/90 hover:border-emerald-300'
+                                      : isIncomplete
+                                      ? 'bg-amber-50/40 border-amber-200 hover:border-amber-300'
+                                      : isInactive
+                                      ? 'bg-slate-50 border-slate-200'
+                                      : 'bg-rose-50/50 border-rose-200 hover:border-rose-300'
+                                  }`}
+                                >
+                                  <div>
+                                    {/* Role Header */}
+                                    <div className="flex items-start justify-between gap-1.5 mb-1.5">
+                                      <div className="space-y-0.5">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block">
+                                          {r.step_label}
+                                        </span>
+                                        <span className="text-xs font-bold text-slate-900 block line-clamp-1">
+                                          {r.role_name_th}
+                                        </span>
+                                      </div>
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 border ${
+                                          isReady
+                                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                            : isIncomplete
+                                            ? 'bg-amber-100 text-amber-900 border-amber-200'
+                                            : isInactive
+                                            ? 'bg-slate-200 text-slate-700 border-slate-300'
+                                            : 'bg-rose-100 text-rose-800 border-rose-200'
+                                        }`}
+                                      >
+                                        {r.status_label}
+                                      </span>
+                                    </div>
+
+                                    {/* User Details */}
+                                    {r.username ? (
+                                      <div className="bg-slate-50/80 p-2 rounded-lg border border-slate-100 space-y-1 text-[11px]">
+                                        <div className="flex items-center justify-between text-slate-700">
+                                          <span className="font-bold text-slate-900 truncate">
+                                            {r.full_name || '-'}
+                                          </span>
+                                          <span className="font-mono text-[10px] text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+                                            @{r.username}
+                                          </span>
+                                        </div>
+                                        {(r.division_name || r.department_name) && (
+                                          <p className="text-[10px] text-slate-500 truncate">
+                                            🏢 {r.division_name ? `${r.division_name} ` : ''}{r.department_name ? `(${r.department_name})` : ''}
+                                          </p>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="bg-rose-50/60 p-2 rounded-lg border border-rose-100 text-[11px] text-rose-700">
+                                        <span>ไม่พบชื่อผู้ใช้ <code className="font-mono font-bold bg-white px-1 py-0.5 rounded border border-rose-200">@{r.expected_username}</code> หรือบัญชีที่ตรงกับบทบาทนี้</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Quick Flags Footer */}
+                                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px]">
+                                    <div className="flex items-center gap-1 text-slate-500">
+                                      {r.has_password ? (
+                                        <span className="text-emerald-700 font-medium flex items-center gap-0.5">
+                                          <Check className="w-3 h-3 text-emerald-600" /> รหัสผ่านพร้อม
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400">ไม่มีรหัสผ่าน</span>
+                                      )}
+                                      {r.has_google && (
+                                        <span className="text-blue-700 font-medium ml-1">
+                                          • Google
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-slate-400 font-mono text-[9px]">
+                                      {r.matched_by === 'exact_username' ? 'Exact Match' : r.matched_by === 'division_role' ? 'Div Match' : r.matched_by ? 'Role Match' : '-'}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

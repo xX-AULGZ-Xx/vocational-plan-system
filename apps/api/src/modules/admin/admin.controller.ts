@@ -1850,6 +1850,230 @@ router.post('/fiscal-years', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// GET & POST /api/v1/admin/settings/test-users-connection
+const handleTestUsersConnection = async (req: AuthRequest, res: Response) => {
+  const startTime = Date.now();
+  try {
+    const { getUserAssignedDepartments } = require('../auth/auth.controller');
+
+    // Count overall stats
+    const totalUsers = await prisma.user.count();
+    const activeUsers = await prisma.user.count({ where: { is_active: true } });
+    const inactiveUsers = await prisma.user.count({ where: { is_active: false } });
+
+    const targetRoles = [
+      {
+        key: 'admin',
+        role: 'ADMIN',
+        role_name_th: 'ผู้ดูแลระบบ (Super Admin)',
+        step_label: 'ดูแลระบบ / กำหนดสิทธิ์',
+        expected_username: 'admin',
+        division_code: null,
+      },
+      {
+        key: 'director',
+        role: 'DIRECTOR',
+        role_name_th: 'ผู้อำนวยการสถานศึกษา (Director)',
+        step_label: 'อนุมัติขั้นที่ ๔ (อนุมัติขั้นสุดท้าย)',
+        expected_username: 'director',
+        division_code: null,
+      },
+      {
+        key: 'deputy_acad',
+        role: 'DEPUTY_DIRECTOR',
+        role_name_th: 'รอง ผอ. ฝ่ายวิชาการ',
+        step_label: 'พิจารณาขั้นที่ ๒ (ฝ่ายวิชาการ)',
+        expected_username: 'deputy_acad',
+        division_code: 'acad',
+      },
+      {
+        key: 'deputy_res',
+        role: 'DEPUTY_DIRECTOR',
+        role_name_th: 'รอง ผอ. ฝ่ายบริหารทรัพยากร',
+        step_label: 'พิจารณาขั้นที่ ๒ (ฝ่ายบริหารทรัพยากร)',
+        expected_username: 'deputy_res',
+        division_code: 'res',
+      },
+      {
+        key: 'deputy_dev',
+        role: 'DEPUTY_DIRECTOR',
+        role_name_th: 'รอง ผอ. ฝ่ายพัฒนากิจการนักเรียนฯ',
+        step_label: 'พิจารณาขั้นที่ ๒ (ฝ่ายพัฒนากิจการฯ)',
+        expected_username: 'deputy_dev',
+        division_code: 'dev',
+      },
+      {
+        key: 'deputy_strat',
+        role: 'DEPUTY_DIRECTOR',
+        role_name_th: 'รอง ผอ. ฝ่ายแผนงานและความร่วมมือ',
+        step_label: 'พิจารณาขั้นที่ ๒ (ฝ่ายแผนงานฯ)',
+        expected_username: 'deputy_strat',
+        division_code: 'strat',
+      },
+      {
+        key: 'planning_officer',
+        role: 'PLANNING_OFFICER',
+        role_name_th: 'เจ้าหน้าที่งานแผนงาน (Planning Officer)',
+        step_label: 'ตรวจสอบขั้นที่ ๓ (ออกรหัสโครงการ)',
+        expected_username: 'planning_officer',
+        division_code: null,
+      },
+      {
+        key: 'head_tech',
+        role: 'HEAD_DEPT',
+        role_name_th: 'หัวหน้าแผนกวิชา / หัวหน้างาน (Head of Dept)',
+        step_label: 'อนุมัติขั้นที่ ๑ (ระดับแผนก/งาน)',
+        expected_username: 'head_tech',
+        division_code: null,
+      },
+      {
+        key: 'teacher1',
+        role: 'TEACHER',
+        role_name_th: 'ครูผู้สอน / ผู้เสนอโครงการ (Teacher)',
+        step_label: 'ผู้ยื่นเสนอโครงการ',
+        expected_username: 'teacher1',
+        division_code: null,
+      },
+    ];
+
+    const results = await Promise.all(
+      targetRoles.map(async (target) => {
+        // 1. Try finding by expected username
+        let userRecord = await (prisma as any).user.findFirst({
+          where: { username: target.expected_username },
+          include: { department: true },
+        });
+
+        // 2. If not found by expected username, fallback search by role / division
+        let matchedBy = 'exact_username';
+        if (!userRecord) {
+          if (target.role === 'DEPUTY_DIRECTOR' && target.division_code) {
+            // Find deputy for this specific division
+            const div = await prisma.division.findFirst({ where: { code: target.division_code } });
+            if (div) {
+              const allDeputies = await prisma.user.findMany({
+                where: { role: 'DEPUTY_DIRECTOR', is_active: true },
+                include: { department: true },
+              });
+              for (const dep of allDeputies) {
+                const depInfo = await getUserAssignedDepartments(dep.id, dep.department_id);
+                if (
+                  (depInfo.division_ids && depInfo.division_ids.includes(div.id)) ||
+                  (depInfo.division_code && depInfo.division_code === target.division_code) ||
+                  (dep.position && dep.position.toLowerCase().includes(target.division_code))
+                ) {
+                  userRecord = dep;
+                  matchedBy = 'division_role';
+                  break;
+                }
+              }
+            }
+          } else {
+            userRecord = await (prisma as any).user.findFirst({
+              where: { role: target.role as any, is_active: true },
+              include: { department: true },
+            });
+            if (userRecord) matchedBy = 'role_fallback';
+          }
+        }
+
+        if (!userRecord) {
+          return {
+            key: target.key,
+            role: target.role,
+            role_name_th: target.role_name_th,
+            step_label: target.step_label,
+            expected_username: target.expected_username,
+            status: 'MISSING',
+            status_label: 'ไม่พบบัญชี',
+            matched_by: null,
+            user_id: null,
+            username: null,
+            full_name: null,
+            position: null,
+            email: null,
+            department_name: null,
+            division_name: null,
+            is_active: false,
+            has_password: false,
+            has_google: false,
+            can_login: false,
+          };
+        }
+
+        const assignedInfo = await getUserAssignedDepartments(userRecord.id, userRecord.department_id);
+        const isActive = Boolean(userRecord.is_active);
+        const hasPassword = Boolean(userRecord.password_hash);
+        const hasGoogle = Boolean(userRecord.google_id);
+        const canLogin = isActive && (hasPassword || hasGoogle);
+
+        return {
+          key: target.key,
+          role: target.role,
+          role_name_th: target.role_name_th,
+          step_label: target.step_label,
+          expected_username: target.expected_username,
+          status: !isActive ? 'INACTIVE' : canLogin ? 'READY' : 'INCOMPLETE',
+          status_label: !isActive ? 'ปิดการใช้งาน' : canLogin ? 'พร้อมใช้งาน' : 'ยังไม่ตั้งรหัสผ่าน',
+          matched_by: matchedBy,
+          user_id: userRecord.id.toString(),
+          username: userRecord.username,
+          full_name: userRecord.full_name,
+          position: userRecord.position || '',
+          email: userRecord.email || '',
+          department_name: assignedInfo.department_name || userRecord.department?.name || '',
+          division_name: assignedInfo.division_name || '',
+          is_active: isActive,
+          has_password: hasPassword,
+          has_google: hasGoogle,
+          can_login: canLogin,
+        };
+      })
+    );
+
+    const latencyMs = Math.max(1, Date.now() - startTime);
+    const readyCount = results.filter((r) => r.status === 'READY').length;
+    const missingCount = results.filter((r) => r.status === 'MISSING').length;
+    const inactiveCount = results.filter((r) => r.status === 'INACTIVE').length;
+    const incompleteCount = results.filter((r) => r.status === 'INCOMPLETE').length;
+
+    return res.json({
+      success: true,
+      timestamp: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+      latency_ms: latencyMs,
+      database: {
+        connected: true,
+        total_users: totalUsers,
+        active_users: activeUsers,
+        inactive_users: inactiveUsers,
+      },
+      summary: {
+        total_roles: results.length,
+        ready_count: readyCount,
+        missing_count: missingCount,
+        inactive_count: inactiveCount,
+        incomplete_count: incompleteCount,
+        all_ready: readyCount === results.length,
+      },
+      roles: results,
+    });
+  } catch (error: any) {
+    console.error('Test users connection error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'การทดสอบการเชื่อมต่อผู้ใช้ล้มเหลว: ' + error.message,
+      error: error.message,
+      latency_ms: Date.now() - startTime,
+      database: {
+        connected: false,
+      },
+    });
+  }
+};
+
+router.get('/settings/test-users-connection', handleTestUsersConnection);
+router.post('/settings/test-users-connection', handleTestUsersConnection);
+
 export default router;
 
 
