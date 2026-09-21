@@ -44,11 +44,23 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
       const headers: any = {};
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
-      const res = await fetch('/api/v1/approvals/inbox', { headers });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setPendingApprovalCount(data.data.length);
+      const [inboxRes, trackingRes] = await Promise.all([
+        fetch('/api/v1/approvals/inbox', { headers }),
+        fetch('/api/v1/projects/execution/tracking', { headers }),
+      ]);
+
+      let total = 0;
+      const inboxData = await inboxRes.json();
+      if (inboxData.success && Array.isArray(inboxData.data)) {
+        total += inboxData.data.length;
       }
+
+      const trackingData = await trackingRes.json();
+      if (trackingData.success && Array.isArray(trackingData.data)) {
+        total += trackingData.data.length;
+      }
+
+      setPendingApprovalCount(total);
     } catch (e) {
       // ignore
     }
