@@ -1,4 +1,4 @@
-﻿import { Server as HTTPServer } from 'http';
+import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 
@@ -40,7 +40,7 @@ class WebSocketManager {
       }
 
       try {
-        const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key';
+        const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
         const decoded = jwt.verify(token, JWT_SECRET) as any;
         const userId = decoded.id ? decoded.id.toString() : null;
 

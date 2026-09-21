@@ -218,6 +218,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setIsConnected(true);
     });
 
+    socket.on('connect_error', (err: any) => {
+      // Graceful socket fallback
+      if (err?.message?.includes('Authentication failed')) {
+        console.warn('⚠️ [WebSocket] Auth token rejected, falling back to SSE');
+      }
+    });
+
     socket.on('disconnect', (reason) => {
       console.log('🔌 [WebSocket] Disconnected:', reason);
     });
