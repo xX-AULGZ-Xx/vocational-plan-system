@@ -312,7 +312,7 @@ export default function ProfileDashboardPage() {
               className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-900 bg-white hover:bg-slate-100 active:scale-95 rounded-theme transition shadow-md"
             >
               <Settings className="w-4 h-4 text-theme-primary" />
-              <span>ตั้งค่าโปรไฟล์ & ลายเซ็น</span>
+              <span>ตั้งค่าโปรไฟล์</span>
             </Link>
             <Link
               href="/projects/new"
@@ -660,44 +660,46 @@ export default function ProfileDashboardPage() {
               </div>
             </div>
 
-            {/* Digital Signature Card */}
-            <div className="bg-white p-6 rounded-theme border border-slate-200 shadow-2xs space-y-3">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <FileSignature className="w-4 h-4 text-emerald-600" />
-                  <span>ลายเซ็นดิจิทัล</span>
-                </span>
-                <Link
-                  href="/profile/settings"
-                  className="text-xs font-bold text-theme-primary hover:underline"
-                >
-                  ตั้งค่าลายเซ็น
-                </Link>
-              </div>
+            {/* Digital Signature Card (Disabled for now) */}
+            {false && (
+              <div className="bg-white p-6 rounded-theme border border-slate-200 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <FileSignature className="w-4 h-4 text-emerald-600" />
+                    <span>ลายเซ็นดิจิทัล</span>
+                  </span>
+                  <Link
+                    href="/profile/settings"
+                    className="text-xs font-bold text-theme-primary hover:underline"
+                  >
+                    ตั้งค่าลายเซ็น
+                  </Link>
+                </div>
 
-              <div className="p-4 bg-slate-50 rounded-theme border border-slate-100 flex items-center justify-center min-h-[100px]">
-                {user?.signature_img ? (
-                  <div className="text-center space-y-1">
-                    <img
-                      src={user.signature_img}
-                      alt="Signature"
-                      className="max-h-16 max-w-full object-contain mx-auto filter drop-shadow-xs"
-                    />
-                    <span className="inline-block text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      พร้อมแนบในเอกสาร
-                    </span>
-                  </div>
-                ) : (
-                  <div className="text-center text-slate-400 text-xs">
-                    <FileSignature className="w-6 h-6 mx-auto mb-1 opacity-40" />
-                    <span>ยังไม่มีลายเซ็นในระบบ</span>
-                  </div>
-                )}
+                <div className="p-4 bg-slate-50 rounded-theme border border-slate-100 flex items-center justify-center min-h-[100px]">
+                  {user?.signature_img ? (
+                    <div className="text-center space-y-1">
+                      <img
+                        src={user?.signature_img || ''}
+                        alt="Signature"
+                        className="max-h-16 max-w-full object-contain mx-auto filter drop-shadow-xs"
+                      />
+                      <span className="inline-block text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        พร้อมแนบในเอกสาร
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-center text-slate-400 text-xs">
+                      <FileSignature className="w-6 h-6 mx-auto mb-1 opacity-40" />
+                      <span>ยังไม่มีลายเซ็นในระบบ</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-400 text-center">
+                  ลายเซ็นนี้จะถูกประทับอัตโนมัติในส่วนท้ายของโครงการและรายงานสรุป
+                </p>
               </div>
-              <p className="text-[10px] text-slate-400 text-center">
-                ลายเซ็นนี้จะถูกประทับอัตโนมัติในส่วนท้ายของโครงการและรายงานสรุป
-              </p>
-            </div>
+            )}
 
             {/* Settings Jump Banner Styled with System Gradient */}
             <div className="bg-theme-gradient p-5 rounded-theme text-white space-y-3 shadow-md">
@@ -706,7 +708,7 @@ export default function ProfileDashboardPage() {
                 <h4 className="font-bold text-xs">การตั้งค่าโปรไฟล์และรหัสผ่าน</h4>
               </div>
               <p className="text-[11px] text-white/80 leading-relaxed">
-                คุณสามารถปรับเปลี่ยนรูปโปรไฟล์, วาดลายเซ็นดิจิทัล, เปลี่ยนชื่อ-สังกัด และเปลี่ยนรหัสผ่านได้ที่หน้าการตั้งค่า
+                คุณสามารถปรับเปลี่ยนรูปโปรไฟล์, เปลี่ยนชื่อ-สังกัด และเปลี่ยนรหัสผ่านได้ที่หน้าการตั้งค่า
               </p>
               <Link
                 href="/profile/settings"

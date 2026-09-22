@@ -88,6 +88,9 @@ const STAFF_POSITIONS = [
   'นักการภารโรง',
 ];
 
+// Feature toggles
+const ENABLE_DIGITAL_SIGNATURE = false;
+
 export default function ProfileSettingsPage() {
   const router = useRouter();
   const { user, token, login } = useAuth();
@@ -804,18 +807,20 @@ export default function ProfileSettingsPage() {
           <span>รูปภาพโปรไฟล์ & ปรับตำแหน่ง</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('signature')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
-            activeTab === 'signature'
-              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-          }`}
-        >
-          <FileSignature className={`w-4 h-4 ${activeTab === 'signature' ? 'text-theme-primary' : 'text-slate-400'}`} />
-          <span>ลายเซ็นดิจิทัล (Digital Signature)</span>
-        </button>
+        {ENABLE_DIGITAL_SIGNATURE && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('signature')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-theme text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === 'signature'
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+            }`}
+          >
+            <FileSignature className={`w-4 h-4 ${activeTab === 'signature' ? 'text-theme-primary' : 'text-slate-400'}`} />
+            <span>ลายเซ็นดิจิทัล (Digital Signature)</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -1494,8 +1499,8 @@ export default function ProfileSettingsPage() {
         </div>
       )}
 
-      {/* TAB 3: Digital Signature */}
-      {activeTab === 'signature' && (
+      {/* TAB 3: Digital Signature (Disabled for now) */}
+      {ENABLE_DIGITAL_SIGNATURE && activeTab === 'signature' && (
         <div className="bg-white p-6 sm:p-8 rounded-theme border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100">
             <div className="p-2 rounded-theme bg-emerald-50 text-emerald-600">
