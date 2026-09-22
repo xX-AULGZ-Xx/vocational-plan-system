@@ -2656,32 +2656,33 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       let errorCount = 0;
       const errors: string[] = [];
 
-      const CHUNK_SIZE = 20;
-      const totalWorkers = workerCount;
+      const totalWorkers = Math.max(1, workerCount);
 
       if (stageDurationMs > 0) {
-        // Time-based continuous test
+        // Time-based continuous test: run all virtual users in parallel with stagger & pacing
         const stageEndTime = stageStart + stageDurationMs;
-        for (let i = 0; i < totalWorkers; i += CHUNK_SIZE) {
-          const batchSize = Math.min(CHUNK_SIZE, totalWorkers - i);
-          const batchWorkers = Array.from({ length: batchSize }, async () => {
-            while (Date.now() < stageEndTime) {
-              const result = await executeSimulatedUserAction();
-              allLatencies.push(result.latency);
-              if (result.success) {
-                successCount++;
-              } else {
-                errorCount++;
-                if (result.error && errors.length < 5) errors.push(result.error);
-              }
-              // Small pacing delay
-              await new Promise((r) => setTimeout(r, 20));
+        const workers = Array.from({ length: totalWorkers }, async (_, idx) => {
+          // Slight stagger start
+          if (idx > 0) {
+            await new Promise((r) => setTimeout(r, (idx % 20) * 10));
+          }
+          while (Date.now() < stageEndTime) {
+            const result = await executeSimulatedUserAction();
+            allLatencies.push(result.latency);
+            if (result.success) {
+              successCount++;
+            } else {
+              errorCount++;
+              if (result.error && errors.length < 5) errors.push(result.error);
             }
-          });
-          await Promise.all(batchWorkers);
-        }
+            // Small realistic user pacing delay
+            await new Promise((r) => setTimeout(r, 40 + Math.random() * 30));
+          }
+        });
+        await Promise.all(workers);
       } else {
         // Request count based test
+        const CHUNK_SIZE = 25;
         for (let i = 0; i < totalWorkers; i += CHUNK_SIZE) {
           const batchSize = Math.min(CHUNK_SIZE, totalWorkers - i);
           const batchWorkers = Array.from({ length: batchSize }, async () => {
@@ -2889,7 +2890,7 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       assessment = `ระบบผ่านการทดสอบเต็มระบบที่ ${maxSafeCapacity} ผู้ใช้พร้อมกัน แนะนำตรวจสอบประสิทธิภาพฐานข้อมูลและการเชื่อมต่อเมื่อมีปริมาณผู้ใช้หนาแน่น`;
     }
 
-    return res.json({
+    const payload = serializeBigInt({
       success: true,
       timestamp: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
       mode,
@@ -2915,6 +2916,8 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       stages: stageResults,
       modules: moduleStats,
     });
+
+    return res.json(payload);
   } catch (error: any) {
     console.error('Full system load test error:', error);
     return res.status(500).json({
