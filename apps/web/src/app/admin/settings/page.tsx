@@ -168,6 +168,7 @@ export default function AdminSettingsPage() {
   const [loadTestScenario, setLoadTestScenario] = useState<'full_system' | 'high_traffic_submission' | 'approval_storm' | 'analytics_reporting'>('full_system');
   const [loadTestConcurrency, setLoadTestConcurrency] = useState<number>(50);
   const [loadTestRequestsPerUser, setLoadTestRequestsPerUser] = useState<number>(3);
+  const [loadTestDurationMinutes, setLoadTestDurationMinutes] = useState<number>(0);
   const [loadTestResult, setLoadTestResult] = useState<{
     success: boolean;
     timestamp?: string;
@@ -178,6 +179,8 @@ export default function AdminSettingsPage() {
       max_safe_concurrent_users: number;
       max_tested_concurrent_users: number;
       estimated_capacity_label: string;
+      duration_minutes_configured?: number;
+      duration_seconds?: number;
       total_requests: number;
       successful_requests: number;
       failed_requests: number;
@@ -600,6 +603,7 @@ export default function AdminSettingsPage() {
           scenario: loadTestScenario,
           concurrency: loadTestConcurrency,
           requestsPerUser: loadTestRequestsPerUser,
+          durationMinutes: loadTestDurationMinutes,
         }),
       });
       const contentType = res.headers.get('content-type');
@@ -2029,6 +2033,46 @@ export default function AdminSettingsPage() {
                     </div>
                   </div>
 
+                  {/* Duration Selector */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>กำหนดระยะเวลาการทดสอบ (Test Duration):</span>
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        {loadTestDurationMinutes === 0
+                          ? '⚡ 1 รอบ (Instant Burst Mode)'
+                          : `⏱️ รันต่อเนื่อง ${loadTestDurationMinutes >= 1 ? `${loadTestDurationMinutes} นาที` : '30 วินาที'}`}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
+                      {[
+                        { label: '⚡ 1 รอบ', sub: 'Instant Burst', val: 0 },
+                        { label: '⏱️ 30 วิ', sub: '0.5 นาที (Quick)', val: 0.5 },
+                        { label: '⏱️ 1 นาที', sub: 'Standard Load', val: 1 },
+                        { label: '⏱️ 2 นาที', sub: 'Medium Soak', val: 2 },
+                        { label: '⏱️ 3 นาที', sub: 'Heavy Soak', val: 3 },
+                        { label: '🛡️ 5 นาที', sub: 'Full Endurance', val: 5 },
+                      ].map((item) => (
+                        <button
+                          key={item.val}
+                          type="button"
+                          onClick={() => setLoadTestDurationMinutes(item.val)}
+                          className={`p-2 text-left rounded-lg border text-xs transition cursor-pointer ${
+                            loadTestDurationMinutes === item.val
+                              ? 'bg-indigo-50 border-indigo-500 text-indigo-950 font-bold ring-2 ring-indigo-400/40 shadow-xs'
+                              : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                          }`}
+                        >
+                          <span className="block truncate font-bold text-[11px]">{item.label}</span>
+                          <span className="text-[10px] text-slate-500 font-normal block truncate">{item.sub}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Load Testing Results Dashboard */}
                   {loadTestResult && (
                     <div className="space-y-4 pt-1 animate-in fade-in duration-200">
@@ -2047,9 +2091,17 @@ export default function AdminSettingsPage() {
                             </h4>
                           </div>
 
-                          <div className="flex items-center gap-1.5 self-start sm:self-auto bg-white/10 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-white/20 text-xs font-bold">
-                            <CheckCircle className="w-4 h-4 text-emerald-400" />
-                            <span>{loadTestResult.summary?.estimated_capacity_label}</span>
+                          <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
+                            {loadTestResult.summary?.duration_seconds ? (
+                              <div className="flex items-center gap-1 bg-amber-400/20 text-amber-200 border border-amber-400/30 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>{loadTestResult.summary.duration_seconds}s ({(loadTestResult.summary?.duration_minutes_configured ?? 0) > 0 ? `${loadTestResult.summary.duration_minutes_configured} นาที` : 'Burst'})</span>
+                              </div>
+                            ) : null}
+                            <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-white/20 text-xs font-bold">
+                              <CheckCircle className="w-4 h-4 text-emerald-400" />
+                              <span>{loadTestResult.summary?.estimated_capacity_label}</span>
+                            </div>
                           </div>
                         </div>
 

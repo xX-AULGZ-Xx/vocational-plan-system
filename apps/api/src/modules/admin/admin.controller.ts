@@ -2443,9 +2443,13 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     const {
       concurrency = 50,
       requestsPerUser = 3,
+      durationMinutes = 0,
       mode = 'auto_detect', // 'auto_detect' | 'fixed'
       scenario = 'full_system', // 'full_system' | 'high_traffic_submission' | 'approval_storm' | 'analytics_reporting'
     } = req.body;
+
+    const parsedDurationMinutes = Math.min(Math.max(0, parseFloat(String(durationMinutes)) || 0), 10);
+    const targetTotalDurationMs = parsedDurationMinutes * 60 * 1000;
 
     const memoryBefore = process.memoryUsage();
 
@@ -2599,7 +2603,6 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       const actionStart = Date.now();
       try {
         if (scenario === 'full_system') {
-          // Complete end-to-end full system workflow simulation
           await Promise.all([
             runAuthAction(),
             runDashboardAction(),
@@ -2630,7 +2633,6 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
             runStrategicAction(),
           ]);
         } else {
-          // Default realistic mix
           await Promise.all([
             runAuthAction(),
             runDashboardAction(),
@@ -2647,42 +2649,65 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     };
 
     // Run a single stage test with given concurrent workers using throttled batching
-    const runStageTest = async (workerCount: number, reqPerWorker: number) => {
+    const runStageTest = async (workerCount: number, reqPerWorker: number, stageDurationMs: number = 0) => {
       const stageStart = Date.now();
       const allLatencies: number[] = [];
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
 
-      // Concurrently run workers in sub-batches of max 20 simultaneous threads to avoid pool exhaustion
       const CHUNK_SIZE = 20;
       const totalWorkers = workerCount;
 
-      for (let i = 0; i < totalWorkers; i += CHUNK_SIZE) {
-        const batchSize = Math.min(CHUNK_SIZE, totalWorkers - i);
-        const batchWorkers = Array.from({ length: batchSize }, async () => {
-          for (let r = 0; r < reqPerWorker; r++) {
-            const result = await executeSimulatedUserAction();
-            allLatencies.push(result.latency);
-            if (result.success) {
-              successCount++;
-            } else {
-              errorCount++;
-              if (result.error && errors.length < 5) errors.push(result.error);
+      if (stageDurationMs > 0) {
+        // Time-based continuous test
+        const stageEndTime = stageStart + stageDurationMs;
+        for (let i = 0; i < totalWorkers; i += CHUNK_SIZE) {
+          const batchSize = Math.min(CHUNK_SIZE, totalWorkers - i);
+          const batchWorkers = Array.from({ length: batchSize }, async () => {
+            while (Date.now() < stageEndTime) {
+              const result = await executeSimulatedUserAction();
+              allLatencies.push(result.latency);
+              if (result.success) {
+                successCount++;
+              } else {
+                errorCount++;
+                if (result.error && errors.length < 5) errors.push(result.error);
+              }
+              // Small pacing delay
+              await new Promise((r) => setTimeout(r, 20));
             }
-          }
-        });
-        await Promise.all(batchWorkers);
+          });
+          await Promise.all(batchWorkers);
+        }
+      } else {
+        // Request count based test
+        for (let i = 0; i < totalWorkers; i += CHUNK_SIZE) {
+          const batchSize = Math.min(CHUNK_SIZE, totalWorkers - i);
+          const batchWorkers = Array.from({ length: batchSize }, async () => {
+            for (let r = 0; r < reqPerWorker; r++) {
+              const result = await executeSimulatedUserAction();
+              allLatencies.push(result.latency);
+              if (result.success) {
+                successCount++;
+              } else {
+                errorCount++;
+                if (result.error && errors.length < 5) errors.push(result.error);
+              }
+            }
+          });
+          await Promise.all(batchWorkers);
+        }
       }
 
-      const stageDurationMs = Math.max(1, Date.now() - stageStart);
+      const actualDurationMs = Math.max(1, Date.now() - stageStart);
       const totalRequests = successCount + errorCount;
       const avgLatency = allLatencies.length > 0 ? Math.round(allLatencies.reduce((a, b) => a + b, 0) / allLatencies.length) : 0;
       const minLatency = allLatencies.length > 0 ? Math.min(...allLatencies) : 0;
       const maxLatency = allLatencies.length > 0 ? Math.max(...allLatencies) : 0;
       const p95Latency = calculatePercentile(allLatencies, 95);
       const p99Latency = calculatePercentile(allLatencies, 99);
-      const rps = parseFloat(((totalRequests / stageDurationMs) * 1000).toFixed(1));
+      const rps = parseFloat(((totalRequests / actualDurationMs) * 1000).toFixed(1));
       const errorRate = totalRequests > 0 ? parseFloat(((errorCount / totalRequests) * 100).toFixed(1)) : 0;
 
       // Quality evaluation
@@ -2706,7 +2731,7 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
         success_count: successCount,
         error_count: errorCount,
         error_rate_pct: errorRate,
-        duration_ms: stageDurationMs,
+        duration_ms: actualDurationMs,
         throughput_rps: rps,
         min_latency_ms: minLatency,
         max_latency_ms: maxLatency,
@@ -2726,8 +2751,10 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     if (mode === 'auto_detect') {
       // Progressive full-system ramp-up stages: 10 -> 25 -> 50 -> 100 -> 150 -> 200 -> 300
       const testLevels = [10, 25, 50, 100, 150, 200, 300];
+      const stageDurationMs = targetTotalDurationMs > 0 ? Math.floor(targetTotalDurationMs / testLevels.length) : 0;
+
       for (const level of testLevels) {
-        const stageRes = await runStageTest(level, Math.min(requestsPerUser, 2));
+        const stageRes = await runStageTest(level, Math.min(requestsPerUser, 2), stageDurationMs);
         stageResults.push(stageRes);
         maxTestedCapacity = level;
 
@@ -2743,7 +2770,11 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     } else {
       // Fixed concurrency test
       const targetConcurrency = Math.min(Math.max(1, parseInt(String(concurrency), 10) || 50), 500);
-      const stageRes = await runStageTest(targetConcurrency, Math.min(Math.max(1, parseInt(String(requestsPerUser), 10) || 3), 10));
+      const stageRes = await runStageTest(
+        targetConcurrency,
+        Math.min(Math.max(1, parseInt(String(requestsPerUser), 10) || 3), 10),
+        targetTotalDurationMs
+      );
       stageResults.push(stageRes);
       maxTestedCapacity = targetConcurrency;
       if (stageRes.passed) maxSafeCapacity = targetConcurrency;
@@ -2868,6 +2899,8 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
         max_safe_concurrent_users: maxSafeCapacity,
         max_tested_concurrent_users: maxTestedCapacity,
         estimated_capacity_label: estimatedCapacity,
+        duration_minutes_configured: parsedDurationMinutes,
+        duration_seconds: Math.round(totalDurationMs / 1000),
         total_requests: totalRequestsAll,
         successful_requests: totalSuccessAll,
         failed_requests: totalErrorsAll,
