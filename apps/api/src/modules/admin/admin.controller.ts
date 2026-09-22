@@ -2642,12 +2642,12 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       const totalWorkers = Math.max(1, workerCount);
 
       if (stageDurationMs > 0) {
-        // Time-based continuous test: run all virtual users in parallel with stagger & pacing
+        // Time-based continuous test with controlled concurrency pool (max 30 simultaneous active workers to avoid MySQL exhaustion)
         const stageEndTime = stageStart + stageDurationMs;
-        const workers = Array.from({ length: totalWorkers }, async (_, idx) => {
-          // Slight stagger start
+        const POOL_SIZE = Math.min(30, totalWorkers);
+        const poolWorkers = Array.from({ length: POOL_SIZE }, async (_, idx) => {
           if (idx > 0) {
-            await new Promise((r) => setTimeout(r, (idx % 20) * 10));
+            await new Promise((r) => setTimeout(r, (idx % 10) * 15));
           }
           while (Date.now() < stageEndTime) {
             const result = await executeSimulatedUserAction();
@@ -2658,14 +2658,13 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
               errorCount++;
               if (result.error && errors.length < 5) errors.push(result.error);
             }
-            // Small realistic user pacing delay
-            await new Promise((r) => setTimeout(r, 40 + Math.random() * 30));
+            await new Promise((r) => setTimeout(r, 30 + Math.random() * 20));
           }
         });
-        await Promise.all(workers);
+        await Promise.all(poolWorkers);
       } else {
         // Request count based test
-        const CHUNK_SIZE = 25;
+        const CHUNK_SIZE = 20;
         for (let i = 0; i < totalWorkers; i += CHUNK_SIZE) {
           const batchSize = Math.min(CHUNK_SIZE, totalWorkers - i);
           const batchWorkers = Array.from({ length: batchSize }, async () => {
@@ -2678,6 +2677,7 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
                 errorCount++;
                 if (result.error && errors.length < 5) errors.push(result.error);
               }
+              await new Promise((r) => setTimeout(r, 10));
             }
           });
           await Promise.all(batchWorkers);
