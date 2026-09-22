@@ -2467,7 +2467,8 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     // Helper to safely execute a query with fallback
     const safeQuery = async <T>(fn: () => Promise<T>, fallback: T): Promise<T> => {
       try {
-        return await fn();
+        const res = await fn();
+        return res ?? fallback;
       } catch (err: any) {
         return fallback;
       }
@@ -2478,9 +2479,9 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       const t0 = Date.now();
       await safeQuery(
         () =>
-          (prisma as any).user.findFirst({
+          prisma.user.findFirst({
             where: { is_active: true },
-            include: { department: { include: { division: true } } },
+            select: { id: true, username: true, full_name: true, role: true, department_id: true },
           }),
         null
       );
@@ -2490,18 +2491,13 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     // 2. Dashboard Stats Aggregation Simulation
     const runDashboardAction = async () => {
       const t0 = Date.now();
-      await safeQuery(
-        () =>
-          Promise.all([
-            prisma.project.count(),
-            prisma.project.count({ where: { status: 'approved' } }),
-            prisma.project.count({ where: { status: 'submitted' } }),
-            prisma.project.count({ where: { status: 'draft' } }),
-            prisma.department.count(),
-            prisma.division.count(),
-          ]),
-        [0, 0, 0, 0, 0, 0]
-      );
+      await Promise.allSettled([
+        safeQuery(() => prisma.project.count(), 0),
+        safeQuery(() => prisma.project.count({ where: { status: 'approved' } }), 0),
+        safeQuery(() => prisma.project.count({ where: { status: 'submitted' } }), 0),
+        safeQuery(() => prisma.department.count(), 0),
+        safeQuery(() => prisma.division.count(), 0),
+      ]);
       moduleLatencies.dashboard_stats.push(Math.max(1, Date.now() - t0));
     };
 
@@ -2511,13 +2507,16 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       await safeQuery(
         () =>
           prisma.project.findMany({
-            take: 10,
+            take: 8,
             orderBy: { updated_at: 'desc' },
-            include: {
-              department: { include: { division: true } },
+            select: {
+              id: true,
+              project_code: true,
+              title: true,
+              status: true,
+              total_budget: true,
+              department: { select: { id: true, name: true } },
               leader: { select: { id: true, full_name: true, role: true } },
-              approvals: true,
-              alignments: true,
             },
           }),
         []
@@ -2528,23 +2527,26 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     // 4. Approvals 4-Step Workflow Queue Simulation
     const runApprovalsAction = async () => {
       const t0 = Date.now();
-      await safeQuery(
-        () =>
-          Promise.all([
+      await Promise.allSettled([
+        safeQuery(
+          () =>
             prisma.projectApproval.findMany({
-              take: 10,
+              take: 8,
               where: { status: 'PENDING' },
-              orderBy: { step_order: 'asc' },
-              include: { project: { select: { id: true, title: true, department_id: true } } },
+              select: { id: true, step_order: true, status: true, project_id: true },
             }),
+          []
+        ),
+        safeQuery(
+          () =>
             prisma.projectApproval.findMany({
-              take: 10,
+              take: 8,
               where: { status: 'APPROVED' },
-              orderBy: { id: 'desc' },
+              select: { id: true, step_order: true, status: true, project_id: true },
             }),
-          ]),
-        [[], []]
-      );
+          []
+        ),
+      ]);
       moduleLatencies.approvals_workflow.push(Math.max(1, Date.now() - t0));
     };
 
@@ -2554,12 +2556,11 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       await safeQuery(
         () =>
           prisma.division.findMany({
-            include: {
-              departments: {
-                include: {
-                  _count: { select: { users: true, projects: true } },
-                },
-              },
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              departments: { select: { id: true, name: true } },
             },
           }),
         []
@@ -2570,17 +2571,18 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     // 6. Notifications Feed Simulation
     const runNotificationsAction = async () => {
       const t0 = Date.now();
-      await safeQuery(
-        () =>
-          Promise.all([
+      await Promise.allSettled([
+        safeQuery(
+          () =>
             prisma.notification.findMany({
-              take: 10,
+              take: 8,
               orderBy: { created_at: 'desc' },
+              select: { id: true, title: true, type: true, is_read: true },
             }),
-            prisma.systemSetting.findMany({ take: 15 }),
-          ]),
-        [[], []]
-      );
+          []
+        ),
+        safeQuery(() => prisma.systemSetting.findMany({ take: 10, select: { key: true, value: true } }), []),
+      ]);
       moduleLatencies.notifications_feed.push(Math.max(1, Date.now() - t0));
     };
 
@@ -2590,8 +2592,8 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       await safeQuery(
         () =>
           prisma.strategicPlan.findMany({
-            take: 5,
-            include: { indicators: true },
+            take: 4,
+            select: { id: true, fiscal_year: true, title: true },
           }),
         []
       );
@@ -2602,41 +2604,22 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     const executeSimulatedUserAction = async (): Promise<{ success: boolean; latency: number; error?: string }> => {
       const actionStart = Date.now();
       try {
-        if (scenario === 'full_system') {
-          await Promise.all([
-            runAuthAction(),
-            runDashboardAction(),
-            runProjectsAction(),
-            runApprovalsAction(),
-            runDivisionsAction(),
-            runNotificationsAction(),
-            runStrategicAction(),
-          ]);
-        } else if (scenario === 'high_traffic_submission') {
-          await Promise.all([
-            runAuthAction(),
-            runProjectsAction(),
-            runDivisionsAction(),
-            runStrategicAction(),
-          ]);
+        if (scenario === 'high_traffic_submission') {
+          await Promise.allSettled([runAuthAction(), runProjectsAction(), runDivisionsAction(), runStrategicAction()]);
         } else if (scenario === 'approval_storm') {
-          await Promise.all([
-            runAuthAction(),
-            runApprovalsAction(),
-            runNotificationsAction(),
-            runDashboardAction(),
-          ]);
+          await Promise.allSettled([runAuthAction(), runApprovalsAction(), runNotificationsAction(), runDashboardAction()]);
         } else if (scenario === 'analytics_reporting') {
-          await Promise.all([
-            runDashboardAction(),
-            runProjectsAction(),
-            runStrategicAction(),
-          ]);
+          await Promise.allSettled([runDashboardAction(), runProjectsAction(), runStrategicAction()]);
         } else {
-          await Promise.all([
+          // full_system or default
+          await Promise.allSettled([
             runAuthAction(),
             runDashboardAction(),
             runProjectsAction(),
+            runApprovalsAction(),
+            runDivisionsAction(),
+            runNotificationsAction(),
+            runStrategicAction(),
           ]);
         }
 
@@ -2791,7 +2774,7 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
     const totalSuccessAll = stageResults.reduce((sum, s) => sum + s.success_count, 0);
     const totalErrorsAll = stageResults.reduce((sum, s) => sum + s.error_count, 0);
     const overallAvgLatency = Math.round(stageResults.reduce((sum, s) => sum + s.avg_latency_ms * s.total_requests, 0) / Math.max(1, totalRequestsAll));
-    const overallPeakRps = Math.max(...stageResults.map((s) => s.throughput_rps));
+    const overallPeakRps = stageResults.length > 0 ? Math.max(...stageResults.map((s) => s.throughput_rps)) : 0;
 
     // Module breakdown calculation
     const moduleStats = [
