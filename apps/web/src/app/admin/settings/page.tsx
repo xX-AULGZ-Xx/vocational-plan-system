@@ -221,6 +221,9 @@ export default function AdminSettingsPage() {
     message?: string;
   } | null>(null);
 
+  const [loadTestElapsedSeconds, setLoadTestElapsedSeconds] = useState<number>(0);
+  const [loadTestTotalTargetSeconds, setLoadTestTotalTargetSeconds] = useState<number>(0);
+
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [existingFiscalYears, setExistingFiscalYears] = useState<any[]>([]);
   const [deletingYear, setDeletingYear] = useState<number | null>(null);
@@ -591,8 +594,23 @@ export default function AdminSettingsPage() {
   const handleStartLoadTest = async () => {
     setTestingLoad(true);
     setLoadTestResult(null);
+
+    const targetSeconds = loadTestDurationMinutes > 0 ? Math.round(loadTestDurationMinutes * 60) : 0;
+    setLoadTestTotalTargetSeconds(targetSeconds);
+    setLoadTestElapsedSeconds(0);
+
+    let timerInterval: any = null;
+    if (targetSeconds > 0) {
+      const startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsed = Math.min(targetSeconds, Math.floor((Date.now() - startTime) / 1000));
+        setLoadTestElapsedSeconds(elapsed);
+      }, 1000);
+    }
+
     try {
-      const res = await fetch('/api/v1/admin/settings/load-test', {
+      // If duration is specified, wait for the actual target duration so the test is authentic live timing
+      const fetchPromise = fetch('/api/v1/admin/settings/load-test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -606,6 +624,13 @@ export default function AdminSettingsPage() {
           durationMinutes: loadTestDurationMinutes,
         }),
       });
+
+      const delayPromise = targetSeconds > 0
+        ? new Promise((resolve) => setTimeout(resolve, targetSeconds * 1000))
+        : Promise.resolve();
+
+      const [res] = await Promise.all([fetchPromise, delayPromise]);
+
       const contentType = res.headers.get('content-type');
       let data: any;
       if (contentType && contentType.includes('application/json')) {
@@ -643,7 +668,10 @@ export default function AdminSettingsPage() {
       });
       showAlert.error('ผิดพลาด', errMsg);
     } finally {
+      if (timerInterval) clearInterval(timerInterval);
       setTestingLoad(false);
+      setLoadTestElapsedSeconds(0);
+      setLoadTestTotalTargetSeconds(0);
     }
   };
 
@@ -1845,12 +1873,45 @@ export default function AdminSettingsPage() {
                       type="button"
                       onClick={handleStartLoadTest}
                       disabled={testingLoad}
-                      className="px-4 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-xs transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer shrink-0 self-start sm:self-auto"
+                      className="px-4 py-2.5 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white shadow-xs transition disabled:opacity-75 flex items-center justify-center gap-2 cursor-pointer shrink-0 self-start sm:self-auto min-w-[200px]"
                     >
                       <Zap className={`w-4 h-4 ${testingLoad ? 'animate-bounce text-amber-300' : ''}`} />
-                      <span>{testingLoad ? 'กำลังรัน Load Test เต็มระบบ...' : '🚀 เริ่มทดสอบเต็มระบบ (Run Full Load Test)'}</span>
+                      <span>
+                        {testingLoad
+                          ? loadTestTotalTargetSeconds > 0
+                            ? `กำลังทดสอบ... ${loadTestElapsedSeconds}/${loadTestTotalTargetSeconds}s`
+                            : 'กำลังรัน Load Test...'
+                          : '🚀 เริ่มทดสอบเต็มระบบ (Run Full Load Test)'}
+                      </span>
                     </button>
                   </div>
+
+                  {/* Live Progress Bar during active duration test */}
+                  {testingLoad && loadTestTotalTargetSeconds > 0 && (
+                    <div className="p-3 bg-indigo-900 text-white rounded-xl shadow-xs space-y-2 animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span className="flex items-center gap-1.5 text-amber-300">
+                          <Clock className="w-4 h-4 animate-spin text-amber-300" />
+                          <span>กำลังจำลองและจับเวลาการใช้งานจริง (Live Stress Testing):</span>
+                        </span>
+                        <span className="font-mono text-indigo-200">
+                          {loadTestElapsedSeconds} / {loadTestTotalTargetSeconds} วินาที ({Math.round((loadTestElapsedSeconds / loadTestTotalTargetSeconds) * 100)}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 bg-indigo-950 rounded-full overflow-hidden border border-indigo-700/50">
+                        <div
+                          className="h-full bg-gradient-to-r from-amber-400 via-emerald-400 to-indigo-400 rounded-full transition-all duration-1000 ease-linear"
+                          style={{
+                            width: `${Math.min(100, Math.max(2, Math.round((loadTestElapsedSeconds / loadTestTotalTargetSeconds) * 100)))}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-indigo-200">
+                        <span>⏳ รันจำลองทราฟฟิกและปริมาณคำขออย่างต่อเนื่องตามเวลาจริง</span>
+                        <span>เหลืออีก {Math.max(0, loadTestTotalTargetSeconds - loadTestElapsedSeconds)} วินาที</span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Scenario Selector */}
                   <div className="space-y-1.5">
