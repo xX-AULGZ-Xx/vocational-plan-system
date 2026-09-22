@@ -1092,11 +1092,11 @@ export default function AdminUsersPage() {
       {/* Modal 1: Create / Edit User */}
       {isModalOpen && (
         <ModalPortal>
-          <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-8">
+          <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200 overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[calc(100dvh-2rem)] shadow-2xl border border-slate-200 overflow-hidden flex flex-col my-auto">
               {/* Modal Header (Green/Theme Brand Header with Sparkles) */}
               <div
-                className="p-6 text-white text-left relative overflow-hidden"
+                className="p-5 sm:p-6 text-white text-left relative overflow-hidden shrink-0"
                 style={{ backgroundColor: 'var(--color-primary, #1e3a8a)' }}
               >
                 <div className="relative z-10 flex items-start justify-between gap-4">
@@ -1108,7 +1108,7 @@ export default function AdminUsersPage() {
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 text-xs font-semibold border border-amber-400/30 mb-1">
                         <span>{editingUser ? 'แก้ไขผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}</span>
                       </div>
-                      <h3 className="text-xl font-bold tracking-tight">
+                      <h3 className="text-lg sm:text-xl font-bold tracking-tight">
                         {editingUser ? 'แก้ไขข้อมูลผู้ใช้งาน' : 'สร้างบัญชีผู้ใช้งานใหม่'}
                       </h3>
                       <p className="text-xs text-white/80 mt-1">
@@ -1126,7 +1126,8 @@ export default function AdminUsersPage() {
               </div>
 
               {/* Form Body */}
-              <form onSubmit={handleSubmitForm} className="p-6 space-y-6 overflow-y-auto max-h-[75vh]">
+              <form onSubmit={handleSubmitForm} className="flex flex-col flex-1 overflow-hidden min-h-0">
+                <div className="p-5 sm:p-6 space-y-6 flex-1 overflow-y-auto">
                 {/* 1. Full Name */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-700">
@@ -1550,9 +1551,10 @@ export default function AdminUsersPage() {
                     <span>เปิดใช้งานบัญชีผู้ใช้นี้ (สามารถเข้าสู่ระบบได้)</span>
                   </label>
                 </div>
+                </div>
 
                 {/* Footer Submit */}
-                <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-2 p-4 sm:p-5 border-t border-slate-100 bg-slate-50/80 shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
@@ -1580,8 +1582,8 @@ export default function AdminUsersPage() {
       {isResetModalOpen && resetTargetUser && (
         <ModalPortal>
           <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-amber-50/50">
+            <div className="bg-white rounded-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] shadow-2xl overflow-hidden flex flex-col my-auto animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-amber-50/50 shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-amber-100 text-amber-900 rounded-lg">
                     <Key className="w-4 h-4" />
@@ -1596,7 +1598,7 @@ export default function AdminUsersPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleResetPassword} className="p-6 space-y-4">
+              <form onSubmit={handleResetPassword} className="p-6 space-y-4 flex-1 overflow-y-auto">
                 <div className="p-3 bg-slate-50 rounded-lg text-xs space-y-1">
                   <div className="text-slate-500">ผู้ใช้งาน:</div>
                   <div className="font-bold text-slate-900 text-sm">{resetTargetUser.full_name}</div>

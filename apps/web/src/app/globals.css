@@ -181,17 +181,49 @@ input, button, select, textarea, optgroup {
   font-family: 'TH SarabunIT๙', 'TH SarabunIT9', 'TH Sarabun New', 'TH SarabunPSK', Sarabun, sans-serif !important;
 }
 
-/* SweetAlert2 Dynamic Theme Styling */
+/* SweetAlert2 Dynamic Theme Styling & Responsive Fit-Height */
 .swal2-container {
   z-index: 10000 !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   background-color: rgba(15, 23, 42, 0.6) !important;
+  padding: 0.75rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .swal2-popup {
   border-radius: var(--app-radius, 12px) !important;
   font-family: var(--font-ui-family, 'Prompt'), sans-serif !important;
+  max-height: calc(100dvh - 2rem) !important;
+  max-height: calc(100vh - 2rem) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  margin: auto !important;
+}
+
+.swal2-header {
+  flex-shrink: 0 !important;
+}
+
+.swal2-title {
+  flex-shrink: 0 !important;
+}
+
+.swal2-html-container {
+  flex: 1 1 auto !important;
+  max-height: calc(100dvh - 12rem) !important;
+  max-height: calc(100vh - 12rem) !important;
+  overflow-y: auto !important;
+  word-break: break-word !important;
+}
+
+.swal2-actions {
+  flex-shrink: 0 !important;
+  margin-top: auto !important;
 }
 
 .swal2-timer-progress-bar {
@@ -201,6 +233,8 @@ input, button, select, textarea, optgroup {
 .swal2-toast {
   border-radius: var(--app-radius, 12px) !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
 
 @media (max-width: 768px) {

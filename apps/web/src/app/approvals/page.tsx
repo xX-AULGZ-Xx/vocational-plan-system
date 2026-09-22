@@ -1328,8 +1328,8 @@ export default function ApprovalsPage() {
       {actionType && selectedApproval && (
         <ModalPortal>
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95">
+              <div className="p-5 sm:p-6 pb-3 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <div
                     className={`w-8 h-8 rounded-lg flex items-center justify-center ${
@@ -1361,53 +1361,55 @@ export default function ApprovalsPage() {
                 </button>
               </div>
 
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                <p className="text-xs font-bold text-slate-800 truncate">
-                  {selectedApproval.project?.title}
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  {getStepTitle(selectedApproval.step_order)} • งบประมาณ {Number(selectedApproval.project?.total_budget).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  ข้อคิดเห็น / คำสั่งการพิจารณา:
-                </label>
-
-                {/* Quick Preset Comment Chips */}
-                <div className="space-y-1 mb-2">
-                  <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" /> ข้อความมาตรฐานด่วน (คลิกเลือก):
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {getQuickComments(selectedApproval.step_order, actionType).map((text, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setComment(text)}
-                        className={`text-[11px] px-2.5 py-1 rounded-full border transition text-left ${
-                          comment === text
-                            ? 'bg-blue-900 text-white border-blue-900'
-                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                        }`}
-                      >
-                        {text}
-                      </button>
-                    ))}
-                  </div>
+              <div className="p-5 sm:p-6 space-y-4 flex-1 overflow-y-auto">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <p className="text-xs font-bold text-slate-800 truncate">
+                    {selectedApproval.project?.title}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    {getStepTitle(selectedApproval.step_order)} • งบประมาณ {Number(selectedApproval.project?.total_budget).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                  </p>
                 </div>
 
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="ระบุข้อคิดเห็นหรือคำสั่งการ..."
-                  rows={3}
-                  className="w-full text-xs p-3 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
-                />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    ข้อคิดเห็น / คำสั่งการพิจารณา:
+                  </label>
+
+                  {/* Quick Preset Comment Chips */}
+                  <div className="space-y-1 mb-2">
+                    <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" /> ข้อความมาตรฐานด่วน (คลิกเลือก):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {getQuickComments(selectedApproval.step_order, actionType).map((text, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setComment(text)}
+                          className={`text-[11px] px-2.5 py-1 rounded-full border transition text-left ${
+                            comment === text
+                              ? 'bg-blue-900 text-white border-blue-900'
+                              : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                          }`}
+                        >
+                          {text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="ระบุข้อคิดเห็นหรือคำสั่งการ..."
+                    rows={3}
+                    className="w-full text-xs p-3 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
+                  />
+                </div>
               </div>
 
-              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 p-4 sm:p-5 pt-3 border-t border-slate-100 bg-slate-50/80 shrink-0">
                 <button
                   type="button"
                   onClick={() => {
@@ -1451,8 +1453,8 @@ export default function ApprovalsPage() {
       {batchActionType && selectedIds.length > 0 && (
         <ModalPortal>
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-4 sm:p-6 space-y-4 animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95">
+              <div className="p-4 sm:p-6 pb-3 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                     batchActionType === 'APPROVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
@@ -1471,30 +1473,32 @@ export default function ApprovalsPage() {
                 </button>
               </div>
 
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
-                <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>ท่านกำลังจะ{batchActionType === 'APPROVE' ? 'อนุมัติ' : 'ปฏิเสธ'}โครงการจำนวน {selectedIds.length} รายการพร้อมกัน</span>
-                </p>
-                <p className="text-[11px] text-amber-800">
-                  ระบบจะส่งผลการพิจารณาและแจ้งเตือนไปยังผู้รับผิดชอบโครงการทุกรายโดยอัตโนมัติ
-                </p>
+              <div className="p-4 sm:p-6 space-y-4 flex-1 overflow-y-auto">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
+                  <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>ท่านกำลังจะ{batchActionType === 'APPROVE' ? 'อนุมัติ' : 'ปฏิเสธ'}โครงการจำนวน {selectedIds.length} รายการพร้อมกัน</span>
+                  </p>
+                  <p className="text-[11px] text-amber-800">
+                    ระบบจะส่งผลการพิจารณาและแจ้งเตือนไปยังผู้รับผิดชอบโครงการทุกรายโดยอัตโนมัติ
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    ข้อคิดเห็นร่วมสำหรับการดำเนินการกลุ่ม:
+                  </label>
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="ระบุข้อคิดเห็น..."
+                    rows={2}
+                    className="w-full text-xs p-3 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  ข้อคิดเห็นร่วมสำหรับการดำเนินการกลุ่ม:
-                </label>
-                <textarea
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="ระบุข้อคิดเห็น..."
-                  rows={2}
-                  className="w-full text-xs p-3 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900"
-                />
-              </div>
-
-              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 p-4 sm:p-5 pt-3 border-t border-slate-100 bg-slate-50/80 shrink-0">
                 <button
                   type="button"
                   onClick={() => setBatchActionType(null)}
@@ -1531,9 +1535,9 @@ export default function ApprovalsPage() {
       {showExecutionModal && executionModalProject && (
         <ModalPortal>
           <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col my-auto animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col my-auto animate-in fade-in zoom-in-95 duration-150">
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-900 to-blue-900 text-white">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-900 to-blue-900 text-white shrink-0">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-white/10 text-white shrink-0">
                     <Calendar className="w-5 h-5" />
@@ -1557,7 +1561,7 @@ export default function ApprovalsPage() {
               </div>
 
               {/* Modal Body */}
-              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="p-6 space-y-4 flex-1 overflow-y-auto">
                 <div className="bg-blue-50 border border-blue-200 p-3.5 rounded-xl flex items-start gap-2.5 text-xs text-blue-950">
                   <PlayCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                   <div>
@@ -1598,21 +1602,26 @@ export default function ApprovalsPage() {
                     </button>
                   </div>
 
-                  <div className="space-y-2.5">
+                  <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
                     {executionDateItems.map((item, idx) => (
-                      <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-slate-700">ช่วงที่ {idx + 1}</span>
+                      <div
+                        key={idx}
+                        className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 relative group hover:border-indigo-300 transition"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-indigo-900 flex items-center gap-1">
+                            <span>ช่วงที่ {idx + 1}</span>
+                          </span>
                           {executionDateItems.length > 1 && (
                             <button
                               type="button"
                               onClick={() => {
                                 setExecutionDateItems((prev) => prev.filter((_, i) => i !== idx));
                               }}
-                              className="text-xs text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1"
+                              className="text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50 transition"
+                              title="ลบช่วงนี้"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
-                              <span>ลบช่วงนี้</span>
                             </button>
                           )}
                         </div>
@@ -1620,34 +1629,39 @@ export default function ApprovalsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           <div>
                             <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                              วันที่เริ่มต้น:
+                              วันเริ่มต้น: <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="date"
+                              required
                               value={item.start_date}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setExecutionDateItems((prev) =>
                                   prev.map((d, i) =>
                                     i === idx
-                                      ? { ...d, start_date: val, end_date: d.end_date < val ? val : d.end_date }
+                                      ? {
+                                          ...d,
+                                          start_date: val,
+                                          end_date: d.end_date < val ? val : d.end_date,
+                                        }
                                       : d
                                   )
                                 );
                               }}
                               className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                              required
                             />
                           </div>
 
                           <div>
                             <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                              วันที่สิ้นสุด:
+                              วันสิ้นสุด: <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="date"
-                              value={item.end_date}
+                              required
                               min={item.start_date}
+                              value={item.end_date}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setExecutionDateItems((prev) =>
@@ -1655,7 +1669,6 @@ export default function ApprovalsPage() {
                                 );
                               }}
                               className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
-                              required
                             />
                           </div>
                         </div>
@@ -1718,7 +1731,7 @@ export default function ApprovalsPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowExecutionModal(false)}

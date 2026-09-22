@@ -919,15 +919,15 @@ export default function AdminTemplatesPage() {
       {/* Upload Modal */}
       {showUploadModal && (
         <ModalPortal>
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden my-auto animate-in zoom-in-95">
+              <div className="p-5 sm:p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
                 <h3 className="text-lg font-bold text-slate-800">อัปโหลดแม่แบบเอกสารใหม่</h3>
                 <button onClick={() => setShowUploadModal(false)} className="text-slate-400 hover:text-slate-600">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="p-6 space-y-4 overflow-y-auto">
+              <div className="p-5 sm:p-6 space-y-4 flex-1 overflow-y-auto">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">ชื่อแม่แบบ</label>
                   <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -953,7 +953,7 @@ export default function AdminTemplatesPage() {
                   <p className={`text-sm ${msg.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>{msg.text}</p>
                 )}
               </div>
-              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+              <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/80 flex justify-end gap-2 shrink-0">
                 <button onClick={() => setShowUploadModal(false)} className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-medium transition">ยกเลิก</button>
                 <button onClick={handleUpload} disabled={uploading} className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition shadow-sm disabled:opacity-50">
                   {uploading ? 'กำลังอัปโหลด...' : 'บันทึก'}

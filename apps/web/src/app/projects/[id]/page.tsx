@@ -1476,8 +1476,8 @@ export default function ProjectDetailPage() {
       {actionType && (
         <ModalPortal>
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95">
+              <div className="p-5 sm:p-6 pb-3 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   {actionType === 'APPROVE' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
                   {actionType === 'REVISE' && <RotateCcw className="w-5 h-5 text-amber-600" />}
@@ -1491,61 +1491,63 @@ export default function ProjectDetailPage() {
                 </button>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  ข้อคิดเห็น / คำสั่งการพิจารณา:
-                </label>
+              <div className="p-5 sm:p-6 space-y-4 flex-1 overflow-y-auto">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    ข้อคิดเห็น / คำสั่งการพิจารณา:
+                  </label>
 
-                {/* Quick Preset Chips */}
-                <div className="space-y-1 mb-2">
-                  <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-amber-500" /> ข้อความมาตรฐานด่วน (คลิกเลือก):
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(actionType === 'APPROVE'
-                      ? [
-                          'เห็นชอบตามเสนอ สมควรดำเนินการ',
-                          'สอดคล้องกับยุทธศาสตร์ประจำฝ่าย',
-                          'ตรวจสอบงบประมาณถูกต้อง ออกรหัสโครงการเรียบร้อย',
-                          'อนุมัติให้ดำเนินโครงการตามที่เสนอ',
-                        ]
-                      : actionType === 'REVISE'
-                      ? [
-                          'ขอให้ปรับปรุงรายละเอียดค่าใช้จ่ายในตารางงบประมาณเพิ่มเติม',
-                          'ขอให้ระบุเป้าหมายเชิงปริมาณและคุณภาพให้ชัดเจนยิ่งขึ้น',
-                          'ขอให้ปรับแก้กำหนดการและกิจกรรมตามกระบวนการ PDCA',
-                        ]
-                      : [
-                          'ไม่อนุมัติ เนื่องจากงบประมาณไม่เพียงพอ',
-                          'ไม่อนุมัติ เนื่องจากกิจกรรมไม่สอดคล้องกับยุทธศาสตร์หลัก',
-                        ]
-                    ).map((text, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setComment(text)}
-                        className={`text-[11px] px-2.5 py-1 rounded-full border transition text-left ${
-                          comment === text
-                            ? 'bg-blue-900 text-white border-blue-900 font-semibold shadow-2xs'
-                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                        }`}
-                      >
-                        {text}
-                      </button>
-                    ))}
+                  {/* Quick Preset Chips */}
+                  <div className="space-y-1 mb-2">
+                    <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" /> ข้อความมาตรฐานด่วน (คลิกเลือก):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(actionType === 'APPROVE'
+                        ? [
+                            'เห็นชอบตามเสนอ สมควรดำเนินการ',
+                            'สอดคล้องกับยุทธศาสตร์ประจำฝ่าย',
+                            'ตรวจสอบงบประมาณถูกต้อง ออกรหัสโครงการเรียบร้อย',
+                            'อนุมัติให้ดำเนินโครงการตามที่เสนอ',
+                          ]
+                        : actionType === 'REVISE'
+                        ? [
+                            'ขอให้ปรับปรุงรายละเอียดค่าใช้จ่ายในตารางงบประมาณเพิ่มเติม',
+                            'ขอให้ระบุเป้าหมายเชิงปริมาณและคุณภาพให้ชัดเจนยิ่งขึ้น',
+                            'ขอให้ปรับแก้กำหนดการและกิจกรรมตามกระบวนการ PDCA',
+                          ]
+                        : [
+                            'ไม่อนุมัติ เนื่องจากงบประมาณไม่เพียงพอ',
+                            'ไม่อนุมัติ เนื่องจากกิจกรรมไม่สอดคล้องกับยุทธศาสตร์หลัก',
+                          ]
+                      ).map((text, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setComment(text)}
+                          className={`text-[11px] px-2.5 py-1 rounded-full border transition text-left ${
+                            comment === text
+                              ? 'bg-blue-900 text-white border-blue-900 font-semibold shadow-2xs'
+                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                          }`}
+                        >
+                          {text}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <textarea
-                  rows={3}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  placeholder="ระบุข้อคิดเห็น เช่น เห็นควรดำเนินการตามเสนอ..."
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 font-sans leading-relaxed"
-                />
+                  <textarea
+                    rows={3}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="ระบุข้อคิดเห็น เช่น เห็นควรดำเนินการตามเสนอ..."
+                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900/20 focus:border-blue-900 font-sans leading-relaxed"
+                  />
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-2">
+              <div className="flex justify-end gap-2.5 p-4 sm:p-5 pt-3 border-t border-slate-100 bg-slate-50/80 shrink-0">
                 <button
                   onClick={() => setActionType(null)}
                   disabled={isProcessing}
@@ -1646,9 +1648,9 @@ export default function ProjectDetailPage() {
       {showExecutionModal && (
         <ModalPortal>
           <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col my-auto animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col my-auto animate-in fade-in zoom-in-95 duration-150">
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-900 to-blue-900 text-white">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-900 to-blue-900 text-white shrink-0">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-white/10 text-white shrink-0">
                     <Calendar className="w-5 h-5" />
@@ -1672,7 +1674,7 @@ export default function ProjectDetailPage() {
               </div>
 
               {/* Modal Body */}
-              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="p-6 space-y-4 flex-1 overflow-y-auto">
                 <div className="bg-blue-50 border border-blue-200 p-3.5 rounded-xl flex items-start gap-2.5 text-xs text-blue-950">
                   <PlayCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                   <div>
@@ -1833,7 +1835,7 @@ export default function ProjectDetailPage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+              <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowExecutionModal(false)}

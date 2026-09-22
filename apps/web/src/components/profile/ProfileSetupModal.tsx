@@ -326,11 +326,11 @@ export default function ProfileSetupModal() {
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden flex flex-col my-8">
+      <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col my-auto">
         {/* Header */}
         <div
-          className="p-6 text-white text-left relative overflow-hidden"
+          className="p-5 sm:p-6 text-white text-left relative overflow-hidden shrink-0"
           style={{ backgroundColor: 'var(--color-primary, #1e3a8a)' }}
         >
           <div className="relative z-10 flex items-start gap-4">
@@ -341,7 +341,7 @@ export default function ProfileSetupModal() {
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 text-xs font-semibold border border-amber-400/30 mb-1">
                 <span>เข้าสู่ระบบครั้งแรก (First-Time Setup)</span>
               </div>
-              <h2 className="text-xl font-bold text-white tracking-tight">
+              <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
                 ตั้งค่าข้อมูลโปรไฟล์และหน้าที่ความรับผิดชอบ
               </h2>
               <p className="text-xs text-blue-100/90 mt-1 leading-relaxed">
@@ -352,7 +352,8 @@ export default function ProfileSetupModal() {
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden min-h-0">
+          <div className="p-5 sm:p-6 space-y-5 flex-1 overflow-y-auto">
           {errorMsg && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
@@ -604,9 +605,10 @@ export default function ProfileSetupModal() {
               )}
             </div>
           </div>
+          </div>
 
           {/* Action Buttons */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+          <div className="p-4 sm:p-5 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50/80 shrink-0">
             <button
               type="button"
               onClick={logout}

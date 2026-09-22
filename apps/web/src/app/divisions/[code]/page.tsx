@@ -564,8 +564,8 @@ export default function DivisionPage() {
       {showDeputyModal && (
         <ModalPortal>
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 shrink-0">
                 <div className="flex items-center gap-2 text-slate-800 font-bold">
                   <UserCheck className="w-5 h-5 text-theme-primary" />
                   <span>กำหนดผู้ดำรงตำแหน่งรองผู้อำนวยการ</span>
@@ -579,7 +579,8 @@ export default function DivisionPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveDeputy} className="p-6 space-y-4">
+              <form onSubmit={handleSaveDeputy} className="flex flex-col flex-1 overflow-hidden min-h-0">
+                <div className="p-6 space-y-4 flex-1 overflow-y-auto">
                 <div>
                   <span className="inline-block px-2.5 py-0.5 rounded-theme text-xs font-bold bg-theme-primary-light text-theme-primary border border-theme-primary/20 mb-2">
                     {division.name} ({division.code})
@@ -613,8 +614,9 @@ export default function DivisionPage() {
                     className="w-full px-3.5 py-2 text-sm rounded-theme border border-slate-300 focus:outline-none focus:border-theme-primary focus:ring-1 focus:ring-theme-primary"
                   />
                 </div>
+                </div>
 
-                <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-end gap-2 p-4 sm:p-5 pt-3 border-t border-slate-100 bg-slate-50/80 shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowDeputyModal(false)}

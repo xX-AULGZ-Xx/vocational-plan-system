@@ -646,7 +646,7 @@ export default function SchedulePage() {
       {selectedActivity && (
         <ModalPortal>
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col relative my-auto animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col relative my-auto animate-in fade-in zoom-in-95 duration-200">
               {/* Modal Header */}
               <div className={`p-4 text-white flex justify-between items-center shrink-0 ${
                 selectedActivity.is_milestone ? 'bg-amber-600' : 'bg-slate-900'
@@ -670,7 +670,7 @@ export default function SchedulePage() {
               </div>
 
               {/* Modal Body */}
-              <div className="p-6 space-y-4 text-sm">
+              <div className="p-6 space-y-4 text-sm flex-1 overflow-y-auto">
                 <div>
                   <span className={`inline-block px-2.5 py-0.5 rounded text-xs font-bold mb-2 ${getDivisionBadgeColor(selectedActivity.division_code)}`}>
                     {selectedActivity.division_name || selectedActivity.division_code || 'ฝ่ายงาน'}
@@ -730,7 +730,7 @@ export default function SchedulePage() {
               </div>
 
               {/* Modal Footer */}
-              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center gap-2">
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center gap-2 shrink-0">
                 <Link
                   href={`/projects/${selectedActivity.project_id}`}
                   className="flex items-center gap-1.5 px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs transition"

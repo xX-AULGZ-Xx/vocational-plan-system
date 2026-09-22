@@ -690,9 +690,9 @@ export default function AdminDepartmentsPage() {
       {showDivisionModal && (
         <ModalPortal>
           <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden border border-slate-200 my-auto animate-in fade-in zoom-in-95 duration-150">
               {/* Modal Header */}
-              <div className="flex items-center justify-between px-5 py-4 bg-blue-950 text-white">
+              <div className="flex items-center justify-between px-5 py-4 bg-blue-950 text-white shrink-0">
                 <div className="flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-blue-300" />
                   <h3 className="font-bold text-sm">
@@ -708,7 +708,8 @@ export default function AdminDepartmentsPage() {
               </div>
 
               {/* Modal Body */}
-              <form onSubmit={handleSaveDivision} className="p-5 space-y-4">
+              <form onSubmit={handleSaveDivision} className="flex flex-col flex-1 overflow-hidden min-h-0">
+                <div className="p-5 space-y-4 flex-1 overflow-y-auto">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     ชื่อฝ่าย / กลุ่มงาน: <span className="text-red-500">*</span>
@@ -767,9 +768,10 @@ export default function AdminDepartmentsPage() {
                     />
                   </div>
                 </div>
+                </div>
 
                 {/* Modal Footer */}
-                <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
+                <div className="p-4 pt-3 border-t border-slate-200 flex justify-end gap-2 shrink-0 bg-slate-50/80">
                   <button
                     type="button"
                     onClick={() => setShowDivisionModal(false)}
