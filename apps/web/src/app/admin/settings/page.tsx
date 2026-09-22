@@ -628,18 +628,20 @@ export default function AdminSettingsPage() {
           );
         }
       } else {
+        const errorMsg = data?.message || data?.error || `เซิร์ฟเวอร์ตอบกลับด้วยรหัส ${res.status}`;
         setLoadTestResult({
           success: false,
-          message: data.message || 'ไม่สามารถดำเนินการจำลองโหลดได้',
+          message: errorMsg,
         });
-        showAlert.error('ผิดพลาด', data.message || 'ไม่สามารถดำเนินการจำลองโหลดได้');
+        showAlert.error('ผิดพลาด', errorMsg);
       }
     } catch (err: any) {
+      const errMsg = err?.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
       setLoadTestResult({
         success: false,
-        message: err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์',
+        message: errMsg,
       });
-      showAlert.error('ผิดพลาด', err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      showAlert.error('ผิดพลาด', errMsg);
     } finally {
       setTestingLoad(false);
     }
