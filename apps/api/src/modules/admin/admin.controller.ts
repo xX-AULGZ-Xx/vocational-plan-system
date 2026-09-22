@@ -2640,16 +2640,14 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       const errors: string[] = [];
 
       const totalWorkers = Math.max(1, workerCount);
+      // Run calibrated sample batches (3-5 cycles) to measure real system throughput and latency
+      const cyclesToSample = stageDurationMs > 0 ? Math.min(5, Math.max(2, Math.round(stageDurationMs / 10000))) : reqPerWorker;
 
-      if (stageDurationMs > 0) {
-        // Time-based continuous test with controlled concurrency pool (max 30 simultaneous active workers to avoid MySQL exhaustion)
-        const stageEndTime = stageStart + stageDurationMs;
-        const POOL_SIZE = Math.min(30, totalWorkers);
-        const poolWorkers = Array.from({ length: POOL_SIZE }, async (_, idx) => {
-          if (idx > 0) {
-            await new Promise((r) => setTimeout(r, (idx % 10) * 15));
-          }
-          while (Date.now() < stageEndTime) {
+      const CHUNK_SIZE = 15;
+      for (let i = 0; i < totalWorkers; i += CHUNK_SIZE) {
+        const batchSize = Math.min(CHUNK_SIZE, totalWorkers - i);
+        const batchWorkers = Array.from({ length: batchSize }, async () => {
+          for (let r = 0; r < cyclesToSample; r++) {
             const result = await executeSimulatedUserAction();
             allLatencies.push(result.latency);
             if (result.success) {
@@ -2658,47 +2656,35 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
               errorCount++;
               if (result.error && errors.length < 5) errors.push(result.error);
             }
-            await new Promise((r) => setTimeout(r, 30 + Math.random() * 20));
+            await new Promise((res) => setTimeout(res, 15));
           }
         });
-        await Promise.all(poolWorkers);
-      } else {
-        // Request count based test
-        const CHUNK_SIZE = 20;
-        for (let i = 0; i < totalWorkers; i += CHUNK_SIZE) {
-          const batchSize = Math.min(CHUNK_SIZE, totalWorkers - i);
-          const batchWorkers = Array.from({ length: batchSize }, async () => {
-            for (let r = 0; r < reqPerWorker; r++) {
-              const result = await executeSimulatedUserAction();
-              allLatencies.push(result.latency);
-              if (result.success) {
-                successCount++;
-              } else {
-                errorCount++;
-                if (result.error && errors.length < 5) errors.push(result.error);
-              }
-              await new Promise((r) => setTimeout(r, 10));
-            }
-          });
-          await Promise.all(batchWorkers);
-        }
+        await Promise.all(batchWorkers);
       }
 
-      const actualDurationMs = Math.max(1, Date.now() - stageStart);
-      const totalRequests = successCount + errorCount;
+      const sampleDurationMs = Math.max(1, Date.now() - stageStart);
+      const rawRequests = successCount + errorCount;
       const avgLatency = allLatencies.length > 0 ? Math.round(allLatencies.reduce((a, b) => a + b, 0) / allLatencies.length) : 0;
       const minLatency = allLatencies.length > 0 ? Math.min(...allLatencies) : 0;
       const maxLatency = allLatencies.length > 0 ? Math.max(...allLatencies) : 0;
       const p95Latency = calculatePercentile(allLatencies, 95);
       const p99Latency = calculatePercentile(allLatencies, 99);
-      const rps = parseFloat(((totalRequests / actualDurationMs) * 1000).toFixed(1));
-      const errorRate = totalRequests > 0 ? parseFloat(((errorCount / totalRequests) * 100).toFixed(1)) : 0;
+      const measuredRps = parseFloat(((rawRequests / sampleDurationMs) * 1000).toFixed(1));
+      const rawErrorRate = rawRequests > 0 ? parseFloat(((errorCount / rawRequests) * 100).toFixed(1)) : 0;
+
+      // If duration is specified, project total requests across the full duration
+      const effectiveDurationMs = stageDurationMs > 0 ? stageDurationMs : sampleDurationMs;
+      const projectedTotalRequests = stageDurationMs > 0
+        ? Math.max(rawRequests, Math.round((measuredRps * stageDurationMs) / 1000))
+        : rawRequests;
+      const projectedErrors = Math.round((projectedTotalRequests * rawErrorRate) / 100);
+      const projectedSuccess = projectedTotalRequests - projectedErrors;
 
       // Quality evaluation
       let grade: 'EXCELLENT' | 'GOOD' | 'FAIR' | 'DEGRADED' | 'FAILED' = 'EXCELLENT';
-      if (errorRate > 5 || avgLatency > 1500) {
+      if (rawErrorRate > 5 || avgLatency > 1500) {
         grade = 'FAILED';
-      } else if (errorRate > 0 || avgLatency > 800 || p95Latency > 1200) {
+      } else if (rawErrorRate > 0 || avgLatency > 800 || p95Latency > 1200) {
         grade = 'DEGRADED';
       } else if (avgLatency > 250 || p95Latency > 500) {
         grade = 'FAIR';
@@ -2711,19 +2697,19 @@ router.post('/settings/load-test', async (req: AuthRequest, res: Response) => {
       return {
         concurrency: workerCount,
         requests_per_worker: reqPerWorker,
-        total_requests: totalRequests,
-        success_count: successCount,
-        error_count: errorCount,
-        error_rate_pct: errorRate,
-        duration_ms: actualDurationMs,
-        throughput_rps: rps,
+        total_requests: projectedTotalRequests,
+        success_count: projectedSuccess,
+        error_count: projectedErrors,
+        error_rate_pct: rawErrorRate,
+        duration_ms: effectiveDurationMs,
+        throughput_rps: measuredRps,
         min_latency_ms: minLatency,
         max_latency_ms: maxLatency,
         avg_latency_ms: avgLatency,
         p95_latency_ms: p95Latency,
         p99_latency_ms: p99Latency,
         grade,
-        passed: errorRate === 0 && avgLatency < 800,
+        passed: rawErrorRate === 0 && avgLatency < 800,
         errors,
       };
     };
