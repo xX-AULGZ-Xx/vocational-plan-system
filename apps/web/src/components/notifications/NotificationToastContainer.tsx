@@ -63,63 +63,63 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
       case 'PROJECT_FINAL_APPROVED':
         return {
           icon: CheckCircle2,
-          iconColor: 'text-emerald-600',
-          bgColor: 'bg-emerald-50',
-          borderColor: 'border-emerald-200',
-          progressColor: 'bg-emerald-500',
+          iconColor: 'text-emerald-700',
+          bgColor: 'bg-emerald-100/90',
+          borderColor: 'border-emerald-300',
+          progressColor: 'bg-emerald-600',
           badgeText: 'อนุมัติโครงการแล้ว',
-          badgeColor: 'bg-emerald-100 text-emerald-800',
+          badgeColor: 'bg-emerald-100 text-emerald-950 border-emerald-300',
         };
       case 'PROJECT_APPROVED':
         return {
           icon: CheckCircle2,
-          iconColor: 'text-blue-600',
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-200',
-          progressColor: 'bg-blue-500',
+          iconColor: 'text-blue-700',
+          bgColor: 'bg-blue-100/90',
+          borderColor: 'border-blue-300',
+          progressColor: 'bg-blue-600',
           badgeText: 'ผ่านการพิจารณา',
-          badgeColor: 'bg-blue-100 text-blue-800',
+          badgeColor: 'bg-blue-100 text-blue-950 border-blue-300',
         };
       case 'PROJECT_REVISION':
         return {
           icon: AlertTriangle,
-          iconColor: 'text-amber-600',
-          bgColor: 'bg-amber-50',
-          borderColor: 'border-amber-300',
-          progressColor: 'bg-amber-500',
+          iconColor: 'text-amber-700',
+          bgColor: 'bg-amber-100/90',
+          borderColor: 'border-amber-400',
+          progressColor: 'bg-amber-600',
           badgeText: 'แจ้งขอให้แก้ไข',
-          badgeColor: 'bg-amber-100 text-amber-900',
+          badgeColor: 'bg-amber-100 text-amber-950 border-amber-400',
         };
       case 'PROJECT_REJECTED':
         return {
           icon: XCircle,
-          iconColor: 'text-rose-600',
-          bgColor: 'bg-rose-50',
-          borderColor: 'border-rose-200',
-          progressColor: 'bg-rose-500',
+          iconColor: 'text-rose-700',
+          bgColor: 'bg-rose-100/90',
+          borderColor: 'border-rose-300',
+          progressColor: 'bg-rose-600',
           badgeText: 'ไม่อนุมัติโครงการ',
-          badgeColor: 'bg-rose-100 text-rose-800',
+          badgeColor: 'bg-rose-100 text-rose-950 border-rose-300',
         };
       case 'APPROVAL_REQUIRED':
       case 'PROJECT_SUBMITTED':
         return {
           icon: FileText,
-          iconColor: 'text-indigo-600',
-          bgColor: 'bg-indigo-50',
-          borderColor: 'border-indigo-200',
-          progressColor: 'bg-indigo-500',
+          iconColor: 'text-indigo-700',
+          bgColor: 'bg-indigo-100/90',
+          borderColor: 'border-indigo-300',
+          progressColor: 'bg-indigo-600',
           badgeText: 'รอการพิจารณา',
-          badgeColor: 'bg-indigo-100 text-indigo-800',
+          badgeColor: 'bg-indigo-100 text-indigo-950 border-indigo-300',
         };
       default:
         return {
           icon: Bell,
-          iconColor: 'text-theme-primary',
-          bgColor: 'bg-theme-primary/10',
-          borderColor: 'border-slate-200',
-          progressColor: 'bg-theme-primary',
+          iconColor: 'text-blue-700',
+          bgColor: 'bg-blue-50',
+          borderColor: 'border-blue-200',
+          progressColor: 'bg-blue-600',
           badgeText: 'การแจ้งเตือนใหม่',
-          badgeColor: 'bg-slate-100 text-slate-700',
+          badgeColor: 'bg-slate-100 text-slate-900 border-slate-300',
         };
     }
   };
@@ -134,37 +134,37 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
       onTouchStart={pauseTimer}
       onTouchEnd={resumeTimer}
       onClick={() => onNavigate(noti)}
-      className="group relative pointer-events-auto bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl rounded-2xl border border-slate-200/90 dark:border-slate-700/90 shadow-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-3xl hover:-translate-y-0.5 animate-in slide-in-from-top-4 sm:slide-in-from-right-6 fade-in duration-300 ring-1 ring-black/5"
+      className="group relative pointer-events-auto bg-white text-slate-900 rounded-2xl border border-slate-300/80 shadow-[0_20px_60px_rgba(0,0,0,0.18)] overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-3xl hover:-translate-y-0.5 animate-in slide-in-from-top-4 sm:slide-in-from-right-6 fade-in duration-300 ring-1 ring-slate-900/10"
       role="alert"
     >
-      <div className="p-3.5 sm:p-4 flex items-start gap-3">
+      <div className="p-3.5 sm:p-4 flex items-start gap-3.5">
         {/* Leading Icon */}
-        <div className={`p-2.5 rounded-xl ${style.bgColor} ${style.borderColor} border shrink-0 shadow-2xs group-hover:scale-110 transition duration-200`}>
+        <div className={`p-2.5 rounded-xl ${style.bgColor} ${style.borderColor} border shrink-0 shadow-xs group-hover:scale-110 transition duration-200`}>
           <Icon className={`w-5 h-5 ${style.iconColor}`} />
         </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0 pr-6">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className={`px-2 py-0.2 text-[10px] font-bold rounded-full border ${style.badgeColor}`}>
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${style.badgeColor}`}>
               {style.badgeText}
             </span>
-            <span className="text-[10px] text-slate-400 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
+            <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+              <Clock className="w-3 h-3 text-slate-400" />
               เมื่อสักครู่
             </span>
           </div>
 
-          <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 line-clamp-1 leading-snug group-hover:text-theme-primary transition">
+          <h4 className="text-xs sm:text-sm font-bold text-slate-950 line-clamp-1 leading-snug group-hover:text-blue-900 transition">
             {noti.title}
           </h4>
 
-          <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mt-0.5 leading-relaxed">
+          <p className="text-[11px] sm:text-xs text-slate-800 font-normal line-clamp-2 mt-1 leading-relaxed">
             {noti.message}
           </p>
 
           {/* Call to action label */}
-          <div className="mt-2 flex items-center gap-1 text-[11px] font-bold text-theme-primary group-hover:underline">
+          <div className="mt-2.5 flex items-center gap-1 text-[11px] font-bold text-blue-900 group-hover:text-blue-700 group-hover:underline">
             <span>แตะเพื่อเปิดดูรายละเอียด</span>
             <ExternalLink className="w-3 h-3" />
           </div>
@@ -177,7 +177,7 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
             e.stopPropagation();
             onDismiss(toast.id);
           }}
-          className="absolute top-3 right-3 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+          className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
           aria-label="ปิดการแจ้งเตือน"
         >
           <X className="w-4 h-4" />
@@ -185,7 +185,7 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
       </div>
 
       {/* Shrinking Time Progress Bar (CSS Animation) */}
-      <div className="h-1 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+      <div className="h-1.5 w-full bg-slate-100 overflow-hidden">
         <div
           className={`h-full ${style.progressColor} origin-left`}
           style={{
