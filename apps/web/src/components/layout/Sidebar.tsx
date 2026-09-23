@@ -158,6 +158,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
 
   const allDivisionNav = (divisions && divisions.length > 0)
     ? divisions.map((d) => ({
+      id: d.id,
       name: d.name,
       href: `/divisions/${d.code.toLowerCase()}`,
       code: d.code.toLowerCase(),
@@ -181,9 +182,75 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
       { name: 'แผนปฏิบัติงาน / ปฏิทิน', href: '/schedule', icon: Calendar },
     ];
 
-  // Division navigation hidden for TEACHER role (shown only to admins, executives, planners, department heads)
+  // Helper to check if a division belongs to the logged-in user (especially for DEPUTY_DIRECTOR)
+  const isUserDivision = (div: { id?: number; code: string; name: string }, currentUser: any): boolean => {
+    if (!currentUser) return false;
+
+    const divCode = (div.code || '').toLowerCase();
+    const divNameClean = (div.name || '').replace('ฝ่าย', '').trim();
+
+    // 1. Direct division id matching
+    if (currentUser.division_id && div.id && Number(currentUser.division_id) === Number(div.id)) return true;
+    if (Array.isArray(currentUser.division_ids) && div.id && currentUser.division_ids.some((id: any) => Number(id) === Number(div.id))) return true;
+
+    // 2. Department's division matching
+    if (currentUser.department?.division_id && div.id && Number(currentUser.department.division_id) === Number(div.id)) return true;
+    if (currentUser.department?.division?.code && currentUser.department.division.code.toLowerCase() === divCode) return true;
+    if (currentUser.department?.division?.id && div.id && Number(currentUser.department.division.id) === Number(div.id)) return true;
+
+    // 3. User's departments array matching
+    if (Array.isArray(currentUser.departments)) {
+      if (currentUser.departments.some((dept: any) => (div.id && Number(dept.division_id) === Number(div.id)) || (dept.division?.code && dept.division.code.toLowerCase() === divCode))) {
+        return true;
+      }
+    }
+
+    // 4. User's divisions array matching
+    if (Array.isArray(currentUser.divisions)) {
+      if (currentUser.divisions.some((d: any) => (div.id && Number(d.id) === Number(div.id)) || (d.code && d.code.toLowerCase() === divCode))) {
+        return true;
+      }
+    }
+
+    // 5. division_code or division_name direct field
+    if (currentUser.division_code && currentUser.division_code.toLowerCase() === divCode) return true;
+    if (currentUser.division_name && divNameClean && currentUser.division_name.includes(divNameClean)) return true;
+
+    // 6. Matching by position (e.g. "รองผู้อำนวยการฝ่ายวิชาการ")
+    const position = String(currentUser.position || '');
+    if (position) {
+      if (divCode === 'acad' && (position.includes('วิชาการ') || position.includes('acad'))) return true;
+      if (divCode === 'res' && (position.includes('บริหารทรัพยากร') || position.includes('ทรัพยากร') || position.includes('res'))) return true;
+      if (divCode === 'dev' && (position.includes('พัฒนากิจการ') || position.includes('กิจการนักเรียน') || position.includes('dev'))) return true;
+      if (divCode === 'strat' && (position.includes('แผนงาน') || position.includes('ยุทธศาสตร์') || position.includes('strat'))) return true;
+      if (divNameClean && position.includes(divNameClean)) return true;
+    }
+
+    // 7. Matching by username (e.g. "deputy_acad", "deputy_res", "deputy_dev", "deputy_strat")
+    const username = String(currentUser.username || '').toLowerCase();
+    if (username) {
+      if (divCode === 'acad' && username.includes('acad')) return true;
+      if (divCode === 'res' && username.includes('res')) return true;
+      if (divCode === 'dev' && username.includes('dev')) return true;
+      if (divCode === 'strat' && (username.includes('strat') || username.includes('plan'))) return true;
+    }
+
+    return false;
+  };
+
+  // Division navigation logic:
+  // - TEACHER: completely hidden
+  // - DEPUTY_DIRECTOR: show only their own assigned division
+  // - Others (ADMIN, DIRECTOR, PLANNING_OFFICER, HEAD_DEPT): show all divisions
   const showDivisions = user ? role !== 'TEACHER' : false;
-  const divisionNav = showDivisions ? allDivisionNav : [];
+  const filteredDeputyDivisions = role === 'DEPUTY_DIRECTOR' ? allDivisionNav.filter((d) => isUserDivision(d, user)) : [];
+  const divisionNav = showDivisions
+    ? (role === 'DEPUTY_DIRECTOR'
+        ? (filteredDeputyDivisions.length > 0 ? filteredDeputyDivisions : allDivisionNav)
+        : allDivisionNav)
+    : [];
+
+  const divisionHeading = role === 'DEPUTY_DIRECTOR' ? 'ฝ่ายบริหารที่กำกับดูแล' : 'แยกตาม 4 ฝ่ายบริหาร';
 
   const adminNav = user ? allAdminNav.filter((item) => item.roles.includes(role)) : [];
 
@@ -329,7 +396,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
           {showDivisions && divisionNav.length > 0 && (
             <div>
               <div className={`text-xs uppercase tracking-wider px-3 mb-2 ${headingColor}`}>
-                แยกตาม 4 ฝ่ายบริหาร
+                {divisionHeading}
               </div>
               <nav className="space-y-1">
                 {divisionNav.map((item) => {
