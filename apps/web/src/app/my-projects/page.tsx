@@ -55,11 +55,26 @@ export default function MyProjectsPage() {
   const [summaryTemplates, setSummaryTemplates] = useState<any[]>([]);
   const [dropdownOpenId, setDropdownOpenId] = useState<number | null>(null);
 
-  // Scope State (For Admin & Planning Officer)
-  const [projectScope, setProjectScope] = useState<'ALL' | 'MINE'>(user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER' ? 'ALL' : 'MINE');
+  // Scope State (For Admin, Planning Officer & Head Dept)
+  const isHeadDept = user?.role === 'HEAD_DEPT';
+  const isAdminOrPlanning = user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER';
+
+  const [projectScope, setProjectScope] = useState<'ALL' | 'MINE'>(
+    user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER' || user?.role === 'HEAD_DEPT' ? 'ALL' : 'MINE'
+  );
 
   const [allProjectsCount, setAllProjectsCount] = useState<number>(0);
   const [myProjectsCount, setMyProjectsCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (user?.role) {
+      if (user.role === 'ADMIN' || user.role === 'PLANNING_OFFICER' || user.role === 'HEAD_DEPT') {
+        setProjectScope('ALL');
+      } else {
+        setProjectScope('MINE');
+      }
+    }
+  }, [user?.role]);
 
   useEffect(() => {
     fetchMyProjects();
@@ -80,16 +95,31 @@ export default function MyProjectsPage() {
 
   const fetchCounts = async () => {
     if (!token) return;
-    if (user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER') {
+    if (isAdminOrPlanning) {
       try {
         const [resAll, resMine] = await Promise.all([
           fetch('/api/v1/projects', { headers: { Authorization: `Bearer ${token}` } }),
-          fetch('/api/v1/projects?my_projects=true', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/v1/projects?my_projects=true&scope=MINE', { headers: { Authorization: `Bearer ${token}` } }),
         ]);
         const dataAll = await resAll.json();
         const dataMine = await resMine.json();
         if (dataAll.success && Array.isArray(dataAll.data)) {
           setAllProjectsCount(dataAll.data.length);
+        }
+        if (dataMine.success && Array.isArray(dataMine.data)) {
+          setMyProjectsCount(dataMine.data.length);
+        }
+      } catch (err) {}
+    } else if (isHeadDept) {
+      try {
+        const [resDept, resMine] = await Promise.all([
+          fetch('/api/v1/projects?my_projects=true&scope=DEPT', { headers: { Authorization: `Bearer ${token}` } }),
+          fetch('/api/v1/projects?my_projects=true&scope=MINE', { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+        const dataDept = await resDept.json();
+        const dataMine = await resMine.json();
+        if (dataDept.success && Array.isArray(dataDept.data)) {
+          setAllProjectsCount(dataDept.data.length);
         }
         if (dataMine.success && Array.isArray(dataMine.data)) {
           setMyProjectsCount(dataMine.data.length);
@@ -117,10 +147,12 @@ export default function MyProjectsPage() {
     if (!token) return;
     setLoading(true);
     try {
-      let endpoint = '/api/v1/projects';
-      if (projectScope === 'MINE') {
-        endpoint = '/api/v1/projects?my_projects=true';
-      } else if (user?.role !== 'ADMIN' && user?.role !== 'PLANNING_OFFICER') {
+      let endpoint = '/api/v1/projects?my_projects=true';
+      if (isAdminOrPlanning) {
+        endpoint = projectScope === 'ALL' ? '/api/v1/projects' : '/api/v1/projects?my_projects=true&scope=MINE';
+      } else if (isHeadDept) {
+        endpoint = projectScope === 'ALL' ? '/api/v1/projects?my_projects=true&scope=DEPT' : '/api/v1/projects?my_projects=true&scope=MINE';
+      } else {
         endpoint = '/api/v1/projects?my_projects=true';
       }
       
@@ -430,13 +462,17 @@ export default function MyProjectsPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">
-                {user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER'
+                {isAdminOrPlanning
                   ? (projectScope === 'ALL' ? 'ทะเบียนโครงการทั้งหมด (สถานศึกษา)' : 'โครงการที่ฉันรับผิดชอบ')
+                  : isHeadDept
+                  ? (projectScope === 'ALL' ? `โครงการใน${user?.department?.name || 'แผนกวิชา/งาน'}` : 'โครงการที่ฉันรับผิดชอบ')
                   : 'โครงการของฉัน'}
               </h1>
               <p className="text-xs text-slate-500">
-                {user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER'
+                {isAdminOrPlanning
                   ? 'ตรวจสอบ ติดตามสถานะ และเข้าถึงโครงการทั้งหมดของสถานศึกษา'
+                  : isHeadDept
+                  ? (projectScope === 'ALL' ? 'ติดตามและตรวจสอบโครงการของบุคลากร/ลูกน้องในแผนกวิชา/งาน' : 'ติดตามสถานะโครงการที่ตนเองเป็นผู้รับผิดชอบหลัก')
                   : 'ติดตามสถานะโครงการ ส่งข้อเสนอ และพิมพ์เอกสารสรุปโครงการ'}
               </p>
             </div>
@@ -444,8 +480,8 @@ export default function MyProjectsPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Scope Toggle for Admin & Planning Officer */}
-          {(user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER') && (
+          {/* Scope Toggle for Admin, Planning Officer & Head Dept */}
+          {(isAdminOrPlanning || isHeadDept) && (
             <div className="flex items-center bg-slate-100 p-1 rounded-theme border border-slate-200">
               <button
                 onClick={() => setProjectScope('ALL')}
@@ -455,7 +491,7 @@ export default function MyProjectsPage() {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span>โครงการทั้งหมด</span>
+                <span>{isHeadDept ? 'โครงการในแผนก/งาน' : 'โครงการทั้งหมด'}</span>
                 <span className={`px-1.5 py-0.2 text-[11px] rounded-full font-bold ${
                   projectScope === 'ALL' ? 'bg-theme-primary/10 text-theme-primary' : 'bg-slate-200 text-slate-600'
                 }`}>
@@ -470,7 +506,7 @@ export default function MyProjectsPage() {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span>โครงการของฉัน</span>
+                <span>{isHeadDept ? 'เฉพาะของฉัน' : 'โครงการของฉัน'}</span>
                 <span className={`px-1.5 py-0.2 text-[11px] rounded-full font-bold ${
                   projectScope === 'MINE' ? 'bg-theme-primary/10 text-theme-primary' : 'bg-slate-200 text-slate-600'
                 }`}>
@@ -480,13 +516,13 @@ export default function MyProjectsPage() {
             </div>
           )}
 
-          {/* Export Report Button for Admin & Planning Officer */}
-          {(user?.role === 'ADMIN' || user?.role === 'PLANNING_OFFICER') && (
+          {/* Export Report Button for Admin, Planning Officer & Head Dept */}
+          {(isAdminOrPlanning || isHeadDept) && (
             <button
               type="button"
               onClick={handleExportReport}
               className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-theme shadow-sm font-bold text-xs sm:text-sm transition active:scale-95"
-              title="ส่งออกสรุปโครงการทั้งหมดเป็นไฟล์ Excel / CSV"
+              title={isHeadDept ? "ส่งออกสรุปโครงการในแผนก/งานเป็นไฟล์ Excel / CSV" : "ส่งออกสรุปโครงการทั้งหมดเป็นไฟล์ Excel / CSV"}
             >
               <Download className="w-4 h-4" />
               <span>ส่งออกสรุปไฟล์ (CSV)</span>
@@ -599,6 +635,19 @@ export default function MyProjectsPage() {
                         <StepIcon className="w-3.5 h-3.5 shrink-0" />
                         <span>{stepInfo.label}</span>
                       </span>
+
+                      {/* Ownership Tag for Head Dept & Admin */}
+                      {(isHeadDept || isAdminOrPlanning) && projectScope === 'ALL' && (
+                        Number(p.leader_id || p.leader?.id) === Number(user?.id) ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            โครงการของฉัน
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                            ของบุคลากร/ลูกน้อง
+                          </span>
+                        )
+                      )}
                     </div>
 
                     <h3 className="text-base md:text-lg font-bold text-slate-900 leading-tight">

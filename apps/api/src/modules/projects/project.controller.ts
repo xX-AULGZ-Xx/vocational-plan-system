@@ -178,9 +178,10 @@ router.post('/render-docx-preview', async (req: any, res: any) => {
 // GET /api/v1/projects
 router.get('/', optionalAuthenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { fiscal_year, status, division_code, department_id, search, my_projects } = req.query;
+    const { fiscal_year, status, division_code, department_id, search, my_projects, scope } = req.query;
 
     const where: any = {};
+    const andConditions: any[] = [];
 
     if (fiscal_year) {
       where.fiscal_year = parseInt(fiscal_year as string);
@@ -199,13 +200,45 @@ router.get('/', optionalAuthenticate, async (req: AuthRequest, res: Response) =>
       };
     }
     if (my_projects === 'true' && req.user) {
-      where.leader_id = BigInt(req.user.id);
+      const userRole = String(req.user.role || '');
+      const userId = BigInt(req.user.id);
+
+      if (userRole === 'HEAD_DEPT' && scope !== 'MINE') {
+        // Include projects of subordinates in the same department as well as own projects
+        let userDeptId = req.user.department_id;
+        if (!userDeptId) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { department_id: true },
+          });
+          userDeptId = dbUser?.department_id ?? null;
+        }
+
+        if (userDeptId) {
+          andConditions.push({
+            OR: [
+              { leader_id: userId },
+              { department_id: userDeptId },
+            ],
+          });
+        } else {
+          andConditions.push({ leader_id: userId });
+        }
+      } else {
+        andConditions.push({ leader_id: userId });
+      }
     }
     if (search) {
-      where.OR = [
-        { title: { contains: search as string } },
-        { project_code: { contains: search as string } },
-      ];
+      andConditions.push({
+        OR: [
+          { title: { contains: search as string } },
+          { project_code: { contains: search as string } },
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
     }
 
     const projects = await prisma.project.findMany({
