@@ -239,10 +239,10 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
   };
 
   // Division navigation logic:
-  // - TEACHER: completely hidden
+  // - TEACHER / HEAD_DEPT: completely hidden
   // - DEPUTY_DIRECTOR: show only their own assigned division
-  // - Others (ADMIN, DIRECTOR, PLANNING_OFFICER, HEAD_DEPT): show all divisions
-  const showDivisions = user ? role !== 'TEACHER' : false;
+  // - Others (ADMIN, DIRECTOR, PLANNING_OFFICER): show all divisions
+  const showDivisions = user ? (role !== 'TEACHER' && role !== 'HEAD_DEPT') : false;
   const filteredDeputyDivisions = role === 'DEPUTY_DIRECTOR' ? allDivisionNav.filter((d) => isUserDivision(d, user)) : [];
   const divisionNav = showDivisions
     ? (role === 'DEPUTY_DIRECTOR'
