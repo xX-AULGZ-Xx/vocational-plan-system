@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotifications, ActiveToastItem, NotificationItem } from '@/lib/notification-context';
 import {
@@ -23,29 +23,40 @@ interface ToastCardProps {
 
 function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
   const noti = toast.notification;
-  const [progress, setProgress] = useState(100);
   const [isPaused, setIsPaused] = useState(false);
+  const remainingTimeRef = useRef(toast.durationMs);
+  const startTimeRef = useRef(Date.now());
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startTimer = useCallback(() => {
+    startTimeRef.current = Date.now();
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      onDismiss(toast.id);
+    }, remainingTimeRef.current);
+  }, [toast.id, onDismiss]);
+
+  const pauseTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const elapsed = Date.now() - startTimeRef.current;
+    remainingTimeRef.current = Math.max(0, remainingTimeRef.current - elapsed);
+    setIsPaused(true);
+  }, []);
+
+  const resumeTimer = useCallback(() => {
+    setIsPaused(false);
+    startTimer();
+  }, [startTimer]);
 
   useEffect(() => {
-    if (isPaused) return;
-
-    const interval = 50; // update every 50ms
-    const totalSteps = toast.durationMs / interval;
-    const decrement = 100 / totalSteps;
-
-    const timer = setInterval(() => {
-      setProgress((prev) => {
-        if (prev <= 0) {
-          clearInterval(timer);
-          onDismiss(toast.id);
-          return 0;
-        }
-        return Math.max(0, prev - decrement);
-      });
-    }, interval);
-
-    return () => clearInterval(timer);
-  }, [toast.id, toast.durationMs, isPaused, onDismiss]);
+    startTimer();
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [startTimer]);
 
   const getStyleByType = (type: string) => {
     switch (type) {
@@ -118,10 +129,10 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
 
   return (
     <div
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
-      onTouchStart={() => setIsPaused(true)}
-      onTouchEnd={() => setIsPaused(false)}
+      onMouseEnter={pauseTimer}
+      onMouseLeave={resumeTimer}
+      onTouchStart={pauseTimer}
+      onTouchEnd={resumeTimer}
       onClick={() => onNavigate(noti)}
       className="group relative pointer-events-auto bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl rounded-2xl border border-slate-200/90 dark:border-slate-700/90 shadow-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-3xl hover:-translate-y-0.5 animate-in slide-in-from-top-4 sm:slide-in-from-right-6 fade-in duration-300 ring-1 ring-black/5"
       role="alert"
@@ -173,11 +184,17 @@ function ToastCard({ toast, onDismiss, onNavigate }: ToastCardProps) {
         </button>
       </div>
 
-      {/* Shrinking Time Progress Bar */}
+      {/* Shrinking Time Progress Bar (CSS Animation) */}
       <div className="h-1 w-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
         <div
-          className={`h-full ${style.progressColor} transition-all duration-75 ease-linear`}
-          style={{ width: `${progress}%` }}
+          className={`h-full ${style.progressColor} origin-left`}
+          style={{
+            animationName: 'shrinkToastProgress',
+            animationDuration: `${toast.durationMs}ms`,
+            animationTimingFunction: 'linear',
+            animationFillMode: 'forwards',
+            animationPlayState: isPaused ? 'paused' : 'running',
+          }}
         />
       </div>
     </div>
@@ -205,18 +222,30 @@ export default function NotificationToastContainer() {
   };
 
   return (
-    <div
-      aria-live="polite"
-      className="fixed z-[999999] pointer-events-none flex flex-col gap-2.5 top-3 sm:top-4 inset-x-3 sm:inset-x-auto sm:right-4 max-w-md w-auto sm:w-full"
-    >
-      {activeToasts.map((toast) => (
-        <ToastCard
-          key={toast.id}
-          toast={toast}
-          onDismiss={dismissToast}
-          onNavigate={handleNavigate}
-        />
-      ))}
-    </div>
+    <>
+      <style jsx global>{`
+        @keyframes shrinkToastProgress {
+          from {
+            width: 100%;
+          }
+          to {
+            width: 0%;
+          }
+        }
+      `}</style>
+      <div
+        aria-live="polite"
+        className="fixed z-[999999] pointer-events-none flex flex-col gap-2.5 top-3 sm:top-4 inset-x-3 sm:inset-x-auto sm:right-4 max-w-md w-auto sm:w-full"
+      >
+        {activeToasts.map((toast) => (
+          <ToastCard
+            key={toast.id}
+            toast={toast}
+            onDismiss={dismissToast}
+            onNavigate={handleNavigate}
+          />
+        ))}
+      </div>
+    </>
   );
 }
