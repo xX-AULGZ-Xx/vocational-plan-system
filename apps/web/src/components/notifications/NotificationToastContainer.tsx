@@ -351,7 +351,7 @@ export default function NotificationToastContainer() {
       `}</style>
       <div
         aria-live="polite"
-        className="fixed z-[999999] pointer-events-none flex flex-col gap-3 top-20 sm:top-20 inset-x-3 sm:inset-x-auto sm:right-6 max-w-md w-auto sm:w-full"
+        className="fixed z-[999999] pointer-events-none flex flex-col gap-3 top-20 sm:top-20 inset-x-2 sm:inset-x-auto sm:right-6 w-[calc(100%-1rem)] sm:w-[420px] max-w-full sm:max-w-md mx-auto sm:mx-0"
       >
         {activeToasts.map((toast) => (
           <ToastCard
