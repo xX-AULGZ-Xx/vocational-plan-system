@@ -181,9 +181,9 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
       { name: 'แผนปฏิบัติงาน / ปฏิทิน', href: '/schedule', icon: Calendar },
     ];
 
-  // Division navigation available to all users
-  const showDivisions = true;
-  const divisionNav = allDivisionNav;
+  // Division navigation hidden for TEACHER role (shown only to admins, executives, planners, department heads)
+  const showDivisions = user ? role !== 'TEACHER' : false;
+  const divisionNav = showDivisions ? allDivisionNav : [];
 
   const adminNav = user ? allAdminNav.filter((item) => item.roles.includes(role)) : [];
 
@@ -326,7 +326,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
             </nav>
           </div>
 
-          {divisionNav.length > 0 && (
+          {showDivisions && divisionNav.length > 0 && (
             <div>
               <div className={`text-xs uppercase tracking-wider px-3 mb-2 ${headingColor}`}>
                 แยกตาม 4 ฝ่ายบริหาร
