@@ -4,11 +4,52 @@ import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, AuthRequest } from '../../middlewares/auth';
+import { Role, NotificationType } from '@prisma/client';
+import { notificationService } from '../notifications/notification.service';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+/**
+ * Notify all admins when a new user logs in for the first time
+ */
+async function notifyAdminsOnFirstLogin(user: any) {
+  try {
+    const adminUsers = await prisma.user.findMany({
+      where: {
+        role: Role.ADMIN,
+        is_active: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!adminUsers || adminUsers.length === 0) return;
+
+    const deptName = user.department?.name || 'ไม่ระบุแผนก';
+    const position = user.position || user.role || 'บุคลากร';
+    const title = '👤 ผู้ใช้งานใหม่เข้าสู่ระบบครั้งแรก';
+    const message = `คุณ ${user.full_name} (${user.email || user.username}) ได้เข้าสู่ระบบครั้งแรกในตำแหน่ง ${position} (${deptName})`;
+
+    for (const admin of adminUsers) {
+      if (admin.id.toString() === user.id.toString()) continue;
+
+      await notificationService.createNotification({
+        userId: admin.id,
+        title,
+        message,
+        type: NotificationType.SYSTEM_ANNOUNCEMENT,
+        linkUrl: '/admin/users',
+        sendEmailNotification: false,
+      });
+    }
+  } catch (err: any) {
+    console.error('[FirstLoginNotification] Error notifying admins:', err.message);
+  }
+}
 
 // POST /api/v1/auth/google (Google Sign-In)
 router.post('/google', async (req: Request, res: Response) => {
@@ -98,30 +139,39 @@ router.post('/google', async (req: Request, res: Response) => {
       });
     }
 
+    let isFirstLogin = false;
+
     if (user) {
       if (!user.is_active) {
         return res.status(403).json({ success: false, message: 'บัญชีผู้ใช้นี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ' });
       }
 
-      // Update google_id, avatar_url, and email if not linked yet
-      const updateData: any = {};
+      // Check if this is the user's first login
+      isFirstLogin = !(user as any).first_login_at && !(user as any).last_login_at;
+
+      // Update google_id, avatar_url, email if not linked, and login timestamps
+      const updateData: any = {
+        last_login_at: new Date(),
+      };
+      if (isFirstLogin) {
+        updateData.first_login_at = new Date();
+      }
       if (googleId && user.google_id !== googleId) updateData.google_id = googleId;
       if (avatarUrl && user.avatar_url !== avatarUrl) updateData.avatar_url = avatarUrl;
       if (!user.email) updateData.email = email;
 
-      if (Object.keys(updateData).length > 0) {
-        user = await (prisma as any).user.update({
-          where: { id: user.id },
-          data: updateData,
-          include: {
-            department: {
-              include: { division: true },
-            },
+      user = await (prisma as any).user.update({
+        where: { id: user.id },
+        data: updateData,
+        include: {
+          department: {
+            include: { division: true },
           },
-        });
-      }
+        },
+      });
     } else {
       // Auto-register new user as TEACHER
+      isFirstLogin = true;
       const firstDept = await (prisma as any).department.findFirst();
       user = await (prisma as any).user.create({
         data: {
@@ -134,6 +184,8 @@ router.post('/google', async (req: Request, res: Response) => {
           position: 'ครูผู้สอน',
           department_id: firstDept ? firstDept.id : null,
           is_active: true,
+          first_login_at: new Date(),
+          last_login_at: new Date(),
         },
         include: {
           department: {
@@ -141,6 +193,11 @@ router.post('/google', async (req: Request, res: Response) => {
           },
         },
       });
+    }
+
+    // Trigger real-time notification to all admins ONLY when logging in for the first time
+    if (isFirstLogin) {
+      notifyAdminsOnFirstLogin(user);
     }
 
     const payload = {
@@ -207,6 +264,26 @@ router.post('/login', async (req: Request, res: Response) => {
     const isMatch = user.password_hash ? await bcrypt.compare(password, user.password_hash) : false;
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+    }
+
+    // Check if this is the user's first login
+    const isFirstLogin = !(user as any).first_login_at && !(user as any).last_login_at;
+    const updateData: any = {
+      last_login_at: new Date(),
+    };
+    if (isFirstLogin) {
+      updateData.first_login_at = new Date();
+    }
+    try {
+      await (prisma as any).user.update({
+        where: { id: user.id },
+        data: updateData,
+      });
+    } catch (e) {}
+
+    // Trigger real-time notification to all admins ONLY when logging in for the first time
+    if (isFirstLogin) {
+      notifyAdminsOnFirstLogin(user);
     }
 
     const payload = {

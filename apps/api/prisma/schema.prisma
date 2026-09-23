@@ -77,6 +77,8 @@ model User {
   role          Role              @default(TEACHER)
   is_active     Boolean           @default(true)
   is_profile_completed Boolean     @default(false)
+  first_login_at DateTime?
+  last_login_at DateTime?
   created_at    DateTime          @default(now())
   department    Department?       @relation(fields: [department_id], references: [id], onDelete: SetNull)
   projects      Project[]         @relation("ProjectLeader")
