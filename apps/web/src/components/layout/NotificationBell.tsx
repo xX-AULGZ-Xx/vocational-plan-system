@@ -19,7 +19,17 @@ import {
 
 export default function NotificationBell() {
   const router = useRouter();
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, isLoading, isConnected } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    isLoading,
+    isConnected,
+    permissionStatus,
+    requestNotificationPermission,
+  } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -133,6 +143,25 @@ export default function NotificationBell() {
               </button>
             )}
           </div>
+
+          {/* Browser / Device Push Permission Banner */}
+          {permissionStatus === 'default' && (
+            <div className="px-3.5 py-2.5 bg-blue-50/90 border-b border-blue-100 flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <Bell className="w-4 h-4 text-theme-primary shrink-0 animate-bounce" />
+                <span className="text-[11px] text-blue-950 font-medium truncate">
+                  เปิดแจ้งเตือนบนอุปกรณ์ (คอม/มือถือ)
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => requestNotificationPermission()}
+                className="px-2.5 py-1 bg-theme-primary hover:bg-theme-primary-hover text-white text-[11px] font-bold rounded-lg shadow-xs shrink-0 transition active:scale-95"
+              >
+                เปิดใช้งาน
+              </button>
+            </div>
+          )}
 
           {/* List of Notifications */}
           <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">

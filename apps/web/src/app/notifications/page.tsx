@@ -23,7 +23,18 @@ import {
 export default function NotificationsPage() {
   const { user, token } = useAuth();
   const router = useRouter();
-  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, fetchNotifications, isLoading, isConnected } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    fetchNotifications,
+    isLoading,
+    isConnected,
+    permissionStatus,
+    requestNotificationPermission,
+  } = useNotifications();
   const [filterType, setFilterType] = useState<string>('all'); // all, unread, approval, revision
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -138,6 +149,42 @@ export default function NotificationsPage() {
           )}
         </div>
       </div>
+
+      {/* Device Notification Status / Opt-in Banner */}
+      {permissionStatus !== 'granted' && permissionStatus !== 'unsupported' && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-theme p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-blue-600 text-white rounded-xl shadow-xs shrink-0 mt-0.5 sm:mt-0">
+              <Bell className="w-4 h-4 animate-bounce" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-blue-950">
+                เปิดรับการแจ้งเตือนบนอุปกรณ์ (ทั้งคอมพิวเตอร์และมือถือ)
+              </h4>
+              <p className="text-[11px] sm:text-xs text-blue-800/80 mt-0.5">
+                รับการเด้งเตือนทันทีเมื่อโครงการได้รับการอนุมัติ หรือมีรายการที่ต้องพิจารณา แม้จะพับหน้าจอหรือสลับไปใช้งานแท็บอื่น
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              const ok = await requestNotificationPermission();
+              if (ok) {
+                if (typeof window !== 'undefined' && 'Notification' in window) {
+                  new Notification('🔔 เปิดรับการแจ้งเตือนสำเร็จ', {
+                    body: 'ระบบพร้อมส่งการแจ้งเตือนแบบพุชบนอุปกรณ์นี้แล้ว',
+                    icon: '/icon.png',
+                  });
+                }
+              }
+            }}
+            className="w-full sm:w-auto px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs shrink-0 transition active:scale-95 text-center"
+          >
+            เปิดใช้งานการแจ้งเตือน
+          </button>
+        </div>
+      )}
 
       {/* Filter Tabs & Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-theme shadow-xs border border-slate-200">

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './auth-context';
-import { showAlert } from './sweetalert';
+import NotificationToastContainer from '@/components/notifications/NotificationToastContainer';
 
 export interface NotificationItem {
   id: string;
@@ -15,6 +15,13 @@ export interface NotificationItem {
   is_read: boolean;
   read_at?: string | null;
   created_at: string;
+}
+
+export interface ActiveToastItem {
+  id: string;
+  notification: NotificationItem;
+  createdAt: number;
+  durationMs: number;
 }
 
 export interface DataUpdateEvent {
@@ -34,41 +41,104 @@ export interface DataUpdateEvent {
 
 interface NotificationContextType {
   notifications: NotificationItem[];
+  activeToasts: ActiveToastItem[];
   unreadCount: number;
   isLoading: boolean;
   isConnected: boolean;
+  permissionStatus: NotificationPermission | 'unsupported';
   lastDataUpdate: DataUpdateEvent | null;
   fetchNotifications: () => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
+  dismissToast: (id: string) => void;
+  requestNotificationPermission: () => Promise<boolean>;
   subscribeDataUpdate: (callback: (event: DataUpdateEvent) => void) => () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType>({
   notifications: [],
+  activeToasts: [],
   unreadCount: 0,
   isLoading: false,
   isConnected: false,
+  permissionStatus: 'default',
   lastDataUpdate: null,
   fetchNotifications: async () => {},
   markAsRead: async () => {},
   markAllAsRead: async () => {},
   deleteNotification: async () => {},
+  dismissToast: () => {},
+  requestNotificationPermission: async () => false,
   subscribeDataUpdate: () => () => {},
 });
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { user, token } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [activeToasts, setActiveToasts] = useState<ActiveToastItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [permissionStatus, setPermissionStatus] = useState<NotificationPermission | 'unsupported'>('default');
   const [lastDataUpdate, setLastDataUpdate] = useState<DataUpdateEvent | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const dataUpdateListenersRef = useRef<Set<(event: DataUpdateEvent) => void>>(new Set());
+
+  // Check initial notification permission on client mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if ('Notification' in window) {
+        setPermissionStatus(Notification.permission);
+      } else {
+        setPermissionStatus('unsupported');
+      }
+    }
+  }, []);
+
+  // Unlock AudioContext on first user interaction (avoids browser autoplay restrictions)
+  useEffect(() => {
+    const unlockAudio = () => {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const tempCtx = new AudioContextClass();
+          if (tempCtx.state === 'suspended') {
+            tempCtx.resume().catch(() => {});
+          }
+        }
+      } catch (e) {}
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+
+    window.addEventListener('click', unlockAudio, { once: true, passive: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+    window.addEventListener('keydown', unlockAudio, { once: true, passive: true });
+
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
+
+  const requestNotificationPermission = useCallback(async (): Promise<boolean> => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return false;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      setPermissionStatus(permission);
+      return permission === 'granted';
+    } catch (err) {
+      console.warn('Error requesting notification permission:', err);
+      return false;
+    }
+  }, []);
 
   const subscribeDataUpdate = useCallback((callback: (event: DataUpdateEvent) => void) => {
     dataUpdateListenersRef.current.add(callback);
@@ -77,25 +147,81 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     };
   }, []);
 
-  // Play subtle chime sound when real-time notification arrives
+  // Play pleasant melodic chime sound (Web Audio API)
   const playNotificationSound = () => {
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.25);
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      const now = ctx.currentTime;
+
+      // 3-tone pleasant digital chime (C6 -> E6 -> G6)
+      const notes = [
+        { freq: 523.25, time: 0, dur: 0.12, gain: 0.15 },
+        { freq: 659.25, time: 0.08, dur: 0.14, gain: 0.18 },
+        { freq: 783.99, time: 0.16, dur: 0.28, gain: 0.22 },
+      ];
+
+      notes.forEach((note) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(note.freq, now + note.time);
+
+        gain.gain.setValueAtTime(0.001, now + note.time);
+        gain.gain.exponentialRampToValueAtTime(note.gain, now + note.time + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + note.time + note.dur);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + note.time);
+        osc.stop(now + note.time + note.dur);
+      });
     } catch (e) {
-      // AudioContext might be blocked until user interaction
+      // AudioContext may be blocked before interaction
     }
   };
+
+  // Mobile Device Vibration
+  const triggerMobileVibration = () => {
+    try {
+      if (typeof window !== 'undefined' && 'navigator' in window && 'vibrate' in navigator) {
+        navigator.vibrate([120, 60, 120]);
+      }
+    } catch (e) {}
+  };
+
+  // Native Browser Notification (Desktop OS notification & Android push popup)
+  const triggerBrowserNotification = (noti: NotificationItem) => {
+    try {
+      if (typeof window === 'undefined' || !('Notification' in window)) return;
+      if (Notification.permission === 'granted') {
+        const title = noti.title || '🔔 มีการแจ้งเตือนใหม่';
+        const nativeNoti = new Notification(title, {
+          body: noti.message || '',
+          icon: '/icon.png',
+          badge: '/apple-icon.png',
+          tag: `noti-${noti.id}`,
+        });
+
+        nativeNoti.onclick = () => {
+          window.focus();
+          if (noti.link_url) {
+            window.location.href = noti.link_url;
+          }
+        };
+      }
+    } catch (e) {
+      console.warn('[Notification] Browser notification trigger error:', e);
+    }
+  };
+
+  const dismissToast = useCallback((id: string) => {
+    setActiveToasts((prev) => prev.filter((t) => t.id !== id && String(t.notification.id) !== id));
+  }, []);
 
   // Track recent notification IDs to deduplicate across dual SSE/WebSocket transports
   const recentNotiIdsRef = useRef<Set<string>>(new Set());
@@ -119,8 +245,29 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       return [newNoti, ...prev];
     });
     setUnreadCount((prev) => prev + 1);
+
+    // 1. Play Audio chime
     playNotificationSound();
-    showAlert.toast(newNoti.title || '🔔 มีการแจ้งเตือนใหม่', 'info', newNoti.message);
+
+    // 2. Mobile Device Vibration
+    triggerMobileVibration();
+
+    // 3. Desktop / Mobile Native Browser Notification
+    triggerBrowserNotification(newNoti);
+
+    // 4. In-App Interactive Toast Banner (Top banner on Mobile, Top-Right on Desktop)
+    setActiveToasts((prev) => {
+      const exists = prev.some((t) => String(t.notification.id) === notiIdStr);
+      if (exists) return prev;
+      const newToast: ActiveToastItem = {
+        id: `toast-${notiIdStr}-${Date.now()}`,
+        notification: newNoti,
+        createdAt: Date.now(),
+        durationMs: 6500, // 6.5s auto dismiss
+      };
+      // Keep at most 3 active toasts visible simultaneously to prevent clutter
+      return [newToast, ...prev.slice(0, 2)];
+    });
   }, []);
 
   const handleIncomingDataUpdate = useCallback((data: DataUpdateEvent) => {
@@ -176,6 +323,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         eventSourceRef.current = null;
       }
       setNotifications([]);
+      setActiveToasts([]);
       setUnreadCount(0);
       setIsConnected(false);
       return;
@@ -219,7 +367,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
 
     socket.on('connect_error', (err: any) => {
-      // Graceful socket fallback
       if (err?.message?.includes('Authentication failed')) {
         console.warn('⚠️ [WebSocket] Auth token rejected, falling back to SSE');
       }
@@ -370,18 +517,23 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     <NotificationContext.Provider
       value={{
         notifications,
+        activeToasts,
         unreadCount,
         isLoading,
         isConnected,
+        permissionStatus,
         lastDataUpdate,
         fetchNotifications,
         markAsRead,
         markAllAsRead,
         deleteNotification,
+        dismissToast,
+        requestNotificationPermission,
         subscribeDataUpdate,
       }}
     >
       {children}
+      <NotificationToastContainer />
     </NotificationContext.Provider>
   );
 }

@@ -68,19 +68,20 @@ export const showAlert = {
     const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
     return Swal.fire({
       toast: true,
-      position: isMobile ? 'center' : 'top-end',
+      position: isMobile ? 'top' : 'top-end',
       showConfirmButton: false,
-      timer: isMobile ? 4000 : 5000,
+      timer: isMobile ? 4500 : 5000,
       timerProgressBar: true,
       icon,
       title,
       text,
       customClass: {
-        popup: `font-sans shadow-2xl border border-slate-200 rounded-2xl bg-white/95 backdrop-blur-md p-3.5 ${
-          isMobile ? 'text-center mx-4 max-w-sm w-[90vw]' : 'text-left max-w-sm'
+        container: 'z-[999999]',
+        popup: `font-sans shadow-2xl border border-slate-200/90 rounded-2xl bg-white/95 backdrop-blur-md p-3.5 ${
+          isMobile ? 'text-left mx-2 max-w-sm w-[calc(100vw-1rem)] mt-2' : 'text-left max-w-sm'
         }`,
-        title: 'text-slate-900 font-bold text-sm sm:text-base leading-tight',
-        htmlContainer: 'text-slate-600 text-xs sm:text-sm mt-1 leading-snug',
+        title: 'text-slate-900 font-bold text-xs sm:text-sm leading-tight',
+        htmlContainer: 'text-slate-600 text-[11px] sm:text-xs mt-1 leading-snug',
       },
     });
   },
