@@ -504,13 +504,37 @@ router.get('/inbox', authenticate, async (req: AuthRequest, res: Response) => {
                 position: true,
               },
             },
+            alignments: {
+              include: {
+                indicator: {
+                  include: {
+                    plan: true,
+                  },
+                },
+              },
+            },
             budget_items: {
               include: {
                 category: true,
               },
             },
-            timelines: true,
+            timelines: {
+              orderBy: { start_date: 'asc' },
+            },
             documents: true,
+            approvals: {
+              include: {
+                approver: {
+                  select: {
+                    id: true,
+                    full_name: true,
+                    position: true,
+                    role: true,
+                  },
+                },
+              },
+              orderBy: { step_order: 'asc' },
+            },
           },
         },
         approver: {
@@ -604,7 +628,37 @@ router.get('/history', authenticate, async (req: AuthRequest, res: Response) => 
                 position: true,
               },
             },
-            budget_items: true,
+            alignments: {
+              include: {
+                indicator: {
+                  include: {
+                    plan: true,
+                  },
+                },
+              },
+            },
+            budget_items: {
+              include: {
+                category: true,
+              },
+            },
+            timelines: {
+              orderBy: { start_date: 'asc' },
+            },
+            documents: true,
+            approvals: {
+              include: {
+                approver: {
+                  select: {
+                    id: true,
+                    full_name: true,
+                    position: true,
+                    role: true,
+                  },
+                },
+              },
+              orderBy: { step_order: 'asc' },
+            },
           },
         },
         approver: {
