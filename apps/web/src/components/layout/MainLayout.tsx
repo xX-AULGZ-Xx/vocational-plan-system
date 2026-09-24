@@ -11,7 +11,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAuthPage = pathname === '/login' || pathname === '/setup';
-  const isStandalonePage = pathname?.startsWith('/surveys');
+  const isStandalonePage = pathname?.startsWith('/surveys') || pathname?.endsWith('/register') || pathname?.endsWith('/certificates');
 
   useEffect(() => {
     // Global setup check for any page

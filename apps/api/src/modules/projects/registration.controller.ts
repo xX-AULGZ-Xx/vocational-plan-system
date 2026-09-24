@@ -139,7 +139,7 @@ router.get('/:id/registration-info', async (req: Request, res: Response) => {
 
     return res.json({
       success: true,
-      data: {
+      data: serializeBigInt({
         project_id: project.id.toString(),
         project_code: project.project_code,
         title: project.title,
@@ -173,7 +173,7 @@ router.get('/:id/registration-info', async (req: Request, res: Response) => {
         },
         is_registration_open: isRegOpen,
         registration_message: regStatusMessage,
-      },
+      }),
     });
   } catch (error: any) {
     console.error('Registration info error:', error);
