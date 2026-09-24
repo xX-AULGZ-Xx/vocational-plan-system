@@ -19,6 +19,10 @@ import {
   AlertCircle,
   BarChart3,
   PieChart,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -33,6 +37,15 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
+
+  // Filters
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [selectedDivision, setSelectedDivision] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Sync fiscal year with settings when settings load
   useEffect(() => {
@@ -58,10 +71,10 @@ export default function DashboardPage() {
     fetchYears();
   }, [token, currentFiscalYear]);
 
-  // Filters
-  const [selectedStatus, setSelectedStatus] = useState<string>('');
-  const [selectedDivision, setSelectedDivision] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  // Reset pagination to page 1 on filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedStatus, selectedDivision, searchQuery, fiscalYear, pageSize]);
 
   useEffect(() => {
     fetchData();
@@ -178,6 +191,34 @@ export default function DashboardPage() {
     }
     return true;
   });
+
+  // Pagination Calculations
+  const totalItems = filteredProjects.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedProjects = filteredProjects.slice(startIndex, endIndex);
+
+  // Helper to build page numbers with ellipsis
+  const getPageNumbers = () => {
+    const delta = 1;
+    const pages: (number | string)[] = [];
+    for (let i = Math.max(2, safePage - delta); i <= Math.min(totalPages - 1, safePage + delta); i++) {
+      pages.push(i);
+    }
+    if (safePage - delta > 2) {
+      pages.unshift('ellipsis-prev');
+    }
+    if (safePage + delta < totalPages - 1) {
+      pages.push('ellipsis-next');
+    }
+    pages.unshift(1);
+    if (totalPages > 1) {
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   const handleExportReport = () => {
     if (filteredProjects.length === 0) {
@@ -532,8 +573,8 @@ export default function DashboardPage() {
 
         {/* Mobile View: Cards Layout (< md) */}
         <div className="block md:hidden space-y-3">
-          {filteredProjects.length > 0 ? (
-            filteredProjects.map((p) => (
+          {paginatedProjects.length > 0 ? (
+            paginatedProjects.map((p) => (
               <div
                 key={p.id}
                 className="bg-white p-4 rounded-theme border border-slate-200 shadow-xs hover:border-theme-primary transition space-y-3"
@@ -613,8 +654,8 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredProjects.length > 0 ? (
-                filteredProjects.map((p) => (
+              {paginatedProjects.length > 0 ? (
+                paginatedProjects.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition">
                     <td className="p-3 font-mono font-bold text-theme-primary">
                       {p.project_code || <span className="text-slate-400 font-normal">ยังไม่ออกรหัส</span>}
@@ -656,6 +697,110 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Toolbar */}
+        {totalItems > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
+            <div className="flex flex-wrap items-center gap-3 text-slate-500">
+              <span>
+                แสดง <span className="font-semibold text-slate-800">{startIndex + 1}</span> - <span className="font-semibold text-slate-800">{endIndex}</span> จากทั้งหมด <span className="font-semibold text-slate-800">{totalItems}</span> รายการ
+              </span>
+
+              <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+                <span className="text-[11px]">ต่อหน้า:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="px-2 py-1 text-xs border border-slate-300 rounded bg-white outline-none cursor-pointer focus:border-theme-primary"
+                >
+                  <option value={10}>10 รายการ</option>
+                  <option value={20}>20 รายการ</option>
+                  <option value={50}>50 รายการ</option>
+                  <option value={100}>100 รายการ</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                {/* First Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safePage <= 1}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  title="หน้าแรก"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+
+                {/* Previous Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={safePage <= 1}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 font-medium"
+                  title="หน้าก่อนหน้า"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">ก่อนหน้า</span>
+                </button>
+
+                {/* Page Number Buttons */}
+                <div className="flex items-center gap-1 px-1">
+                  {getPageNumbers().map((pg, idx) => {
+                    if (typeof pg === 'string') {
+                      return (
+                        <span key={idx} className="px-1 text-slate-400 select-none">
+                          ...
+                        </span>
+                      );
+                    }
+                    const isActive = pg === safePage;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setCurrentPage(pg)}
+                        className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition ${
+                          isActive
+                            ? 'bg-theme-primary text-white shadow-2xs'
+                            : 'text-slate-700 hover:bg-slate-100 border border-slate-200'
+                        }`}
+                      >
+                        {pg}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Next Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={safePage >= totalPages}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 font-medium"
+                  title="หน้าถัดไป"
+                >
+                  <span className="hidden sm:inline">ถัดไป</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Last Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={safePage >= totalPages}
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  title="หน้าสุดท้าย"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
