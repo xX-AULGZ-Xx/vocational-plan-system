@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import ModalPortal from '@/components/ui/ModalPortal';
+import { useAuth } from '@/lib/auth-context';
 import { formatThaiBaht } from '@/lib/bahttext';
 import {
   X,
@@ -33,7 +34,12 @@ import {
   CheckCircle,
   XCircle,
   Printer,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CheckSquare,
+  Square,
+  ListFilter,
+  Eye,
+  Loader2
 } from 'lucide-react';
 
 interface ProjectQuickPreviewModalProps {
@@ -45,15 +51,53 @@ interface ProjectQuickPreviewModalProps {
 }
 
 export default function ProjectQuickPreviewModal({
-  project,
+  project: initialProject,
   approvalStep,
   onClose,
   onActionClick,
   readOnly = false,
 }: ProjectQuickPreviewModalProps) {
+  const { token } = useAuth();
+  const [projectData, setProjectData] = useState<any>(initialProject);
+  const [loadingFullData, setLoadingFullData] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'alignments' | 'budget' | 'timeline' | 'docs' | 'history'>('overview');
   const [copiedCode, setCopiedCode] = useState(false);
+  const [showOnlySelectedAlignments, setShowOnlySelectedAlignments] = useState(true);
 
+  // Sync initial project
+  useEffect(() => {
+    if (initialProject) {
+      setProjectData(initialProject);
+    }
+  }, [initialProject]);
+
+  // Fetch full project with template tags and alignments if not fully loaded
+  useEffect(() => {
+    const fetchFullProject = async () => {
+      if (!initialProject?.id) return;
+      const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('vps_token') || localStorage.getItem('token') || localStorage.getItem('access_token')) : null);
+      if (!authToken) return;
+
+      try {
+        setLoadingFullData(true);
+        const res = await fetch(`/api/v1/projects/${initialProject.id}`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+          setProjectData(json.data);
+        }
+      } catch (err) {
+        console.error('Failed to load full project details for preview', err);
+      } finally {
+        setLoadingFullData(false);
+      }
+    };
+
+    fetchFullProject();
+  }, [initialProject?.id, token]);
+
+  const project = projectData || initialProject;
   if (!project) return null;
 
   // Parse dynamic_data
@@ -140,8 +184,70 @@ export default function ProjectQuickPreviewModal({
     { step: 4, name: 'ผู้อำนวยการสถานศึกษา', roleDesc: 'อนุมัติโครงการ' },
   ];
 
-  // Alignments list
-  const alignments = project.alignments || [];
+  // Alignments list from DB relation
+  const dbAlignments = project.alignments || [];
+
+  // Extract alignment checklist tags from template tags & dynamic_data
+  const alignmentChecklistSections = useMemo(() => {
+    const tags = project.template?.tags || [];
+    const checklistTags = tags.filter((t: any) => t.tag_type === 'ALIGNMENT_CHECKLIST');
+
+    // If template has ALIGNMENT_CHECKLIST tags, map each tag with its options and selected values
+    if (checklistTags.length > 0) {
+      return checklistTags.map((tag: any) => {
+        const valObj = typeof dynamicData[tag.tag_name] === 'object' && dynamicData[tag.tag_name] !== null
+          ? dynamicData[tag.tag_name]
+          : {};
+        
+        const rawOptionsList = Array.isArray(tag.options) ? tag.options : [];
+        const optionsList = rawOptionsList.map((opt: any, idx: number) =>
+          typeof opt === 'string'
+            ? { key: `chk_${idx}`, label: opt, indent: 0, isChecked: !!valObj[`chk_${idx}`] }
+            : { ...opt, key: opt.key || `chk_${idx}`, indent: opt.indent ?? 0, isChecked: !!valObj[opt.key || `chk_${idx}`] }
+        );
+
+        const checkedCount = optionsList.filter((o: any) => o.isChecked).length;
+
+        return {
+          tagName: tag.tag_name,
+          label: tag.label || tag.tag_name || 'ความสอดคล้องกับนโยบายและมาตรฐาน',
+          description: tag.description,
+          options: optionsList,
+          checkedCount,
+        };
+      });
+    }
+
+    // Fallback: Check if dynamic_data has any object with boolean keys (e.g. policy_alignment, alignment, standards)
+    const fallbackSections: any[] = [];
+    Object.entries(dynamicData).forEach(([key, val]) => {
+      if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+        const keys = Object.keys(val);
+        const hasBooleans = keys.some(k => typeof (val as any)[k] === 'boolean');
+        if (hasBooleans && (key.includes('align') || key.includes('policy') || key.includes('standard') || key.includes('นโยบาย') || key.includes('ยุทธศาสตร์'))) {
+          const optionsList = keys.map((k, idx) => ({
+            key: k,
+            label: k,
+            indent: 0,
+            isChecked: !!(val as any)[k],
+          }));
+          const checkedCount = optionsList.filter(o => o.isChecked).length;
+          fallbackSections.push({
+            tagName: key,
+            label: key === 'policy_alignment' ? 'ความสอดคล้องกับนโยบาย' : key,
+            options: optionsList,
+            checkedCount,
+          });
+        }
+      }
+    });
+
+    return fallbackSections;
+  }, [project.template?.tags, dynamicData]);
+
+  // Total count of all alignment items (DB alignments + selected checklist items)
+  const totalCheckedChecklistCount = alignmentChecklistSections.reduce((sum: number, sec: any) => sum + (sec.checkedCount || 0), 0);
+  const totalAlignmentsCount = dbAlignments.length + totalCheckedChecklistCount;
 
   return (
     <ModalPortal>
@@ -189,6 +295,13 @@ export default function ProjectQuickPreviewModal({
                 ) : (
                   <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[10px]">
                     ยังไม่ออกรหัสโครงการ (ออกในขั้นที่ ๓)
+                  </span>
+                )}
+
+                {loadingFullData && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-blue-300 bg-white/10 px-2 py-0.5 rounded-full">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>กำลังโหลดข้อมูลแบบฟอร์ม...</span>
                   </span>
                 )}
               </div>
@@ -244,7 +357,6 @@ export default function ProjectQuickPreviewModal({
                 const isRevision = approvalRecord?.status === 'REVISION_REQUESTED';
                 const isRejected = approvalRecord?.status === 'REJECTED';
                 const isCurrent = approvalStep === s.step || (approvalRecord?.status === 'PENDING');
-                const isPending = !approvalRecord || approvalRecord.status === 'PENDING';
 
                 return (
                   <div
@@ -295,7 +407,7 @@ export default function ProjectQuickPreviewModal({
           <div className="bg-slate-100 px-3 sm:px-5 py-2 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-nowrap shrink-0">
             {[
               { id: 'overview', label: 'ภาพรวม & สาระสำคัญ', icon: FileText },
-              { id: 'alignments', label: `ยุทธศาสตร์ (${alignments.length})`, icon: Compass },
+              { id: 'alignments', label: `ยุทธศาสตร์ & นโยบาย (${totalAlignmentsCount})`, icon: Compass },
               { id: 'budget', label: `งบประมาณ (${totalBudget.toLocaleString('th-TH')} บ.)`, icon: DollarSign },
               { id: 'timeline', label: `กำหนดการ (${project.timelines?.length || 0})`, icon: Calendar },
               { id: 'docs', label: `เอกสารแนบ (${project.documents?.length || 0})`, icon: Paperclip },
@@ -477,51 +589,152 @@ export default function ProjectQuickPreviewModal({
             )}
 
             {/* -------------------------------------------------------- */}
-            {/* TAB: STRATEGIC ALIGNMENTS */}
+            {/* TAB: STRATEGIC & POLICY ALIGNMENTS */}
             {/* -------------------------------------------------------- */}
             {activeTab === 'alignments' && (
               <div className="space-y-4">
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
-                  <h4 className="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-2 text-blue-950">
-                    <Compass className="w-4 h-4 text-blue-900" />
-                    <span>ความสอดคล้องกับยุทธศาสตร์และแผนพัฒนาสถานศึกษา</span>
-                  </h4>
-                  <p className="text-xs text-slate-500">
-                    โครงการนี้เชื่อมโยงกับยุทธศาสตร์ พันธกิจ และตัวชี้วัดความสำเร็จของสถานศึกษา
-                  </p>
+                
+                {/* Header with quick stats & filter toggle */}
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-2 text-blue-950">
+                      <Compass className="w-4 h-4 text-blue-900" />
+                      <span>ความสอดคล้องกับนโยบาย ยุทธศาสตร์ และมาตรฐานสถานศึกษา</span>
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      รายการความเชื่อมโยงกับมาตรฐานการอาชีวศึกษา นโยบาย และตัวชี้วัดความสำเร็จที่ผู้เสนอโครงการเลือกไว้
+                    </p>
+                  </div>
+
+                  {alignmentChecklistSections.length > 0 && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setShowOnlySelectedAlignments(!showOnlySelectedAlignments)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border ${
+                          showOnlySelectedAlignments
+                            ? 'bg-blue-50 text-blue-900 border-blue-200'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+                        }`}
+                      >
+                        <ListFilter className="w-3.5 h-3.5 text-blue-700" />
+                        <span>{showOnlySelectedAlignments ? 'แสดงเฉพาะรายการที่สอดคล้อง' : 'แสดงทุกหัวข้อประเมิน'}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {alignments.length === 0 ? (
-                  <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-500 space-y-2">
-                    <Compass className="w-10 h-10 text-slate-300 mx-auto" />
-                    <p className="font-semibold text-xs">ไม่ได้ระบุความเชื่อมโยงกับตัวชี้วัดยุทธศาสตร์ในระบบ</p>
-                    <p className="text-[11px] text-slate-400">ผู้เสนอโครงการสามารถระบุเพิ่มเติมได้ในการแก้ไขโครงการ</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-3">
-                    {alignments.map((a: any, idx: number) => {
-                      const ind = a.indicator;
-                      const plan = ind?.plan;
+                {/* 1. Policy & Vocational Standards Alignment Checklists */}
+                {alignmentChecklistSections.length > 0 && (
+                  <div className="space-y-4">
+                    {alignmentChecklistSections.map((sec: any, secIdx: number) => {
+                      const displayedOptions = showOnlySelectedAlignments
+                        ? sec.options.filter((o: any) => o.isChecked)
+                        : sec.options;
+
                       return (
-                        <div key={idx} className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 text-[11px] font-bold">
-                              {ind?.code || `ตัวชี้วัดที่ ${idx + 1}`}
+                        <div key={secIdx} className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-hidden">
+                          <div className="bg-slate-50 p-3.5 border-b border-slate-200 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                              <h5 className="font-bold text-slate-900 text-xs sm:text-sm">{sec.label}</h5>
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-900 font-bold text-[11px]">
+                              สอดคล้อง {sec.checkedCount} รายการ
                             </span>
-                            {plan && (
-                              <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                                {plan.title} (ปี {plan.fiscal_year})
-                              </span>
+                          </div>
+
+                          <div className="p-4 space-y-2">
+                            {displayedOptions.length === 0 ? (
+                              <div className="p-6 text-center text-slate-400 text-xs">
+                                {showOnlySelectedAlignments
+                                  ? 'ไม่มีรายการที่ถูกเลือกในส่วนนี้ (คลิกปุ่ม "แสดงทุกหัวข้อประเมิน" ด้านบนเพื่อดูรายการทั้งหมด)'
+                                  : 'ไม่มีรายการหัวข้อ'}
+                              </div>
+                            ) : (
+                              displayedOptions.map((item: any, optIdx: number) => {
+                                const indent = item.indent || 0;
+                                const isChecked = item.isChecked;
+
+                                return (
+                                  <div
+                                    key={optIdx}
+                                    className={`flex items-start gap-2.5 py-1.5 px-2 rounded-lg transition ${
+                                      indent === 1 ? 'ml-4 sm:ml-6' : indent === 2 ? 'ml-8 sm:ml-12' : ''
+                                    } ${
+                                      isChecked
+                                        ? 'bg-emerald-50/70 border border-emerald-200/80 text-emerald-950 font-medium'
+                                        : 'text-slate-500 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    <div className="shrink-0 mt-0.5">
+                                      {isChecked ? (
+                                        <CheckSquare className="w-4 h-4 text-emerald-600" />
+                                      ) : (
+                                        <Square className="w-4 h-4 text-slate-300" />
+                                      )}
+                                    </div>
+                                    <span className={`text-xs leading-relaxed ${
+                                      indent === 0
+                                        ? 'font-bold text-slate-900'
+                                        : indent === 1
+                                        ? 'font-semibold text-slate-800'
+                                        : 'text-slate-700'
+                                    }`}>
+                                      {item.label}
+                                    </span>
+                                  </div>
+                                );
+                              })
                             )}
                           </div>
-                          <p className="text-xs font-semibold text-slate-800 leading-relaxed">
-                            {ind?.description || ind?.name || 'ไม่มีรายละเอียดตัวชี้วัด'}
-                          </p>
                         </div>
                       );
                     })}
                   </div>
                 )}
+
+                {/* 2. Database Strategic Indicators Alignments (if any) */}
+                {dbAlignments.length > 0 && (
+                  <div className="space-y-3">
+                    <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5 uppercase tracking-wider text-slate-600">
+                      <Award className="w-4 h-4 text-indigo-700" />
+                      <span>ตัวชี้วัดตามแผนยุทธศาสตร์สถานศึกษา ({dbAlignments.length} ตัวชี้วัด)</span>
+                    </h5>
+                    <div className="grid grid-cols-1 gap-2.5">
+                      {dbAlignments.map((a: any, idx: number) => {
+                        const ind = a.indicator;
+                        const plan = ind?.plan;
+                        return (
+                          <div key={idx} className="p-3.5 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900 text-[11px] font-bold">
+                                {ind?.code || `ตัวชี้วัดที่ ${idx + 1}`}
+                              </span>
+                              {plan && (
+                                <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                                  {plan.title} (ปีงบ {plan.fiscal_year})
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs font-semibold text-slate-800 leading-relaxed pl-1">
+                              {ind?.description || ind?.name || 'ไม่มีรายละเอียดตัวชี้วัด'}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {alignmentChecklistSections.length === 0 && dbAlignments.length === 0 && (
+                  <div className="p-8 text-center bg-white rounded-xl border border-slate-200 text-slate-500 space-y-2">
+                    <Compass className="w-10 h-10 text-slate-300 mx-auto" />
+                    <p className="font-semibold text-xs text-slate-700">ไม่ได้ระบุความเชื่อมโยงกับนโยบายหรือตัวชี้วัดยุทธศาสตร์</p>
+                    <p className="text-[11px] text-slate-400">ผู้เสนอโครงการสามารถระบุและเลือกความสอดคล้องกับมาตรฐานการอาชีวศึกษาได้ในหน้าแก้ไขโครงการ</p>
+                  </div>
+                )}
+
               </div>
             )}
 
