@@ -1916,7 +1916,7 @@ router.post('/:id/export-summary-pdf', handleExportSummaryPdf);
 router.patch('/:id/execution-status', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { execution_status, note, execution_dates, location } = req.body;
+    const { execution_status, note, execution_dates, location, project_type, registration_config, certificate_config } = req.body;
     const projectId = BigInt(id);
 
     const userRole = String(req.user?.role || '');
@@ -1965,6 +1965,21 @@ router.patch('/:id/execution-status', authenticate, async (req: AuthRequest, res
     dynamicDataObj.execution_status_updated_by = req.user?.full_name || userRole;
     if (note !== undefined) {
       dynamicDataObj.execution_status_note = note;
+    }
+    if (project_type !== undefined) {
+      dynamicDataObj.project_type = project_type;
+    }
+    if (registration_config !== undefined) {
+      dynamicDataObj.registration_config = {
+        ...(dynamicDataObj.registration_config || {}),
+        ...registration_config,
+      };
+    }
+    if (certificate_config !== undefined) {
+      dynamicDataObj.certificate_config = {
+        ...(dynamicDataObj.certificate_config || {}),
+        ...certificate_config,
+      };
     }
 
     // Handle execution_dates (support multiple dates or ranges)

@@ -101,6 +101,10 @@ export default function ApprovalsPage() {
   ]);
   const [executionNote, setExecutionNote] = useState('');
   const [savingExecution, setSavingExecution] = useState(false);
+  const [modalProjectType, setModalProjectType] = useState<string>('GENERAL');
+  const [modalRegStartAt, setModalRegStartAt] = useState<string>('');
+  const [modalRegEndAt, setModalRegEndAt] = useState<string>('');
+  const [modalMaxParticipants, setModalMaxParticipants] = useState<string>('');
 
   useEffect(() => {
     fetchInbox();
@@ -1098,6 +1102,11 @@ export default function ApprovalsPage() {
                                     }
                                     setExecutionDateItems(initialDates);
                                     setExecutionNote(dyn?.execution_status_note || '');
+                                    const regConf = dyn?.registration_config || {};
+                                    setModalProjectType(dyn?.project_type || 'GENERAL');
+                                    setModalRegStartAt(regConf.start_at || '');
+                                    setModalRegEndAt(regConf.end_at || '');
+                                    setModalMaxParticipants(regConf.max_participants ? String(regConf.max_participants) : '');
                                     setShowExecutionModal(true);
                                   }}
                                   disabled={isUpdating || currentSub === 'permitted'}
@@ -1597,6 +1606,78 @@ export default function ApprovalsPage() {
                   </div>
                 </div>
 
+                {/* Project Type Dropdown */}
+                <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl space-y-2">
+                  <label className="block text-xs font-bold text-blue-950">
+                    ประเภทโครงการ / กิจกรรม (Project & Activity Type):
+                  </label>
+                  <select
+                    value={modalProjectType}
+                    onChange={(e) => setModalProjectType(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-bold bg-white border border-blue-300 rounded-lg outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 text-slate-800"
+                  >
+                    <option value="GENERAL">📌 โครงการ/กิจกรรมทั่วไปภายใน (ไม่ต้องลงทะเบียน)</option>
+                    <option value="REGISTRATION_AND_CERTIFICATE">🏅 กิจกรรม/อบรม/สัมมนา ที่ต้องลงทะเบียนและรับใบประกาศนียบัตร</option>
+                    <option value="REGISTRATION_ONLY">📝 กิจกรรมที่เปิดลงทะเบียนเข้าร่วมอย่างเดียว</option>
+                  </select>
+                  <p className="text-[11px] text-blue-800/80">
+                    {modalProjectType === 'REGISTRATION_AND_CERTIFICATE'
+                      ? 'ระบบจะสร้างลิงก์รับสมัคร + QR Code และเปิดระบบออกแบบและออกเกียรติบัตร (Studio) ให้ในหน้ารายละเอียดโครงการ'
+                      : modalProjectType === 'REGISTRATION_ONLY'
+                      ? 'ระบบจะเปิดฟอร์มลงทะเบียนเข้าร่วมโครงการ พร้อม QR Code ให้นับจำนวนและเช็คอินผู้เข้าร่วม'
+                      : 'โครงการทั่วไป ดำเนินการตามปกติโดยไม่ต้องเปิดระบบลงทะเบียนบุคคลภายนอก'}
+                  </p>
+                </div>
+
+                {/* Conditional Registration Dates & Capacity (If Registration is selected) */}
+                {modalProjectType !== 'GENERAL' && (
+                  <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-3">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                      <Clock className="w-4 h-4 text-amber-600" />
+                      <span>กำหนดระยะเวลาเปิด-ปิดรับลงทะเบียน & จำนวนผู้เข้าร่วม</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          วัน-เวลา เริ่มเปิดรับลงทะเบียน:
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={modalRegStartAt}
+                          onChange={(e) => setModalRegStartAt(e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-amber-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          วัน-เวลา ปิดรับลงทะเบียน:
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={modalRegEndAt}
+                          onChange={(e) => setModalRegEndAt(e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-amber-600"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        จำนวนผู้เข้าร่วมสูงสุด (คน) (เว้นว่างหากไม่จำกัด):
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="เช่น 100"
+                        value={modalMaxParticipants}
+                        onChange={(e) => setModalMaxParticipants(e.target.value)}
+                        className="w-full max-w-xs px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-amber-600"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Multiple Execution Dates Input List */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -1777,6 +1858,13 @@ export default function ApprovalsPage() {
                           execution_status: pendingTargetStatus,
                           execution_dates: executionDateItems,
                           note: executionNote.trim() || undefined,
+                          project_type: modalProjectType,
+                          registration_config: {
+                            start_at: modalRegStartAt || null,
+                            end_at: modalRegEndAt || null,
+                            max_participants: modalMaxParticipants ? Number(modalMaxParticipants) : null,
+                            is_active: true,
+                          },
                         }),
                       });
 

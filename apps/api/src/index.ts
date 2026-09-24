@@ -18,6 +18,7 @@ import evaluationRouter from './modules/evaluation/evaluation.controller';
 import notificationsRouter from './modules/notifications/notifications.controller';
 import setupRouter from './modules/setup/setup.controller';
 import systemUpdateRouter from './modules/system-update/update.controller';
+import registrationRouter from './modules/projects/registration.controller';
 import { wsManager } from './modules/notifications/socket.manager';
 
 const app = express();
@@ -63,6 +64,7 @@ app.get('/health', (req: Request, res: Response) => {
 
 // API Routes
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/projects', registrationRouter);
 app.use('/api/v1/projects', projectRouter);
 app.use('/api/v1/approvals', approvalRouter);
 app.use('/api/v1/budgets', budgetRouter);

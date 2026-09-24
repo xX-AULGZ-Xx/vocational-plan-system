@@ -135,6 +135,7 @@ model Project {
   approvals        ProjectApproval[]
   documents        ProjectDocument[]
   evaluation_form  ProjectEvaluationForm?
+  attendees        ProjectAttendee[]
 
   @@map("projects")
 }
@@ -429,4 +430,30 @@ model EvaluationTemplate {
   updated_at       DateTime @default(now()) @updatedAt
 
   @@map("evaluation_templates")
+}
+
+model ProjectAttendee {
+  id              BigInt    @id @default(autoincrement())
+  project_id      BigInt
+  title_name      String?   @db.VarChar(50)
+  full_name       String    @db.VarChar(255)
+  position        String?   @db.VarChar(150)
+  organization    String?   @db.VarChar(255)
+  email           String?   @db.VarChar(150)
+  phone           String?   @db.VarChar(50)
+  citizen_id      String?   @db.VarChar(20)
+  status          String    @default("registered") @db.VarChar(50)
+  checked_in_at   DateTime?
+  certificate_no  String?   @db.VarChar(100)
+  certificate_url String?   @db.VarChar(500)
+  custom_data     Json?     @default("{}")
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @default(now()) @updatedAt
+
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+
+  @@index([project_id, status])
+  @@index([project_id, full_name])
+  @@index([project_id, phone])
+  @@map("project_attendees")
 }
