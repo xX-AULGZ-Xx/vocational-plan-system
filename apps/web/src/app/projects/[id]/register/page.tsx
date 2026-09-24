@@ -336,132 +336,159 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                 </div>
               </div>
             ) : (
-              /* Registration Form Card */
               <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-6">
-                {/* Status Notice */}
-                {!isRegOpen ? (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 flex items-center gap-3 text-xs">
-                    <Clock className="w-5 h-5 text-amber-600 shrink-0" />
-                    <div>
-                      <div className="font-bold">สถานะการลงทะเบียน:</div>
-                      <div>{projectInfo.registration_message}</div>
-                    </div>
+              {!isRegOpen ? (
+                /* Registration Closed State - No Form Displayed */
+                <div className="py-8 px-4 text-center space-y-5">
+                  <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center shadow-inner">
+                    <Clock className="w-8 h-8" />
                   </div>
-                ) : (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 flex items-center justify-between gap-3 text-xs">
+
+                  <div className="space-y-2 max-w-md mx-auto">
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                      ระบบปิดรับลงทะเบียนแล้ว
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                      {projectInfo.registration_message}
+                    </p>
+                  </div>
+
+                  {/* Registered Stats Pill */}
+                  {projectInfo.stats?.total > 0 && (
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-slate-700 font-medium">
+                      <Users className="w-4 h-4 text-blue-900" />
+                      <span>มีผู้ลงทะเบียนทั้งหมด <strong className="text-blue-950 font-bold">{projectInfo.stats.total}</strong> คน</span>
+                    </div>
+                  )}
+
+                  {/* Actions for Closed Registration */}
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+                    {isCertEnabled && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('lookup_certificate')}
+                        className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-2 shadow-md hover:shadow-lg"
+                      >
+                        <Award className="w-4 h-4" />
+                        <span>ค้นหาและรับเกียรติบัตร</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Registration Open State - Show Form */
+                <>
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-2.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                       <span className="font-bold">ระบบกำลังเปิดรับลงทะเบียน</span>
                     </div>
                     {projectInfo.stats?.max_participants && (
-                      <span className="text-slate-600">
+                      <span className="text-slate-600 font-medium">
                         ผู้ลงทะเบียนแล้ว {projectInfo.stats.total} / {projectInfo.stats.max_participants} คน (ว่าง {projectInfo.stats.remaining_seats} ที่นั่ง)
                       </span>
                     )}
                   </div>
-                )}
 
-                <form onSubmit={handleRegister} className="space-y-4 text-xs">
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div className="sm:col-span-1">
-                      <label className="block font-bold text-slate-700 mb-1">คำนำหน้า:</label>
-                      <select
-                        value={form.title_name}
-                        onChange={(e) => setForm((p) => ({ ...p, title_name: e.target.value }))}
-                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition font-medium"
+                  <form onSubmit={handleRegister} className="space-y-4 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                      <div className="sm:col-span-1">
+                        <label className="block font-bold text-slate-700 mb-1">คำนำหน้า:</label>
+                        <select
+                          value={form.title_name}
+                          onChange={(e) => setForm((p) => ({ ...p, title_name: e.target.value }))}
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition font-medium"
+                        >
+                          <option value="นาย">นาย</option>
+                          <option value="นาง">นาง</option>
+                          <option value="นางสาว">นางสาว</option>
+                          <option value="ดร.">ดร.</option>
+                          <option value="ผศ.">ผศ.</option>
+                          <option value="อาจารย์">อาจารย์</option>
+                          <option value="นักเรียน/นักศึกษา">นักเรียน/นักศึกษา</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <label className="block font-bold text-slate-700 mb-1">
+                          ชื่อและนามสกุล (<span className="text-rose-600">* สำหรับพิมพ์บนเกียรติบัตร</span>):
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="เช่น สมชาย ใจดีมั่นคง (ไม่ต้องใส่คำนำหน้า)"
+                          value={form.full_name}
+                          onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">ตำแหน่ง / สถานะ:</label>
+                        <input
+                          type="text"
+                          placeholder="เช่น ครู, นักเรียน ปวช., บุคลากรทางการศึกษา"
+                          value={form.position}
+                          onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">หน่วยงาน / สังกัด / แผนกวิชา:</label>
+                        <input
+                          type="text"
+                          placeholder="เช่น วิทยาลัยอาชีวศึกษาเชียงราย, แผนกวิชาคอมพิวเตอร์ธุรกิจ"
+                          value={form.organization}
+                          onChange={(e) => setForm((p) => ({ ...p, organization: e.target.value }))}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">
+                          เบอร์โทรศัพท์มือถือ (<span className="text-rose-600">* ใช้สำหรับค้นหาเกียรติบัตร</span>):
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          placeholder="08X-XXX-XXXX"
+                          value={form.phone}
+                          onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">อีเมล (ถ้ามี):</label>
+                        <input
+                          type="email"
+                          placeholder="example@email.com"
+                          value={form.email}
+                          onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-4">
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="w-full py-3.5 rounded-2xl font-bold text-sm transition shadow-lg flex items-center justify-center gap-2 bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 text-white hover:opacity-95"
                       >
-                        <option value="นาย">นาย</option>
-                        <option value="นาง">นาง</option>
-                        <option value="นางสาว">นางสาว</option>
-                        <option value="ดร.">ดร.</option>
-                        <option value="ผศ.">ผศ.</option>
-                        <option value="อาจารย์">อาจารย์</option>
-                        <option value="นักเรียน/นักศึกษา">นักเรียน/นักศึกษา</option>
-                      </select>
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        <span>{submitting ? 'กำลังบันทึกข้อมูลการลงทะเบียน...' : 'ยืนยันการลงทะเบียนเข้าร่วม'}</span>
+                      </button>
                     </div>
-
-                    <div className="sm:col-span-3">
-                      <label className="block font-bold text-slate-700 mb-1">
-                        ชื่อและนามสกุล (<span className="text-rose-600">* สำหรับพิมพ์บนเกียรติบัตร</span>):
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="เช่น สมชาย ใจดีมั่นคง (ไม่ต้องใส่คำนำหน้า)"
-                        value={form.full_name}
-                        onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs font-semibold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">ตำแหน่ง / สถานะ:</label>
-                      <input
-                        type="text"
-                        placeholder="เช่น ครู, นักเรียน ปวช., บุคลากรทางการศึกษา"
-                        value={form.position}
-                        onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">หน่วยงาน / สังกัด / แผนกวิชา:</label>
-                      <input
-                        type="text"
-                        placeholder="เช่น วิทยาลัยอาชีวศึกษาเชียงราย, แผนกวิชาคอมพิวเตอร์ธุรกิจ"
-                        value={form.organization}
-                        onChange={(e) => setForm((p) => ({ ...p, organization: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">
-                        เบอร์โทรศัพท์มือถือ (<span className="text-rose-600">* ใช้สำหรับค้นหาเกียรติบัตร</span>):
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="08X-XXX-XXXX"
-                        value={form.phone}
-                        onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs font-mono"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">อีเมล (ถ้ามี):</label>
-                      <input
-                        type="email"
-                        placeholder="example@email.com"
-                        value={form.email}
-                        onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-4">
-                    <button
-                      type="submit"
-                      disabled={!isRegOpen || submitting}
-                      className={`w-full py-3.5 rounded-2xl font-bold text-sm transition shadow-lg flex items-center justify-center gap-2 ${
-                        !isRegOpen
-                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 text-white hover:opacity-95'
-                      }`}
-                    >
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      <span>{submitting ? 'กำลังบันทึกข้อมูลการลงทะเบียน...' : 'ยืนยันการลงทะเบียนเข้าร่วม'}</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
+                  </form>
+                </>
+              )}
+            </div>
             )}
           </div>
         )}
