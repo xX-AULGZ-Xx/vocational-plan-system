@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
-import { getCurrentThaiFiscalYear, detectProjectFiscalYear } from '@/lib/bahttext';
+import { getCurrentThaiFiscalYear, detectProjectFiscalYear, calculateFiscalYearFromDateString, getThaiFiscalYearDateRange } from '@/lib/bahttext';
 import { showAlert } from '@/lib/sweetalert';
 import {
   ArrowLeft,
@@ -340,6 +340,42 @@ const fetchProposalTemplate = async () => {
 
         setErrorMsg(`กรุณากรอกข้อมูลที่จำเป็นให้ครบ: ${missingRequiredTags.map(t => t.label).join(', ')}`);
         return;
+      }
+    }
+
+    // Validate project duration dates against configured fiscal year
+    const configuredFY = parseInt(currentFiscalYear || String(fiscalYear)) || (new Date().getFullYear() + 543);
+    const { minDate: minFiscalDate, minDateThai } = getThaiFiscalYearDateRange(configuredFY);
+
+    for (const [k, val] of Object.entries(dynamicData)) {
+      if (!val) continue;
+      if (typeof val === 'object' && !Array.isArray(val)) {
+        if (val.start && val.start < minFiscalDate) {
+          showAlert.warning(
+            'ระยะเวลาดำเนินโครงการไม่ถูกต้อง',
+            `วันที่เริ่มต้นดำเนินโครงการ (${val.start}) ไม่สามารถตั้งค่าต่ำกว่าวันเริ่มต้นของปีงบประมาณ ${configuredFY} (${minDateThai}) ได้`
+          );
+          setErrorMsg(`วันที่ดำเนินโครงการต้องไม่ต่ำกว่าวันเริ่มต้นของปีงบประมาณ ${configuredFY} (${minDateThai})`);
+          return;
+        }
+        if (val.start && val.end && val.end < val.start) {
+          showAlert.warning(
+            'ระยะเวลาดำเนินโครงการไม่ถูกต้อง',
+            `วันที่สิ้นสุดดำเนินโครงการ (${val.end}) ต้องไม่ต่ำกว่าวันที่เริ่มต้น (${val.start})`
+          );
+          setErrorMsg('วันที่สิ้นสุดดำเนินโครงการต้องไม่ต่ำกว่าวันที่เริ่มต้น');
+          return;
+        }
+      } else if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        const lk = k.toLowerCase();
+        if ((lk.includes('start') || lk.includes('begin') || lk.includes('date') || lk.includes('period') || lk.includes('duration')) && val < minFiscalDate) {
+          showAlert.warning(
+            'ระยะเวลาดำเนินโครงการไม่ถูกต้อง',
+            `วันที่ดำเนินโครงการ (${val}) ไม่สามารถตั้งค่าต่ำกว่าวันเริ่มต้นของปีงบประมาณ ${configuredFY} (${minDateThai}) ได้`
+          );
+          setErrorMsg(`วันที่ดำเนินโครงการต้องไม่ต่ำกว่าวันเริ่มต้นของปีงบประมาณ ${configuredFY} (${minDateThai})`);
+          return;
+        }
       }
     }
 
@@ -1128,18 +1164,30 @@ const fetchProposalTemplate = async () => {
           </div>
         );
       }
-      case 'DATERANGE':
+      case 'DATERANGE': {
+        const targetFiscalYear = parseInt(currentFiscalYear || String(fiscalYear)) || (new Date().getFullYear() + 543);
+        const { minDate: minFiscalDate, minDateThai } = getThaiFiscalYearDateRange(targetFiscalYear);
+
         return (
           <div key={key}>
             <div className="mb-1">
               <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
               {tag.description && <p className="text-xs text-gray-500 mt-0.5">{tag.description}</p>}
+              <p className="text-[11px] text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded mt-1 inline-block border border-amber-200/60 font-medium">
+                📅 ระยะเวลาในปีงบประมาณ {targetFiscalYear} (เริ่มต้นได้ตั้งแต่ {minDateThai} เป็นต้นไป)
+              </p>
             </div>
             <div className="flex items-center space-x-2">
               <input
                 type="date"
+                min={minFiscalDate}
                 value={value?.start || ''}
-                onChange={(e) => handleDynamicChange(key, { ...(value || {}), start: e.target.value })}
+                onChange={(e) => {
+                  const newStart = e.target.value;
+                  const safeStart = newStart && newStart < minFiscalDate ? minFiscalDate : newStart;
+                  const newEnd = value?.end && safeStart && value.end < safeStart ? safeStart : value?.end;
+                  handleDynamicChange(key, { ...(value || {}), start: safeStart, end: newEnd });
+                }}
                 disabled={!isEditing}
                 required={tag.is_required}
                 className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -1147,8 +1195,14 @@ const fetchProposalTemplate = async () => {
               <span className="text-gray-500 text-sm">ถึง</span>
               <input
                 type="date"
+                min={value?.start || minFiscalDate}
                 value={value?.end || ''}
-                onChange={(e) => handleDynamicChange(key, { ...(value || {}), end: e.target.value })}
+                onChange={(e) => {
+                  const newEnd = e.target.value;
+                  const minRequired = value?.start || minFiscalDate;
+                  const safeEnd = newEnd && minRequired && newEnd < minRequired ? minRequired : newEnd;
+                  handleDynamicChange(key, { ...(value || {}), end: safeEnd });
+                }}
                 disabled={!isEditing}
                 required={tag.is_required}
                 className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -1156,22 +1210,35 @@ const fetchProposalTemplate = async () => {
             </div>
           </div>
         );
-      case 'DATE':
+      }
+      case 'DATE': {
+        const targetFiscalYear = parseInt(currentFiscalYear || String(fiscalYear)) || (new Date().getFullYear() + 543);
+        const { minDate: minFiscalDate, minDateThai } = getThaiFiscalYearDateRange(targetFiscalYear);
+
         return (
           <div key={key}>
             <div className="mb-1">
               <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
               {tag.description && <p className="text-xs text-gray-500 mt-0.5">{tag.description}</p>}
+              <p className="text-[11px] text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded mt-1 inline-block border border-amber-200/60 font-medium">
+                📅 ระยะเวลาในปีงบประมาณ {targetFiscalYear} (เริ่มต้นได้ตั้งแต่ {minDateThai} เป็นต้นไป)
+              </p>
             </div>
             <input
               type="date"
+              min={minFiscalDate}
               value={value || ''}
-              onChange={(e) => handleDynamicChange(key, e.target.value)}
+              onChange={(e) => {
+                const newDate = e.target.value;
+                const safeDate = newDate && newDate < minFiscalDate ? minFiscalDate : newDate;
+                handleDynamicChange(key, safeDate);
+              }}
               required={tag.is_required}
               className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
           </div>
         );
+      }
       case 'DROPDOWN':
         const options = Array.isArray(tag.options) ? tag.options : [];
         return (

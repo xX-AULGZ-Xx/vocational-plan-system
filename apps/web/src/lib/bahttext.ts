@@ -95,8 +95,26 @@ export function calculateFiscalYearFromDateString(dateStr: string | null | undef
 }
 
 /**
+ * คำนวณช่วงวันที่เริ่มต้นและสิ้นสุดของปีงบประมาณไทย (พ.ศ.)
+ * - วันเริ่มต้น: 1 ตุลาคม ของปีก่อนหน้า (เช่น ปีงบ 2569 คือ 2025-10-01)
+ * - วันสิ้นสุด: 30 กันยายน ของปีงบประมาณ (เช่น ปีงบ 2569 คือ 2026-09-30)
+ */
+export function getThaiFiscalYearDateRange(fiscalYear: number | string) {
+  const fy = typeof fiscalYear === 'string' ? parseInt(fiscalYear, 10) : fiscalYear;
+  const validFy = !isNaN(fy) && fy > 2400 ? fy : getCurrentThaiFiscalYear();
+  const gy = validFy - 543;
+  return {
+    minDate: `${gy - 1}-10-01`,
+    maxDate: `${gy}-09-30`,
+    minDateThai: `1 ต.ค. ${validFy - 1}`,
+    maxDateThai: `30 ก.ย. ${validFy}`,
+  };
+}
+
+/**
  * ตรวจจับปีงบประมาณจากข้อมูลฟอร์มโครงการ (dynamicData หรือ timelines)
  * โดยดูจากวันเริ่มต้นโครงการในฟิลด์ DATERANGE, DATE, หรือ key ที่ระบุวันเริ่มต้น
+ * และไม่สามารถปรับต่ำกว่าปีงบประมาณที่กำหนดไว้ (defaultYear)
  */
 export function detectProjectFiscalYear(dynamicData: Record<string, any>, defaultYear?: number | string): number {
   const fallbackYear = defaultYear ? parseInt(String(defaultYear), 10) : getCurrentThaiFiscalYear();
@@ -105,42 +123,60 @@ export function detectProjectFiscalYear(dynamicData: Record<string, any>, defaul
     return fallbackYear;
   }
 
+  let detected: number | null = null;
+
   // 1. ตรวจสอบฟิลด์ DATERANGE หรือ object ที่มี property 'start'
   for (const [_, val] of Object.entries(dynamicData)) {
     if (val && typeof val === 'object' && !Array.isArray(val) && (val as any).start) {
       const fy = calculateFiscalYearFromDateString((val as any).start);
-      if (fy) return fy;
+      if (fy) {
+        detected = fy;
+        break;
+      }
     }
   }
 
   // 2. ตรวจสอบฟิลด์ประเภท DATE หรือ key ที่มีคำว่า start_date, start, begin, duration, period
-  for (const [key, val] of Object.entries(dynamicData)) {
-    if (typeof val === 'string' && val) {
-      const lk = key.toLowerCase();
-      if (lk.includes('start') || lk.includes('begin') || lk.includes('period') || lk.includes('duration') || lk.includes('date')) {
-        const fy = calculateFiscalYearFromDateString(val);
-        if (fy) return fy;
+  if (!detected) {
+    for (const [key, val] of Object.entries(dynamicData)) {
+      if (typeof val === 'string' && val) {
+        const lk = key.toLowerCase();
+        if (lk.includes('start') || lk.includes('begin') || lk.includes('period') || lk.includes('duration') || lk.includes('date')) {
+          const fy = calculateFiscalYearFromDateString(val);
+          if (fy) {
+            detected = fy;
+            break;
+          }
+        }
       }
     }
   }
 
   // 3. ตรวจสอบ timelines (ถ้ามี)
-  if (Array.isArray(dynamicData.timelines) && dynamicData.timelines.length > 0) {
+  if (!detected && Array.isArray(dynamicData.timelines) && dynamicData.timelines.length > 0) {
     for (const item of dynamicData.timelines) {
       if (item && item.start_date) {
         const fy = calculateFiscalYearFromDateString(item.start_date);
-        if (fy) return fy;
+        if (fy) {
+          detected = fy;
+          break;
+        }
       }
     }
   }
 
   // 4. ถ้ามีระบุ fiscal_year ใน dynamicData
-  if (dynamicData.fiscal_year) {
+  if (!detected && dynamicData.fiscal_year) {
     const parsed = parseInt(String(dynamicData.fiscal_year), 10);
     if (!isNaN(parsed) && parsed > 2500) {
-      return parsed;
+      detected = parsed;
     }
   }
 
-  return fallbackYear;
+  // ห้ามปรับต่ำกว่าปีงบประมาณที่กำหนดไว้
+  if (detected && detected < fallbackYear) {
+    return fallbackYear;
+  }
+
+  return detected || fallbackYear;
 }
