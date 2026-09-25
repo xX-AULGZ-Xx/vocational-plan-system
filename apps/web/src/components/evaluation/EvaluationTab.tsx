@@ -55,6 +55,10 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [creatingFromTemplate, setCreatingFromTemplate] = useState(false);
 
+  const [autoUpdate, setAutoUpdate] = useState(true);
+  const [isAutoUpdating, setIsAutoUpdating] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
   const qrRef = useRef<SVGSVGElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
@@ -81,10 +85,34 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
 
   useEffect(() => {
     if (projectId && token) {
-      loadEvaluation();
+      loadEvaluation(false);
       loadTemplates();
     }
   }, [projectId, token]);
+
+  // Periodic Auto-Update polling every 6 seconds when enabled and tab is visible
+  useEffect(() => {
+    if (!projectId || !token || !autoUpdate || !hasForm) return;
+
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadEvaluation(true);
+      }
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [projectId, token, autoUpdate, hasForm]);
+
+  // Refresh immediately when user switches back to this tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && autoUpdate && hasForm && projectId && token) {
+        loadEvaluation(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [projectId, token, autoUpdate, hasForm]);
 
   const loadTemplates = async () => {
     try {
@@ -100,8 +128,10 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
     }
   };
 
-  const loadEvaluation = async () => {
-    setLoading(true);
+  const loadEvaluation = async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setIsAutoUpdating(true);
+
     try {
       // 1. Fetch form info
       const resForm = await fetch(`/api/v1/projects/${projectId}/evaluation`, {
@@ -120,6 +150,7 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
         const dataResults = await resResults.json();
         if (dataResults.success) {
           setResultsData(dataResults.data);
+          setLastUpdated(new Date());
         }
       } else {
         setHasForm(false);
@@ -129,7 +160,8 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+      setIsAutoUpdating(false);
     }
   };
 
@@ -678,13 +710,43 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
                 <span>{formMeta.is_active ? 'ปิดรับคำตอบ' : 'เปิดรับคำตอบ'}</span>
               </button>
 
+              {/* Auto Update Live Toggle */}
               <button
                 type="button"
-                onClick={loadEvaluation}
-                className="p-1.5 rounded-theme text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                title="รีเฟรชข้อมูล"
+                onClick={() => setAutoUpdate(!autoUpdate)}
+                className={`px-3 py-1.5 rounded-theme text-xs font-semibold border flex items-center gap-2 transition-all shadow-xs ${
+                  autoUpdate
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                    : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
+                }`}
+                title={autoUpdate ? 'กำลังอัปเดตผลประเมินอัตโนมัติ (คลิกเพื่อหยุด)' : 'คลิกเพื่อเปิด Auto Update'}
               >
-                <RefreshCw className="w-4 h-4" />
+                <span className="relative flex h-2 w-2">
+                  {autoUpdate && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  )}
+                  <span
+                    className={`relative inline-flex rounded-full h-2 w-2 ${
+                      autoUpdate ? 'bg-emerald-500' : 'bg-slate-400'
+                    }`}
+                  ></span>
+                </span>
+                <span>{autoUpdate ? 'Auto Update (Live)' : 'Auto Update: ปิด'}</span>
+                {lastUpdated && autoUpdate && (
+                  <span className="text-[10px] text-emerald-600 font-mono hidden sm:inline">
+                    {lastUpdated.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => loadEvaluation(false)}
+                disabled={loading || isAutoUpdating}
+                className="p-1.5 rounded-theme text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                title="รีเฟรชข้อมูลทันที"
+              >
+                <RefreshCw className={`w-4 h-4 ${isAutoUpdating || loading ? 'animate-spin text-emerald-600' : ''}`} />
               </button>
             </div>
           </div>
