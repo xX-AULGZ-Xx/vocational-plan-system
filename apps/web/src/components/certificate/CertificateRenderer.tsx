@@ -414,8 +414,38 @@ export default function CertificateRenderer({
             <title>พิมพ์เกียรติบัตร - ${displayName}</title>
             <style>
               @page {
-                size: 297mm 210mm landscape;
-                margin: 0;
+                size: A4 landscape;
+                margin: 0mm;
+              }
+              @media print {
+                @page {
+                  size: A4 landscape;
+                  margin: 0mm;
+                }
+                html, body {
+                  width: 297mm !important;
+                  height: 210mm !important;
+                  max-width: 297mm !important;
+                  max-height: 210mm !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  overflow: hidden !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  background-color: #ffffff !important;
+                }
+                .cert-print-img {
+                  width: 297mm !important;
+                  height: 209.5mm !important;
+                  max-width: 297mm !important;
+                  max-height: 209.5mm !important;
+                  display: block !important;
+                  object-fit: fill !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  page-break-inside: avoid !important;
+                  page-break-after: avoid !important;
+                }
               }
               html, body {
                 margin: 0;
@@ -425,9 +455,9 @@ export default function CertificateRenderer({
                 background-color: #ffffff;
                 overflow: hidden;
               }
-              img {
+              .cert-print-img {
                 width: 297mm;
-                height: 210mm;
+                height: 209.5mm;
                 display: block;
                 object-fit: fill;
                 margin: 0;
@@ -436,7 +466,7 @@ export default function CertificateRenderer({
             </style>
           </head>
           <body>
-            <img src="${imgData}" />
+            <img class="cert-print-img" src="${imgData}" />
             <script>
               window.onload = function() {
                 setTimeout(function() {
