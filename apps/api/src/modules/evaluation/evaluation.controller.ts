@@ -39,6 +39,17 @@ export function calculateStatistics(scores: number[]): { count: number; mean: nu
   };
 }
 
+// Helper to safely parse JSON dynamic_data
+export function parseDynamicData(dynamicData: any): any {
+  if (!dynamicData) return {};
+  if (typeof dynamicData === 'object') return dynamicData;
+  try {
+    return JSON.parse(dynamicData);
+  } catch {
+    return {};
+  }
+}
+
 // Default standard vocational evaluation structure
 const defaultEvaluationData = {
   title: 'แบบประเมินความพึงพอใจการดำเนินงานโครงการ',
@@ -713,8 +724,10 @@ router.get('/public/surveys/:formId', async (req: Request, res: Response) => {
       include: {
         project: {
           select: {
+            id: true,
             title: true,
             project_code: true,
+            dynamic_data: true,
             department: { select: { name: true } },
           },
         },
@@ -742,10 +755,15 @@ router.get('/public/surveys/:formId', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'ไม่พบแบบประเมินที่ระบุ' });
     }
 
+    const dynamicData = parseDynamicData(form.project.dynamic_data);
+    const projectType = dynamicData.project_type || 'GENERAL';
+    const isRegCert = projectType === 'REGISTRATION_AND_CERTIFICATE';
+
     return res.json({
       success: true,
       data: serializeBigInt({
         id: form.id,
+        project_id: form.project.id,
         title: form.title,
         description: form.description,
         is_active: form.is_active,
@@ -753,11 +771,70 @@ router.get('/public/surveys/:formId', async (req: Request, res: Response) => {
         project_title: form.project.title,
         project_code: form.project.project_code,
         department_name: form.project.department?.name,
+        project_type: projectType,
+        is_registration_and_certificate: isRegCert,
         sections: form.sections,
       }),
     });
   } catch (error: any) {
     console.error('Error fetching public survey:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Internal server error' });
+  }
+});
+
+// ----------------------------------------------------
+// 7.1 GET /api/v1/public/surveys/:formId/attendees-lookup
+// Search registered attendees for auto-fill in satisfaction survey
+// ----------------------------------------------------
+router.get('/public/surveys/:formId/attendees-lookup', async (req: Request, res: Response) => {
+  try {
+    const formId = BigInt(req.params.formId);
+    const q = ((req.query.q as string) || '').trim();
+
+    if (!q || q.length < 2) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const form = await prisma.projectEvaluationForm.findUnique({
+      where: { id: formId },
+      select: { project_id: true },
+    });
+
+    if (!form) {
+      return res.status(404).json({ success: false, message: 'ไม่พบแบบประเมิน' });
+    }
+
+    const attendees = await prisma.projectAttendee.findMany({
+      where: {
+        project_id: form.project_id,
+        OR: [
+          { full_name: { contains: q } },
+          { phone: { contains: q } },
+          { organization: { contains: q } },
+          { email: { contains: q } },
+        ],
+      },
+      select: {
+        id: true,
+        title_name: true,
+        full_name: true,
+        phone: true,
+        organization: true,
+        position: true,
+        email: true,
+        status: true,
+        certificate_no: true,
+      },
+      take: 8,
+      orderBy: { full_name: 'asc' },
+    });
+
+    return res.json({
+      success: true,
+      data: serializeBigInt(attendees),
+    });
+  } catch (error: any) {
+    console.error('Error looking up attendees for survey:', error);
     return res.status(500).json({ success: false, message: error.message || 'Internal server error' });
   }
 });
@@ -769,11 +846,19 @@ router.get('/public/surveys/:formId', async (req: Request, res: Response) => {
 router.post('/public/surveys/:formId/submit', async (req: Request, res: Response) => {
   try {
     const formId = BigInt(req.params.formId);
-    const { answers, respondent_meta } = req.body;
+    const { answers, respondent_meta, attendee_id, attendee_name, attendee_phone } = req.body;
 
     const form = await prisma.projectEvaluationForm.findUnique({
       where: { id: formId },
-      select: { id: true, is_active: true },
+      include: {
+        project: {
+          select: {
+            id: true,
+            title: true,
+            dynamic_data: true,
+          },
+        },
+      },
     });
 
     if (!form) {
@@ -788,12 +873,22 @@ router.post('/public/surveys/:formId/submit', async (req: Request, res: Response
       return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลคำตอบที่ส่ง' });
     }
 
+    const dynamicData = parseDynamicData(form.project.dynamic_data);
+    const isRegCert = dynamicData.project_type === 'REGISTRATION_AND_CERTIFICATE';
+
+    const mergedMeta = {
+      ...(respondent_meta || {}),
+      ...(attendee_id ? { attendee_id: String(attendee_id) } : {}),
+      ...(attendee_name ? { attendee_name: String(attendee_name) } : {}),
+      ...(attendee_phone ? { attendee_phone: String(attendee_phone) } : {}),
+    };
+
     // Save response in a transaction
-    const savedResponse = await prisma.$transaction(async (tx) => {
+    const savedResult = await prisma.$transaction(async (tx) => {
       const responseRecord = await tx.evaluationResponse.create({
         data: {
           form_id: formId,
-          respondent_meta: respondent_meta || {},
+          respondent_meta: mergedMeta,
         },
       });
 
@@ -808,13 +903,78 @@ router.post('/public/surveys/:formId/submit', async (req: Request, res: Response
         data: answerRecords,
       });
 
-      return responseRecord;
+      let updatedAttendee: any = null;
+
+      // If attendee_id or matching attendee name/phone is provided in registration_and_certificate project
+      let targetAttendeeId: bigint | null = null;
+      if (attendee_id) {
+        try { targetAttendeeId = BigInt(attendee_id); } catch {}
+      }
+
+      if (!targetAttendeeId && (attendee_name || attendee_phone)) {
+        const match = await tx.projectAttendee.findFirst({
+          where: {
+            project_id: form.project.id,
+            OR: [
+              ...(attendee_phone ? [{ phone: String(attendee_phone).trim() }] : []),
+              ...(attendee_name ? [{ full_name: String(attendee_name).trim() }] : []),
+            ],
+          },
+        });
+        if (match) {
+          targetAttendeeId = match.id;
+        }
+      }
+
+      if (targetAttendeeId) {
+        const attendeeRecord = await tx.projectAttendee.findUnique({
+          where: { id: targetAttendeeId },
+        });
+
+        if (attendeeRecord) {
+          let certNo = attendeeRecord.certificate_no;
+          // Auto generate certificate number if eligible and not yet set
+          if (!certNo && isRegCert) {
+            const certPrefix = dynamicData.certificate_config?.certificate_no_prefix;
+            const currentYear = new Date().getFullYear() + 543;
+            const basePrefix = certPrefix && certPrefix.trim() ? certPrefix.trim() : `CERT-${currentYear}-${form.project.id}`;
+            const count = await tx.projectAttendee.count({
+              where: {
+                project_id: form.project.id,
+                certificate_no: { not: null },
+              },
+            });
+            certNo = `${basePrefix}-${String(count + 1).padStart(4, '0')}`;
+          }
+
+          updatedAttendee = await tx.projectAttendee.update({
+            where: { id: targetAttendeeId },
+            data: {
+              status: 'passed',
+              certificate_no: certNo,
+              custom_data: {
+                ...(typeof attendeeRecord.custom_data === 'object' && attendeeRecord.custom_data ? (attendeeRecord.custom_data as any) : {}),
+                survey_completed_at: new Date().toISOString(),
+                survey_response_id: responseRecord.id.toString(),
+              },
+            },
+          });
+        }
+      }
+
+      return {
+        response_id: responseRecord.id.toString(),
+        attendee: updatedAttendee,
+      };
     });
 
     return res.json({
       success: true,
       message: 'บันทึกแบบประเมินความพึงพอใจสำเร็จ ขอขอบพระคุณเป็นอย่างยิ่ง',
-      response_id: savedResponse.id.toString(),
+      response_id: savedResult.response_id,
+      attendee: savedResult.attendee ? serializeBigInt(savedResult.attendee) : null,
+      project_id: form.project.id.toString(),
+      is_registration_and_certificate: isRegCert,
     });
   } catch (error: any) {
     console.error('Error submitting survey response:', error);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import {
   CheckCircle2,
@@ -14,7 +14,15 @@ import {
   Clock,
   ChevronRight,
   RefreshCw,
-  HeartHandshake
+  HeartHandshake,
+  User,
+  Phone,
+  Search,
+  Award,
+  Check,
+  ExternalLink,
+  X,
+  CheckCircle,
 } from 'lucide-react';
 import { showAlert } from '@/lib/sweetalert';
 import { getSurveyTheme } from '@/lib/survey-themes';
@@ -37,8 +45,21 @@ interface Section {
   questions: Question[];
 }
 
+export interface AttendeeItem {
+  id: string;
+  title_name?: string;
+  full_name: string;
+  phone?: string;
+  organization?: string;
+  position?: string;
+  email?: string;
+  status?: string;
+  certificate_no?: string;
+}
+
 interface SurveyData {
   id: string;
+  project_id?: string;
   title: string;
   description?: string;
   is_active: boolean;
@@ -46,6 +67,8 @@ interface SurveyData {
   project_title: string;
   project_code?: string;
   department_name?: string;
+  project_type?: string;
+  is_registration_and_certificate?: boolean;
   sections: Section[];
 }
 
@@ -59,6 +82,19 @@ export default function PublicSurveyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // Participant Info for REGISTRATION_AND_CERTIFICATE
+  const [attendeeName, setAttendeeName] = useState('');
+  const [attendeePhone, setAttendeePhone] = useState('');
+  const [selectedAttendee, setSelectedAttendee] = useState<AttendeeItem | null>(null);
+  const [attendeeSuggestions, setAttendeeSuggestions] = useState<AttendeeItem[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSearchField, setActiveSearchField] = useState<'name' | 'phone' | null>(null);
+  const [submitResultAttendee, setSubmitResultAttendee] = useState<any>(null);
+
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   // Form states: key = question.id
   const [answers, setAnswers] = useState<Record<string, { score?: number; text_value?: string }>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -68,6 +104,17 @@ export default function PublicSurveyPage() {
       fetchSurvey();
     }
   }, [formId]);
+
+  // Click outside to close suggestion dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchSurvey = async () => {
     setLoading(true);
@@ -85,6 +132,68 @@ export default function PublicSurveyPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Search registered attendees with debounce
+  const handleSearchAttendees = (query: string, field: 'name' | 'phone') => {
+    setActiveSearchField(field);
+    if (field === 'name') {
+      setAttendeeName(query);
+    } else {
+      setAttendeePhone(query);
+    }
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!query || query.trim().length < 2) {
+      setAttendeeSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setLoadingSuggestions(true);
+      try {
+        const res = await fetch(`/api/v1/public/surveys/${formId}/attendees-lookup?q=${encodeURIComponent(query.trim())}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          setAttendeeSuggestions(data.data);
+          setShowSuggestions(true);
+        } else {
+          setAttendeeSuggestions([]);
+          setShowSuggestions(false);
+        }
+      } catch (err) {
+        console.error('Error looking up attendees:', err);
+        setAttendeeSuggestions([]);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }, 280);
+  };
+
+  const handleSelectAttendee = (att: AttendeeItem) => {
+    const formattedName = `${att.title_name || ''} ${att.full_name || ''}`.trim();
+    setAttendeeName(formattedName);
+    setAttendeePhone(att.phone || '');
+    setSelectedAttendee(att);
+    setShowSuggestions(false);
+    setValidationErrors(prev => {
+      const next = { ...prev };
+      delete next.attendeeName;
+      delete next.attendeePhone;
+      return next;
+    });
+  };
+
+  const handleClearSelectedAttendee = () => {
+    setSelectedAttendee(null);
+    setAttendeeName('');
+    setAttendeePhone('');
+    setAttendeeSuggestions([]);
+    setShowSuggestions(false);
   };
 
   const handleScoreChange = (qId: string, score: number) => {
@@ -119,8 +228,18 @@ export default function PublicSurveyPage() {
     e.preventDefault();
     if (!survey) return;
 
-    // Validate required questions
+    // Validate attendee identity if required
     const errors: Record<string, string> = {};
+    if (survey.is_registration_and_certificate) {
+      if (!attendeeName.trim()) {
+        errors.attendeeName = 'กรุณากรอกชื่อ-นามสกุลของผู้ตอบแบบประเมิน';
+      }
+      if (!attendeePhone.trim()) {
+        errors.attendeePhone = 'กรุณากรอกเบอร์โทรศัพท์ที่ใช้ลงทะเบียน';
+      }
+    }
+
+    // Validate required questions
     const formattedAnswers: any[] = [];
     const respondentMeta: Record<string, any> = {};
 
@@ -161,12 +280,15 @@ export default function PublicSurveyPage() {
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      showAlert.warning('กรอกข้อมูลไม่ครบถ้วน', 'กรุณาตอบคำถามในช่องที่มีเครื่องหมายดอกจันสีแดง (*) ให้ครบถ้วน');
-      // Scroll to the first error
-      const firstErrorKey = Object.keys(errors)[0];
-      const el = document.getElementById(`question-${firstErrorKey}`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showAlert.warning('กรอกข้อมูลไม่ครบถ้วน', 'กรุณากรอกข้อมูลและตอบคำถามที่มีเครื่องหมายดอกจันสีแดง (*) ให้ครบถ้วน');
+      // Scroll to first error
+      if (errors.attendeeName || errors.attendeePhone) {
+        const el = document.getElementById('attendee-info-card');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        const firstErrorKey = Object.keys(errors)[0];
+        const el = document.getElementById(`question-${firstErrorKey}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
       return;
     }
@@ -179,11 +301,15 @@ export default function PublicSurveyPage() {
         body: JSON.stringify({
           answers: formattedAnswers,
           respondent_meta: respondentMeta,
+          attendee_id: selectedAttendee?.id || undefined,
+          attendee_name: attendeeName.trim(),
+          attendee_phone: attendeePhone.trim(),
         }),
       });
 
       const data = await res.json();
       if (data.success) {
+        setSubmitResultAttendee(data.attendee || null);
         setSubmitted(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
@@ -264,7 +390,30 @@ export default function PublicSurveyPage() {
             <div className="font-semibold text-slate-800 text-sm mb-1">{survey.project_title}</div>
             {survey.department_name && <div>หน่วยงาน: {survey.department_name}</div>}
             {survey.project_code && <div>รหัสโครงการ: {survey.project_code}</div>}
+            {(attendeeName || submitResultAttendee?.full_name) && (
+              <div className="pt-2 border-t border-slate-200 mt-2 text-slate-700">
+                ผู้ประเมิน: <span className="font-semibold text-slate-900">{submitResultAttendee?.full_name || attendeeName}</span>
+                {submitResultAttendee?.certificate_no && (
+                  <span className="block text-amber-700 font-semibold mt-0.5">
+                    เลขที่เกียรติบัตร: {submitResultAttendee.certificate_no}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* Certificate Action Button */}
+          {(survey.is_registration_and_certificate || survey.project_type === 'REGISTRATION_AND_CERTIFICATE' || submitResultAttendee) && survey.project_id && (
+            <div className="w-full mb-6 space-y-2">
+              <a
+                href={`/projects/${survey.project_id}/certificates?q=${encodeURIComponent(submitResultAttendee?.certificate_no || submitResultAttendee?.full_name || attendeeName || '')}`}
+                className="w-full py-3 px-4 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 text-sm transition-all hover:scale-[1.02]"
+              >
+                <Award className="w-4 h-4" />
+                <span>🎓 ดูและตรวจสอบเกียรติบัตรออนไลน์</span>
+              </a>
+            </div>
+          )}
 
           <div className="flex items-center text-xs text-slate-400 gap-1">
             <HeartHandshake className="w-4 h-4 text-pink-500" />
@@ -314,6 +463,179 @@ export default function PublicSurveyPage() {
 
         {/* Survey Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Attendee Info Card for REGISTRATION_AND_CERTIFICATE */}
+          {survey.is_registration_and_certificate && (
+            <div
+              id="attendee-info-card"
+              ref={dropdownRef}
+              className="bg-white rounded-3xl shadow-sm border border-indigo-100 p-5 sm:p-7 space-y-4 relative overflow-visible"
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div>
+                  <div className="flex items-center gap-2 text-indigo-600 font-bold text-base sm:text-lg">
+                    <Award className="w-5 h-5 text-indigo-600" />
+                    <span>ข้อมูลผู้ประเมินสำหรับรับเกียรติบัตร</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    กรอกชื่อ-นามสกุล หรือเบอร์โทรศัพท์ที่ใช้ลงทะเบียนไว้ ระบบจะค้นหาและช่วยกรอกข้อมูลให้อัตโนมัติ (Auto-fill)
+                  </p>
+                </div>
+                {selectedAttendee && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full shrink-0">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    เชื่อมโยงข้อมูลแล้ว
+                  </span>
+                )}
+              </div>
+
+              {selectedAttendee && (
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3.5 flex items-center justify-between gap-3 text-xs animate-in fade-in duration-200">
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-emerald-900 flex items-center gap-1.5 text-sm">
+                      <span>{selectedAttendee.title_name || ''} {selectedAttendee.full_name}</span>
+                      {selectedAttendee.status === 'passed' && (
+                        <span className="text-[10px] bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full font-bold">ผ่านการอบรมแล้ว</span>
+                      )}
+                    </div>
+                    <div className="text-emerald-700 text-[11px]">
+                      {selectedAttendee.phone && <span>เบอร์โทร: {selectedAttendee.phone}</span>}
+                      {selectedAttendee.organization && <span className="ml-2">| หน่วยงาน: {selectedAttendee.organization}</span>}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearSelectedAttendee}
+                    className="text-xs text-slate-500 hover:text-red-600 bg-white border border-slate-200 hover:border-red-200 px-2.5 py-1 rounded-xl shadow-xs transition-colors shrink-0"
+                  >
+                    เปลี่ยนข้อมูล
+                  </button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative">
+                {/* Name input */}
+                <div className="space-y-1.5 relative">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700">
+                    ชื่อ - นามสกุล <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      value={attendeeName}
+                      onChange={(e) => handleSearchAttendees(e.target.value, 'name')}
+                      onFocus={() => {
+                        if (attendeeSuggestions.length > 0) setShowSuggestions(true);
+                      }}
+                      placeholder="เช่น สมชาย ใจดี"
+                      className={`w-full pl-9 pr-8 py-2.5 text-xs sm:text-sm rounded-2xl border transition-all ${
+                        validationErrors.attendeeName
+                          ? 'border-red-300 ring-1 ring-red-300 bg-red-50/30'
+                          : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 bg-white'
+                      }`}
+                    />
+                    {loadingSuggestions && activeSearchField === 'name' && (
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <RefreshCw className="w-3.5 h-3.5 text-indigo-500 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  {validationErrors.attendeeName && (
+                    <p className="text-[11px] text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {validationErrors.attendeeName}
+                    </p>
+                  )}
+                </div>
+
+                {/* Phone input */}
+                <div className="space-y-1.5 relative">
+                  <label className="block text-xs sm:text-sm font-semibold text-slate-700">
+                    เบอร์โทรศัพท์ <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="tel"
+                      value={attendeePhone}
+                      onChange={(e) => handleSearchAttendees(e.target.value, 'phone')}
+                      onFocus={() => {
+                        if (attendeeSuggestions.length > 0) setShowSuggestions(true);
+                      }}
+                      placeholder="เช่น 0812345678"
+                      className={`w-full pl-9 pr-8 py-2.5 text-xs sm:text-sm rounded-2xl border transition-all ${
+                        validationErrors.attendeePhone
+                          ? 'border-red-300 ring-1 ring-red-300 bg-red-50/30'
+                          : 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500 bg-white'
+                      }`}
+                    />
+                    {loadingSuggestions && activeSearchField === 'phone' && (
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <RefreshCw className="w-3.5 h-3.5 text-indigo-500 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  {validationErrors.attendeePhone && (
+                    <p className="text-[11px] text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {validationErrors.attendeePhone}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Auto-fill Dropdown Suggestions */}
+              {showSuggestions && attendeeSuggestions.length > 0 && (
+                <div className="absolute left-5 right-5 z-30 mt-1 bg-white rounded-2xl shadow-xl border border-indigo-100 overflow-hidden max-h-60 overflow-y-auto">
+                  <div className="px-3 py-1.5 bg-indigo-50/80 border-b border-indigo-100 text-[11px] font-bold text-indigo-800 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <Search className="w-3 h-3" />
+                      พบรายชื่อผู้ลงทะเบียนที่ตรงกัน (คลิกเพื่อเลือก Auto-fill)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSuggestions(false)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {attendeeSuggestions.map((att) => (
+                      <button
+                        key={att.id}
+                        type="button"
+                        onClick={() => handleSelectAttendee(att)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-indigo-50/60 transition-colors flex items-center justify-between gap-3 text-xs group"
+                      >
+                        <div>
+                          <div className="font-bold text-slate-800 group-hover:text-indigo-600 flex items-center gap-1.5">
+                            <span>{att.title_name || ''} {att.full_name}</span>
+                            {att.certificate_no && (
+                              <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                                {att.certificate_no}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                            {att.phone && <span>📞 {att.phone}</span>}
+                            {att.organization && <span>🏢 {att.organization}</span>}
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 group-hover:bg-indigo-600 group-hover:text-white px-2.5 py-1 rounded-lg transition-colors shrink-0">
+                          เลือก
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {survey.sections.map((section, sIdx) => (
             <div
               key={section.id}
