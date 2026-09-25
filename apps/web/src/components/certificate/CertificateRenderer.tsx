@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Download, Printer, Move, Check, Type, Sparkles } from 'lucide-react';
+import { Download, Printer, Move, Check, Type, Sparkles, QrCode } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export interface BlockStyle {
   x: number; // Percentage (0-100)
@@ -13,6 +14,12 @@ export interface BlockStyle {
   fontFamily?: 'sarabun' | 'charm' | 'prompt' | 'kanit' | 'mitr';
   enabled?: boolean;
   showOrg?: boolean;
+  // QR Code settings for cert_no_block
+  showQr?: boolean;
+  qrSize?: number;
+  qrBg?: 'white' | 'transparent';
+  showText?: boolean;
+  showScanLabel?: boolean;
 }
 
 export interface CertificateConfig {
@@ -36,6 +43,7 @@ export interface CertificateConfig {
 }
 
 export interface CertificateAttendeeData {
+  id?: string;
   full_name: string;
   title_name?: string;
   position?: string;
@@ -43,6 +51,8 @@ export interface CertificateAttendeeData {
   certificate_no?: string;
   issue_date?: string;
   project_title?: string;
+  project_id?: string;
+  verification_url?: string;
 }
 
 interface CertificateRendererProps {
@@ -139,14 +149,19 @@ export const DEFAULT_COURSE_BLOCK: BlockStyle = {
 };
 
 export const DEFAULT_CERT_NO_BLOCK: BlockStyle = {
-  x: 88,
-  y: 7,
-  fontSize: 12,
-  color: '#64748b',
+  x: 90,
+  y: 11,
+  fontSize: 11,
+  color: '#475569',
   fontWeight: 'normal',
-  textAlign: 'right',
+  textAlign: 'center',
   fontFamily: 'sarabun',
   enabled: true,
+  showQr: true,
+  qrSize: 52,
+  qrBg: 'white',
+  showText: true,
+  showScanLabel: true,
 };
 
 export default function CertificateRenderer({
@@ -185,6 +200,17 @@ export default function CertificateRenderer({
   const displayName = `${attendee.title_name || ''} ${attendee.full_name || ''}`.trim() || 'ชื่อ-นามสกุล ผู้เข้าร่วมโครงการ';
   const displayCourse = config.course_name || attendee.project_title || 'โครงการสัมมนาเชิงปฏิบัติการ';
   const displayCertNo = attendee.certificate_no || `${config.certificate_no_prefix || 'CERT-2569'}-0001`;
+
+  // QR Code Verification Value
+  const qrVerificationUrl = (() => {
+    if (attendee.verification_url) return attendee.verification_url;
+    if (typeof window !== 'undefined') {
+      const pid = attendee.project_id || '';
+      const base = window.location.origin;
+      return `${base}/projects/${pid}/certificates?q=${encodeURIComponent(displayCertNo)}`;
+    }
+    return `CERTIFICATE:${displayCertNo}`;
+  })();
 
   // Drag handling
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent, blockKey: 'name' | 'course' | 'cert_no') => {
@@ -393,13 +419,13 @@ export default function CertificateRenderer({
           )}
 
           {/* ========================================================
-              BLOCK 1: CERTIFICATE NO. (เลขที่เกียรติบัตร)
+              BLOCK 1: CERTIFICATE NO. & VERIFICATION QR CODE (เลขที่ & QR Code)
           ======================================================== */}
           {certNoBlock.enabled !== false && (
             <div
-              className={`absolute cursor-move transition-shadow z-20 ${
+              className={`absolute cursor-move transition-shadow z-20 flex flex-col items-center gap-1 ${
                 isEditable ? 'group' : ''
-              } ${isEditable && selectedBlock === 'cert_no' ? 'ring-2 ring-indigo-500 rounded-md bg-indigo-50/20' : ''}`}
+              } ${isEditable && selectedBlock === 'cert_no' ? 'ring-2 ring-indigo-500 rounded-lg bg-indigo-50/30 p-1.5' : 'p-1'}`}
               style={getBlockStyle(certNoBlock)}
               onMouseDown={(e) => handleDragStart(e, 'cert_no')}
               onTouchStart={(e) => handleDragStart(e, 'cert_no')}
@@ -409,13 +435,43 @@ export default function CertificateRenderer({
               }}
             >
               {isEditable && (
-                <div className="designer-handle absolute -top-5 left-0 px-1.5 py-0.5 bg-indigo-600 text-[9px] font-bold text-white rounded shadow-sm opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none whitespace-nowrap">
-                  <Move className="w-2.5 h-2.5" /> เลขที่ ({certNoBlock.x}%, {certNoBlock.y}%)
+                <div className="designer-handle absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-indigo-600 text-[10px] font-bold text-white rounded shadow-md opacity-0 group-hover:opacity-100 transition flex items-center gap-1 pointer-events-none whitespace-nowrap z-50">
+                  <Move className="w-3 h-3" /> เลขที่ & QR ({certNoBlock.x}%, {certNoBlock.y}%)
                 </div>
               )}
-              <span className="leading-none select-none">
-                เลขที่: {displayCertNo}
-              </span>
+
+              {/* QR Code Graphic */}
+              {certNoBlock.showQr !== false && (
+                <div
+                  className={`p-1.5 rounded-lg flex items-center justify-center transition-all ${
+                    certNoBlock.qrBg === 'transparent'
+                      ? 'bg-transparent'
+                      : 'bg-white shadow-md border border-slate-200/80'
+                  }`}
+                >
+                  <QRCodeSVG
+                    value={qrVerificationUrl}
+                    size={certNoBlock.qrSize || 52}
+                    level="M"
+                    fgColor={certNoBlock.color || '#0f172a'}
+                    bgColor={certNoBlock.qrBg === 'transparent' ? 'transparent' : '#ffffff'}
+                  />
+                </div>
+              )}
+
+              {/* Certificate Number & Scan Label */}
+              {certNoBlock.showText !== false && (
+                <div className="leading-tight select-none text-center">
+                  <div className="font-mono font-bold tracking-tight">
+                    เลขที่: {displayCertNo}
+                  </div>
+                  {certNoBlock.showScanLabel !== false && certNoBlock.showQr !== false && (
+                    <div className="text-[9px] opacity-75 font-normal tracking-wide mt-0.5">
+                      สแกนเพื่อตรวจสอบ
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

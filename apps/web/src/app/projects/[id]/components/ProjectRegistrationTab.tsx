@@ -1489,7 +1489,7 @@ export default function ProjectRegistrationTab({
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
                       <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                      <span>บล็อกเลขที่เกียรติบัตร (Certificate No.)</span>
+                      <span>บล็อกเลขที่เกียรติบัตร & QR Code</span>
                     </div>
                     <button
                       type="button"
@@ -1500,6 +1500,87 @@ export default function ProjectRegistrationTab({
                       <RotateCcw className="w-3 h-3" />
                       <span>รีเซ็ตตำแหน่ง</span>
                     </button>
+                  </div>
+
+                  {/* QR Code Controls Section */}
+                  <div className="p-3 bg-indigo-50/60 border border-indigo-200/80 rounded-xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-950">
+                        <QrCode className="w-4 h-4 text-indigo-600" />
+                        <span>ตั้งค่า QR Code ตรวจสอบเกียรติบัตร</span>
+                      </div>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={blk.showQr !== false}
+                          onChange={(e) =>
+                            handleBlockChange('cert_no', { ...blk, showQr: e.target.checked })
+                          }
+                          className="rounded text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-[11px] font-bold text-indigo-900">เปิดแสดง QR</span>
+                      </label>
+                    </div>
+
+                    {blk.showQr !== false && (
+                      <div className="space-y-2 pt-1 border-t border-indigo-200/60">
+                        <div>
+                          <div className="flex items-center justify-between text-[11px] font-semibold text-indigo-900 mb-1">
+                            <span>ขนาด QR Code: {blk.qrSize || 52}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="32"
+                            max="96"
+                            step="2"
+                            value={blk.qrSize || 52}
+                            onChange={(e) =>
+                              handleBlockChange('cert_no', {
+                                ...blk,
+                                qrSize: parseInt(e.target.value),
+                              })
+                            }
+                            className="w-full accent-indigo-600 cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={blk.qrBg !== 'transparent'}
+                              onChange={(e) =>
+                                handleBlockChange('cert_no', {
+                                  ...blk,
+                                  qrBg: e.target.checked ? 'white' : 'transparent',
+                                })
+                              }
+                              className="rounded text-indigo-600"
+                            />
+                            <span className="text-[11px] text-slate-700 font-medium">
+                              กล่องสีขาวรองหลัง QR
+                            </span>
+                          </label>
+
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={blk.showScanLabel !== false}
+                              onChange={(e) =>
+                                handleBlockChange('cert_no', {
+                                  ...blk,
+                                  showScanLabel: e.target.checked,
+                                })
+                              }
+                              className="rounded text-indigo-600"
+                            />
+                            <span className="text-[11px] text-slate-700 font-medium">
+                              แสดงคำว่า &ldquo;สแกนเพื่อตรวจสอบ&rdquo;
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Prefix Text */}
@@ -1526,6 +1607,22 @@ export default function ProjectRegistrationTab({
                     <div>
                       <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
                         <span>ตำแหน่งแนวนอน (X): {blk.x}%</span>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleBlockChange('cert_no', { ...blk, x: 10 })}
+                            className="text-[10px] px-1.5 py-0.5 bg-slate-200 text-slate-800 rounded font-semibold hover:bg-slate-300 transition"
+                          >
+                            มุมซ้าย (10%)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleBlockChange('cert_no', { ...blk, x: 90 })}
+                            className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-900 rounded font-semibold hover:bg-indigo-200 transition"
+                          >
+                            มุมขวา (90%)
+                          </button>
+                        </div>
                       </div>
                       <input
                         type="range"
@@ -1562,14 +1659,14 @@ export default function ProjectRegistrationTab({
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        ขนาดตัวอักษร: {blk.fontSize || 12}px
+                        ขนาดตัวอักษรเลขที่: {blk.fontSize || 11}px
                       </label>
                       <input
                         type="range"
                         min="9"
                         max="24"
                         step="1"
-                        value={blk.fontSize || 12}
+                        value={blk.fontSize || 11}
                         onChange={(e) =>
                           handleBlockChange('cert_no', {
                             ...blk,
@@ -1582,31 +1679,45 @@ export default function ProjectRegistrationTab({
 
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        สีข้อความ:
+                        สีข้อความ / QR:
                       </label>
                       <div className="flex items-center gap-1.5">
                         <input
                           type="color"
-                          value={blk.color || '#64748b'}
+                          value={blk.color || '#475569'}
                           onChange={(e) =>
                             handleBlockChange('cert_no', { ...blk, color: e.target.value })
                           }
-                          className="w-7 h-7 rounded cursor-pointer border border-slate-300 p-0.5"
+                          className="w-7 h-7 rounded cursor-pointer border border-slate-300 p-0.5 bg-white"
                         />
                         <input
                           type="text"
-                          value={blk.color || '#64748b'}
+                          value={blk.color || '#475569'}
                           onChange={(e) =>
                             handleBlockChange('cert_no', { ...blk, color: e.target.value })
                           }
-                          className="w-20 px-1.5 py-1 text-[11px] font-mono border border-slate-300 rounded"
+                          className="w-20 px-1.5 py-1 text-[11px] font-mono border border-slate-300 rounded outline-none uppercase"
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Enable/Disable Cert No */}
-                  <div className="pt-2 border-t border-slate-200">
+                  {/* Enable/Disable Toggles */}
+                  <div className="pt-2 border-t border-slate-200 space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={blk.showText !== false}
+                        onChange={(e) =>
+                          handleBlockChange('cert_no', { ...blk, showText: e.target.checked })
+                        }
+                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-xs text-slate-700 font-semibold">
+                        แสดงตัวหนังสือเลขที่เกียรติบัตร (Text)
+                      </span>
+                    </label>
+
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -1617,7 +1728,7 @@ export default function ProjectRegistrationTab({
                         className="rounded text-indigo-600 focus:ring-indigo-500"
                       />
                       <span className="text-xs text-slate-700 font-semibold">
-                        แสดงเลขที่เกียรติบัตรบนใบประกาศ
+                        เปิดใช้งานบล็อกนี้ทั้งหมด
                       </span>
                     </label>
                   </div>
@@ -1721,6 +1832,7 @@ export default function ProjectRegistrationTab({
 
             <CertificateRenderer
               attendee={{
+                project_id: project?.id,
                 full_name: 'นายตัวอย่าง นามสมมุติ',
                 organization: 'วิทยาลัยอาชีวศึกษาเชียงราย',
                 position: 'ผู้เข้ารับการอบรม',
@@ -2129,6 +2241,8 @@ export default function ProjectRegistrationTab({
 
             <CertificateRenderer
               attendee={{
+                id: previewAttendee.id,
+                project_id: project?.id,
                 full_name: previewAttendee.full_name,
                 title_name: previewAttendee.title_name,
                 organization: previewAttendee.organization,

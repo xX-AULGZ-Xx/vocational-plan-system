@@ -188,6 +188,8 @@ export default function PublicCertificatesPage({ params }: PageProps) {
 
             <CertificateRenderer
               attendee={{
+                id: selectedAttendee.id,
+                project_id: projectId,
                 full_name: selectedAttendee.full_name,
                 title_name: selectedAttendee.title_name,
                 organization: selectedAttendee.organization,
