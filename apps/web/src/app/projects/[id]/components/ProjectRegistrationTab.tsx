@@ -28,9 +28,28 @@ import {
   X,
   Palette,
   Image as ImageIcon,
+  Move,
+  Type,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Bold,
+  RotateCcw,
+  Sliders,
+  Check,
+  MousePointer,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import CertificateRenderer, { CertificateConfig, CertificateAttendeeData, THEME_STYLES } from '@/components/certificate/CertificateRenderer';
+import CertificateRenderer, {
+  CertificateConfig,
+  CertificateAttendeeData,
+  THEME_STYLES,
+  BlockStyle,
+  FONT_FAMILIES,
+  DEFAULT_NAME_BLOCK,
+  DEFAULT_COURSE_BLOCK,
+  DEFAULT_CERT_NO_BLOCK,
+} from '@/components/certificate/CertificateRenderer';
 
 interface ProjectRegistrationTabProps {
   project: any;
@@ -99,28 +118,19 @@ export default function ProjectRegistrationTab({
   const [previewAttendee, setPreviewAttendee] = useState<any>(null);
 
   // Certificate Studio State
+  const [selectedStudioBlock, setSelectedStudioBlock] = useState<'name' | 'course' | 'cert_no'>('name');
   const [studioConfig, setStudioConfig] = useState<CertificateConfig>({
-    template_theme: certConfig.template_theme || 'classic_blue',
+    template_theme: certConfig.template_theme || (certConfig.background_image ? 'custom' : 'classic_blue'),
     background_image: certConfig.background_image || null,
-    title: certConfig.title || 'เกียรติบัตรฉบับนี้ให้ไว้เพื่อแสดงว่า',
-    subtitle: certConfig.subtitle || 'ได้เข้าร่วมและผ่านการอบรมโครงการ',
     course_name: certConfig.course_name || project?.title || '',
-    signatory_1_name: certConfig.signatory_1_name || '',
-    signatory_1_position: certConfig.signatory_1_position || '',
-    signatory_1_image: certConfig.signatory_1_image || null,
-    signatory_2_name: certConfig.signatory_2_name || '',
-    signatory_2_position: certConfig.signatory_2_position || '',
-    signatory_2_image: certConfig.signatory_2_image || null,
     certificate_no_prefix: certConfig.certificate_no_prefix || `CERT-${project?.fiscal_year || 2569}-${project?.id || ''}`,
-    issue_date_text: certConfig.issue_date_text || '',
+    name_block: certConfig.name_block || DEFAULT_NAME_BLOCK,
+    course_block: certConfig.course_block || DEFAULT_COURSE_BLOCK,
+    cert_no_block: certConfig.cert_no_block || DEFAULT_CERT_NO_BLOCK,
   });
   const [savingCertConfig, setSavingCertConfig] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
-  const [uploadingSig1, setUploadingSig1] = useState(false);
-  const [uploadingSig2, setUploadingSig2] = useState(false);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
-  const sig1FileInputRef = useRef<HTMLInputElement>(null);
-  const sig2FileInputRef = useRef<HTMLInputElement>(null);
 
   // Settings tab form state
   const [settingsForm, setSettingsForm] = useState({
@@ -413,40 +423,28 @@ export default function ProjectRegistrationTab({
     }
   };
 
-  // Upload Signatures
-  const handleUploadSignature = async (file: File, index: '1' | '2') => {
-    const isSig1 = index === '1';
-    if (isSig1) setUploadingSig1(true);
-    else setUploadingSig2(true);
+  // Update block config
+  const handleBlockChange = (
+    blockKey: 'name' | 'course' | 'cert_no',
+    updated: BlockStyle
+  ) => {
+    setStudioConfig((prev) => ({
+      ...prev,
+      [`${blockKey}_block`]: updated,
+    }));
+  };
 
-    try {
-      const formData = new FormData();
-      formData.append('signature_file', file);
-      formData.append('signatory_index', index);
-
-      const res = await fetch(`/api/v1/projects/${project.id}/certificate/upload-signature`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        const key = isSig1 ? 'signatory_1_image' : 'signatory_2_image';
-        setStudioConfig((prev) => ({
-          ...prev,
-          [key]: data.data[key],
-        }));
-        onRefresh();
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      if (isSig1) setUploadingSig1(false);
-      else setUploadingSig2(false);
-    }
+  const handleResetBlock = (blockKey: 'name' | 'course' | 'cert_no') => {
+    const defaultBlock =
+      blockKey === 'name'
+        ? DEFAULT_NAME_BLOCK
+        : blockKey === 'course'
+        ? DEFAULT_COURSE_BLOCK
+        : DEFAULT_CERT_NO_BLOCK;
+    setStudioConfig((prev) => ({
+      ...prev,
+      [`${blockKey}_block`]: defaultBlock,
+    }));
   };
 
   // Save Certificate Studio Config
@@ -937,283 +935,775 @@ export default function ProjectRegistrationTab({
       )}
 
       {/* ========================================================
-          SUB-TAB 2: CERTIFICATE STUDIO & DESIGNER
+          SUB-TAB 2: CERTIFICATE STUDIO & DESIGNER (DRAGGABLE BLOCKS)
       ======================================================== */}
       {subTab === 'certificate' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Controls & Customizer Panel (Left 5 cols) */}
-          <div className="lg:col-span-5 space-y-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="lg:col-span-5 space-y-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <Palette className="w-5 h-5 text-amber-600" />
-                <h3 className="text-sm font-black text-slate-900">
-                  ปรับแต่งรูปแบบใบประกาศนียบัตร
-                </h3>
+                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                  <Palette className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">
+                    สตูดิโอออกแบบใบประกาศนียบัตร
+                  </h3>
+                  <p className="text-[10px] text-slate-500">
+                    ปรับแต่งและลากวางตำแหน่งบล็อกข้อความได้อย่างอิสระ
+                  </p>
+                </div>
               </div>
               <button
                 onClick={handleSaveCertConfig}
                 disabled={savingCertConfig}
-                className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition"
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5"
               >
                 {savingCertConfig ? 'กำลังบันทึก...' : '💾 บันทึกรูปแบบ'}
               </button>
             </div>
 
-            {/* Theme Presets */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-2">
-                เลือกรูปแบบแม่แบบ (Template Theme):
+            {/* Block Selector Tabs */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                เลือกบล็อกข้อความที่ต้องการปรับแต่ง:
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(THEME_STYLES).map(([key, item]) => {
-                  const isSelected = studioConfig.template_theme === key;
-                  if (key === 'custom') return null;
-                  return (
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setSelectedStudioBlock('name')}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    selectedStudioBlock === 'name'
+                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Type className="w-3.5 h-3.5" />
+                  <span>ชื่อ-นามสกุล</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedStudioBlock('course')}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    selectedStudioBlock === 'course'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  <span>ชื่อโครงการ</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedStudioBlock('cert_no')}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    selectedStudioBlock === 'cert_no'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Move className="w-3.5 h-3.5" />
+                  <span>เลขที่เกียรติบัตร</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Interactive Drag Tip Box */}
+            <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-start gap-2.5 text-xs text-amber-950">
+              <MousePointer className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 animate-bounce" />
+              <div className="text-[11px] leading-relaxed">
+                <strong>ลากวางตำแหน่งอิสระ:</strong> คลิกและลากบล็อกข้อความบนผืนผ้าใบจำลองด้านขวาได้โดยตรง หรือใช้แถบเลื่อนด้านล่างเพื่อปรับพิกัด X, Y และขนาดตัวอักษร
+              </div>
+            </div>
+
+            {/* SELECTED BLOCK CONTROLS */}
+            {selectedStudioBlock === 'name' && (() => {
+              const blk = studioConfig.name_block || DEFAULT_NAME_BLOCK;
+              return (
+                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                      <span>บล็อกชื่อ-นามสกุล (Recipient Name)</span>
+                    </div>
                     <button
-                      key={key}
+                      type="button"
+                      onClick={() => handleResetBlock('name')}
+                      className="text-[11px] text-slate-500 hover:text-rose-600 flex items-center gap-1 font-semibold transition"
+                      title="รีเซ็ตตำแหน่งเริ่มต้น"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>รีเซ็ตตำแหน่ง</span>
+                    </button>
+                  </div>
+
+                  {/* Coordinates: X & Y */}
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ตำแหน่งแนวนอน (X): {blk.x}%</span>
+                        <button
+                          type="button"
+                          onClick={() => handleBlockChange('name', { ...blk, x: 50 })}
+                          className="text-[10px] px-2 py-0.5 bg-amber-100 text-amber-900 rounded font-bold hover:bg-amber-200 transition"
+                        >
+                          จัดกึ่งกลาง (50%)
+                        </button>
+                      </div>
+                      <input
+                        type="range"
+                        min="2"
+                        max="98"
+                        step="0.5"
+                        value={blk.x}
+                        onChange={(e) =>
+                          handleBlockChange('name', { ...blk, x: parseFloat(e.target.value) })
+                        }
+                        className="w-full accent-amber-600 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ตำแหน่งแนวตั้ง (Y): {blk.y}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="2"
+                        max="98"
+                        step="0.5"
+                        value={blk.y}
+                        onChange={(e) =>
+                          handleBlockChange('name', { ...blk, y: parseFloat(e.target.value) })
+                        }
+                        className="w-full accent-amber-600 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Font Size & Weight */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        ขนาดตัวอักษร: {blk.fontSize || 34}px
+                      </label>
+                      <input
+                        type="range"
+                        min="16"
+                        max="64"
+                        step="1"
+                        value={blk.fontSize || 34}
+                        onChange={(e) =>
+                          handleBlockChange('name', { ...blk, fontSize: parseInt(e.target.value) })
+                        }
+                        className="w-full accent-amber-600 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        ความหนาตัวอักษร:
+                      </label>
+                      <div className="flex gap-1">
+                        {[
+                          { id: 'normal', label: 'ปกติ' },
+                          { id: 'bold', label: 'หนา' },
+                          { id: '800', label: 'หนาพิเศษ' },
+                        ].map((w) => (
+                          <button
+                            key={w.id}
+                            type="button"
+                            onClick={() =>
+                              handleBlockChange('name', { ...blk, fontWeight: w.id as any })
+                            }
+                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg border transition ${
+                              (blk.fontWeight || 'bold') === w.id
+                                ? 'bg-amber-500 text-slate-950 border-amber-600'
+                                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            {w.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Alignment & Font Family */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        การจัดชิด:
+                      </label>
+                      <div className="flex gap-1">
+                        {[
+                          { id: 'left', icon: AlignLeft },
+                          { id: 'center', icon: AlignCenter },
+                          { id: 'right', icon: AlignRight },
+                        ].map((align) => {
+                          const Icon = align.icon;
+                          const isSel = (blk.textAlign || 'center') === align.id;
+                          return (
+                            <button
+                              key={align.id}
+                              type="button"
+                              onClick={() =>
+                                handleBlockChange('name', { ...blk, textAlign: align.id as any })
+                              }
+                              className={`flex-1 py-1.5 flex items-center justify-center rounded-lg border transition ${
+                                isSel
+                                  ? 'bg-amber-500 text-slate-950 border-amber-600'
+                                  : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                              }`}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        แบบอักษร (Font):
+                      </label>
+                      <select
+                        value={blk.fontFamily || 'sarabun'}
+                        onChange={(e) =>
+                          handleBlockChange('name', { ...blk, fontFamily: e.target.value as any })
+                        }
+                        className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-medium text-slate-800"
+                      >
+                        {Object.entries(FONT_FAMILIES).map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Color Picker & Preset chips */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+                      สีตัวอักษร:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={blk.color || '#0f172a'}
+                        onChange={(e) => handleBlockChange('name', { ...blk, color: e.target.value })}
+                        className="w-8 h-8 rounded-lg cursor-pointer border border-slate-300 p-0.5 bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={blk.color || '#0f172a'}
+                        onChange={(e) => handleBlockChange('name', { ...blk, color: e.target.value })}
+                        className="w-24 px-2 py-1 text-xs font-mono border border-slate-300 rounded-lg outline-none uppercase"
+                      />
+                      <div className="flex items-center gap-1 ml-auto">
+                        {['#000000', '#0f172a', '#1e3a8a', '#881337', '#b45309', '#047857'].map(
+                          (c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => handleBlockChange('name', { ...blk, color: c })}
+                              className="w-5 h-5 rounded-full border border-slate-300 shadow-2xs hover:scale-110 transition"
+                              style={{ backgroundColor: c }}
+                              title={c}
+                            />
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Show Org Option */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={blk.showOrg || false}
+                        onChange={(e) =>
+                          handleBlockChange('name', { ...blk, showOrg: e.target.checked })
+                        }
+                        className="rounded text-amber-600 focus:ring-amber-500"
+                      />
+                      <span className="text-xs text-slate-700 font-semibold">
+                        แสดงข้อมูลตำแหน่ง / หน่วยงาน ต่อท้ายชื่อ
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {selectedStudioBlock === 'course' && (() => {
+              const blk = studioConfig.course_block || DEFAULT_COURSE_BLOCK;
+              return (
+                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                      <span>บล็อกชื่อโครงการ (Project / Course Name)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleResetBlock('course')}
+                      className="text-[11px] text-slate-500 hover:text-rose-600 flex items-center gap-1 font-semibold transition"
+                      title="รีเซ็ตตำแหน่งเริ่มต้น"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>รีเซ็ตตำแหน่ง</span>
+                    </button>
+                  </div>
+
+                  {/* Course Title Override Text */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      ข้อความชื่อโครงการ / กิจกรรม:
+                    </label>
+                    <input
+                      type="text"
+                      value={studioConfig.course_name || ''}
+                      onChange={(e) =>
+                        setStudioConfig((prev) => ({ ...prev, course_name: e.target.value }))
+                      }
+                      placeholder={project?.title || 'ชื่อโครงการ...'}
+                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-blue-600 font-semibold text-slate-900"
+                    />
+                  </div>
+
+                  {/* Coordinates: X & Y */}
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ตำแหน่งแนวนอน (X): {blk.x}%</span>
+                        <button
+                          type="button"
+                          onClick={() => handleBlockChange('course', { ...blk, x: 50 })}
+                          className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-900 rounded font-bold hover:bg-blue-200 transition"
+                        >
+                          จัดกึ่งกลาง (50%)
+                        </button>
+                      </div>
+                      <input
+                        type="range"
+                        min="2"
+                        max="98"
+                        step="0.5"
+                        value={blk.x}
+                        onChange={(e) =>
+                          handleBlockChange('course', { ...blk, x: parseFloat(e.target.value) })
+                        }
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ตำแหน่งแนวตั้ง (Y): {blk.y}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="2"
+                        max="98"
+                        step="0.5"
+                        value={blk.y}
+                        onChange={(e) =>
+                          handleBlockChange('course', { ...blk, y: parseFloat(e.target.value) })
+                        }
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Font Size & Weight */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        ขนาดตัวอักษร: {blk.fontSize || 22}px
+                      </label>
+                      <input
+                        type="range"
+                        min="14"
+                        max="52"
+                        step="1"
+                        value={blk.fontSize || 22}
+                        onChange={(e) =>
+                          handleBlockChange('course', { ...blk, fontSize: parseInt(e.target.value) })
+                        }
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        ความหนาตัวอักษร:
+                      </label>
+                      <div className="flex gap-1">
+                        {[
+                          { id: 'normal', label: 'ปกติ' },
+                          { id: 'bold', label: 'หนา' },
+                          { id: '800', label: 'หนาพิเศษ' },
+                        ].map((w) => (
+                          <button
+                            key={w.id}
+                            type="button"
+                            onClick={() =>
+                              handleBlockChange('course', { ...blk, fontWeight: w.id as any })
+                            }
+                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg border transition ${
+                              (blk.fontWeight || 'bold') === w.id
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            {w.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Alignment & Font Family */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        การจัดชิด:
+                      </label>
+                      <div className="flex gap-1">
+                        {[
+                          { id: 'left', icon: AlignLeft },
+                          { id: 'center', icon: AlignCenter },
+                          { id: 'right', icon: AlignRight },
+                        ].map((align) => {
+                          const Icon = align.icon;
+                          const isSel = (blk.textAlign || 'center') === align.id;
+                          return (
+                            <button
+                              key={align.id}
+                              type="button"
+                              onClick={() =>
+                                handleBlockChange('course', { ...blk, textAlign: align.id as any })
+                              }
+                              className={`flex-1 py-1.5 flex items-center justify-center rounded-lg border transition ${
+                                isSel
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                              }`}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        แบบอักษร (Font):
+                      </label>
+                      <select
+                        value={blk.fontFamily || 'sarabun'}
+                        onChange={(e) =>
+                          handleBlockChange('course', { ...blk, fontFamily: e.target.value as any })
+                        }
+                        className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-medium text-slate-800"
+                      >
+                        {Object.entries(FONT_FAMILIES).map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Color Picker & Preset chips */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+                      สีตัวอักษร:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={blk.color || '#1e293b'}
+                        onChange={(e) =>
+                          handleBlockChange('course', { ...blk, color: e.target.value })
+                        }
+                        className="w-8 h-8 rounded-lg cursor-pointer border border-slate-300 p-0.5 bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={blk.color || '#1e293b'}
+                        onChange={(e) =>
+                          handleBlockChange('course', { ...blk, color: e.target.value })
+                        }
+                        className="w-24 px-2 py-1 text-xs font-mono border border-slate-300 rounded-lg outline-none uppercase"
+                      />
+                      <div className="flex items-center gap-1 ml-auto">
+                        {['#000000', '#0f172a', '#1e3a8a', '#881337', '#b45309', '#047857'].map(
+                          (c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => handleBlockChange('course', { ...blk, color: c })}
+                              className="w-5 h-5 rounded-full border border-slate-300 shadow-2xs hover:scale-110 transition"
+                              style={{ backgroundColor: c }}
+                              title={c}
+                            />
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Enable/Disable Course Block */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={blk.enabled !== false}
+                        onChange={(e) =>
+                          handleBlockChange('course', { ...blk, enabled: e.target.checked })
+                        }
+                        className="rounded text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-xs text-slate-700 font-semibold">
+                        แสดงบล็อกชื่อโครงการบนเกียรติบัตร
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {selectedStudioBlock === 'cert_no' && (() => {
+              const blk = studioConfig.cert_no_block || DEFAULT_CERT_NO_BLOCK;
+              return (
+                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                      <span>บล็อกเลขที่เกียรติบัตร (Certificate No.)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleResetBlock('cert_no')}
+                      className="text-[11px] text-slate-500 hover:text-rose-600 flex items-center gap-1 font-semibold transition"
+                      title="รีเซ็ตตำแหน่งเริ่มต้น"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>รีเซ็ตตำแหน่ง</span>
+                    </button>
+                  </div>
+
+                  {/* Prefix Text */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      รหัสขึ้นต้นเลขที่เกียรติบัตร (Prefix):
+                    </label>
+                    <input
+                      type="text"
+                      value={studioConfig.certificate_no_prefix || ''}
+                      onChange={(e) =>
+                        setStudioConfig((prev) => ({
+                          ...prev,
+                          certificate_no_prefix: e.target.value,
+                        }))
+                      }
+                      placeholder="เช่น CERT-2569-PRJ01"
+                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none font-mono"
+                    />
+                  </div>
+
+                  {/* Coordinates: X & Y */}
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ตำแหน่งแนวนอน (X): {blk.x}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="2"
+                        max="98"
+                        step="0.5"
+                        value={blk.x}
+                        onChange={(e) =>
+                          handleBlockChange('cert_no', { ...blk, x: parseFloat(e.target.value) })
+                        }
+                        className="w-full accent-indigo-600 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ตำแหน่งแนวตั้ง (Y): {blk.y}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="2"
+                        max="98"
+                        step="0.5"
+                        value={blk.y}
+                        onChange={(e) =>
+                          handleBlockChange('cert_no', { ...blk, y: parseFloat(e.target.value) })
+                        }
+                        className="w-full accent-indigo-600 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Font Size & Color */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        ขนาดตัวอักษร: {blk.fontSize || 12}px
+                      </label>
+                      <input
+                        type="range"
+                        min="9"
+                        max="24"
+                        step="1"
+                        value={blk.fontSize || 12}
+                        onChange={(e) =>
+                          handleBlockChange('cert_no', {
+                            ...blk,
+                            fontSize: parseInt(e.target.value),
+                          })
+                        }
+                        className="w-full accent-indigo-600 cursor-pointer"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        สีข้อความ:
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="color"
+                          value={blk.color || '#64748b'}
+                          onChange={(e) =>
+                            handleBlockChange('cert_no', { ...blk, color: e.target.value })
+                          }
+                          className="w-7 h-7 rounded cursor-pointer border border-slate-300 p-0.5"
+                        />
+                        <input
+                          type="text"
+                          value={blk.color || '#64748b'}
+                          onChange={(e) =>
+                            handleBlockChange('cert_no', { ...blk, color: e.target.value })
+                          }
+                          className="w-20 px-1.5 py-1 text-[11px] font-mono border border-slate-300 rounded"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Enable/Disable Cert No */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={blk.enabled !== false}
+                        onChange={(e) =>
+                          handleBlockChange('cert_no', { ...blk, enabled: e.target.checked })
+                        }
+                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-xs text-slate-700 font-semibold">
+                        แสดงเลขที่เกียรติบัตรบนใบประกาศ
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* SECTION: BACKGROUND & TEMPLATE THEME */}
+            <div className="pt-3 border-t border-slate-200 space-y-3">
+              <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <ImageIcon className="w-4 h-4 text-indigo-600" />
+                <span>ภาพพื้นหลัง / ลวดลายแม่แบบ</span>
+              </h4>
+
+              {/* Custom Upload Area */}
+              <div className="p-3 bg-indigo-50/50 border border-indigo-200/80 rounded-xl space-y-2">
+                <p className="text-[11px] text-slate-600">
+                  อัปโหลดภาพพื้นหลังที่ออกแบบเอง (เช่น จาก Canva / Photoshop อัตราส่วน A4 แนวนอน)
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={bgFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleUploadBg}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => bgFileInputRef.current?.click()}
+                    disabled={uploadingBg}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{uploadingBg ? 'กำลังอัปโหลด...' : 'อัปโหลดภาพพื้นหลัง'}</span>
+                  </button>
+
+                  {studioConfig.background_image && (
+                    <button
                       type="button"
                       onClick={() =>
                         setStudioConfig((prev) => ({
                           ...prev,
-                          template_theme: key as any,
                           background_image: null,
+                          template_theme: 'classic_blue',
                         }))
                       }
-                      className={`p-2.5 rounded-xl border text-left text-xs font-bold transition flex flex-col gap-1 ${
-                        isSelected && !studioConfig.background_image
-                          ? 'border-amber-600 bg-amber-50 text-amber-950 ring-2 ring-amber-500/20'
-                          : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
-                      }`}
+                      className="px-2.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg text-xs font-semibold border border-rose-200 transition"
                     >
-                      <span>{item.name}</span>
+                      ลบพื้นหลังที่อัปโหลด
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Custom Background Upload */}
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                  <ImageIcon className="w-4 h-4 text-indigo-600" />
-                  <span>อัปโหลดภาพพื้นหลังเกียรติบัตร (Custom A4 Background)</span>
-                </div>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                รองรับไฟล์ภาพ JPG, PNG แนวนอน (ขนาดแนะนำ 2970 x 2100 px หรืออัตราส่วน A4)
-              </p>
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  ref={bgFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleUploadBg}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => bgFileInputRef.current?.click()}
-                  disabled={uploadingBg}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>{uploadingBg ? 'กำลังอัปโหลด...' : 'เลือกไฟล์ภาพพื้นหลัง'}</span>
-                </button>
-
-                {studioConfig.background_image && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setStudioConfig((prev) => ({
-                        ...prev,
-                        background_image: null,
-                        template_theme: 'classic_blue',
-                      }))
-                    }
-                    className="px-2.5 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg text-xs font-semibold border border-rose-200 transition"
-                  >
-                    ลบพื้นหลังที่อัปโหลด
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Editable Text Fields */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  หัวข้อบนเกียรติบัตร:
-                </label>
-                <input
-                  type="text"
-                  value={studioConfig.title}
-                  onChange={(e) => setStudioConfig((prev) => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg outline-none focus:border-amber-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  ข้อความแสดงสถานะ:
-                </label>
-                <input
-                  type="text"
-                  value={studioConfig.subtitle}
-                  onChange={(e) =>
-                    setStudioConfig((prev) => ({ ...prev, subtitle: e.target.value }))
-                  }
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg outline-none focus:border-amber-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  ชื่อหลักสูตร / โครงการที่ระบุ:
-                </label>
-                <input
-                  type="text"
-                  value={studioConfig.course_name}
-                  onChange={(e) =>
-                    setStudioConfig((prev) => ({ ...prev, course_name: e.target.value }))
-                  }
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg outline-none focus:border-amber-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  ข้อความวันที่ออกเกียรติบัตร (หากเว้นว่างจะแสดงวันที่ปัจจุบันแบบอัตโนมัติ):
-                </label>
-                <input
-                  type="text"
-                  placeholder="เช่น ให้ไว้ ณ วันที่ ๒๔ กันยายน พ.ศ. ๒๕๖๙"
-                  value={studioConfig.issue_date_text || ''}
-                  onChange={(e) =>
-                    setStudioConfig((prev) => ({ ...prev, issue_date_text: e.target.value }))
-                  }
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg outline-none focus:border-amber-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                  รหัสขึ้นต้นเลขที่เกียรติบัตร (Certificate Prefix):
-                </label>
-                <input
-                  type="text"
-                  value={studioConfig.certificate_no_prefix || ''}
-                  onChange={(e) =>
-                    setStudioConfig((prev) => ({
-                      ...prev,
-                      certificate_no_prefix: e.target.value,
-                    }))
-                  }
-                  placeholder="เช่น CERT-2569-PRJ01"
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg outline-none focus:border-amber-600"
-                />
-              </div>
-            </div>
-
-            {/* Signatories 1 & 2 */}
-            <div className="space-y-3 pt-2 border-t border-slate-100">
-              <h4 className="text-xs font-bold text-slate-900">ผู้ลงนามในเกียรติบัตร</h4>
-
-              {/* Signatory 1 */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <div className="text-[11px] font-bold text-slate-700">ผู้ลงนามที่ ๑ (ผู้อำนวยการ/ประธาน)</div>
-                <input
-                  type="text"
-                  placeholder="ชื่อ-นามสกุล ผู้ลงนาม 1"
-                  value={studioConfig.signatory_1_name || ''}
-                  onChange={(e) =>
-                    setStudioConfig((prev) => ({ ...prev, signatory_1_name: e.target.value }))
-                  }
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="ตำแหน่ง (เช่น ผู้อำนวยการวิทยาลัยอาชีวศึกษาเชียงราย)"
-                  value={studioConfig.signatory_1_position || ''}
-                  onChange={(e) =>
-                    setStudioConfig((prev) => ({
-                      ...prev,
-                      signatory_1_position: e.target.value,
-                    }))
-                  }
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none"
-                />
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    ref={sig1FileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleUploadSignature(f, '1');
-                    }}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => sig1FileInputRef.current?.click()}
-                    disabled={uploadingSig1}
-                    className="text-[11px] font-bold px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-md"
-                  >
-                    {uploadingSig1 ? 'กำลังอัปโหลด...' : '🖋️ อัปโหลดภาพลายเซ็น 1'}
-                  </button>
-                  {studioConfig.signatory_1_image && (
-                    <span className="text-[10px] text-emerald-600 font-bold">✓ มีภาพลายเซ็นแล้ว</span>
                   )}
                 </div>
               </div>
 
-              {/* Signatory 2 */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                <div className="text-[11px] font-bold text-slate-700">ผู้ลงนามที่ ๒ (ผู้รับผิดชอบโครงการ/หัวหน้างาน)</div>
-                <input
-                  type="text"
-                  placeholder="ชื่อ-นามสกุล ผู้ลงนาม 2"
-                  value={studioConfig.signatory_2_name || ''}
-                  onChange={(e) =>
-                    setStudioConfig((prev) => ({ ...prev, signatory_2_name: e.target.value }))
-                  }
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="ตำแหน่ง (เช่น หัวหน้างานโครงการพิเศษและบริการชุมชน)"
-                  value={studioConfig.signatory_2_position || ''}
-                  onChange={(e) =>
-                    setStudioConfig((prev) => ({
-                      ...prev,
-                      signatory_2_position: e.target.value,
-                    }))
-                  }
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none"
-                />
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    ref={sig2FileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleUploadSignature(f, '2');
-                    }}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => sig2FileInputRef.current?.click()}
-                    disabled={uploadingSig2}
-                    className="text-[11px] font-bold px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-md"
-                  >
-                    {uploadingSig2 ? 'กำลังอัปโหลด...' : '🖋️ อัปโหลดภาพลายเซ็น 2'}
-                  </button>
-                  {studioConfig.signatory_2_image && (
-                    <span className="text-[10px] text-emerald-600 font-bold">✓ มีภาพลายเซ็นแล้ว</span>
-                  )}
+              {/* Template Presets if no custom bg */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1.5">
+                  หรือเลือกแม่แบบมาตรฐานของระบบ:
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {Object.entries(THEME_STYLES).map(([key, item]) => {
+                    const isSelected =
+                      studioConfig.template_theme === key && !studioConfig.background_image;
+                    if (key === 'custom') return null;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() =>
+                          setStudioConfig((prev) => ({
+                            ...prev,
+                            template_theme: key as any,
+                            background_image: null,
+                          }))
+                        }
+                        className={`p-2 rounded-lg border text-left text-[11px] font-bold transition ${
+                          isSelected
+                            ? 'border-amber-600 bg-amber-50 text-amber-950 ring-2 ring-amber-500/20'
+                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {item.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1221,12 +1711,12 @@ export default function ProjectRegistrationTab({
 
           {/* Live Studio Preview (Right 7 cols) */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="bg-slate-900/90 backdrop-blur-md text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
+            <div className="bg-slate-900/95 backdrop-blur-md text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <span className="text-xs font-bold">ตัวอย่างแบบจำลองเกียรติบัตร (Live Preview)</span>
+                <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                <span className="text-xs font-bold">ผืนผ้าใบจำลองเกียรติบัตร (Live Interactive Studio)</span>
               </div>
-              <span className="text-[11px] text-slate-400">ขนาด A4 แนวนอน (Landscape)</span>
+              <span className="text-[11px] text-amber-300 font-medium">✥ คลิกหรือลากบล็อกเพื่อย้าย</span>
             </div>
 
             <CertificateRenderer
@@ -1239,6 +1729,10 @@ export default function ProjectRegistrationTab({
               }}
               config={studioConfig}
               showActions={true}
+              isEditable={true}
+              selectedBlock={selectedStudioBlock}
+              onSelectBlock={(blockKey) => setSelectedStudioBlock(blockKey)}
+              onBlockChange={handleBlockChange}
             />
           </div>
         </div>
