@@ -401,24 +401,12 @@ export default function CertificateRenderer({
             }
           }}
         >
-          {/* Subtle elegant frame when no custom background is uploaded */}
-          {!isCustomBg && (
-            <div className="absolute inset-0 pointer-events-none p-[2.5cqw]">
-              <div className="w-full h-full border-[0.35cqw] border-amber-600/70 rounded-[1cqw] p-[0.6cqw] relative">
-                <div className="w-full h-full border-[0.12cqw] border-amber-600/40 rounded-[0.6cqw] flex items-center justify-center relative">
-                  {/* Corner Accents */}
-                  <div className="absolute -top-[0.8cqw] -left-[0.8cqw] w-[2.5cqw] h-[2.5cqw] border-t-[0.4cqw] border-l-[0.4cqw] border-amber-600 rounded-tl-sm" />
-                  <div className="absolute -top-[0.8cqw] -right-[0.8cqw] w-[2.5cqw] h-[2.5cqw] border-t-[0.4cqw] border-r-[0.4cqw] border-amber-600 rounded-tr-sm" />
-                  <div className="absolute -bottom-[0.8cqw] -left-[0.8cqw] w-[2.5cqw] h-[2.5cqw] border-b-[0.4cqw] border-l-[0.4cqw] border-amber-600 rounded-bl-sm" />
-                  <div className="absolute -bottom-[0.8cqw] -right-[0.8cqw] w-[2.5cqw] h-[2.5cqw] border-b-[0.4cqw] border-r-[0.4cqw] border-amber-600 rounded-br-sm" />
-                  
-                  {isEditable && (
-                    <span className="text-[1.2cqw] text-slate-400 font-medium bg-white/90 px-[1.5cqw] py-[0.5cqw] rounded-full border border-slate-200">
-                      🎨 ผืนผ้าใบ (สามารถอัปโหลดภาพพื้นหลัง หรือใช้แม่แบบนี้ได้)
-                    </span>
-                  )}
-                </div>
-              </div>
+          {/* Subtle guide only when in edit mode and no background image */}
+          {!isCustomBg && isEditable && (
+            <div className="absolute inset-4 border-2 border-dashed border-slate-200 rounded-xl pointer-events-none flex items-center justify-center">
+              <span className="text-[1.3cqw] text-slate-400 font-medium bg-white/90 px-3 py-1 rounded-full border border-slate-200">
+                ผืนผ้าใบว่าง (ยังไม่ได้อัปโหลดภาพพื้นหลัง)
+              </span>
             </div>
           )}
 
