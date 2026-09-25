@@ -19,6 +19,7 @@ import {
   QrCode,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { showAlert } from '@/lib/sweetalert';
 import CertificateRenderer from '@/components/certificate/CertificateRenderer';
 
 interface PageProps {
@@ -95,13 +96,13 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
         setRegisteredAttendee(data.data);
         fetchRegistrationInfo();
       } else {
-        alert(data.message || 'เกิดข้อผิดพลาดในการลงทะเบียน');
+        showAlert.error('ไม่สามารถลงทะเบียนได้', data.message || 'เกิดข้อผิดพลาดในการลงทะเบียน');
         if (data.data) {
           setRegisteredAttendee(data.data);
         }
       }
     } catch (e: any) {
-      alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+      showAlert.error('เกิดข้อผิดพลาด', 'เกิดข้อผิดพลาดในการส่งข้อมูล');
     } finally {
       setSubmitting(false);
     }

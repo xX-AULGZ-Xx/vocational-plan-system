@@ -40,6 +40,7 @@ import {
   MousePointer,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { showAlert } from '@/lib/sweetalert';
 import CertificateRenderer, {
   CertificateConfig,
   CertificateAttendeeData,
@@ -296,7 +297,8 @@ export default function ProjectRegistrationTab({
 
   // Delete single attendee
   const handleDeleteAttendee = async (id: string) => {
-    if (!confirm('ต้องการลบข้อมูลผู้เข้าร่วมท่านนี้ใช่หรือไม่?')) return;
+    const confirmed = await showAlert.confirm('ต้องการลบข้อมูลผู้เข้าร่วมท่านนี้ใช่หรือไม่?');
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/v1/projects/${project.id}/attendees/${id}`, {
         method: 'DELETE',
@@ -460,11 +462,14 @@ export default function ProjectRegistrationTab({
       });
       const data = await res.json();
       if (data.success) {
-        alert('บันทึกการตั้งค่าเกียรติบัตรเรียบร้อยแล้ว');
+        showAlert.toast('บันทึกรูปแบบเกียรติบัตรเรียบร้อยแล้ว', 'success');
         onRefresh();
+      } else {
+        showAlert.toast(data.message || 'บันทึกการตั้งค่าไม่สำเร็จ', 'error');
       }
     } catch (e) {
       console.error(e);
+      showAlert.toast('เกิดข้อผิดพลาดในการบันทึก', 'error');
     } finally {
       setSavingCertConfig(false);
     }
@@ -496,11 +501,14 @@ export default function ProjectRegistrationTab({
       });
       const data = await res.json();
       if (data.success) {
-        alert('บันทึกการตั้งค่าโครงการเรียบร้อยแล้ว');
+        showAlert.toast('บันทึกการตั้งค่าโครงการเรียบร้อยแล้ว', 'success');
         onRefresh();
+      } else {
+        showAlert.toast(data.message || 'บันทึกการตั้งค่าไม่สำเร็จ', 'error');
       }
     } catch (e) {
       console.error(e);
+      showAlert.toast('เกิดข้อผิดพลาดในการบันทึก', 'error');
     } finally {
       setSavingSettings(false);
     }
