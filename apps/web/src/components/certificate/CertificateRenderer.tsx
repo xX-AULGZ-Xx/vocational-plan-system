@@ -23,7 +23,6 @@ export interface BlockStyle {
 }
 
 export interface CertificateConfig {
-  template_theme?: 'classic_blue' | 'royal_gold' | 'emerald_modern' | 'maroon_velvet' | 'custom' | 'blank';
   background_image?: string | null;
   course_name?: string;
   certificate_no_prefix?: string;
@@ -31,6 +30,7 @@ export interface CertificateConfig {
   course_block?: BlockStyle;
   cert_no_block?: BlockStyle;
   // Legacy optional fields kept for backwards compatibility
+  template_theme?: string;
   title?: string;
   subtitle?: string;
   signatory_1_name?: string;
@@ -65,57 +65,6 @@ interface CertificateRendererProps {
   onSelectBlock?: (blockKey: 'name' | 'course' | 'cert_no') => void;
   onBlockChange?: (blockKey: 'name' | 'course' | 'cert_no', updated: BlockStyle) => void;
 }
-
-export const THEME_STYLES: Record<string, {
-  name: string;
-  bgGradient: string;
-  outerBorder: string;
-  innerBorder: string;
-  cornerAccent: string;
-}> = {
-  classic_blue: {
-    name: 'น้ำเงินคลาสสิก (Classic Navy)',
-    bgGradient: 'from-slate-50 via-blue-50/30 to-indigo-50/40',
-    outerBorder: 'border-blue-900',
-    innerBorder: 'border-amber-600',
-    cornerAccent: '#1e3a8a',
-  },
-  royal_gold: {
-    name: 'ทองหรูหรา (Royal Gold)',
-    bgGradient: 'from-amber-50/40 via-yellow-50/20 to-orange-50/30',
-    outerBorder: 'border-amber-700',
-    innerBorder: 'border-amber-500',
-    cornerAccent: '#b45309',
-  },
-  emerald_modern: {
-    name: 'เขียวมรกต (Emerald Modern)',
-    bgGradient: 'from-emerald-50/30 via-teal-50/20 to-slate-50',
-    outerBorder: 'border-emerald-800',
-    innerBorder: 'border-emerald-600',
-    cornerAccent: '#065f46',
-  },
-  maroon_velvet: {
-    name: 'แดงเลือดหมูทางการ (Royal Maroon)',
-    bgGradient: 'from-rose-50/30 via-red-50/20 to-slate-50',
-    outerBorder: 'border-rose-900',
-    innerBorder: 'border-amber-600',
-    cornerAccent: '#881337',
-  },
-  blank: {
-    name: 'พื้นหลังสีขาวเรียบ (Clean White)',
-    bgGradient: 'bg-white',
-    outerBorder: 'border-transparent',
-    innerBorder: 'border-transparent',
-    cornerAccent: 'transparent',
-  },
-  custom: {
-    name: 'ภาพพื้นหลังที่อัปโหลดเอง (Custom Upload)',
-    bgGradient: 'bg-transparent',
-    outerBorder: 'border-transparent',
-    innerBorder: 'border-transparent',
-    cornerAccent: 'transparent',
-  },
-};
 
 export const FONT_FAMILIES: Record<string, { name: string; css: string }> = {
   sarabun: { name: 'สารบรรณ (Sarabun)', css: "'Sarabun', 'TH Sarabun New', sans-serif" },
@@ -177,8 +126,6 @@ export default function CertificateRenderer({
   const certRef = useRef<HTMLDivElement>(null);
   const [draggingBlock, setDraggingBlock] = useState<'name' | 'course' | 'cert_no' | null>(null);
 
-  const themeKey = config.template_theme || (config.background_image ? 'custom' : 'classic_blue');
-  const theme = THEME_STYLES[themeKey] || THEME_STYLES.classic_blue;
   const isCustomBg = Boolean(config.background_image);
 
   // Resolved blocks
@@ -367,7 +314,7 @@ export default function CertificateRenderer({
       <div className="w-full max-w-[1000px] overflow-hidden rounded-2xl shadow-2xl border border-slate-300 bg-white relative">
         <div
           ref={certRef}
-          className={`relative w-full aspect-[297/210] select-none overflow-hidden ${
+          className={`relative w-full aspect-[297/210] select-none overflow-hidden bg-white ${
             isEditable ? 'cursor-crosshair' : ''
           }`}
           style={{
@@ -382,39 +329,12 @@ export default function CertificateRenderer({
             }
           }}
         >
-          {/* Background Gradient & Frame if not custom image */}
-          {!isCustomBg && (
-            <div className={`absolute inset-0 bg-gradient-to-br ${theme.bgGradient} pointer-events-none`}>
-              {/* Outer Decorative Border */}
-              <div className={`absolute inset-3 sm:inset-5 border-[3px] ${theme.outerBorder} pointer-events-none`} />
-              {/* Inner Fine Border */}
-              <div className={`absolute inset-4 sm:inset-7 border-[1px] ${theme.innerBorder} pointer-events-none opacity-80`} />
-
-              {/* Corner Accents */}
-              {theme.cornerAccent !== 'transparent' && (
-                <>
-                  <svg className="absolute top-4 left-4 sm:top-6 sm:left-6 w-8 h-8 sm:w-12 sm:h-12 pointer-events-none" viewBox="0 0 50 50" fill={theme.cornerAccent}>
-                    <path d="M0,0 L20,0 C10,0 0,10 0,20 Z" />
-                    <rect x="0" y="0" width="4" height="25" />
-                    <rect x="0" y="0" width="25" height="4" />
-                  </svg>
-                  <svg className="absolute top-4 right-4 sm:top-6 sm:right-6 w-8 h-8 sm:w-12 sm:h-12 pointer-events-none rotate-90" viewBox="0 0 50 50" fill={theme.cornerAccent}>
-                    <path d="M0,0 L20,0 C10,0 0,10 0,20 Z" />
-                    <rect x="0" y="0" width="4" height="25" />
-                    <rect x="0" y="0" width="25" height="4" />
-                  </svg>
-                  <svg className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 w-8 h-8 sm:w-12 sm:h-12 pointer-events-none -rotate-90" viewBox="0 0 50 50" fill={theme.cornerAccent}>
-                    <path d="M0,0 L20,0 C10,0 0,10 0,20 Z" />
-                    <rect x="0" y="0" width="4" height="25" />
-                    <rect x="0" y="0" width="25" height="4" />
-                  </svg>
-                  <svg className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 w-8 h-8 sm:w-12 sm:h-12 pointer-events-none rotate-180" viewBox="0 0 50 50" fill={theme.cornerAccent}>
-                    <path d="M0,0 L20,0 C10,0 0,10 0,20 Z" />
-                    <rect x="0" y="0" width="4" height="25" />
-                    <rect x="0" y="0" width="25" height="4" />
-                  </svg>
-                </>
-              )}
+          {/* Subtle guide when in edit mode and no background image */}
+          {!isCustomBg && isEditable && (
+            <div className="absolute inset-4 border-2 border-dashed border-slate-200 rounded-xl pointer-events-none flex items-center justify-center">
+              <span className="text-xs text-slate-400 font-medium bg-white/80 px-3 py-1 rounded-full">
+                ผืนผ้าใบว่าง (ยังไม่ได้อัปโหลดภาพพื้นหลัง)
+              </span>
             </div>
           )}
 
