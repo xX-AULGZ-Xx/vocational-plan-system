@@ -1,24 +1,71 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DocxScanResult } from '@/lib/docx-scanner';
 import DynamicDocxViewer from '@/components/preview/DynamicDocxViewer';
 import { Loader2, Sparkles, CheckCircle2, FileText, AlertCircle } from 'lucide-react';
 import A4DocumentPreview from '@/components/preview/A4DocumentPreview';
+import { useSettings } from '@/lib/settings-context';
 
 interface FullBookletProps {
   project: any;
   collegeName?: string;
   directorName?: string;
   directorPosition?: string;
+  deputyDirectorName?: string;
+  deputyDirectorPosition?: string;
 }
 
 export default function FullBookletReport({
   project,
-  collegeName = 'วิทยาลัยการอาชีพเชียงราย',
-  directorName = 'นางปิยะพร พูลเพิ่ม',
-  directorPosition = 'ผู้อำนวยการวิทยาลัยการอาชีพเชียงราย',
+  collegeName: propCollegeName,
+  directorName: propDirectorName,
+  directorPosition: propDirectorPosition,
+  deputyDirectorName: propDeputyDirectorName,
+  deputyDirectorPosition: propDeputyDirectorPosition,
 }: FullBookletProps) {
+  const {
+    collegeName: ctxCollegeName,
+    directorName: ctxDirectorName,
+    directorPosition: ctxDirectorPosition,
+    deputyStratName,
+    deputyStratPosition,
+    divisions,
+    settings,
+  } = useSettings();
+
+  const collegeName = propCollegeName || ctxCollegeName || 'วิทยาลัยการอาชีพเชียงราย';
+  const directorName = propDirectorName || ctxDirectorName || 'นางปิยะพร พูลเพิ่ม';
+  const directorPosition = propDirectorPosition || ctxDirectorPosition || 'ผู้อำนวยการวิทยาลัยการอาชีพเชียงราย';
+
+  const stratDivision = useMemo(() => {
+    return (divisions || []).find(
+      (d: any) => d.code === 'STRAT' || d.name?.includes('แผนงาน') || d.name?.includes('ยุทธศาสตร์')
+    );
+  }, [divisions]);
+
+  const planningDeputyName = useMemo(() => {
+    return (
+      propDeputyDirectorName ||
+      deputyStratName ||
+      settings?.deputy_strat_name ||
+      settings?.deputy_planning_name ||
+      stratDivision?.deputy_name ||
+      'นายประเสริฐ กาสมุทร'
+    );
+  }, [propDeputyDirectorName, deputyStratName, settings, stratDivision]);
+
+  const planningDeputyPosition = useMemo(() => {
+    return (
+      propDeputyDirectorPosition ||
+      deputyStratPosition ||
+      settings?.deputy_strat_position ||
+      settings?.deputy_planning_position ||
+      stratDivision?.deputy_position ||
+      'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ'
+    );
+  }, [propDeputyDirectorPosition, deputyStratPosition, settings, stratDivision]);
+
   const [scanResult, setScanResult] = useState<DocxScanResult | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +110,12 @@ export default function FullBookletReport({
     total_budget: totalBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
     director_name: directorName,
     director_position: directorPosition,
+    deputy_strat_name: planningDeputyName,
+    deputy_strat_position: planningDeputyPosition,
+    deputy_planning_name: planningDeputyName,
+    deputy_planning_position: planningDeputyPosition,
+    deputy_director_name: planningDeputyName,
+    deputy_director_position: planningDeputyPosition,
     cover_image: project?.dynamic_data?.cover_image || (typeof project?.dynamic_data === 'string' ? JSON.parse(project.dynamic_data || '{}')?.cover_image : '') || '',
   };
 

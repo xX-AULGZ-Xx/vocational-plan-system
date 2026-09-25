@@ -1691,7 +1691,8 @@ async function generateProjectSummaryDocx(id: string | bigint, options?: { templ
   let resolvedDeputyPosition = dynamicData.deputy_position || settingsMap.get(`deputy_position_${divCode}`) || settingsMap.get(`deputy_${divCode}_position`) || `รองผู้อำนวยการ${divName}`;
   
   // Resolve Deputy of Strategic/Planning
-  let resolvedDeputyStratName = dynamicData.deputy_strat_name || settingsMap.get('deputy_name_strat') || settingsMap.get('deputy_strat_name') || '';
+  let resolvedDeputyStratName = dynamicData.deputy_strat_name || dynamicData.deputy_planning_name || dynamicData.deputy_director_name || settingsMap.get('deputy_name_strat') || settingsMap.get('deputy_strat_name') || '';
+  let resolvedDeputyStratPosition = dynamicData.deputy_strat_position || dynamicData.deputy_planning_position || dynamicData.deputy_director_position || settingsMap.get('deputy_position_strat') || settingsMap.get('deputy_strat_position') || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ';
   let resolvedDirectorName = dynamicData.director_name || settingsMap.get('director_name') || 'นางปิยะพร พูลเพิ่ม';
 
   if (!resolvedDeputyName && project.department?.division_id) {
@@ -1708,7 +1709,15 @@ async function generateProjectSummaryDocx(id: string | bigint, options?: { templ
   }
 
   if (!resolvedDeputyStratName) {
-    const stratDiv = await prisma.division.findFirst({ where: { code: 'STRAT' } });
+    const stratDiv = await prisma.division.findFirst({
+      where: {
+        OR: [
+          { code: 'STRAT' },
+          { name: { contains: 'แผนงาน' } },
+          { name: { contains: 'ยุทธศาสตร์' } }
+        ]
+      }
+    });
     if (stratDiv) {
       const deputyStratUser = await prisma.user.findFirst({
         where: {
@@ -1718,8 +1727,16 @@ async function generateProjectSummaryDocx(id: string | bigint, options?: { templ
       });
       if (deputyStratUser) {
         resolvedDeputyStratName = deputyStratUser.full_name;
+        if (deputyStratUser.position) resolvedDeputyStratPosition = deputyStratUser.position;
+      } else if ((stratDiv as any).deputy_name) {
+        resolvedDeputyStratName = (stratDiv as any).deputy_name;
+        if ((stratDiv as any).deputy_position) resolvedDeputyStratPosition = (stratDiv as any).deputy_position;
       }
     }
+  }
+
+  if (!resolvedDeputyStratName) {
+    resolvedDeputyStratName = 'นายประเสริฐ กาสมุทร';
   }
 
   const formDataForDocx: Record<string, any> = {
@@ -1783,6 +1800,11 @@ async function generateProjectSummaryDocx(id: string | bigint, options?: { templ
     deputy_name: resolvedDeputyName,
     deputy_position: resolvedDeputyPosition,
     deputy_strat_name: resolvedDeputyStratName,
+    deputy_strat_position: resolvedDeputyStratPosition,
+    deputy_planning_name: resolvedDeputyStratName,
+    deputy_planning_position: resolvedDeputyStratPosition,
+    deputy_director_name: resolvedDeputyStratName,
+    deputy_director_position: resolvedDeputyStratPosition,
     director_name: resolvedDirectorName,
     objectives: formattedObjectives,
     timelines: (project.timelines || []).map((t: any, idx: number) => ({

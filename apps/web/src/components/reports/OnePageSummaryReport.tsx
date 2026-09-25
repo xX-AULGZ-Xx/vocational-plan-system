@@ -21,6 +21,8 @@ interface OnePageSummaryProps {
   collegeName?: string;
   directorName?: string;
   directorPosition?: string;
+  deputyDirectorName?: string;
+  deputyDirectorPosition?: string;
   orientation?: 'portrait' | 'landscape';
 }
 
@@ -29,6 +31,8 @@ export default function OnePageSummaryReport({
   collegeName = 'วิทยาลัยการอาชีพเชียงราย',
   directorName = 'นางปิยะพร พูลเพิ่ม',
   directorPosition = 'ผู้อำนวยการวิทยาลัยการอาชีพเชียงราย',
+  deputyDirectorName,
+  deputyDirectorPosition,
   orientation = 'portrait',
 }: OnePageSummaryProps) {
   if (!project) return null;
@@ -54,8 +58,21 @@ export default function OnePageSummaryReport({
   const problemsObstacles = dyn.problems_obstacles || dyn.problems_obstacles_text || dyn.obstacles_and_solutions || '-';
   const projectSuggestions = dyn.project_suggestions || dyn.summary_notes || '-';
 
-  const deputyDirectorName = dyn.deputy_director_name || project.deputy_director_name || 'นายประเสริฐ กาสมุทร';
-  const deputyDirectorPosition = dyn.deputy_director_position || project.deputy_director_position || 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ';
+  const resolvedDeputyDirectorName =
+    dyn.deputy_director_name ||
+    deputyDirectorName ||
+    dyn.deputy_strat_name ||
+    dyn.deputy_planning_name ||
+    project.deputy_director_name ||
+    'นายประเสริฐ กาสมุทร';
+
+  const resolvedDeputyDirectorPosition =
+    dyn.deputy_director_position ||
+    deputyDirectorPosition ||
+    dyn.deputy_strat_position ||
+    dyn.deputy_planning_position ||
+    project.deputy_director_position ||
+    'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ';
 
   const isLandscape = orientation === 'landscape';
 
@@ -422,9 +439,9 @@ export default function OnePageSummaryReport({
           <div className="space-y-0.5">
             <p className="text-[10px] text-slate-500 font-semibold">ผู้ตรวจรายงาน</p>
             <div className="h-6 flex items-center justify-center font-bold text-slate-900 text-xs">
-              ({deputyDirectorName})
+              ({resolvedDeputyDirectorName})
             </div>
-            <p className="text-[9px] text-slate-600">{deputyDirectorPosition}</p>
+            <p className="text-[9px] text-slate-600">{resolvedDeputyDirectorPosition}</p>
           </div>
 
           <div className="space-y-0.5">

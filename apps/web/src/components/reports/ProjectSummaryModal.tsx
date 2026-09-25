@@ -23,9 +23,35 @@ export default function ProjectSummaryModal({
   onClose,
   project,
 }: ProjectSummaryModalProps) {
-  const { collegeName, directorName, directorPosition } = useSettings();
+  const {
+    collegeName,
+    directorName,
+    directorPosition,
+    deputyStratName,
+    deputyStratPosition,
+    divisions,
+    settings,
+  } = useSettings();
 
   if (!isOpen || !project) return null;
+
+  const stratDivision = (divisions || []).find(
+    (d: any) => d.code === 'STRAT' || d.name?.includes('แผนงาน') || d.name?.includes('ยุทธศาสตร์')
+  );
+
+  const planningDeputyName =
+    deputyStratName ||
+    settings?.deputy_strat_name ||
+    settings?.deputy_planning_name ||
+    stratDivision?.deputy_name ||
+    'นายประเสริฐ กาสมุทร';
+
+  const planningDeputyPosition =
+    deputyStratPosition ||
+    settings?.deputy_strat_position ||
+    settings?.deputy_planning_position ||
+    stratDivision?.deputy_position ||
+    'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ';
 
   const handlePrint = () => {
     window.print();
@@ -95,6 +121,8 @@ export default function ProjectSummaryModal({
             collegeName={collegeName}
             directorName={directorName}
             directorPosition={directorPosition}
+            deputyDirectorName={planningDeputyName}
+            deputyDirectorPosition={planningDeputyPosition}
           />
         </div>
       </div>

@@ -25,7 +25,42 @@ interface ProjectSummaryTabProps {
 }
 
 export default function ProjectSummaryTab({ project, token, onProjectUpdated }: ProjectSummaryTabProps) {
-  const { collegeName, directorName, directorPosition } = useSettings();
+  const {
+    collegeName,
+    directorName,
+    directorPosition,
+    deputyStratName,
+    deputyStratPosition,
+    divisions,
+    settings,
+  } = useSettings();
+
+  const stratDivision = useMemo(() => {
+    return (divisions || []).find(
+      (d: any) => d.code === 'STRAT' || d.name?.includes('แผนงาน') || d.name?.includes('ยุทธศาสตร์')
+    );
+  }, [divisions]);
+
+  const planningDeputyName = useMemo(() => {
+    return (
+      deputyStratName ||
+      settings?.deputy_strat_name ||
+      settings?.deputy_planning_name ||
+      stratDivision?.deputy_name ||
+      'นายประเสริฐ กาสมุทร'
+    );
+  }, [deputyStratName, settings, stratDivision]);
+
+  const planningDeputyPosition = useMemo(() => {
+    return (
+      deputyStratPosition ||
+      settings?.deputy_strat_position ||
+      settings?.deputy_planning_position ||
+      stratDivision?.deputy_position ||
+      'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ'
+    );
+  }, [deputyStratPosition, settings, stratDivision]);
+
   const [activeView, setActiveView] = useState<'preview' | 'edit'>('preview');
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [isSaving, setIsSaving] = useState(false);
@@ -584,6 +619,8 @@ export default function ProjectSummaryTab({ project, token, onProjectUpdated }: 
             collegeName={collegeName}
             directorName={directorName}
             directorPosition={directorPosition}
+            deputyDirectorName={planningDeputyName}
+            deputyDirectorPosition={planningDeputyPosition}
             orientation={orientation}
           />
         </div>
