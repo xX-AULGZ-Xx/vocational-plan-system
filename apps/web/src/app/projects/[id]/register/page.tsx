@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 import Link from 'next/link';
 import {
   Calendar,
@@ -55,10 +55,108 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
   const [searching, setSearching] = useState(false);
   const [searchCertResults, setSearchCertResults] = useState<any[]>([]);
   const [selectedCertAttendee, setSelectedCertAttendee] = useState<any>(null);
+  const [certSuggestions, setCertSuggestions] = useState<any[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchRegistrationInfo();
   }, [projectId]);
+
+  // Handle URL query parameters (e.g. ?q=... or ?tab=lookup_certificate)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const qParam = urlParams.get('q');
+      const tabParam = urlParams.get('tab');
+      if (tabParam === 'lookup_certificate' || qParam) {
+        setActiveTab('lookup_certificate');
+      }
+      if (qParam && qParam.trim()) {
+        setSearchQuery(qParam.trim());
+        triggerDirectSearch(qParam.trim());
+      }
+    }
+  }, [projectId]);
+
+  // Click outside to close auto-fill suggestions
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const triggerDirectSearch = async (queryText: string) => {
+    if (!queryText.trim()) return;
+    setSearching(true);
+    try {
+      const res = await fetch(
+        `/api/v1/projects/${projectId}/certificates/search?q=${encodeURIComponent(queryText.trim())}`
+      );
+      const data = await res.json();
+      if (data.success) {
+        const list = data.data?.attendees || [];
+        setSearchCertResults(list);
+        if (list.length === 1) {
+          setSelectedCertAttendee(list[0]);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleSearchInputChange = (text: string) => {
+    setSearchQuery(text);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!text || text.trim().length < 2) {
+      setCertSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setLoadingSuggestions(true);
+      try {
+        const res = await fetch(
+          `/api/v1/projects/${projectId}/certificates/search?q=${encodeURIComponent(text.trim())}`
+        );
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data?.attendees) && data.data.attendees.length > 0) {
+          setCertSuggestions(data.data.attendees);
+          setShowSuggestions(true);
+        } else {
+          setCertSuggestions([]);
+          setShowSuggestions(false);
+        }
+      } catch (err) {
+        setCertSuggestions([]);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }, 280);
+  };
+
+  const handleSelectSuggestion = (att: any) => {
+    const displayName = `${att.title_name || ''} ${att.full_name}`.trim();
+    setSearchQuery(displayName);
+    setSelectedCertAttendee(att);
+    setSearchCertResults([att]);
+    setShowSuggestions(false);
+  };
 
   const fetchRegistrationInfo = async () => {
     setLoading(true);
@@ -510,26 +608,81 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                 </p>
               </div>
 
-              <form onSubmit={handleSearchCertificate} className="max-w-xl mx-auto flex gap-2 pt-2">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    required
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="พิมพ์ชื่อ-นามสกุล หรือเบอร์โทรศัพท์..."
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold outline-none focus:border-amber-600 focus:bg-white transition"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={searching || !searchQuery.trim()}
-                  className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition shrink-0"
-                >
-                  {searching ? 'กำลังค้นหา...' : 'ค้นหาเกียรติบัตร'}
-                </button>
-              </form>
+              <div ref={dropdownRef} className="max-w-xl mx-auto relative pt-2">
+                <form onSubmit={handleSearchCertificate} className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={searchQuery}
+                      onChange={(e) => handleSearchInputChange(e.target.value)}
+                      onFocus={() => {
+                        if (certSuggestions.length > 0) setShowSuggestions(true);
+                      }}
+                      placeholder="พิมพ์ชื่อ-นามสกุล หรือเบอร์โทรศัพท์ (มี Auto-fill)..."
+                      className="w-full pl-10 pr-9 py-3 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold outline-none focus:border-amber-600 focus:bg-white transition"
+                    />
+                    {loadingSuggestions && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <div className="w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={searching || !searchQuery.trim()}
+                    className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition shrink-0"
+                  >
+                    {searching ? 'กำลังค้นหา...' : 'ค้นหาเกียรติบัตร'}
+                  </button>
+                </form>
+
+                {/* Auto-fill Suggestions Dropdown */}
+                {showSuggestions && certSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 z-30 mt-1.5 bg-white rounded-2xl shadow-2xl border border-amber-200 overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-100 animate-in fade-in duration-150">
+                    <div className="px-3.5 py-1.5 bg-amber-50 text-[11px] font-bold text-amber-900 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-amber-600" />
+                        พบรายชื่อผู้ได้รับเกียรติบัตร (คลิกเพื่อเลือกดูทันที)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowSuggestions(false)}
+                        className="text-slate-400 hover:text-slate-600 text-xs"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {certSuggestions.map((att) => (
+                      <button
+                        key={att.id}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(att)}
+                        className="w-full text-left px-4 py-2.5 hover:bg-amber-50/70 transition-colors flex items-center justify-between gap-3 text-xs group"
+                      >
+                        <div>
+                          <div className="font-bold text-slate-800 group-hover:text-amber-700 flex items-center gap-1.5">
+                            <span>{att.title_name || ''} {att.full_name}</span>
+                            {att.certificate_no && (
+                              <span className="text-[10px] font-mono bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                                {att.certificate_no}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
+                            {att.organization && <span>🏢 {att.organization}</span>}
+                            {att.position && <span>({att.position})</span>}
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-bold text-amber-700 bg-amber-100 group-hover:bg-amber-600 group-hover:text-white px-2.5 py-1 rounded-lg transition-colors shrink-0">
+                          ดูเกียรติบัตร
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Search Results */}
               {searchCertResults.length > 0 && (

@@ -152,12 +152,21 @@ router.get('/:id/registration-info', async (req: Request, res: Response) => {
         location: location,
         registration_config: regConfig,
         certificate_config: {
+          ...certConfig,
           template_theme: certConfig.template_theme || 'classic_blue',
           has_background: Boolean(certConfig.background_image),
-          background_image: certConfig.background_image ? `/storage/certificates/${path.basename(certConfig.background_image)}` : null,
+          background_image: certConfig.background_image
+            ? (certConfig.background_image.startsWith('/storage')
+                ? certConfig.background_image
+                : `/storage/certificates/${path.basename(certConfig.background_image)}`)
+            : null,
           title: certConfig.title || 'เกียรติบัตรฉบับนี้ให้ไว้เพื่อแสดงว่า',
           subtitle: certConfig.subtitle || 'ได้เข้าร่วมและผ่านการอบรมโครงการ',
           course_name: certConfig.course_name || project.title,
+          certificate_no_prefix: certConfig.certificate_no_prefix || `CERT-${project.fiscal_year}-${project.id}`,
+          name_block: certConfig.name_block || null,
+          course_block: certConfig.course_block || null,
+          cert_no_block: certConfig.cert_no_block || null,
           signatory_1_name: certConfig.signatory_1_name || '',
           signatory_1_position: certConfig.signatory_1_position || '',
           signatory_2_name: certConfig.signatory_2_name || '',
@@ -354,7 +363,16 @@ router.get('/:id/certificates/search', async (req: Request, res: Response) => {
       success: true,
       data: {
         attendees: results,
-        certificate_config: certConfig,
+        certificate_config: {
+          ...certConfig,
+          background_image: certConfig.background_image
+            ? (certConfig.background_image.startsWith('/storage')
+                ? certConfig.background_image
+                : `/storage/certificates/${path.basename(certConfig.background_image)}`)
+            : null,
+          course_name: certConfig.course_name || project.title,
+          certificate_no_prefix: certConfig.certificate_no_prefix || `CERT-${project.fiscal_year}-${project.id}`,
+        },
         project_title: project.title,
       },
     });

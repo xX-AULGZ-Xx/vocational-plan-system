@@ -283,7 +283,7 @@ export default function CertificateRenderer({
     }
   };
 
-  // Helper for block CSS styling
+  // Helper for block CSS styling with responsive Container Query (cqw) units
   const getBlockStyle = (block: BlockStyle) => {
     const textAlign = block.textAlign || 'center';
     let transform = 'translate(-50%, -50%)';
@@ -291,18 +291,19 @@ export default function CertificateRenderer({
     if (textAlign === 'right') transform = 'translate(-100%, -50%)';
 
     const fontInfo = FONT_FAMILIES[block.fontFamily || 'sarabun'] || FONT_FAMILIES.sarabun;
+    const baseFontSize = block.fontSize || 24;
 
     return {
       left: `${block.x}%`,
       top: `${block.y}%`,
       transform,
       textAlign,
-      fontSize: `${block.fontSize || 24}px`,
+      fontSize: `calc(${baseFontSize / 10}cqw)`,
       color: block.color || '#0f172a',
       fontWeight: block.fontWeight || 'bold',
       fontStyle: block.fontStyle || 'normal',
       textDecoration: block.textDecoration || 'none',
-      letterSpacing: block.letterSpacing ? `${block.letterSpacing}px` : 'normal',
+      letterSpacing: block.letterSpacing ? `calc(${block.letterSpacing / 10}cqw)` : 'normal',
       textShadow: getTextShadowValue(block.textShadow),
       fontFamily: fontInfo.css,
     };
@@ -349,6 +350,7 @@ export default function CertificateRenderer({
               overflow: hidden;
               page-break-after: always;
               box-sizing: border-box;
+              container-type: inline-size;
             }
             * {
               box-sizing: border-box;
@@ -382,14 +384,16 @@ export default function CertificateRenderer({
       <div className="w-full max-w-[1000px] overflow-hidden rounded-2xl shadow-2xl border border-slate-300 bg-white relative">
         <div
           ref={certRef}
-          className={`relative w-full aspect-[297/210] select-none overflow-hidden bg-white ${
+          className={`relative w-full aspect-[297/210] select-none overflow-hidden ${
             isEditable ? 'cursor-crosshair' : ''
           }`}
           style={{
+            containerType: 'inline-size',
             backgroundImage: isCustomBg ? `url(${config.background_image})` : undefined,
             backgroundSize: '100% 100%',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
+            backgroundColor: isCustomBg ? 'transparent' : '#ffffff',
           }}
           onClick={() => {
             if (isEditable && onSelectBlock) {
@@ -397,12 +401,24 @@ export default function CertificateRenderer({
             }
           }}
         >
-          {/* Subtle guide when in edit mode and no background image */}
-          {!isCustomBg && isEditable && (
-            <div className="absolute inset-4 border-2 border-dashed border-slate-200 rounded-xl pointer-events-none flex items-center justify-center">
-              <span className="text-xs text-slate-400 font-medium bg-white/80 px-3 py-1 rounded-full">
-                ผืนผ้าใบว่าง (ยังไม่ได้อัปโหลดภาพพื้นหลัง)
-              </span>
+          {/* Subtle elegant frame when no custom background is uploaded */}
+          {!isCustomBg && (
+            <div className="absolute inset-0 pointer-events-none p-[2.5cqw]">
+              <div className="w-full h-full border-[0.35cqw] border-amber-600/70 rounded-[1cqw] p-[0.6cqw] relative">
+                <div className="w-full h-full border-[0.12cqw] border-amber-600/40 rounded-[0.6cqw] flex items-center justify-center relative">
+                  {/* Corner Accents */}
+                  <div className="absolute -top-[0.8cqw] -left-[0.8cqw] w-[2.5cqw] h-[2.5cqw] border-t-[0.4cqw] border-l-[0.4cqw] border-amber-600 rounded-tl-sm" />
+                  <div className="absolute -top-[0.8cqw] -right-[0.8cqw] w-[2.5cqw] h-[2.5cqw] border-t-[0.4cqw] border-r-[0.4cqw] border-amber-600 rounded-tr-sm" />
+                  <div className="absolute -bottom-[0.8cqw] -left-[0.8cqw] w-[2.5cqw] h-[2.5cqw] border-b-[0.4cqw] border-l-[0.4cqw] border-amber-600 rounded-bl-sm" />
+                  <div className="absolute -bottom-[0.8cqw] -right-[0.8cqw] w-[2.5cqw] h-[2.5cqw] border-b-[0.4cqw] border-r-[0.4cqw] border-amber-600 rounded-br-sm" />
+                  
+                  {isEditable && (
+                    <span className="text-[1.2cqw] text-slate-400 font-medium bg-white/90 px-[1.5cqw] py-[0.5cqw] rounded-full border border-slate-200">
+                      🎨 ผืนผ้าใบ (สามารถอัปโหลดภาพพื้นหลัง หรือใช้แม่แบบนี้ได้)
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -411,9 +427,9 @@ export default function CertificateRenderer({
           ======================================================== */}
           {certNoBlock.enabled !== false && (
             <div
-              className={`absolute cursor-move transition-shadow z-20 flex flex-col items-center gap-1 ${
+              className={`absolute cursor-move transition-shadow z-20 flex flex-col items-center gap-[0.4cqw] ${
                 isEditable ? 'group' : ''
-              } ${isEditable && selectedBlock === 'cert_no' ? 'ring-2 ring-indigo-500 rounded-lg bg-indigo-50/30 p-1.5' : 'p-1'}`}
+              } ${isEditable && selectedBlock === 'cert_no' ? 'ring-2 ring-indigo-500 rounded-lg bg-indigo-50/30 p-[0.6cqw]' : 'p-[0.3cqw]'}`}
               style={getBlockStyle(certNoBlock)}
               onMouseDown={(e) => handleDragStart(e, 'cert_no')}
               onTouchStart={(e) => handleDragStart(e, 'cert_no')}
@@ -431,18 +447,23 @@ export default function CertificateRenderer({
               {/* QR Code Graphic */}
               {certNoBlock.showQr !== false && (
                 <div
-                  className={`p-1.5 rounded-lg flex items-center justify-center transition-all ${
+                  className={`p-[0.4cqw] rounded-[0.6cqw] flex items-center justify-center transition-all ${
                     certNoBlock.qrBg === 'transparent'
                       ? 'bg-transparent'
-                      : 'bg-white shadow-md border border-slate-200/80'
+                      : 'bg-white shadow-xs border border-slate-200/80'
                   }`}
+                  style={{
+                    width: `calc(${(certNoBlock.qrSize || 52) / 10}cqw)`,
+                    height: `calc(${(certNoBlock.qrSize || 52) / 10}cqw)`,
+                  }}
                 >
                   <QRCodeSVG
                     value={qrVerificationUrl}
-                    size={certNoBlock.qrSize || 52}
+                    size={256}
                     level="M"
                     fgColor={certNoBlock.color || '#0f172a'}
                     bgColor={certNoBlock.qrBg === 'transparent' ? 'transparent' : '#ffffff'}
+                    style={{ width: '100%', height: '100%' }}
                   />
                 </div>
               )}
@@ -454,7 +475,10 @@ export default function CertificateRenderer({
                     เลขที่: {displayCertNo}
                   </div>
                   {certNoBlock.showScanLabel !== false && certNoBlock.showQr !== false && (
-                    <div className="text-[9px] opacity-75 font-normal tracking-wide mt-0.5">
+                    <div
+                      className="opacity-75 font-normal tracking-wide mt-[0.1cqw]"
+                      style={{ fontSize: `calc(${((certNoBlock.fontSize || 11) * 0.8) / 10}cqw)` }}
+                    >
                       สแกนเพื่อตรวจสอบ
                     </div>
                   )}
@@ -470,7 +494,7 @@ export default function CertificateRenderer({
             <div
               className={`absolute cursor-move transition-shadow z-30 ${
                 isEditable ? 'group' : ''
-              } ${isEditable && selectedBlock === 'name' ? 'ring-2 ring-amber-500 rounded-lg bg-amber-50/20 p-1.5' : 'p-1'}`}
+              } ${isEditable && selectedBlock === 'name' ? 'ring-2 ring-amber-500 rounded-lg bg-amber-50/20 p-[0.4cqw]' : 'p-[0.2cqw]'}`}
               style={getBlockStyle(nameBlock)}
               onMouseDown={(e) => handleDragStart(e, 'name')}
               onTouchStart={(e) => handleDragStart(e, 'name')}
@@ -491,8 +515,11 @@ export default function CertificateRenderer({
 
               {nameBlock.showOrg && (attendee.organization || attendee.position) && (
                 <div
-                  className="text-[12px] opacity-80 mt-1 font-normal"
-                  style={{ color: nameBlock.color || '#334155' }}
+                  className="opacity-80 mt-[0.2cqw] font-normal"
+                  style={{
+                    fontSize: `calc(1.4cqw)`,
+                    color: nameBlock.color || '#334155',
+                  }}
                 >
                   {attendee.organization} {attendee.position ? `(${attendee.position})` : ''}
                 </div>
@@ -507,7 +534,7 @@ export default function CertificateRenderer({
             <div
               className={`absolute cursor-move transition-shadow z-20 ${
                 isEditable ? 'group' : ''
-              } ${isEditable && selectedBlock === 'course' ? 'ring-2 ring-blue-500 rounded-lg bg-blue-50/20 p-1.5' : 'p-1'}`}
+              } ${isEditable && selectedBlock === 'course' ? 'ring-2 ring-blue-500 rounded-lg bg-blue-50/20 p-[0.4cqw]' : 'p-[0.2cqw]'}`}
               style={getBlockStyle(courseBlock)}
               onMouseDown={(e) => handleDragStart(e, 'course')}
               onTouchStart={(e) => handleDragStart(e, 'course')}

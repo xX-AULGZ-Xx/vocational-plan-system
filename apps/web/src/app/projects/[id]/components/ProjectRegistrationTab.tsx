@@ -133,6 +133,23 @@ export default function ProjectRegistrationTab({
   const [uploadingBg, setUploadingBg] = useState(false);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Sync studioConfig when project dynamic_data updates
+  useEffect(() => {
+    if (project?.dynamic_data) {
+      const parsed = typeof project.dynamic_data === 'object' ? project.dynamic_data : JSON.parse(project.dynamic_data || '{}');
+      const cfg = parsed.certificate_config || {};
+      setStudioConfig((prev) => ({
+        ...prev,
+        background_image: cfg.background_image !== undefined ? cfg.background_image : prev.background_image,
+        course_name: cfg.course_name || project?.title || prev.course_name,
+        certificate_no_prefix: cfg.certificate_no_prefix || prev.certificate_no_prefix,
+        name_block: cfg.name_block || prev.name_block || DEFAULT_NAME_BLOCK,
+        course_block: cfg.course_block || prev.course_block || DEFAULT_COURSE_BLOCK,
+        cert_no_block: cfg.cert_no_block || prev.cert_no_block || DEFAULT_CERT_NO_BLOCK,
+      }));
+    }
+  }, [project?.id, project?.dynamic_data]);
+
   // Settings tab form state
   const [settingsForm, setSettingsForm] = useState({
     project_type: projectType,
