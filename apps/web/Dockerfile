@@ -1,6 +1,6 @@
 # 1. Base Image
 FROM node:20-alpine AS base
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9.15.5
 WORKDIR /app
 
 # 2. Dependencies Stage

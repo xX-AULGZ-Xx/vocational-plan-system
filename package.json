@@ -26,7 +26,9 @@
       "@prisma/client",
       "@prisma/engines",
       "prisma",
-      "esbuild"
+      "esbuild",
+      "core-js",
+      "unrs-resolver"
     ]
   },
   "devDependencies": {

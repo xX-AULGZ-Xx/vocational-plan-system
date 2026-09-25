@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Install pnpm globally
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9.15.5
 
 # Optimize Prisma binary and installation performance
 ENV PRISMA_CLI_BINARY_TARGETS="debian-openssl-3.0.x"
