@@ -1166,17 +1166,45 @@ const fetchProposalTemplate = async () => {
       }
       case 'DATERANGE': {
         const targetFiscalYear = parseInt(currentFiscalYear || String(fiscalYear)) || (new Date().getFullYear() + 543);
-        const { minDate: minFiscalDate, minDateThai } = getThaiFiscalYearDateRange(targetFiscalYear);
+        const { minDate: minFiscalDate, maxDate: maxFiscalDate, minDateThai, maxDateThai } = getThaiFiscalYearDateRange(targetFiscalYear);
 
         return (
           <div key={key}>
-            <div className="mb-1">
-              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
-              {tag.description && <p className="text-xs text-gray-500 mt-0.5">{tag.description}</p>}
-              <p className="text-[11px] text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded mt-1 inline-block border border-amber-200/60 font-medium">
-                📅 ระยะเวลาในปีงบประมาณ {targetFiscalYear} (เริ่มต้นได้ตั้งแต่ {minDateThai} เป็นต้นไป)
-              </p>
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
+                {tag.description && <p className="text-xs text-gray-500 mt-0.5">{tag.description}</p>}
+              </div>
+
+              {isEditing && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleDynamicChange(key, { start: minFiscalDate, end: maxFiscalDate })}
+                    className="px-2 py-0.5 text-[11px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md font-medium transition"
+                  >
+                    ⚡ ตลอดปีงบประมาณ ({minDateThai} - {maxDateThai})
+                  </button>
+                  {(value?.start || value?.end) && (
+                    <button
+                      type="button"
+                      onClick={() => handleDynamicChange(key, { start: '', end: '' })}
+                      className="px-2 py-0.5 text-[11px] bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200 rounded-md font-medium transition"
+                    >
+                      ล้าง
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
+
+            <div className="mb-2">
+              <span className="text-[11px] text-amber-800 bg-amber-50/90 px-2.5 py-1 rounded-md border border-amber-200/80 font-medium inline-flex items-center gap-1.5 shadow-2xs">
+                <span>📅</span>
+                <span>กรอบระยะเวลาปีงบประมาณ <strong>{targetFiscalYear}</strong>: <strong>{minDateThai} — {maxDateThai}</strong> (ระบบจำกัดไม่ให้เลือกวันที่ต่ำกว่า <strong>{minDateThai}</strong>)</span>
+              </span>
+            </div>
+
             <div className="flex items-center space-x-2">
               <input
                 type="date"
@@ -1192,7 +1220,7 @@ const fetchProposalTemplate = async () => {
                 required={tag.is_required}
                 className="w-full rounded-md border border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
               />
-              <span className="text-gray-500 text-sm">ถึง</span>
+              <span className="text-gray-500 text-sm font-medium">ถึง</span>
               <input
                 type="date"
                 min={value?.start || minFiscalDate}
@@ -1213,17 +1241,34 @@ const fetchProposalTemplate = async () => {
       }
       case 'DATE': {
         const targetFiscalYear = parseInt(currentFiscalYear || String(fiscalYear)) || (new Date().getFullYear() + 543);
-        const { minDate: minFiscalDate, minDateThai } = getThaiFiscalYearDateRange(targetFiscalYear);
+        const { minDate: minFiscalDate, maxDate: maxFiscalDate, minDateThai, maxDateThai } = getThaiFiscalYearDateRange(targetFiscalYear);
 
         return (
           <div key={key}>
-            <div className="mb-1">
-              <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
-              {tag.description && <p className="text-xs text-gray-500 mt-0.5">{tag.description}</p>}
-              <p className="text-[11px] text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded mt-1 inline-block border border-amber-200/60 font-medium">
-                📅 ระยะเวลาในปีงบประมาณ {targetFiscalYear} (เริ่มต้นได้ตั้งแต่ {minDateThai} เป็นต้นไป)
-              </p>
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">{label} {tag.is_required && <span className="text-red-500">*</span>}</label>
+                {tag.description && <p className="text-xs text-gray-500 mt-0.5">{tag.description}</p>}
+              </div>
+
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={() => handleDynamicChange(key, minFiscalDate)}
+                  className="px-2 py-0.5 text-[11px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-md font-medium transition"
+                >
+                  ⚡ วันเริ่มต้นปีงบประมาณ ({minDateThai})
+                </button>
+              )}
             </div>
+
+            <div className="mb-2">
+              <span className="text-[11px] text-amber-800 bg-amber-50/90 px-2.5 py-1 rounded-md border border-amber-200/80 font-medium inline-flex items-center gap-1.5 shadow-2xs">
+                <span>📅</span>
+                <span>กรอบระยะเวลาปีงบประมาณ <strong>{targetFiscalYear}</strong>: <strong>{minDateThai} — {maxDateThai}</strong> (ระบบจำกัดไม่ให้เลือกวันที่ต่ำกว่า <strong>{minDateThai}</strong>)</span>
+              </span>
+            </div>
+
             <input
               type="date"
               min={minFiscalDate}
