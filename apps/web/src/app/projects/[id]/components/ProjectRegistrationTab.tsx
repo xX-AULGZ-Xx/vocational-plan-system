@@ -197,10 +197,42 @@ export default function ProjectRegistrationTab({
     }
   };
 
+  const regQrRef = useRef<SVGSVGElement | null>(null);
+
   const handleCopyLink = (url: string) => {
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleDownloadRegQR = () => {
+    if (!regQrRef.current) return;
+    const svgElement = regQrRef.current;
+    const svgString = new XMLSerializer().serializeToString(svgElement);
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const URL = window.URL || window.webkitURL || window;
+    const blobURL = URL.createObjectURL(svgBlob);
+
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1200;
+      canvas.height = 1200;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.fillStyle = '#FFFFFF';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 100, 100, 1000, 1000);
+        const png = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.download = `QRCode-Register-${project?.project_code || project?.id || 'Project'}.png`;
+        downloadLink.href = png;
+        downloadLink.click();
+        URL.revokeObjectURL(blobURL);
+        showAlert.success('ดาวน์โหลดสำเร็จ', 'บันทึกรูปภาพ QR Code สำหรับลงทะเบียนเรียบร้อยแล้ว');
+      }
+    };
+    image.src = blobURL;
   };
 
   // Check-in toggle
@@ -2373,11 +2405,21 @@ export default function ProjectRegistrationTab({
 
             {/* QR Visual */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl inline-block mx-auto shadow-inner">
-              <QRCodeSVG value={publicRegUrl} size={180} level="H" includeMargin />
+              <QRCodeSVG ref={regQrRef} value={publicRegUrl} size={180} level="H" includeMargin />
             </div>
 
             <div className="space-y-2">
               <button
+                type="button"
+                onClick={handleDownloadRegQR}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>ดาวน์โหลดรูปภาพ QR Code (PNG)</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => handleCopyLink(publicRegUrl)}
                 className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs"
               >
@@ -2386,6 +2428,7 @@ export default function ProjectRegistrationTab({
               </button>
 
               <button
+                type="button"
                 onClick={() => handleCopyLink(publicCertUrl)}
                 className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
               >

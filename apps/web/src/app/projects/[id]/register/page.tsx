@@ -61,6 +61,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const attendeeQrRef = useRef<SVGSVGElement | null>(null);
 
   useEffect(() => {
     fetchRegistrationInfo();
@@ -224,6 +225,36 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
     } finally {
       setSearching(false);
     }
+  };
+
+  const handleDownloadAttendeeQR = () => {
+    if (!attendeeQrRef.current) return;
+    const svgElement = attendeeQrRef.current;
+    const svgString = new XMLSerializer().serializeToString(svgElement);
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const URL = window.URL || window.webkitURL || window;
+    const blobURL = URL.createObjectURL(svgBlob);
+
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1000;
+      canvas.height = 1000;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.fillStyle = '#FFFFFF';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 100, 100, 800, 800);
+        const png = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.download = `QRCode-Attendee-${registeredAttendee?.id || 'Pass'}.png`;
+        downloadLink.href = png;
+        downloadLink.click();
+        URL.revokeObjectURL(blobURL);
+        showAlert.success('ดาวน์โหลดสำเร็จ', 'บันทึกรูปภาพ QR Code สำหรับเช็คอินเรียบร้อยแล้ว');
+      }
+    };
+    image.src = blobURL;
   };
 
   const formatThaiDate = (dateStr?: string) => {
@@ -395,11 +426,23 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                         REG-{projectInfo.fiscal_year}-{registeredAttendee.id}
                       </div>
                     </div>
-                    <div className="bg-white p-1.5 rounded-lg">
-                      <QRCodeSVG
-                        value={`ATTENDEE:${registeredAttendee.id}:${projectInfo.project_id}`}
-                        size={56}
-                      />
+                    <div className="flex items-center gap-2">
+                      <div className="bg-white p-1.5 rounded-lg shadow-sm">
+                        <QRCodeSVG
+                          ref={attendeeQrRef}
+                          value={`ATTENDEE:${registeredAttendee.id}:${projectInfo.project_id}`}
+                          size={56}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleDownloadAttendeeQR}
+                        title="ดาวน์โหลด QR Code สำหรับเช็คอิน"
+                        className="px-2.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">โหลด QR</span>
+                      </button>
                     </div>
                   </div>
                 </div>
