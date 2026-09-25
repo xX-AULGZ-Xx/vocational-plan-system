@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@300;400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&family=Chonburi&family=K2D:wght@300;400;500;600;700&family=Kanit:wght@300;400;500;600;700&family=Mitr:wght@300;400;500;600&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@300;400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&family=Charm:wght@400;700&family=Charmonman:wght@400;700&family=Chonburi&family=Fahkwang:wght@300;400;500;600;700&family=Itim&family=K2D:wght@300;400;500;600;700&family=Kanit:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=KoHo:wght@300;400;500;600;700&family=Krub:wght@300;400;500;600;700&family=Mali:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Mitr:wght@300;400;500;600&family=Niramit:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&family=Noto+Serif+Thai:wght@300;400;500;600;700;800;900&family=Pattaya&family=Pridi:wght@300;400;500;600;700&family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,700&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Sriracha&family=Srisakdi:wght@400;700&family=Taviraj:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Trirong:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,10 +9,24 @@
 .font-kanit { font-family: 'Kanit', sans-serif; }
 .font-mitr { font-family: 'Mitr', sans-serif; }
 .font-noto-thai { font-family: 'Noto Sans Thai', sans-serif; }
+.font-noto-serif-thai { font-family: 'Noto Serif Thai', serif; }
 .font-chakra { font-family: 'Chakra Petch', sans-serif; }
 .font-baijamjuree { font-family: 'Bai Jamjuree', sans-serif; }
 .font-k2d { font-family: 'K2D', sans-serif; }
 .font-chonburi { font-family: 'Chonburi', cursive; }
+.font-charm { font-family: 'Charm', cursive; }
+.font-charmonman { font-family: 'Charmonman', cursive; }
+.font-srisakdi { font-family: 'Srisakdi', cursive; }
+.font-trirong { font-family: 'Trirong', serif; }
+.font-taviraj { font-family: 'Taviraj', serif; }
+.font-pridi { font-family: 'Pridi', serif; }
+.font-niramit { font-family: 'Niramit', serif; }
+.font-krub { font-family: 'Krub', sans-serif; }
+.font-fahkwang { font-family: 'Fahkwang', sans-serif; }
+.font-sriracha { font-family: 'Sriracha', cursive; }
+.font-pattaya { font-family: 'Pattaya', cursive; }
+.font-mali { font-family: 'Mali', cursive; }
+.font-itim { font-family: 'Itim', cursive; }
 
 @font-face {
   font-family: 'TH SarabunIT๙';

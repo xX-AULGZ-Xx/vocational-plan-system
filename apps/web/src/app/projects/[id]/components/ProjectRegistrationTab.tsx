@@ -34,6 +34,8 @@ import {
   AlignCenter,
   AlignRight,
   Bold,
+  Italic,
+  Underline,
   RotateCcw,
   Sliders,
   Check,
@@ -1027,6 +1029,10 @@ export default function ProjectRegistrationTab({
             {/* SELECTED BLOCK CONTROLS */}
             {selectedStudioBlock === 'name' && (() => {
               const blk = studioConfig.name_block || DEFAULT_NAME_BLOCK;
+              const formalFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'formal');
+              const modernFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'modern');
+              const artisticFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'artistic');
+
               return (
                 <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
@@ -1041,7 +1047,7 @@ export default function ProjectRegistrationTab({
                       title="รีเซ็ตตำแหน่งเริ่มต้น"
                     >
                       <RotateCcw className="w-3 h-3" />
-                      <span>รีเซ็ตตำแหน่ง</span>
+                      <span>รีเซ็ต</span>
                     </button>
                   </div>
 
@@ -1089,16 +1095,53 @@ export default function ProjectRegistrationTab({
                     </div>
                   </div>
 
+                  {/* Font Family Selector with Categories */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      แบบอักษร (Font Family):
+                    </label>
+                    <select
+                      value={blk.fontFamily || 'charm'}
+                      onChange={(e) =>
+                        handleBlockChange('name', { ...blk, fontFamily: e.target.value })
+                      }
+                      className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none font-semibold text-slate-800 focus:border-amber-500 shadow-2xs"
+                    >
+                      <optgroup label="🏛️ เกียรติบัตรทางการ & อาลักษณ์ (Formal & Calligraphy)">
+                        {formalFonts.map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.thaiName}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="💎 โมเดิร์น & ทันสมัย (Modern & Minimal)">
+                        {modernFonts.map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.thaiName}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="✍️ ลายมือ & ศิลปะ & วินเทจ (Artistic & Script)">
+                        {artisticFonts.map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.thaiName}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
                   {/* Font Size & Weight */}
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        ขนาดตัวอักษร: {blk.fontSize || 34}px
-                      </label>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ขนาดตัวอักษร:</span>
+                        <span className="font-mono text-amber-700">{blk.fontSize || 34}px</span>
+                      </div>
                       <input
                         type="range"
                         min="16"
-                        max="64"
+                        max="68"
                         step="1"
                         value={blk.fontSize || 34}
                         onChange={(e) =>
@@ -1115,6 +1158,7 @@ export default function ProjectRegistrationTab({
                       <div className="flex gap-1">
                         {[
                           { id: 'normal', label: 'ปกติ' },
+                          { id: 'semibold', label: 'กึ่งหนา' },
                           { id: 'bold', label: 'หนา' },
                           { id: '800', label: 'หนาพิเศษ' },
                         ].map((w) => (
@@ -1124,9 +1168,9 @@ export default function ProjectRegistrationTab({
                             onClick={() =>
                               handleBlockChange('name', { ...blk, fontWeight: w.id as any })
                             }
-                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg border transition ${
+                            className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition ${
                               (blk.fontWeight || 'bold') === w.id
-                                ? 'bg-amber-500 text-slate-950 border-amber-600'
+                                ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-2xs'
                                 : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                             }`}
                           >
@@ -1137,11 +1181,56 @@ export default function ProjectRegistrationTab({
                     </div>
                   </div>
 
-                  {/* Alignment & Font Family */}
+                  {/* Font Style, Underline & Alignment */}
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        การจัดชิด:
+                        สไตล์ & ตกแต่ง:
+                      </label>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleBlockChange('name', {
+                              ...blk,
+                              fontStyle: blk.fontStyle === 'italic' ? 'normal' : 'italic',
+                            })
+                          }
+                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-lg border transition ${
+                            blk.fontStyle === 'italic'
+                              ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-2xs'
+                              : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                          }`}
+                          title="ตัวเอียง (Italic)"
+                        >
+                          <Italic className="w-3.5 h-3.5" />
+                          <span>เอียง</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleBlockChange('name', {
+                              ...blk,
+                              textDecoration: blk.textDecoration === 'underline' ? 'none' : 'underline',
+                            })
+                          }
+                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-lg border transition ${
+                            blk.textDecoration === 'underline'
+                              ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-2xs'
+                              : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                          }`}
+                          title="ขีดเส้นใต้ (Underline)"
+                        >
+                          <Underline className="w-3.5 h-3.5" />
+                          <span>ขีดเส้น</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        การจัดชิดข้อความ:
                       </label>
                       <div className="flex gap-1">
                         {[
@@ -1158,9 +1247,9 @@ export default function ProjectRegistrationTab({
                               onClick={() =>
                                 handleBlockChange('name', { ...blk, textAlign: align.id as any })
                               }
-                              className={`flex-1 py-1.5 flex items-center justify-center rounded-lg border transition ${
+                              className={`flex-1 py-1 flex items-center justify-center rounded-lg border transition ${
                                 isSel
-                                  ? 'bg-amber-500 text-slate-950 border-amber-600'
+                                  ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-2xs'
                                   : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                               }`}
                             >
@@ -1170,23 +1259,48 @@ export default function ProjectRegistrationTab({
                         })}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Letter Spacing & Text Shadow / Glow */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ช่องไฟ (Spacing):</span>
+                        <span className="font-mono text-amber-700">{blk.letterSpacing || 0}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-1"
+                        max="8"
+                        step="0.5"
+                        value={blk.letterSpacing || 0}
+                        onChange={(e) =>
+                          handleBlockChange('name', {
+                            ...blk,
+                            letterSpacing: parseFloat(e.target.value),
+                          })
+                        }
+                        className="w-full accent-amber-600 cursor-pointer"
+                      />
+                    </div>
 
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        แบบอักษร (Font):
+                        มิติเงา & เรืองแสง:
                       </label>
                       <select
-                        value={blk.fontFamily || 'sarabun'}
+                        value={blk.textShadow || 'none'}
                         onChange={(e) =>
-                          handleBlockChange('name', { ...blk, fontFamily: e.target.value as any })
+                          handleBlockChange('name', { ...blk, textShadow: e.target.value as any })
                         }
                         className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-medium text-slate-800"
                       >
-                        {Object.entries(FONT_FAMILIES).map(([k, f]) => (
-                          <option key={k} value={k}>
-                            {f.name}
-                          </option>
-                        ))}
+                        <option value="none">ไม่มีเงา (None)</option>
+                        <option value="soft">เงาดำนุ่มนวล (Soft)</option>
+                        <option value="strong">เงาเข้มคมชัด (Strong 3D)</option>
+                        <option value="glow">เรืองแสงขาว (White Glow)</option>
+                        <option value="gold">เรืองแสงทอง (Gold Glow)</option>
+                        <option value="outline">ขอบขาวตัด (Outline)</option>
                       </select>
                     </div>
                   </div>
@@ -1248,6 +1362,10 @@ export default function ProjectRegistrationTab({
 
             {selectedStudioBlock === 'course' && (() => {
               const blk = studioConfig.course_block || DEFAULT_COURSE_BLOCK;
+              const formalFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'formal');
+              const modernFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'modern');
+              const artisticFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'artistic');
+
               return (
                 <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
@@ -1262,7 +1380,7 @@ export default function ProjectRegistrationTab({
                       title="รีเซ็ตตำแหน่งเริ่มต้น"
                     >
                       <RotateCcw className="w-3 h-3" />
-                      <span>รีเซ็ตตำแหน่ง</span>
+                      <span>รีเซ็ต</span>
                     </button>
                   </div>
 
@@ -1326,12 +1444,49 @@ export default function ProjectRegistrationTab({
                     </div>
                   </div>
 
+                  {/* Font Family Selector with Categories */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      แบบอักษร (Font Family):
+                    </label>
+                    <select
+                      value={blk.fontFamily || 'sarabun'}
+                      onChange={(e) =>
+                        handleBlockChange('course', { ...blk, fontFamily: e.target.value })
+                      }
+                      className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none font-semibold text-slate-800 focus:border-blue-600 shadow-2xs"
+                    >
+                      <optgroup label="🏛️ เกียรติบัตรทางการ & อาลักษณ์ (Formal & Calligraphy)">
+                        {formalFonts.map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.thaiName}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="💎 โมเดิร์น & ทันสมัย (Modern & Minimal)">
+                        {modernFonts.map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.thaiName}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="✍️ ลายมือ & ศิลปะ & วินเทจ (Artistic & Script)">
+                        {artisticFonts.map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.thaiName}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
                   {/* Font Size & Weight */}
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        ขนาดตัวอักษร: {blk.fontSize || 22}px
-                      </label>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ขนาดตัวอักษร:</span>
+                        <span className="font-mono text-blue-700">{blk.fontSize || 22}px</span>
+                      </div>
                       <input
                         type="range"
                         min="14"
@@ -1352,6 +1507,7 @@ export default function ProjectRegistrationTab({
                       <div className="flex gap-1">
                         {[
                           { id: 'normal', label: 'ปกติ' },
+                          { id: 'semibold', label: 'กึ่งหนา' },
                           { id: 'bold', label: 'หนา' },
                           { id: '800', label: 'หนาพิเศษ' },
                         ].map((w) => (
@@ -1361,9 +1517,9 @@ export default function ProjectRegistrationTab({
                             onClick={() =>
                               handleBlockChange('course', { ...blk, fontWeight: w.id as any })
                             }
-                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg border transition ${
+                            className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition ${
                               (blk.fontWeight || 'bold') === w.id
-                                ? 'bg-blue-600 text-white border-blue-600'
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
                                 : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                             }`}
                           >
@@ -1374,11 +1530,56 @@ export default function ProjectRegistrationTab({
                     </div>
                   </div>
 
-                  {/* Alignment & Font Family */}
+                  {/* Font Style, Underline & Alignment */}
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        การจัดชิด:
+                        สไตล์ & ตกแต่ง:
+                      </label>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleBlockChange('course', {
+                              ...blk,
+                              fontStyle: blk.fontStyle === 'italic' ? 'normal' : 'italic',
+                            })
+                          }
+                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-lg border transition ${
+                            blk.fontStyle === 'italic'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                              : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                          }`}
+                          title="ตัวเอียง (Italic)"
+                        >
+                          <Italic className="w-3.5 h-3.5" />
+                          <span>เอียง</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleBlockChange('course', {
+                              ...blk,
+                              textDecoration: blk.textDecoration === 'underline' ? 'none' : 'underline',
+                            })
+                          }
+                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-lg border transition ${
+                            blk.textDecoration === 'underline'
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                              : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                          }`}
+                          title="ขีดเส้นใต้ (Underline)"
+                        >
+                          <Underline className="w-3.5 h-3.5" />
+                          <span>ขีดเส้น</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        การจัดชิดข้อความ:
                       </label>
                       <div className="flex gap-1">
                         {[
@@ -1395,9 +1596,9 @@ export default function ProjectRegistrationTab({
                               onClick={() =>
                                 handleBlockChange('course', { ...blk, textAlign: align.id as any })
                               }
-                              className={`flex-1 py-1.5 flex items-center justify-center rounded-lg border transition ${
+                              className={`flex-1 py-1 flex items-center justify-center rounded-lg border transition ${
                                 isSel
-                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
                                   : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                               }`}
                             >
@@ -1407,23 +1608,48 @@ export default function ProjectRegistrationTab({
                         })}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Letter Spacing & Text Shadow / Glow */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ช่องไฟ (Spacing):</span>
+                        <span className="font-mono text-blue-700">{blk.letterSpacing || 0}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-1"
+                        max="8"
+                        step="0.5"
+                        value={blk.letterSpacing || 0}
+                        onChange={(e) =>
+                          handleBlockChange('course', {
+                            ...blk,
+                            letterSpacing: parseFloat(e.target.value),
+                          })
+                        }
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
 
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        แบบอักษร (Font):
+                        มิติเงา & เรืองแสง:
                       </label>
                       <select
-                        value={blk.fontFamily || 'sarabun'}
+                        value={blk.textShadow || 'none'}
                         onChange={(e) =>
-                          handleBlockChange('course', { ...blk, fontFamily: e.target.value as any })
+                          handleBlockChange('course', { ...blk, textShadow: e.target.value as any })
                         }
                         className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-medium text-slate-800"
                       >
-                        {Object.entries(FONT_FAMILIES).map(([k, f]) => (
-                          <option key={k} value={k}>
-                            {f.name}
-                          </option>
-                        ))}
+                        <option value="none">ไม่มีเงา (None)</option>
+                        <option value="soft">เงาดำนุ่มนวล (Soft)</option>
+                        <option value="strong">เงาเข้มคมชัด (Strong 3D)</option>
+                        <option value="glow">เรืองแสงขาว (White Glow)</option>
+                        <option value="gold">เรืองแสงทอง (Gold Glow)</option>
+                        <option value="outline">ขอบขาวตัด (Outline)</option>
                       </select>
                     </div>
                   </div>
@@ -1489,6 +1715,10 @@ export default function ProjectRegistrationTab({
 
             {selectedStudioBlock === 'cert_no' && (() => {
               const blk = studioConfig.cert_no_block || DEFAULT_CERT_NO_BLOCK;
+              const formalFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'formal');
+              const modernFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'modern');
+              const artisticFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'artistic');
+
               return (
                 <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
@@ -1503,7 +1733,7 @@ export default function ProjectRegistrationTab({
                       title="รีเซ็ตตำแหน่งเริ่มต้น"
                     >
                       <RotateCcw className="w-3 h-3" />
-                      <span>รีเซ็ตตำแหน่ง</span>
+                      <span>รีเซ็ต</span>
                     </button>
                   </div>
 
@@ -1660,16 +1890,53 @@ export default function ProjectRegistrationTab({
                     </div>
                   </div>
 
-                  {/* Font Size & Color */}
+                  {/* Font Family Selector for Cert No */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      แบบอักษรเลขที่เกียรติบัตร:
+                    </label>
+                    <select
+                      value={blk.fontFamily || 'sarabun'}
+                      onChange={(e) =>
+                        handleBlockChange('cert_no', { ...blk, fontFamily: e.target.value })
+                      }
+                      className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none font-semibold text-slate-800 focus:border-indigo-600 shadow-2xs"
+                    >
+                      <optgroup label="🏛️ เกียรติบัตรทางการ & อาลักษณ์ (Formal & Calligraphy)">
+                        {formalFonts.map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.thaiName}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="💎 โมเดิร์น & ทันสมัย (Modern & Minimal)">
+                        {modernFonts.map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.thaiName}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="✍️ ลายมือ & ศิลปะ & วินเทจ (Artistic & Script)">
+                        {artisticFonts.map(([k, f]) => (
+                          <option key={k} value={k}>
+                            {f.thaiName}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  {/* Font Size & Weight */}
                   <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        ขนาดตัวอักษรเลขที่: {blk.fontSize || 11}px
-                      </label>
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>ขนาดตัวอักษร:</span>
+                        <span className="font-mono text-indigo-700">{blk.fontSize || 11}px</span>
+                      </div>
                       <input
                         type="range"
                         min="9"
-                        max="24"
+                        max="28"
                         step="1"
                         value={blk.fontSize || 11}
                         onChange={(e) =>
@@ -1684,25 +1951,133 @@ export default function ProjectRegistrationTab({
 
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        สีข้อความ / QR:
+                        ความหนาตัวอักษร:
                       </label>
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="color"
-                          value={blk.color || '#475569'}
-                          onChange={(e) =>
-                            handleBlockChange('cert_no', { ...blk, color: e.target.value })
+                      <div className="flex gap-1">
+                        {[
+                          { id: 'normal', label: 'ปกติ' },
+                          { id: 'bold', label: 'หนา' },
+                        ].map((w) => (
+                          <button
+                            key={w.id}
+                            type="button"
+                            onClick={() =>
+                              handleBlockChange('cert_no', { ...blk, fontWeight: w.id as any })
+                            }
+                            className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition ${
+                              (blk.fontWeight || 'normal') === w.id
+                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            {w.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Font Style & Shadow */}
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        สไตล์ & ตกแต่ง:
+                      </label>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleBlockChange('cert_no', {
+                              ...blk,
+                              fontStyle: blk.fontStyle === 'italic' ? 'normal' : 'italic',
+                            })
                           }
-                          className="w-7 h-7 rounded cursor-pointer border border-slate-300 p-0.5 bg-white"
-                        />
-                        <input
-                          type="text"
-                          value={blk.color || '#475569'}
-                          onChange={(e) =>
-                            handleBlockChange('cert_no', { ...blk, color: e.target.value })
+                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-lg border transition ${
+                            blk.fontStyle === 'italic'
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                              : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                          }`}
+                          title="ตัวเอียง (Italic)"
+                        >
+                          <Italic className="w-3.5 h-3.5" />
+                          <span>เอียง</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleBlockChange('cert_no', {
+                              ...blk,
+                              textDecoration: blk.textDecoration === 'underline' ? 'none' : 'underline',
+                            })
                           }
-                          className="w-20 px-1.5 py-1 text-[11px] font-mono border border-slate-300 rounded outline-none uppercase"
-                        />
+                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-lg border transition ${
+                            blk.textDecoration === 'underline'
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                              : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
+                          }`}
+                          title="ขีดเส้นใต้ (Underline)"
+                        >
+                          <Underline className="w-3.5 h-3.5" />
+                          <span>ขีดเส้น</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        มิติเงาข้อความ:
+                      </label>
+                      <select
+                        value={blk.textShadow || 'none'}
+                        onChange={(e) =>
+                          handleBlockChange('cert_no', { ...blk, textShadow: e.target.value as any })
+                        }
+                        className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-medium text-slate-800"
+                      >
+                        <option value="none">ไม่มีเงา (None)</option>
+                        <option value="soft">เงาดำนุ่มนวล (Soft)</option>
+                        <option value="strong">เงาเข้ม (Strong)</option>
+                        <option value="glow">เรืองแสงขาว (Glow)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Color Picker & Preset chips */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      สีข้อความ / QR:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={blk.color || '#475569'}
+                        onChange={(e) =>
+                          handleBlockChange('cert_no', { ...blk, color: e.target.value })
+                        }
+                        className="w-8 h-8 rounded-lg cursor-pointer border border-slate-300 p-0.5 bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={blk.color || '#475569'}
+                        onChange={(e) =>
+                          handleBlockChange('cert_no', { ...blk, color: e.target.value })
+                        }
+                        className="w-24 px-2 py-1 text-xs font-mono border border-slate-300 rounded-lg outline-none uppercase"
+                      />
+                      <div className="flex items-center gap-1 ml-auto">
+                        {['#000000', '#0f172a', '#1e3a8a', '#475569', '#881337', '#047857'].map(
+                          (c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => handleBlockChange('cert_no', { ...blk, color: c })}
+                              className="w-5 h-5 rounded-full border border-slate-300 shadow-2xs hover:scale-110 transition"
+                              style={{ backgroundColor: c }}
+                              title={c}
+                            />
+                          )
+                        )}
                       </div>
                     </div>
                   </div>

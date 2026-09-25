@@ -9,9 +9,13 @@ export interface BlockStyle {
   y: number; // Percentage (0-100)
   fontSize?: number; // Font size in px (base 1000px width)
   color?: string; // Hex color code
-  fontWeight?: 'normal' | 'semibold' | 'bold' | 'bolder' | '800';
+  fontWeight?: 'normal' | 'semibold' | 'bold' | 'bolder' | '800' | '900';
+  fontStyle?: 'normal' | 'italic';
+  textDecoration?: 'none' | 'underline';
+  letterSpacing?: number; // in px
+  textShadow?: 'none' | 'soft' | 'glow' | 'strong' | 'gold' | 'outline';
   textAlign?: 'left' | 'center' | 'right';
-  fontFamily?: 'sarabun' | 'charm' | 'prompt' | 'kanit' | 'mitr';
+  fontFamily?: string;
   enabled?: boolean;
   showOrg?: boolean;
   // QR Code settings for cert_no_block
@@ -66,12 +70,42 @@ interface CertificateRendererProps {
   onBlockChange?: (blockKey: 'name' | 'course' | 'cert_no', updated: BlockStyle) => void;
 }
 
-export const FONT_FAMILIES: Record<string, { name: string; css: string }> = {
-  sarabun: { name: 'สารบรรณ (Sarabun)', css: "'Sarabun', 'TH Sarabun New', sans-serif" },
-  charm: { name: 'ชาร์ม อาลักษณ์ (Charm)', css: "'Charm', cursive" },
-  prompt: { name: 'พร้อมท์ (Prompt)', css: "'Prompt', sans-serif" },
-  kanit: { name: 'คณิต (Kanit)', css: "'Kanit', sans-serif" },
-  mitr: { name: 'มิตร (Mitr)', css: "'Mitr', sans-serif" },
+export interface FontCategoryItem {
+  id: string;
+  label: string;
+  fonts: { id: string; name: string; thaiName: string; css: string }[];
+}
+
+export const FONT_FAMILIES: Record<string, { name: string; thaiName: string; css: string; category: string }> = {
+  // 🏛️ เกียรติบัตรทางการ & อาลักษณ์ (Formal & Calligraphy)
+  charm: { name: 'Charm', thaiName: 'ชาร์ม (อาลักษณ์ ริบบิ้นหรู)', css: "'Charm', cursive", category: 'formal' },
+  srisakdi: { name: 'Srisakdi', thaiName: 'ศรีศักดิ์ (ลายไทยวิจิตร)', css: "'Srisakdi', cursive", category: 'formal' },
+  charmonman: { name: 'Charmonman', thaiName: 'ชาร์มอนมาน (คัดลายมืออ่อนช้อย)', css: "'Charmonman', cursive", category: 'formal' },
+  sarabun: { name: 'Sarabun', thaiName: 'สารบรรณ (ทางการมาตรฐาน)', css: "'Sarabun', 'TH Sarabun New', sans-serif", category: 'formal' },
+  trirong: { name: 'Trirong', thaiName: 'ไตรโรง (Serif สง่างาม)', css: "'Trirong', serif", category: 'formal' },
+  taviraj: { name: 'Taviraj', thaiName: 'ทวิราช (Serif หรูหรา)', css: "'Taviraj', serif", category: 'formal' },
+  pridi: { name: 'Pridi', thaiName: 'ปรีดี (Serif พรีเมียม)', css: "'Pridi', serif", category: 'formal' },
+  niramit: { name: 'Niramit', thaiName: 'นิรมิต (Serif เรียบหรู)', css: "'Niramit', serif", category: 'formal' },
+  noto_serif_thai: { name: 'Noto Serif Thai', thaiName: 'โนโตะ ซีรีฟ (สากลคลาสสิก)', css: "'Noto Serif Thai', serif", category: 'formal' },
+
+  // 💎 โมเดิร์น & มินิมอล (Modern & Minimal)
+  prompt: { name: 'Prompt', thaiName: 'พร้อมท์ (โมเดิร์นยอดนิยม)', css: "'Prompt', sans-serif", category: 'modern' },
+  kanit: { name: 'Kanit', thaiName: 'คณิต (ทันสมัย หนักแน่น)', css: "'Kanit', sans-serif", category: 'modern' },
+  mitr: { name: 'Mitr', thaiName: 'มิตร (โมเดิร์น มนสบายตา)', css: "'Mitr', sans-serif", category: 'modern' },
+  krub: { name: 'Krub', thaiName: 'ครับ (มินิมอล เหลี่ยมคม)', css: "'Krub', sans-serif", category: 'modern' },
+  baijamjuree: { name: 'Bai Jamjuree', thaiName: 'จามจุรี (กึ่งทางการ)', css: "'Bai Jamjuree', sans-serif", category: 'modern' },
+  chakra: { name: 'Chakra Petch', thaiName: 'จักรเพชร (เทคโนโลยี สปอร์ต)', css: "'Chakra Petch', sans-serif", category: 'modern' },
+  k2d: { name: 'K2D', thaiName: 'เคทูดี (โมเดิร์น มนสวย)', css: "'K2D', sans-serif", category: 'modern' },
+  noto_sans_thai: { name: 'Noto Sans Thai', thaiName: 'โนโตะ ซานส์ (คมชัดมาตรฐาน)', css: "'Noto Sans Thai', sans-serif", category: 'modern' },
+  fahkwang: { name: 'Fahkwang', thaiName: 'ฟ้ากว้าง (ไฮเอนด์ กว้างสง่า)', css: "'Fahkwang', sans-serif", category: 'modern' },
+  koho: { name: 'KoHo', thaiName: 'โคโฮ (เรียบง่ายสะอาด)', css: "'KoHo', sans-serif", category: 'modern' },
+
+  // ✍️ ลายมือ & ศิลปะ & วินเทจ (Artistic & Handwriting & Vintage)
+  sriracha: { name: 'Sriracha', thaiName: 'ศรีราชา (พู่กันธรรมชาติ)', css: "'Sriracha', cursive", category: 'artistic' },
+  pattaya: { name: 'Pattaya', thaiName: 'พัทยา (ลายมือพู่กันหนา)', css: "'Pattaya', cursive", category: 'artistic' },
+  mali: { name: 'Mali', thaiName: 'มะลิ (ลายมือน่ารัก เป็นกันเอง)', css: "'Mali', cursive", category: 'artistic' },
+  itim: { name: 'Itim', thaiName: 'ไอติม (ลายมือนุ่มนวล สดใส)', css: "'Itim', cursive", category: 'artistic' },
+  chonburi: { name: 'Chonburi', thaiName: 'ชลบุรี (วินเทจ หัวโตเด่น)', css: "'Chonburi', cursive", category: 'artistic' },
 };
 
 export const DEFAULT_NAME_BLOCK: BlockStyle = {
@@ -80,8 +114,12 @@ export const DEFAULT_NAME_BLOCK: BlockStyle = {
   fontSize: 34,
   color: '#0f172a',
   fontWeight: 'bold',
+  fontStyle: 'normal',
+  textDecoration: 'none',
+  letterSpacing: 0,
+  textShadow: 'none',
   textAlign: 'center',
-  fontFamily: 'sarabun',
+  fontFamily: 'charm',
   enabled: true,
   showOrg: false,
 };
@@ -92,6 +130,10 @@ export const DEFAULT_COURSE_BLOCK: BlockStyle = {
   fontSize: 22,
   color: '#1e293b',
   fontWeight: 'bold',
+  fontStyle: 'normal',
+  textDecoration: 'none',
+  letterSpacing: 0,
+  textShadow: 'none',
   textAlign: 'center',
   fontFamily: 'sarabun',
   enabled: true,
@@ -103,6 +145,10 @@ export const DEFAULT_CERT_NO_BLOCK: BlockStyle = {
   fontSize: 11,
   color: '#475569',
   fontWeight: 'normal',
+  fontStyle: 'normal',
+  textDecoration: 'none',
+  letterSpacing: 0,
+  textShadow: 'none',
   textAlign: 'center',
   fontFamily: 'sarabun',
   enabled: true,
@@ -219,6 +265,24 @@ export default function CertificateRenderer({
     };
   }, [draggingBlock, handlePointerMove]);
 
+  // Helper for text shadow styles
+  const getTextShadowValue = (shadowType?: string) => {
+    switch (shadowType) {
+      case 'soft':
+        return '0 2px 5px rgba(0, 0, 0, 0.45)';
+      case 'strong':
+        return '0 4px 10px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.9)';
+      case 'glow':
+        return '0 0 12px rgba(255, 255, 255, 0.95), 0 0 24px rgba(255, 255, 255, 0.7)';
+      case 'gold':
+        return '0 0 14px rgba(234, 179, 8, 0.7), 0 2px 4px rgba(0, 0, 0, 0.4)';
+      case 'outline':
+        return '-1px -1px 0 #ffffff, 1px -1px 0 #ffffff, -1px 1px 0 #ffffff, 1px 1px 0 #ffffff, 0 2px 6px rgba(0,0,0,0.3)';
+      default:
+        return 'none';
+    }
+  };
+
   // Helper for block CSS styling
   const getBlockStyle = (block: BlockStyle) => {
     const textAlign = block.textAlign || 'center';
@@ -236,6 +300,10 @@ export default function CertificateRenderer({
       fontSize: `${block.fontSize || 24}px`,
       color: block.color || '#0f172a',
       fontWeight: block.fontWeight || 'bold',
+      fontStyle: block.fontStyle || 'normal',
+      textDecoration: block.textDecoration || 'none',
+      letterSpacing: block.letterSpacing ? `${block.letterSpacing}px` : 'normal',
+      textShadow: getTextShadowValue(block.textShadow),
       fontFamily: fontInfo.css,
     };
   };
@@ -259,7 +327,7 @@ export default function CertificateRenderer({
           <title>เกียรติบัตร - ${displayName}</title>
           <link rel="preconnect" href="https://fonts.googleapis.com">
           <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Charm:wght@400;700&family=Kanit:wght@300;400;600;700&family=Mitr:wght@400;600&family=Prompt:wght@300;400;600;700&family=Sarabun:ital,wght@0,300;0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@300;400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&family=Charm:wght@400;700&family=Charmonman:wght@400;700&family=Chonburi&family=Fahkwang:wght@300;400;500;600;700&family=Itim&family=K2D:wght@300;400;500;600;700&family=Kanit:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=KoHo:wght@300;400;500;600;700&family=Krub:wght@300;400;500;600;700&family=Mali:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Mitr:wght@300;400;500;600&family=Niramit:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&family=Noto+Serif+Thai:wght@300;400;500;600;700;800;900&family=Pattaya&family=Pridi:wght@300;400;500;600;700&family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,700&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Sriracha&family=Srisakdi:wght@400;700&family=Taviraj:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Trirong:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
           <style>
             @page {
               size: A4 landscape;
@@ -307,7 +375,7 @@ export default function CertificateRenderer({
     <div className={`flex flex-col items-center gap-4 ${className}`}>
       {/* Import Google Fonts in Head */}
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Charm:wght@400;700&family=Kanit:wght@300;400;600;700&family=Mitr:wght@400;600&family=Prompt:wght@300;400;600;700&family=Sarabun:ital,wght@0,300;0,400;0,600;0,700;0,800;1,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@300;400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&family=Charm:wght@400;700&family=Charmonman:wght@400;700&family=Chonburi&family=Fahkwang:wght@300;400;500;600;700&family=Itim&family=K2D:wght@300;400;500;600;700&family=Kanit:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=KoHo:wght@300;400;500;600;700&family=Krub:wght@300;400;500;600;700&family=Mali:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Mitr:wght@300;400;500;600&family=Niramit:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&family=Noto+Serif+Thai:wght@300;400;500;600;700;800;900&family=Pattaya&family=Pridi:wght@300;400;500;600;700&family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,700&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Sriracha&family=Srisakdi:wght@400;700&family=Taviraj:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Trirong:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
       `}</style>
 
       {/* Printable / Visual A4 Landscape Certificate Canvas */}
