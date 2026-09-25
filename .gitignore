@@ -19,6 +19,8 @@ apps/api/storage/exports/*
 !apps/api/storage/exports/.gitkeep
 apps/api/storage/uploads/*
 !apps/api/storage/uploads/.gitkeep
+apps/api/storage/certificates/*
+!apps/api/storage/certificates/.gitkeep
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
 
