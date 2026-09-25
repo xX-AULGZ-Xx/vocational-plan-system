@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Download, Printer, Move, Check, Type, Sparkles, QrCode, RefreshCw, FileDown, Image as ImageIcon } from 'lucide-react';
+import { Download, Printer, Move, Check, Type, Sparkles, QrCode, RefreshCw, FileDown, FileText, Image as ImageIcon } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 export interface BlockStyle {
   x: number; // Percentage (0-100)
@@ -310,14 +311,54 @@ export default function CertificateRenderer({
     };
   };
 
-  const [downloadingImg, setDownloadingImg] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadingPng, setDownloadingPng] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
-  const handleDownloadPng = async () => {
+  // 1. Direct PDF Download (jsPDF) - 100% Full-bleed A4 Landscape (297mm x 210mm)
+  const handleDownloadPdf = async () => {
     if (!certRef.current) return;
-    setDownloadingImg(true);
+    setDownloadingPdf(true);
     try {
       const canvas = await html2canvas(certRef.current, {
-        scale: 3, // 3000px high-resolution rendering
+        scale: 3, // High resolution for crisp printing
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: isCustomBg ? null : '#ffffff',
+        logging: false,
+        ignoreElements: (el) => {
+          return (
+            el.classList.contains('designer-handle') ||
+            el.classList.contains('designer-outline')
+          );
+        },
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+        compress: true,
+      });
+
+      pdf.addImage(imgData, 'JPEG', 0, 0, 297, 210, undefined, 'FAST');
+      const safeName = displayName.replace(/[^\u0E00-\u0E7Fa-zA-Z0-9_-]/g, '_');
+      pdf.save(`เกียรติบัตร_${safeName}.pdf`);
+    } catch (err) {
+      console.error('Download PDF error:', err);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  // 2. Direct PNG Download (html2canvas)
+  const handleDownloadPng = async () => {
+    if (!certRef.current) return;
+    setDownloadingPng(true);
+    try {
+      const canvas = await html2canvas(certRef.current, {
+        scale: 3,
         useCORS: true,
         allowTaint: true,
         backgroundColor: isCustomBg ? null : '#ffffff',
@@ -339,92 +380,80 @@ export default function CertificateRenderer({
     } catch (err) {
       console.error('Download PNG error:', err);
     } finally {
-      setDownloadingImg(false);
+      setDownloadingPng(false);
     }
   };
 
-  const handlePrint = () => {
-    const printContent = certRef.current;
-    if (!printContent) return;
+  // 3. Browser Print (A4 Landscape Image Canvas)
+  const handlePrint = async () => {
+    if (!certRef.current) return;
+    setPrinting(true);
+    try {
+      const canvas = await html2canvas(certRef.current, {
+        scale: 3,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: isCustomBg ? null : '#ffffff',
+        logging: false,
+        ignoreElements: (el) => {
+          return (
+            el.classList.contains('designer-handle') ||
+            el.classList.contains('designer-outline')
+          );
+        },
+      });
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+      const imgData = canvas.toDataURL('image/png');
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) return;
 
-    // Clean cloned DOM without drag handles/editing outlines
-    const clone = printContent.cloneNode(true) as HTMLElement;
-    const editingOverlays = clone.querySelectorAll('.designer-handle, .designer-outline');
-    editingOverlays.forEach((el) => el.remove());
-
-    const bgCss = isCustomBg
-      ? `background-image: url('${config.background_image}'); background-size: 100% 100%; background-position: center; background-repeat: no-repeat;`
-      : 'background-color: #ffffff;';
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>เกียรติบัตร - ${displayName}</title>
-          <link rel="preconnect" href="https://fonts.googleapis.com">
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-          <link href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@300;400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&family=Charm:wght@400;700&family=Charmonman:wght@400;700&family=Chonburi&family=Fahkwang:wght@300;400;500;600;700&family=Itim&family=K2D:wght@300;400;500;600;700&family=Kanit:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=KoHo:wght@300;400;500;600;700&family=Krub:wght@300;400;500;600;700&family=Mali:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Mitr:wght@300;400;500;600&family=Niramit:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&family=Noto+Serif+Thai:wght@300;400;500;600;700;800;900&family=Pattaya&family=Pridi:wght@300;400;500;600;700&family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,700&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Sriracha&family=Srisakdi:wght@400;700&family=Taviraj:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Trirong:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-          <style>
-            @page {
-              size: 297mm 210mm landscape;
-              margin: 0;
-            }
-            html, body {
-              margin: 0;
-              padding: 0;
-              width: 297mm;
-              height: 210mm;
-              background-color: white;
-              font-family: 'Sarabun', 'TH Sarabun New', sans-serif;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-              color-adjust: exact !important;
-              overflow: hidden;
-            }
-            .cert-page {
-              width: 297mm;
-              height: 209.8mm;
-              position: relative;
-              overflow: hidden;
-              box-sizing: border-box;
-              container-type: inline-size;
-              ${bgCss}
-              page-break-inside: avoid;
-              page-break-after: avoid;
-            }
-            * {
-              box-sizing: border-box;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="cert-page">
-            ${clone.innerHTML}
-          </div>
-          <script>
-            window.onload = function() {
-              if (document.fonts && document.fonts.ready) {
-                document.fonts.ready.then(function() {
-                  setTimeout(function() {
-                    window.print();
-                    setTimeout(function() { window.close(); }, 600);
-                  }, 400);
-                });
-              } else {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>พิมพ์เกียรติบัตร - ${displayName}</title>
+            <style>
+              @page {
+                size: 297mm 210mm landscape;
+                margin: 0;
+              }
+              html, body {
+                margin: 0;
+                padding: 0;
+                width: 297mm;
+                height: 210mm;
+                background-color: #ffffff;
+                overflow: hidden;
+              }
+              img {
+                width: 297mm;
+                height: 210mm;
+                display: block;
+                object-fit: fill;
+                margin: 0;
+                padding: 0;
+              }
+            </style>
+          </head>
+          <body>
+            <img src="${imgData}" />
+            <script>
+              window.onload = function() {
                 setTimeout(function() {
                   window.print();
                   setTimeout(function() { window.close(); }, 600);
-                }, 500);
-              }
-            };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+                }, 300);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    } catch (err) {
+      console.error('Print certificate error:', err);
+    } finally {
+      setPrinting(false);
+    }
   };
 
   return (
@@ -601,33 +630,60 @@ export default function CertificateRenderer({
 
       {/* Action Buttons */}
       {showActions && (
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          {/* 1. Direct PDF Download Button */}
           <button
             type="button"
-            disabled={downloadingImg}
-            onClick={handleDownloadPng}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition active:scale-95 disabled:opacity-50"
+            disabled={downloadingPdf || downloadingPng || printing}
+            onClick={handleDownloadPdf}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 hover:from-blue-800 hover:to-indigo-950 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
-            {downloadingImg ? (
+            {downloadingPdf ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>กำลังบันทึกรูปภาพ...</span>
+                <RefreshCw className="w-4 h-4 animate-spin text-amber-300" />
+                <span>กำลังสร้างไฟล์ PDF...</span>
               </>
             ) : (
               <>
-                <FileDown className="w-4 h-4" />
-                <span>บันทึกเป็นรูปภาพ PNG (ความละเอียดสูง)</span>
+                <FileText className="w-4 h-4 text-amber-300" />
+                <span>บันทึกเป็นเอกสาร PDF (A4 แนวนอน)</span>
               </>
             )}
           </button>
 
+          {/* 2. Direct PNG Download Button */}
           <button
             type="button"
-            onClick={handlePrint}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-900 to-indigo-950 hover:from-blue-800 hover:to-indigo-900 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition active:scale-95"
+            disabled={downloadingPdf || downloadingPng || printing}
+            onClick={handleDownloadPng}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
-            <Printer className="w-4 h-4" />
-            <span>พิมพ์ / บันทึกเป็น PDF (A4 แนวนอน)</span>
+            {downloadingPng ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin text-emerald-200" />
+                <span>กำลังบันทึกรูปภาพ...</span>
+              </>
+            ) : (
+              <>
+                <FileDown className="w-4 h-4 text-emerald-200" />
+                <span>บันทึกเป็นรูปภาพ PNG</span>
+              </>
+            )}
+          </button>
+
+          {/* 3. Browser Print Button */}
+          <button
+            type="button"
+            disabled={downloadingPdf || downloadingPng || printing}
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs sm:text-sm rounded-xl border border-slate-700 shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+          >
+            {printing ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Printer className="w-4 h-4 text-slate-300" />
+            )}
+            <span>สั่งพิมพ์</span>
           </button>
         </div>
       )}
