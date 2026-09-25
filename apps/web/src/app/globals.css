@@ -231,16 +231,103 @@ input, button, select, textarea, optgroup {
 }
 
 .swal2-toast {
-  border-radius: var(--app-radius, 12px) !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15) !important;
+  border-radius: var(--app-radius, 16px) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
   max-height: none !important;
   overflow: visible !important;
 }
 
+/* SweetAlert2 Toast Container: Completely Transparent with No Backdrop */
+.swal2-container.swal2-toast-shown,
+.swal2-container.swal2-toast-no-backdrop,
+.swal2-container.swal2-top-end,
+.swal2-container.swal2-top {
+  background-color: transparent !important;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+body.swal2-toast-shown .swal2-container {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* Desktop Toast Animation (Slide-in from Right) */
+@keyframes swalToastDesktopIn {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.9);
+  }
+  65% {
+    opacity: 1;
+    transform: translateX(-8px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes swalToastDesktopOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.9);
+  }
+}
+
+/* Mobile Toast Animation (Slide-down from Top) */
+@keyframes swalToastMobileIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-80px) scale(0.9);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(8px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes swalToastMobileOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-80px) scale(0.9);
+  }
+}
+
+.swal2-toast-desktop-in {
+  animation: swalToastDesktopIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+}
+
+.swal2-toast-desktop-out {
+  animation: swalToastDesktopOut 220ms ease-in forwards !important;
+}
+
+.swal2-toast-mobile-in {
+  animation: swalToastMobileIn 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+}
+
+.swal2-toast-mobile-out {
+  animation: swalToastMobileOut 220ms ease-in forwards !important;
+}
+
 @media (max-width: 768px) {
-  .swal2-container.swal2-center > .swal2-popup.swal2-toast {
-    margin: auto !important;
+  .swal2-container.swal2-center > .swal2-popup.swal2-toast,
+  .swal2-popup.swal2-toast.swal2-toast-mobile {
+    margin: 0.75rem auto auto auto !important;
     justify-self: center !important;
+    width: calc(100vw - 1.5rem) !important;
   }
 }
 

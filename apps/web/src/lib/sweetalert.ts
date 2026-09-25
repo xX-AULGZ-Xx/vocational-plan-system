@@ -69,16 +69,25 @@ export const showAlert = {
     return Swal.fire({
       toast: true,
       position: isMobile ? 'top' : 'top-end',
+      backdrop: false, // Absolutely NO dark backdrop for toast notifications
       showConfirmButton: false,
-      timer: isMobile ? 4500 : 5000,
+      timer: isMobile ? 3500 : 4000,
       timerProgressBar: true,
       icon,
       title,
       text,
+      showClass: {
+        popup: isMobile ? 'swal2-toast-mobile-in' : 'swal2-toast-desktop-in',
+      },
+      hideClass: {
+        popup: isMobile ? 'swal2-toast-mobile-out' : 'swal2-toast-desktop-out',
+      },
       customClass: {
-        container: 'z-[999999]',
-        popup: `font-sans shadow-2xl border border-slate-200/90 rounded-2xl bg-white/95 backdrop-blur-md p-3.5 ${
-          isMobile ? 'text-left mx-2 max-w-sm w-[calc(100vw-1rem)] mt-2' : 'text-left max-w-sm'
+        container: 'z-[999999] pointer-events-none swal2-toast-no-backdrop',
+        popup: `font-sans shadow-2xl border border-slate-200/90 rounded-2xl bg-white/95 backdrop-blur-md p-3.5 pointer-events-auto ${
+          isMobile
+            ? 'swal2-toast-mobile mx-auto max-w-sm w-[calc(100vw-1.5rem)] mt-3 text-left'
+            : 'swal2-toast-desktop mr-5 mt-4 max-w-sm text-left'
         }`,
         title: 'text-slate-900 font-bold text-xs sm:text-sm leading-tight',
         htmlContainer: 'text-slate-600 text-[11px] sm:text-xs mt-1 leading-snug',
