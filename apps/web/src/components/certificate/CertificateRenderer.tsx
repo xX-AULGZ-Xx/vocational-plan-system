@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Download, Printer, Move, Check, Type, Sparkles, QrCode } from 'lucide-react';
+import { Download, Printer, Move, Check, Type, Sparkles, QrCode, RefreshCw, FileDown, Image as ImageIcon } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import html2canvas from 'html2canvas';
 
 export interface BlockStyle {
   x: number; // Percentage (0-100)
@@ -309,6 +310,39 @@ export default function CertificateRenderer({
     };
   };
 
+  const [downloadingImg, setDownloadingImg] = useState(false);
+
+  const handleDownloadPng = async () => {
+    if (!certRef.current) return;
+    setDownloadingImg(true);
+    try {
+      const canvas = await html2canvas(certRef.current, {
+        scale: 3, // 3000px high-resolution rendering
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: isCustomBg ? null : '#ffffff',
+        logging: false,
+        ignoreElements: (el) => {
+          return (
+            el.classList.contains('designer-handle') ||
+            el.classList.contains('designer-outline')
+          );
+        },
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      const safeName = displayName.replace(/[^\u0E00-\u0E7Fa-zA-Z0-9_-]/g, '_');
+      link.download = `เกียรติบัตร_${safeName}.png`;
+      link.href = imgData;
+      link.click();
+    } catch (err) {
+      console.error('Download PNG error:', err);
+    } finally {
+      setDownloadingImg(false);
+    }
+  };
+
   const handlePrint = () => {
     const printContent = certRef.current;
     if (!printContent) return;
@@ -321,6 +355,10 @@ export default function CertificateRenderer({
     const editingOverlays = clone.querySelectorAll('.designer-handle, .designer-outline');
     editingOverlays.forEach((el) => el.remove());
 
+    const bgCss = isCustomBg
+      ? `background-image: url('${config.background_image}'); background-size: 100% 100%; background-position: center; background-repeat: no-repeat;`
+      : 'background-color: #ffffff;';
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -331,26 +369,31 @@ export default function CertificateRenderer({
           <link href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@300;400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&family=Charm:wght@400;700&family=Charmonman:wght@400;700&family=Chonburi&family=Fahkwang:wght@300;400;500;600;700&family=Itim&family=K2D:wght@300;400;500;600;700&family=Kanit:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=KoHo:wght@300;400;500;600;700&family=Krub:wght@300;400;500;600;700&family=Mali:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Mitr:wght@300;400;500;600&family=Niramit:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&family=Noto+Serif+Thai:wght@300;400;500;600;700;800;900&family=Pattaya&family=Pridi:wght@300;400;500;600;700&family=Prompt:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,700&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Sriracha&family=Srisakdi:wght@400;700&family=Taviraj:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Trirong:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
           <style>
             @page {
-              size: A4 landscape;
+              size: 297mm 210mm landscape;
               margin: 0;
             }
-            body {
+            html, body {
               margin: 0;
               padding: 0;
+              width: 297mm;
+              height: 210mm;
               background-color: white;
               font-family: 'Sarabun', 'TH Sarabun New', sans-serif;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
               color-adjust: exact !important;
+              overflow: hidden;
             }
             .cert-page {
               width: 297mm;
-              height: 209.5mm;
+              height: 209.8mm;
               position: relative;
               overflow: hidden;
-              page-break-after: always;
               box-sizing: border-box;
               container-type: inline-size;
+              ${bgCss}
+              page-break-inside: avoid;
+              page-break-after: avoid;
             }
             * {
               box-sizing: border-box;
@@ -363,8 +406,19 @@ export default function CertificateRenderer({
           </div>
           <script>
             window.onload = function() {
-              window.print();
-              setTimeout(function() { window.close(); }, 600);
+              if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(function() {
+                  setTimeout(function() {
+                    window.print();
+                    setTimeout(function() { window.close(); }, 600);
+                  }, 400);
+                });
+              } else {
+                setTimeout(function() {
+                  window.print();
+                  setTimeout(function() { window.close(); }, 600);
+                }, 500);
+              }
             };
           </script>
         </body>
@@ -547,11 +601,30 @@ export default function CertificateRenderer({
 
       {/* Action Buttons */}
       {showActions && (
-        <div className="flex flex-wrap items-center justify-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
+          <button
+            type="button"
+            disabled={downloadingImg}
+            onClick={handleDownloadPng}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition active:scale-95 disabled:opacity-50"
+          >
+            {downloadingImg ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>กำลังบันทึกรูปภาพ...</span>
+              </>
+            ) : (
+              <>
+                <FileDown className="w-4 h-4" />
+                <span>บันทึกเป็นรูปภาพ PNG (ความละเอียดสูง)</span>
+              </>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={handlePrint}
-            className="flex items-center gap-2 px-6 py-2.5 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition active:scale-95"
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-900 to-indigo-950 hover:from-blue-800 hover:to-indigo-900 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition active:scale-95"
           >
             <Printer className="w-4 h-4" />
             <span>พิมพ์ / บันทึกเป็น PDF (A4 แนวนอน)</span>
