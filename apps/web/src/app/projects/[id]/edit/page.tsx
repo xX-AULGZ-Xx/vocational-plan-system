@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
-import { getCurrentThaiFiscalYear, detectProjectFiscalYear, calculateFiscalYearFromDateString, getThaiFiscalYearDateRange } from '@/lib/bahttext';
+import { getCurrentThaiFiscalYear, detectProjectFiscalYear, calculateFiscalYearFromDateString, getThaiFiscalYearDateRange, formatThaiBaht } from '@/lib/bahttext';
 import { showAlert } from '@/lib/sweetalert';
 import {
   ArrowLeft,
@@ -17,6 +17,7 @@ import {
   Plus,
   Trash2,
   Clock,
+  Calculator,
 } from 'lucide-react';
 
 export default function EditProjectPage() {
@@ -62,6 +63,94 @@ export default function EditProjectPage() {
 
   const [dynamicData, setDynamicData] = useState<Record<string, any>>({});
   const [budgetItems, setBudgetItems] = useState<any[]>([]);
+
+  const addBudgetItem = () => {
+    setBudgetItems(prev => {
+      const arr = [...prev, { category_id: 3, description: '', quantity: 1, unit: 'ชิ้น', unit_price: '', total_amount: 0 }];
+      const totalSum = arr.reduce((sum, it) => sum + (Number(it.total_amount) || 0), 0);
+      setTotalBudget(String(totalSum));
+      return arr;
+    });
+  };
+
+  const updateBudgetItem = (index: number, field: string, rawVal: any) => {
+    setBudgetItems(prev => {
+      const arr = [...prev];
+      const item = { ...arr[index] };
+
+      if (field === 'quantity') {
+        const valStr = String(rawVal).replace(/,/g, '');
+        if (valStr === '' || /^[0-9]*\.?[0-9]*$/.test(valStr)) {
+          item.quantity = valStr;
+        }
+        const q = parseFloat(String(item.quantity)) || 0;
+        const p = parseFloat(String(item.unit_price)) || 0;
+        item.total_amount = Math.round(q * p * 100) / 100;
+      } else if (field === 'unit_price') {
+        const valStr = String(rawVal).replace(/,/g, '');
+        if (valStr === '' || /^[0-9]*\.?[0-9]*$/.test(valStr)) {
+          item.unit_price = valStr;
+        }
+        const q = parseFloat(String(item.quantity)) || 0;
+        const p = parseFloat(String(item.unit_price)) || 0;
+        item.total_amount = Math.round(q * p * 100) / 100;
+      } else {
+        item[field] = rawVal;
+      }
+
+      arr[index] = item;
+
+      const totalSum = arr.reduce((sum, it) => sum + (Number(it.total_amount) || 0), 0);
+      setTotalBudget(String(totalSum));
+      setDynamicData(prevDyn => ({
+        ...prevDyn,
+        total_budget: totalSum,
+        ...(prevDyn.total_budget_baht !== undefined || prevDyn.baht_text !== undefined ? {
+          total_budget_baht: formatThaiBaht(totalSum),
+          baht_text: formatThaiBaht(totalSum),
+        } : {}),
+      }));
+
+      return arr;
+    });
+  };
+
+  const handleBudgetItemBlur = (index: number, field: 'quantity' | 'unit_price') => {
+    setBudgetItems(prev => {
+      const arr = [...prev];
+      const item = { ...arr[index] };
+      if (field === 'quantity') {
+        const q = parseFloat(String(item.quantity));
+        item.quantity = isNaN(q) || q <= 0 ? 1 : q;
+      } else if (field === 'unit_price') {
+        const p = parseFloat(String(item.unit_price));
+        item.unit_price = isNaN(p) || p < 0 ? 0 : p;
+      }
+      const q = parseFloat(String(item.quantity)) || 0;
+      const p = parseFloat(String(item.unit_price)) || 0;
+      item.total_amount = Math.round(q * p * 100) / 100;
+      arr[index] = item;
+      return arr;
+    });
+  };
+
+  const removeBudgetItem = (index: number) => {
+    setBudgetItems(prev => {
+      const arr = [...prev];
+      arr.splice(index, 1);
+      const totalSum = arr.reduce((sum, it) => sum + (Number(it.total_amount) || 0), 0);
+      setTotalBudget(String(totalSum));
+      setDynamicData(prevDyn => ({
+        ...prevDyn,
+        total_budget: totalSum,
+        ...(prevDyn.total_budget_baht !== undefined || prevDyn.baht_text !== undefined ? {
+          total_budget_baht: formatThaiBaht(totalSum),
+          baht_text: formatThaiBaht(totalSum),
+        } : {}),
+      }));
+      return arr;
+    });
+  };
 
   useEffect(() => {
     if (token && projectId) {
@@ -239,10 +328,23 @@ const fetchProposalTemplate = async () => {
   const handleSubmit = async (e: React.FormEvent, status: 'draft' | 'pending') => {
     e.preventDefault();
     
+    // Format budget items to numbers and compute total sum
+    const formattedBudgetItems = budgetItems.map((item) => {
+      const q = parseFloat(String(item.quantity)) || 0;
+      const p = parseFloat(String(item.unit_price)) || 0;
+      return {
+        ...item,
+        quantity: q,
+        unit_price: p,
+        total_amount: Math.round(q * p * 100) / 100,
+      };
+    });
+    const budgetItemsSum = formattedBudgetItems.reduce((sum, item) => sum + item.total_amount, 0);
+    const computedTotalBudget = budgetItemsSum > 0 ? budgetItemsSum : (Number(dynamicData['total_budget']) || 0);
+
     // Auto-map system fields from dynamic data
     const computedTitle = dynamicData['title'] || dynamicData['project_name'] || 'โครงการไม่มีชื่อ';
     const computedFiscalYear = detectProjectFiscalYear(dynamicData, currentFiscalYear || fiscalYear);
-    const computedTotalBudget = dynamicData['total_budget'] || 0;
     // For department, find department matching the selected approver/endorser or user's department
     const approverVal = dynamicData['endorser_name'] || dynamicData['endorser'] || dynamicData['approver_name'] || dynamicData['approver'] || '';
     const approverPos = dynamicData['endorser_position'] || dynamicData['endorser_name_position'] || dynamicData['approver_position'] || dynamicData['approver_name_position'] || '';
@@ -396,7 +498,7 @@ const fetchProposalTemplate = async () => {
         background: dynamicData['background'] || '',
         expected_results: dynamicData['expected_results'] || '',
         timelines: [],
-        budget_items: budgetItems,
+        budget_items: formattedBudgetItems,
       };
 
       const res = await fetch(`/api/v1/projects/${projectId}`, {
@@ -427,12 +529,27 @@ const fetchProposalTemplate = async () => {
   const handlePreview = async () => {
     if (!proposalTemplate) return;
     try {
+      const computedFiscalYear = detectProjectFiscalYear(dynamicData, currentFiscalYear || fiscalYear);
+      const formattedBudgetItems = budgetItems.map((item) => {
+        const q = parseFloat(String(item.quantity)) || 0;
+        const p = parseFloat(String(item.unit_price)) || 0;
+        return {
+          ...item,
+          quantity: q,
+          unit_price: p,
+          total_amount: Math.round(q * p * 100) / 100,
+        };
+      });
+      const budgetItemsSum = formattedBudgetItems.reduce((sum, item) => sum + item.total_amount, 0);
+      const computedTotalBudget = budgetItemsSum > 0 ? budgetItemsSum : (Number(dynamicData['total_budget']) || 0);
+
       // Create a combined form data
       const formData = {
         ...dynamicData,
         title,
-        fiscal_year: fiscalYear,
-        budget_items: budgetItems,
+        fiscal_year: computedFiscalYear,
+        total_budget: computedTotalBudget,
+        budget_items: formattedBudgetItems,
       };
 
       const res = await fetch('/api/v1/documents/export-dynamic', {
@@ -1533,112 +1650,124 @@ const fetchProposalTemplate = async () => {
 
         {/* Budget Items UI */}
         <div className="bg-white shadow-sm rounded-xl border border-gray-100 p-6">
-          <div className="flex justify-between items-center mb-4 border-b pb-2">
-            <h2 className="text-lg font-medium text-gray-900">รายละเอียดค่าใช้จ่าย</h2>
+          <div className="flex justify-between items-center mb-4 border-b pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-gray-900">รายละเอียดค่าใช้จ่ายและงบประมาณ</h2>
+                <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                  {budgetItems.length} รายการ
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">ระบุหมวดหมู่ รายการ จำนวน หน่วยนับ และราคาต่อหน่วย (ระบบคำนวณและสรุปยอดรวมให้อัตโนมัติ)</p>
+            </div>
             <button
               type="button"
-              onClick={() => setBudgetItems([...budgetItems, { category_id: 3, description: '', quantity: 1, unit: 'ชิ้น', unit_price: 0, total_amount: 0 }])}
-              className="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded flex items-center hover:bg-indigo-200"
+              onClick={addBudgetItem}
+              className="text-xs bg-theme-primary hover:bg-theme-primary-hover text-white px-3.5 py-2 rounded-theme flex items-center gap-1.5 font-bold shadow-xs transition active:scale-95"
             >
-              <Plus className="w-4 h-4 mr-1" /> เพิ่มรายการ
+              <Plus className="w-4 h-4" /> เพิ่มรายการค่าใช้จ่าย
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-500">
-              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+
+          <datalist id="common-units-edit">
+            <option value="ชิ้น" />
+            <option value="คน" />
+            <option value="วัน" />
+            <option value="ชุด" />
+            <option value="เล่ม" />
+            <option value="มื้อ" />
+            <option value="กล่อง" />
+            <option value="แพ็ค" />
+            <option value="แผ่น" />
+            <option value="หน่วย" />
+            <option value="งวด" />
+            <option value="โครงการ" />
+            <option value="ครั้ง" />
+            <option value="เดือน" />
+            <option value="ปี" />
+          </datalist>
+
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-sm text-left text-gray-600">
+              <thead className="text-xs text-slate-700 font-bold uppercase bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-3 py-2">หมวดหมู่</th>
-                  <th className="px-3 py-2 w-1/3">รายการ</th>
-                  <th className="px-3 py-2 w-20">จำนวน</th>
-                  <th className="px-3 py-2 w-24">หน่วยนับ</th>
-                  <th className="px-3 py-2 w-28">ราคา/หน่วย</th>
-                  <th className="px-3 py-2 w-28">รวม (บาท)</th>
-                  <th className="px-3 py-2 w-10"></th>
+                  <th className="px-3 py-3 w-40">หมวดหมู่</th>
+                  <th className="px-3 py-3 min-w-[200px]">รายการค่าใช้จ่าย</th>
+                  <th className="px-3 py-3 w-28 text-center">จำนวน</th>
+                  <th className="px-3 py-3 w-28">หน่วยนับ</th>
+                  <th className="px-3 py-3 w-36 text-right">ราคา/หน่วย (บาท)</th>
+                  <th className="px-3 py-3 w-36 text-right">รวมเป็นเงิน (บาท)</th>
+                  <th className="px-3 py-3 w-12 text-center"></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {budgetItems.map((item, index) => (
-                  <tr key={index} className="bg-white border-b">
-                    <td className="px-2 py-2">
+                  <tr key={index} className="bg-white hover:bg-slate-50/70 transition-colors">
+                    <td className="px-2.5 py-2">
                       <select 
                         value={item.category_id} 
-                        onChange={(e) => {
-                          const arr = [...budgetItems];
-                          arr[index].category_id = parseInt(e.target.value);
-                          setBudgetItems(arr);
-                        }}
-                        className="w-full text-sm border-gray-300 rounded"
+                        onChange={(e) => updateBudgetItem(index, 'category_id', parseInt(e.target.value))}
+                        className="w-full text-xs font-medium border-slate-300 rounded-md focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 py-1.5 bg-white"
                       >
                         <option value={1}>ค่าตอบแทน</option>
                         <option value={2}>ค่าใช้สอย</option>
                         <option value={3}>ค่าวัสดุ</option>
                       </select>
                     </td>
-                    <td className="px-2 py-2">
+                    <td className="px-2.5 py-2">
                       <input 
                         type="text" 
                         value={item.description} 
-                        onChange={(e) => {
-                          const arr = [...budgetItems];
-                          arr[index].description = e.target.value;
-                          setBudgetItems(arr);
-                        }}
-                        placeholder="ระบุชื่อรายการ"
-                        className="w-full text-sm border-gray-300 rounded"
+                        onChange={(e) => updateBudgetItem(index, 'description', e.target.value)}
+                        placeholder="ระบุรายละเอียด เช่น ค่าวิทยากร, ค่าอาหารกลางวัน, ค่ากระดาษ A4"
+                        className="w-full text-xs sm:text-sm border-slate-300 rounded-md focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 px-2.5 py-1.5"
                       />
                     </td>
-                    <td className="px-2 py-2">
+                    <td className="px-2.5 py-2">
                       <input 
-                        type="number" 
-                        min="1"
+                        type="text"
+                        inputMode="decimal"
                         value={item.quantity} 
-                        onChange={(e) => {
-                          const arr = [...budgetItems];
-                          arr[index].quantity = parseFloat(e.target.value) || 0;
-                          arr[index].total_amount = arr[index].quantity * arr[index].unit_price;
-                          setBudgetItems(arr);
-                        }}
-                        className="w-full text-sm border-gray-300 rounded text-center"
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => updateBudgetItem(index, 'quantity', e.target.value)}
+                        onBlur={() => handleBudgetItemBlur(index, 'quantity')}
+                        placeholder="1"
+                        className="w-full text-xs sm:text-sm font-mono border-slate-300 rounded-md focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-center py-1.5"
                       />
                     </td>
-                    <td className="px-2 py-2">
+                    <td className="px-2.5 py-2">
                       <input 
                         type="text" 
+                        list="common-units-edit"
                         value={item.unit} 
-                        onChange={(e) => {
-                          const arr = [...budgetItems];
-                          arr[index].unit = e.target.value;
-                          setBudgetItems(arr);
-                        }}
-                        className="w-full text-sm border-gray-300 rounded"
+                        onChange={(e) => updateBudgetItem(index, 'unit', e.target.value)}
+                        placeholder="หน่วย"
+                        className="w-full text-xs sm:text-sm border-slate-300 rounded-md focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 px-2.5 py-1.5"
                       />
                     </td>
-                    <td className="px-2 py-2">
-                      <input 
-                        type="number" 
-                        min="0"
-                        value={item.unit_price} 
-                        onChange={(e) => {
-                          const arr = [...budgetItems];
-                          arr[index].unit_price = parseFloat(e.target.value) || 0;
-                          arr[index].total_amount = arr[index].quantity * arr[index].unit_price;
-                          setBudgetItems(arr);
-                        }}
-                        className="w-full text-sm border-gray-300 rounded text-right"
-                      />
+                    <td className="px-2.5 py-2">
+                      <div className="relative rounded-md shadow-2xs">
+                        <input 
+                          type="text" 
+                          inputMode="decimal"
+                          value={item.unit_price} 
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => updateBudgetItem(index, 'unit_price', e.target.value)}
+                          onBlur={() => handleBudgetItemBlur(index, 'unit_price')}
+                          placeholder="0.00"
+                          className="w-full text-xs sm:text-sm font-mono font-medium border-slate-300 rounded-md focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-right pr-2 py-1.5 text-slate-900 bg-white"
+                        />
+                      </div>
                     </td>
-                    <td className="px-2 py-2 text-right font-medium text-gray-900">
-                      {item.total_amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                    <td className="px-3 py-2 text-right font-mono font-bold text-slate-800 text-xs sm:text-sm">
+                      {(Number(item.total_amount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-2 py-2 text-center">
                       <button 
                         type="button" 
-                        onClick={() => {
-                          const arr = [...budgetItems];
-                          arr.splice(index, 1);
-                          setBudgetItems(arr);
-                        }}
-                        className="text-red-500 hover:bg-red-50 p-1 rounded"
+                        onClick={() => removeBudgetItem(index)}
+                        title="ลบรายการนี้"
+                        className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-md transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1647,18 +1776,34 @@ const fetchProposalTemplate = async () => {
                 ))}
                 {budgetItems.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                      ยังไม่มีรายการค่าใช้จ่าย คลิก "เพิ่มรายการ" เพื่อเริ่มต้น
+                    <td colSpan={7} className="px-4 py-10 text-center text-slate-400 bg-slate-50/50">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <Calculator className="w-8 h-8 text-slate-300 stroke-1" />
+                        <p className="text-sm font-medium text-slate-600">ยังไม่มีรายการค่าใช้จ่าย</p>
+                        <p className="text-xs text-slate-400">คลิกปุ่มด้านล่างหรือมุมขวาบนเพื่อเริ่มต้นเพิ่มรายการ</p>
+                        <button
+                          type="button"
+                          onClick={addBudgetItem}
+                          className="mt-2 text-xs bg-white hover:bg-slate-100 text-indigo-600 border border-indigo-200 px-3.5 py-1.5 rounded-theme font-bold transition flex items-center gap-1 shadow-2xs"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> เพิ่มรายการแรก
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )}
               </tbody>
               {budgetItems.length > 0 && (
                 <tfoot>
-                  <tr className="bg-gray-50 font-bold">
-                    <td colSpan={5} className="px-4 py-3 text-right">ยอดรวมทั้งสิ้น</td>
-                    <td className="px-4 py-3 text-right text-indigo-700">
-                      {budgetItems.reduce((sum, item) => sum + item.total_amount, 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                  <tr className="bg-slate-50/90 font-bold border-t border-slate-200">
+                    <td colSpan={5} className="px-4 py-3 text-right text-slate-700">
+                      <div className="text-sm">ยอดรวมงบประมาณทั้งสิ้น:</div>
+                      <div className="text-xs font-normal text-slate-500 mt-0.5">
+                        ({formatThaiBaht(budgetItems.reduce((sum, item) => sum + (Number(item.total_amount) || 0), 0))})
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-right text-indigo-700 text-base font-mono font-bold">
+                      {budgetItems.reduce((sum, item) => sum + (Number(item.total_amount) || 0), 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td></td>
                   </tr>
