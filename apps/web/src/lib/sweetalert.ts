@@ -11,6 +11,8 @@ const customSwal = Swal.mixin({
     actions: 'flex items-center justify-center gap-2 mt-4',
   },
   buttonsStyling: false,
+  allowOutsideClick: true,
+  allowEscapeKey: true,
 });
 
 export const showAlert = {
