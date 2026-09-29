@@ -30,6 +30,10 @@ import {
   Filter,
   ArrowRight,
   CalendarRange,
+  Rocket,
+  CheckCircle,
+  Eye,
+  Info,
 } from 'lucide-react';
 
 const THAI_MONTHS_FULL = [
@@ -366,6 +370,9 @@ export default function SchedulePage() {
   // View Mode: 'calendar' (Month Grid) or 'list' (Timeline / Gantt Cards)
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
+  // Calendar Display Style: 'clean' (highlights start/end & milestones + top bar) vs 'dense' (pills on all days)
+  const [calendarDisplayMode, setCalendarDisplayMode] = useState<'clean' | 'dense'>('clean');
+
   // Calendar Date State (Current Month / Year)
   const [currentDate, setCurrentDate] = useState(() => new Date());
 
@@ -468,6 +475,7 @@ export default function SchedulePage() {
           project_code: p.project_code,
           project_status: p.status,
           is_approved: isApproved,
+          is_long_span: false,
           step_info: p.stepInfo,
           division_id: p.department?.division_id || p.department?.division?.id,
           division_code: divCode,
@@ -500,8 +508,9 @@ export default function SchedulePage() {
               project_code: p.project_code,
               project_status: p.status,
               is_approved: isApproved,
+              is_long_span: false,
               step_info: p.stepInfo,
-              activity_name: `📍 การดำเนินโครงการ${dyn.length > 1 ? ` (ช่วงที่ ${edIdx + 1})` : ''}: ${ed.title || p.title}`,
+              activity_name: `📍 ดำเนินโครงการ${dyn.length > 1 ? ` (ช่วงที่ ${edIdx + 1})` : ''}: ${ed.title || p.title}`,
               start_date: s,
               end_date: e,
               location: ed.location || p.durationInfo?.location || '',
@@ -519,8 +528,9 @@ export default function SchedulePage() {
         }
       });
 
-      // 3. For proposed projects without timeline records, create a synthesized overall project timeline entry
+      // 3. For projects without sub-activity records, create synthesized project duration entry
       if (items.length === 0 && p.durationInfo?.hasDates) {
+        const isLongSpan = (p.durationInfo.durationDays || 0) > 7;
         items.push({
           id: `proj-duration-${p.id}`,
           project_id: p.id,
@@ -528,13 +538,14 @@ export default function SchedulePage() {
           project_code: p.project_code,
           project_status: p.status,
           is_approved: isApproved,
+          is_long_span: isLongSpan,
           step_info: p.stepInfo,
-          activity_name: `⏳ ${p.title}`,
+          activity_name: p.title,
           start_date: p.durationInfo.startDateStr,
           end_date: p.durationInfo.endDateStr,
           location: p.durationInfo.location || '',
           is_execution: true,
-          is_milestone: true,
+          is_milestone: false,
           division_id: p.department?.division_id || p.department?.division?.id,
           division_code: divCode,
           division_name: divName,
@@ -542,6 +553,7 @@ export default function SchedulePage() {
           department_name: deptName,
           leader_name: leaderName,
           total_budget: budget,
+          durationDays: p.durationInfo.durationDays,
         });
       }
 
@@ -652,6 +664,28 @@ export default function SchedulePage() {
     setCurrentDate(new Date());
   };
 
+  // Month boundary dates
+  const monthStart = useMemo(() => new Date(year, month, 1), [year, month]);
+  const monthEnd = useMemo(() => new Date(year, month + 1, 0, 23, 59, 59), [year, month]);
+
+  // Active Long-Running Projects spanning through the currently viewed month
+  const activeMonthProjects = useMemo(() => {
+    const mStartMs = monthStart.getTime();
+    const mEndMs = monthEnd.getTime();
+
+    // Collect all projects matching current scope & filters whose duration overlaps this month
+    const source = scopeTab === 'proposed' ? filteredProposedProjects : (scopeTab === 'approved' ? approvedProjects : [...approvedProjects, ...proposedProjects]);
+
+    return source.filter((p) => {
+      const s = p.durationInfo?.startDate;
+      const e = p.durationInfo?.endDate || s;
+      if (!s || !e) return false;
+      const sMs = new Date(s.getFullYear(), s.getMonth(), s.getDate()).getTime();
+      const eMs = new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59).getTime();
+      return sMs <= mEndMs && eMs >= mStartMs;
+    });
+  }, [monthStart, monthEnd, scopeTab, filteredProposedProjects, approvedProjects, proposedProjects]);
+
   // Generate calendar grid days
   const calendarDays = useMemo(() => {
     const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sunday
@@ -698,16 +732,38 @@ export default function SchedulePage() {
   // Check which activities fall into a specific day
   const getActivitiesForDay = (date: Date) => {
     const time = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-    return filteredActivities.filter((act) => {
-      if (!act.start_date) return false;
+    
+    return filteredActivities.flatMap((act) => {
+      if (!act.start_date) return [];
       const s = parseThaiDateStringToDate(act.start_date) || new Date(act.start_date);
-      if (isNaN(s.getTime())) return false;
+      if (isNaN(s.getTime())) return [];
       const sTime = new Date(s.getFullYear(), s.getMonth(), s.getDate()).getTime();
 
       const e = act.end_date ? (parseThaiDateStringToDate(act.end_date) || new Date(act.end_date)) : s;
       const eTime = isNaN(e.getTime()) ? sTime : new Date(e.getFullYear(), e.getMonth(), e.getDate()).getTime();
 
-      return time >= sTime && time <= eTime;
+      const isInside = time >= sTime && time <= eTime;
+      if (!isInside) return [];
+
+      const isStartDay = time === sTime;
+      const isEndDay = time === eTime;
+      const isShortEvent = (eTime - sTime) <= (7 * 24 * 60 * 60 * 1000); // <= 7 days
+
+      // In Clean Display Mode:
+      // - Specific short events / milestones appear on all their event days.
+      // - Long-running projects (> 7 days or whole year) only highlight on Start Day and End Day in the grid!
+      if (calendarDisplayMode === 'clean' && !isShortEvent && !act.is_milestone) {
+        if (!isStartDay && !isEndDay) {
+          return [];
+        }
+      }
+
+      return [{
+        ...act,
+        isStartDay,
+        isEndDay,
+        isShortEvent,
+      }];
     });
   };
 
@@ -725,6 +781,12 @@ export default function SchedulePage() {
   // Division activity pill styling in calendar view
   const getActivityPillStyle = (act: any) => {
     if (!act.is_approved) {
+      if (act.isStartDay && !act.isShortEvent) {
+        return 'bg-emerald-50 text-emerald-950 border-emerald-400 hover:bg-emerald-100 font-bold shadow-2xs';
+      }
+      if (act.isEndDay && !act.isShortEvent) {
+        return 'bg-rose-50 text-rose-950 border-rose-400 hover:bg-rose-100 font-bold shadow-2xs';
+      }
       return 'bg-amber-50 text-amber-950 border-amber-300 border-dashed hover:bg-amber-100/90 font-medium shadow-2xs';
     }
     if (act.is_milestone) {
@@ -1026,7 +1088,7 @@ export default function SchedulePage() {
             </div>
           )}
 
-          {/* Filters: Department, Approval Step & Search Box */}
+          {/* Filters: Department, Approval Step, Display Mode & Search Box */}
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Search Input */}
             <div className="relative">
@@ -1089,6 +1151,33 @@ export default function SchedulePage() {
               </div>
             )}
 
+            {viewMode === 'calendar' && (
+              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-theme border border-slate-200 text-xs">
+                <button
+                  onClick={() => setCalendarDisplayMode('clean')}
+                  className={`px-2.5 py-1 rounded text-[11px] font-bold transition ${
+                    calendarDisplayMode === 'clean'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="เน้นวันเริ่มต้น-สิ้นสุด และแสดงแถบสรุปโครงการด้านบน เพื่อความสะอาดตา"
+                >
+                  แบบสบายตา
+                </button>
+                <button
+                  onClick={() => setCalendarDisplayMode('dense')}
+                  className={`px-2.5 py-1 rounded text-[11px] font-bold transition ${
+                    calendarDisplayMode === 'dense'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="แสดงแถบกิจกรรมในทุกช่องวันของเดือน"
+                >
+                  แสดงทุกวัน
+                </button>
+              </div>
+            )}
+
             {scopeTab === 'approved' && (
               <label className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer bg-amber-50/70 hover:bg-amber-100/80 px-3 py-1.5 rounded-theme border border-amber-200 transition">
                 <input
@@ -1137,7 +1226,7 @@ export default function SchedulePage() {
                         project_title: p.title,
                         project_code: p.project_code,
                         project_status: p.status,
-                        activity_name: `ระยะเวลาโครงการ: ${p.title}`,
+                        activity_name: p.title,
                         start_date: dur.startDateStr,
                         end_date: dur.endDateStr,
                         location: dur.location,
@@ -1248,88 +1337,180 @@ export default function SchedulePage() {
         </div>
       ) : viewMode === 'calendar' ? (
         /* CALENDAR MONTH GRID VIEW (SUPPORTING BOTH APPROVED & PROPOSED) */
-        <div className="bg-white rounded-theme border border-slate-200 shadow-xs overflow-hidden">
-          {/* Weekday Header */}
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-bold text-slate-600">
-            {WEEKDAYS.map((day, idx) => (
-              <div
-                key={day}
-                className={`py-2.5 ${idx === 0 || idx === 6 ? 'text-rose-600 bg-rose-50/50' : ''}`}
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Day Grid Cells */}
-          <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-slate-200">
-            {calendarDays.map((dayObj, dIdx) => {
-              const acts = getActivitiesForDay(dayObj.date);
-              const isWeekend = dayObj.date.getDay() === 0 || dayObj.date.getDay() === 6;
-
-              return (
-                <div
-                  key={dIdx}
-                  className={`min-h-[115px] sm:min-h-[130px] p-1.5 sm:p-2 flex flex-col transition ${
-                    !dayObj.isCurrentMonth
-                      ? 'bg-slate-50/60 text-slate-300'
-                      : isWeekend
-                      ? 'bg-rose-50/20'
-                      : 'bg-white'
-                  } hover:bg-blue-50/30`}
-                >
-                  {/* Date Number Badge */}
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span
-                      className={`inline-flex items-center justify-center text-xs font-bold w-6 h-6 rounded-full ${
-                        dayObj.isToday
-                          ? 'bg-theme-primary text-white shadow-xs ring-2 ring-blue-200'
-                          : dayObj.isCurrentMonth
-                          ? isWeekend
-                            ? 'text-rose-600'
-                            : 'text-slate-700'
-                          : 'text-slate-300'
-                      }`}
-                    >
-                      {dayObj.date.getDate()}
-                    </span>
-
-                    {acts.length > 0 && dayObj.isCurrentMonth && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600">
-                        {acts.length}
-                      </span>
-                    )}
+        <div className="space-y-4">
+          {/* Active Projects in Month Banner (Clean & informative) */}
+          {activeMonthProjects.length > 0 && (
+            <div className="bg-gradient-to-r from-amber-50/90 via-orange-50/60 to-amber-50/90 p-3.5 sm:p-4 rounded-theme border border-amber-200 shadow-2xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-amber-500 text-white rounded-md">
+                    <CalendarRange className="w-4 h-4" />
                   </div>
-
-                  {/* Activities Pills in Cell */}
-                  <div className="space-y-1 overflow-y-auto max-h-[85px] sm:max-h-[95px] pr-0.5">
-                    {acts.map((act, aIdx) => {
-                      const isMilestone = act.is_milestone;
-                      const isProposed = !act.is_approved;
-
-                      return (
-                        <button
-                          key={aIdx}
-                          onClick={() => setSelectedActivity(act)}
-                          className={`w-full text-left p-1 rounded text-[11px] leading-tight truncate transition block border ${getActivityPillStyle(
-                            act
-                          )}`}
-                          title={`${isProposed ? '[รออนุมัติ] ' : ''}${act.activity_name} (${act.project_title})`}
-                        >
-                          <span className="flex items-center gap-1">
-                            {isProposed && <Hourglass className="w-2.5 h-2.5 shrink-0 text-amber-600" />}
-                            {isMilestone && !isProposed && <Flag className="w-2.5 h-2.5 shrink-0 fill-amber-600 text-amber-600" />}
-                            <span className="truncate">
-                              {isProposed ? `⏳ ${act.activity_name}` : act.activity_name}
-                            </span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <h3 className="text-xs sm:text-sm font-bold text-amber-950">
+                    โครงการที่มีกรอบระยะเวลาดำเนินงานในเดือน{THAI_MONTHS_FULL[month]} พ.ศ. {year + 543} ({activeMonthProjects.length} โครงการ)
+                  </h3>
                 </div>
-              );
-            })}
+                <span className="text-[11px] text-amber-800">
+                  {calendarDisplayMode === 'clean' ? '✨ ปฏิทินแสดงจุดเริ่ม 🚀 และสิ้นสุด 🏁 อย่างสะอาดตา' : 'แสดงแถบกิจกรรมทุกวัน'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {activeMonthProjects.map((p) => {
+                  const dur = p.durationInfo;
+                  const step = p.stepInfo;
+                  const divCode = p.department?.division?.code;
+
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() =>
+                        setSelectedActivity({
+                          project_id: p.id,
+                          project_title: p.title,
+                          project_code: p.project_code,
+                          project_status: p.status,
+                          activity_name: p.title,
+                          start_date: dur.startDateStr,
+                          end_date: dur.endDateStr,
+                          location: dur.location,
+                          division_code: divCode,
+                          division_name: p.department?.division?.name,
+                          department_name: p.department?.name,
+                          leader_name: p.leader?.full_name,
+                          total_budget: p.total_budget,
+                          is_milestone: false,
+                          is_approved: p.isApproved,
+                          step_info: step,
+                          durationDays: dur.durationDays,
+                          executionDates: dur.executionDates,
+                        })
+                      }
+                      className="bg-white/95 hover:bg-white p-2.5 rounded-theme border border-amber-200/90 hover:border-amber-400 shadow-2xs hover:shadow-sm transition cursor-pointer flex flex-col justify-between gap-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`px-2 py-0.2 rounded text-[10px] font-bold ${getDivisionBadgeColor(divCode)}`}>
+                          {divCode || 'DIV'}
+                        </span>
+                        <span className={`px-2 py-0.2 rounded-full text-[10px] font-bold border ${step.badgeClass}`}>
+                          {step.label}
+                        </span>
+                      </div>
+
+                      <div className="font-bold text-xs text-slate-900 line-clamp-1 hover:text-theme-primary">
+                        {p.title}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-600 pt-0.5 border-t border-slate-100">
+                        <span className="flex items-center gap-1 font-medium text-amber-900">
+                          <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                          {formatThaiDate(dur.startDate)} - {formatThaiDate(dur.endDate)}
+                        </span>
+                        <span className="font-bold text-emerald-700">
+                          ฿{(Number(p.total_budget) || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Calendar Grid Container */}
+          <div className="bg-white rounded-theme border border-slate-200 shadow-xs overflow-hidden">
+            {/* Weekday Header */}
+            <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-bold text-slate-600">
+              {WEEKDAYS.map((day, idx) => (
+                <div
+                  key={day}
+                  className={`py-2.5 ${idx === 0 || idx === 6 ? 'text-rose-600 bg-rose-50/50' : ''}`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Day Grid Cells */}
+            <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-slate-200">
+              {calendarDays.map((dayObj, dIdx) => {
+                const acts = getActivitiesForDay(dayObj.date);
+                const isWeekend = dayObj.date.getDay() === 0 || dayObj.date.getDay() === 6;
+
+                return (
+                  <div
+                    key={dIdx}
+                    className={`min-h-[115px] sm:min-h-[130px] p-1.5 sm:p-2 flex flex-col transition ${
+                      !dayObj.isCurrentMonth
+                        ? 'bg-slate-50/60 text-slate-300'
+                        : isWeekend
+                        ? 'bg-rose-50/20'
+                        : 'bg-white'
+                    } hover:bg-blue-50/30`}
+                  >
+                    {/* Date Number Badge */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span
+                        className={`inline-flex items-center justify-center text-xs font-bold w-6 h-6 rounded-full ${
+                          dayObj.isToday
+                            ? 'bg-theme-primary text-white shadow-xs ring-2 ring-blue-200'
+                            : dayObj.isCurrentMonth
+                            ? isWeekend
+                              ? 'text-rose-600'
+                              : 'text-slate-700'
+                            : 'text-slate-300'
+                        }`}
+                      >
+                        {dayObj.date.getDate()}
+                      </span>
+
+                      {acts.length > 0 && dayObj.isCurrentMonth && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600">
+                          {acts.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Activities Pills in Cell */}
+                    <div className="space-y-1 overflow-y-auto max-h-[85px] sm:max-h-[95px] pr-0.5">
+                      {acts.map((act, aIdx) => {
+                        const isMilestone = act.is_milestone;
+                        const isProposed = !act.is_approved;
+                        const isStart = act.isStartDay && !act.isShortEvent;
+                        const isEnd = act.isEndDay && !act.isShortEvent;
+
+                        return (
+                          <button
+                            key={aIdx}
+                            onClick={() => setSelectedActivity(act)}
+                            className={`w-full text-left p-1 rounded text-[11px] leading-tight truncate transition block border ${getActivityPillStyle(
+                              act
+                            )}`}
+                            title={`${isProposed ? '[รออนุมัติ] ' : ''}${act.activity_name} (${act.project_title})`}
+                          >
+                            <span className="flex items-center gap-1">
+                              {isStart ? (
+                                <Rocket className="w-2.5 h-2.5 shrink-0 text-emerald-600" />
+                              ) : isEnd ? (
+                                <CheckCircle className="w-2.5 h-2.5 shrink-0 text-rose-600" />
+                              ) : isProposed ? (
+                                <Hourglass className="w-2.5 h-2.5 shrink-0 text-amber-600" />
+                              ) : isMilestone ? (
+                                <Flag className="w-2.5 h-2.5 shrink-0 fill-amber-600 text-amber-600" />
+                              ) : null}
+
+                              <span className="truncate">
+                                {isStart ? `🚀 เริ่ม: ${act.activity_name}` : isEnd ? `🏁 สิ้นสุด: ${act.activity_name}` : act.activity_name}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       ) : (
