@@ -568,8 +568,8 @@ export default function ProjectRegistrationTab({
   return (
     <div className="space-y-6">
       {/* Top Banner & Quick Links */}
-      <div className="bg-gradient-to-r from-theme-primary via-slate-900 to-theme-primary-hover rounded-theme p-5 sm:p-6 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-theme-accent/15 rounded-full blur-2xl pointer-events-none" />
+      <div className="bg-theme-gradient rounded-theme p-5 sm:p-6 text-white shadow-lg relative overflow-hidden">
+        <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="space-y-2">
@@ -593,7 +593,7 @@ export default function ProjectRegistrationTab({
               )}
             </div>
 
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
               ระบบจัดการการลงทะเบียน & ออกเกียรติบัตร
             </h2>
             <p className="text-xs sm:text-sm text-white/80 max-w-2xl">
@@ -607,7 +607,7 @@ export default function ProjectRegistrationTab({
               onClick={() => setShowQrModal(true)}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-theme text-xs font-bold transition shadow-xs"
             >
-              <QrCode className="w-4 h-4 text-amber-400" />
+              <QrCode className="w-4 h-4 text-amber-300" />
               <span>QR Code รับสมัคร</span>
             </button>
 
@@ -633,36 +633,36 @@ export default function ProjectRegistrationTab({
 
         {/* Metrics Counter Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-white/10">
-          <div className="bg-white/5 backdrop-blur-xs rounded-theme p-3 border border-white/10">
-            <div className="text-[11px] text-blue-100/90">ผู้ลงทะเบียนทั้งหมด</div>
+          <div className="bg-white/10 backdrop-blur-xs rounded-theme p-3 border border-white/15">
+            <div className="text-[11px] text-white/80">ผู้ลงทะเบียนทั้งหมด</div>
             <div className="text-2xl font-black text-white mt-0.5">{stats.total} <span className="text-xs font-normal text-white/80">คน</span></div>
             {regConfig.max_participants && (
               <div className="text-[10px] text-white/70 mt-0.5">จำกัด {regConfig.max_participants} คน</div>
             )}
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xs rounded-theme p-3 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-xs rounded-theme p-3 border border-white/15">
             <div className="text-[11px] text-emerald-200">เช็คอินหน้างานแล้ว</div>
             <div className="text-2xl font-black text-emerald-300 mt-0.5">{stats.checked_in} <span className="text-xs font-normal text-emerald-200/80">คน</span></div>
-            <div className="text-[10px] text-emerald-400/80 mt-0.5">
+            <div className="text-[10px] text-emerald-300 mt-0.5">
               {stats.total > 0 ? `${Math.round((stats.checked_in / stats.total) * 100)}% ของผู้ลงทะเบียน` : '-'}
             </div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xs rounded-theme p-3 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-xs rounded-theme p-3 border border-white/15">
             <div className="text-[11px] text-amber-200">ผ่าน/รับเกียรติบัตรแล้ว</div>
             <div className="text-2xl font-black text-amber-300 mt-0.5">{stats.passed} <span className="text-xs font-normal text-amber-200/80">คน</span></div>
-            <div className="text-[10px] text-amber-400/80 mt-0.5">พร้อมดาวน์โหลดเกียรติบัตร</div>
+            <div className="text-[10px] text-amber-300 mt-0.5">พร้อมดาวน์โหลดเกียรติบัตร</div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xs rounded-theme p-3 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-xs rounded-theme p-3 border border-white/15">
             <div className="text-[11px] text-sky-200">ที่นั่งว่างคงเหลือ</div>
             <div className="text-2xl font-black text-sky-300 mt-0.5">
               {regConfig.max_participants
                 ? Math.max(0, Number(regConfig.max_participants) - stats.total)
                 : '∞'} <span className="text-xs font-normal text-sky-200/80">ที่นั่ง</span>
             </div>
-            <div className="text-[10px] text-sky-300/80 mt-0.5">
+            <div className="text-[10px] text-sky-300 mt-0.5">
               {regConfig.max_participants ? 'ตามจำนวนรับสมัคร' : 'ไม่จำกัดจำนวน'}
             </div>
           </div>
