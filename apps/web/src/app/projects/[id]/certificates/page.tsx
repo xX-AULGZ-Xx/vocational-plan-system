@@ -143,7 +143,7 @@ export default function PublicCertificatesPage({ params }: PageProps) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-amber-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-10 h-10 border-4 border-slate-300 border-t-theme-primary rounded-full animate-spin mx-auto" />
           <p className="text-xs font-bold text-slate-600">กำลังโหลดระบบตรวจสอบเกียรติบัตร...</p>
         </div>
       </div>
@@ -153,23 +153,23 @@ export default function PublicCertificatesPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-16">
       {/* Header Banner */}
-      <header className="bg-gradient-to-r from-amber-900 via-amber-950 to-slate-900 text-white shadow-xl">
+      <header className="bg-theme-gradient text-white shadow-xl">
         <div className="max-w-4xl mx-auto px-4 py-8 sm:py-10">
           <Link
             href={`/projects/${projectId}/register`}
-            className="inline-flex items-center gap-1.5 text-xs text-amber-200 hover:text-white mb-3 font-semibold"
+            className="inline-flex items-center gap-1.5 text-xs text-white/80 hover:text-white mb-3 font-semibold transition"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>กลับหน้าลงทะเบียน</span>
           </Link>
 
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-amber-400 shrink-0">
+            <div className="w-12 h-12 rounded-theme bg-white/10 flex items-center justify-center text-white shrink-0">
               <Award className="w-7 h-7" />
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-white">ระบบตรวจสอบและรับเกียรติบัตรออนไลน์</h1>
-              <p className="text-xs text-amber-200 line-clamp-1">{projectInfo?.title}</p>
+              <p className="text-xs text-white/80 line-clamp-1">{projectInfo?.title}</p>
             </div>
           </div>
         </div>
@@ -178,7 +178,7 @@ export default function PublicCertificatesPage({ params }: PageProps) {
       {/* Main Container */}
       <main className="max-w-4xl mx-auto px-4 -mt-4 space-y-6">
         {/* Search Card */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-4">
+        <div className="bg-white rounded-theme p-6 sm:p-8 border border-slate-200 shadow-xl space-y-4">
           <div className="text-center max-w-lg mx-auto space-y-1">
             <h2 className="text-lg sm:text-xl font-black text-slate-900">
               ค้นหารายชื่อผู้ได้รับเกียรติบัตร
@@ -201,18 +201,18 @@ export default function PublicCertificatesPage({ params }: PageProps) {
                     if (suggestions.length > 0) setShowSuggestions(true);
                   }}
                   placeholder="พิมพ์ชื่อ-นามสกุล หรือเบอร์โทรศัพท์ (มี Auto-fill)..."
-                  className="w-full pl-10 pr-9 py-3 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold outline-none focus:border-amber-600 focus:bg-white transition"
+                  className="w-full pl-10 pr-9 py-3 bg-slate-50 border border-slate-300 rounded-theme text-xs sm:text-sm font-semibold outline-none focus:border-theme-primary focus:bg-white transition"
                 />
                 {loadingSuggestions && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <div className="w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-theme-primary border-t-transparent rounded-full animate-spin" />
                   </div>
                 )}
               </div>
               <button
                 type="submit"
                 disabled={searching || !searchQuery.trim()}
-                className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition shrink-0"
+                className="px-6 py-3 bg-theme-primary hover:opacity-90 text-white text-xs sm:text-sm font-bold rounded-theme shadow-md transition shrink-0"
               >
                 {searching ? 'กำลังค้นหา...' : 'ค้นหา'}
               </button>
@@ -220,10 +220,10 @@ export default function PublicCertificatesPage({ params }: PageProps) {
 
             {/* Suggestions Dropdown */}
             {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 z-30 mt-1.5 bg-white rounded-2xl shadow-2xl border border-amber-200 overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-100 animate-in fade-in duration-150">
-                <div className="px-3.5 py-1.5 bg-amber-50 text-[11px] font-bold text-amber-900 flex items-center justify-between">
+              <div className="absolute left-0 right-0 z-30 mt-1.5 bg-white rounded-theme shadow-2xl border border-slate-200 overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-100 animate-in fade-in duration-150">
+                <div className="px-3.5 py-1.5 bg-slate-100 text-[11px] font-bold text-slate-700 flex items-center justify-between">
                   <span className="flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    <Sparkles className="w-3 h-3 text-theme-primary" />
                     พบรายชื่อผู้ได้รับเกียรติบัตร (คลิกเพื่อดูทันที)
                   </span>
                   <button
@@ -239,13 +239,13 @@ export default function PublicCertificatesPage({ params }: PageProps) {
                     key={att.id}
                     type="button"
                     onClick={() => handleSelectSuggestion(att)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-amber-50/70 transition-colors flex items-center justify-between gap-3 text-xs group"
+                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between gap-3 text-xs group"
                   >
                     <div>
-                      <div className="font-bold text-slate-800 group-hover:text-amber-700 flex items-center gap-1.5">
+                      <div className="font-bold text-slate-800 group-hover:text-theme-primary flex items-center gap-1.5">
                         <span>{att.title_name || ''} {att.full_name}</span>
                         {att.certificate_no && (
-                          <span className="text-[10px] font-mono bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-mono bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.5 rounded-theme">
                             {att.certificate_no}
                           </span>
                         )}
@@ -255,7 +255,7 @@ export default function PublicCertificatesPage({ params }: PageProps) {
                         {att.position && <span>({att.position})</span>}
                       </div>
                     </div>
-                    <span className="text-[11px] font-bold text-amber-700 bg-amber-100 group-hover:bg-amber-600 group-hover:text-white px-2.5 py-1 rounded-lg transition-colors shrink-0">
+                    <span className="text-[11px] font-bold text-theme-primary bg-slate-100 group-hover:bg-theme-primary group-hover:text-white px-2.5 py-1 rounded-theme transition-colors shrink-0">
                       ดูเกียรติบัตร
                     </span>
                   </button>
@@ -274,7 +274,7 @@ export default function PublicCertificatesPage({ params }: PageProps) {
                 {results.map((att) => (
                   <div
                     key={att.id}
-                    className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-amber-400 transition"
+                    className="p-4 bg-slate-50 rounded-theme border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-theme-primary transition"
                   >
                     <div className="space-y-0.5">
                       <div className="font-bold text-sm text-slate-900">
@@ -283,7 +283,7 @@ export default function PublicCertificatesPage({ params }: PageProps) {
                       <div className="text-xs text-slate-500">
                         {att.organization || 'วิทยาลัยอาชีวศึกษาเชียงราย'} {att.position ? `(${att.position})` : ''}
                       </div>
-                      <div className="text-[11px] font-mono text-amber-700 font-semibold pt-1">
+                      <div className="text-[11px] font-mono text-theme-primary font-semibold pt-1">
                         เลขที่เกียรติบัตร: {att.certificate_no}
                       </div>
                     </div>
@@ -291,7 +291,7 @@ export default function PublicCertificatesPage({ params }: PageProps) {
                     <button
                       type="button"
                       onClick={() => setSelectedAttendee(att)}
-                      className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center justify-center gap-1.5 shrink-0"
+                      className="px-5 py-2.5 bg-theme-primary hover:opacity-90 text-white text-xs font-bold rounded-theme shadow-md transition flex items-center justify-center gap-1.5 shrink-0"
                     >
                       <Download className="w-4 h-4" />
                       <span>ดูและดาวน์โหลดเกียรติบัตร</span>
@@ -305,7 +305,7 @@ export default function PublicCertificatesPage({ params }: PageProps) {
 
         {/* Certificate Display */}
         {selectedAttendee && (
-          <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="bg-slate-900 text-white rounded-theme p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h3 className="text-base sm:text-lg font-black text-white">
@@ -315,7 +315,7 @@ export default function PublicCertificatesPage({ params }: PageProps) {
               </div>
               <button
                 onClick={() => setSelectedAttendee(null)}
-                className="text-xs text-slate-400 hover:text-white px-3 py-1 bg-slate-800 rounded-lg"
+                className="text-xs text-slate-400 hover:text-white px-3 py-1 bg-slate-800 rounded-theme"
               >
                 ปิด
               </button>

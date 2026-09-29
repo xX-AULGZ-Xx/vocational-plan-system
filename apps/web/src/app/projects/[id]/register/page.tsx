@@ -272,7 +272,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-blue-900 border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-10 h-10 border-4 border-theme-primary border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-xs font-bold text-slate-600">กำลังโหลดระบบลงทะเบียน...</p>
         </div>
       </div>
@@ -282,7 +282,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
   if (errorMsg || !projectInfo) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl text-center space-y-4">
+        <div className="max-w-md w-full bg-white p-8 rounded-theme shadow-xl text-center space-y-4">
           <div className="w-14 h-14 rounded-full bg-rose-100 text-rose-600 mx-auto flex items-center justify-center">
             <AlertCircle className="w-7 h-7" />
           </div>
@@ -299,10 +299,11 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-16">
       {/* Header Banner */}
-      <header className="bg-gradient-to-r from-blue-950 via-indigo-900 to-slate-900 text-white shadow-xl relative overflow-hidden">
+      <header className="bg-theme-gradient text-white shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 translate-x-12 -translate-y-12 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="max-w-4xl mx-auto px-4 py-8 sm:py-12 relative z-10">
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-amber-400 shrink-0 shadow-lg">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-theme bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-amber-300 shrink-0 shadow-lg">
               <Award className="w-9 h-9 sm:w-11 sm:h-11" />
             </div>
 
@@ -311,7 +312,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                 <span className="px-3 py-0.5 rounded-full text-[11px] font-bold bg-amber-400 text-amber-950">
                   {projectInfo.department?.name || 'วิทยาลัยอาชีวศึกษาเชียงราย'}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/10 text-blue-200">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/10 text-white/90">
                   ปีงบประมาณ {projectInfo.fiscal_year}
                 </span>
               </div>
@@ -320,10 +321,10 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                 {projectInfo.title}
               </h1>
 
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-blue-200/90 pt-1">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-white/80 pt-1">
                 {projectInfo.execution_dates?.length > 0 && (
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-amber-400" />
+                    <Calendar className="w-4 h-4 text-amber-300" />
                     <span>
                       {formatThaiDate(projectInfo.execution_dates[0]?.start_date)} -{' '}
                       {formatThaiDate(projectInfo.execution_dates[0]?.end_date)}
@@ -332,7 +333,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                 )}
                 {projectInfo.location && (
                   <div className="flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4 text-emerald-400" />
+                    <MapPin className="w-4 h-4 text-emerald-300" />
                     <span>{projectInfo.location}</span>
                   </div>
                 )}
@@ -345,12 +346,12 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
       {/* Main Content Area */}
       <main className="max-w-4xl mx-auto px-4 -mt-4 relative z-20">
         {/* Navigation Tabs (Register vs Certificate Lookup) */}
-        <div className="flex items-center bg-white rounded-2xl p-1.5 shadow-md border border-slate-200 mb-6">
+        <div className="flex items-center bg-white rounded-theme p-1.5 shadow-md border border-slate-200 mb-6">
           <button
             onClick={() => setActiveTab('register')}
-            className={`flex-1 py-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+            className={`flex-1 py-3 rounded-theme text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
               activeTab === 'register'
-                ? 'bg-blue-900 text-white shadow-sm'
+                ? 'bg-theme-primary text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -361,9 +362,9 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
           {isCertEnabled && (
             <button
               onClick={() => setActiveTab('lookup_certificate')}
-              className={`flex-1 py-3 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
+              className={`flex-1 py-3 rounded-theme text-xs sm:text-sm font-bold transition flex items-center justify-center gap-2 ${
                 activeTab === 'lookup_certificate'
-                  ? 'bg-amber-600 text-white shadow-sm'
+                  ? 'bg-theme-accent text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -380,7 +381,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
           <div className="space-y-6">
             {/* Registration Success Card */}
             {registeredAttendee ? (
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-emerald-200 shadow-xl space-y-6 text-center animate-fade-in">
+              <div className="bg-white rounded-theme p-6 sm:p-8 border border-emerald-200 shadow-xl space-y-6 text-center animate-fade-in">
                 <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
@@ -395,7 +396,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                 </div>
 
                 {/* Registration Confirmation Ticket */}
-                <div className="max-w-md mx-auto bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-6 rounded-2xl shadow-xl text-left relative overflow-hidden">
+                <div className="max-w-md mx-auto bg-slate-900 text-white p-6 rounded-theme shadow-xl text-left relative overflow-hidden">
                   <div className="text-[10px] text-amber-400 font-bold tracking-wider uppercase">
                     E-Ticket / บัตรยืนยันการลงทะเบียน
                   </div>
@@ -403,18 +404,18 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                     {registeredAttendee.title_name} {registeredAttendee.full_name}
                   </h3>
                   {registeredAttendee.organization && (
-                    <div className="text-xs text-blue-200 mt-0.5">
+                    <div className="text-xs text-white/80 mt-0.5">
                       สังกัด: {registeredAttendee.organization}
                     </div>
                   )}
 
                   <div className="grid grid-cols-2 gap-3 pt-4 mt-4 border-t border-white/10 text-xs">
                     <div>
-                      <div className="text-[10px] text-blue-300">เบอร์โทรศัพท์</div>
+                      <div className="text-[10px] text-white/70">เบอร์โทรศัพท์</div>
                       <div className="font-mono font-bold text-white">{registeredAttendee.phone || '-'}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-blue-300">สถานะ</div>
+                      <div className="text-[10px] text-white/70">สถานะ</div>
                       <div className="font-bold text-emerald-400">ลงทะเบียนสำเร็จ</div>
                     </div>
                   </div>
@@ -427,7 +428,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="bg-white p-1.5 rounded-lg shadow-sm">
+                      <div className="bg-white p-1.5 rounded-theme shadow-sm">
                         <QRCodeSVG
                           ref={attendeeQrRef}
                           value={`ATTENDEE:${registeredAttendee.id}:${projectInfo.project_id}`}
@@ -438,7 +439,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                         type="button"
                         onClick={handleDownloadAttendeeQR}
                         title="ดาวน์โหลด QR Code สำหรับเช็คอิน"
-                        className="px-2.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+                        className="px-2.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-theme text-xs font-semibold flex items-center gap-1.5 transition"
                       >
                         <Download className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">โหลด QR</span>
@@ -461,7 +462,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                         citizen_id: '',
                       });
                     }}
-                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition"
+                    className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-theme transition"
                   >
                     ลงทะเบียนเพิ่มอีกคน
                   </button>
@@ -469,7 +470,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                   {isCertEnabled && (
                     <button
                       onClick={() => setActiveTab('lookup_certificate')}
-                      className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5 shadow-md"
+                      className="px-5 py-2.5 bg-theme-accent hover:brightness-110 text-white font-bold text-xs rounded-theme transition flex items-center gap-1.5 shadow-md"
                     >
                       <Award className="w-4 h-4" />
                       <span>ตรวจสอบเกียรติบัตร</span>
@@ -478,7 +479,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-6">
+              <div className="bg-white rounded-theme p-6 sm:p-8 border border-slate-200 shadow-md space-y-6">
               {!isRegOpen ? (
                 /* Registration Closed State - No Form Displayed */
                 <div className="py-8 px-4 text-center space-y-5">
@@ -498,8 +499,8 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                   {/* Registered Stats Pill */}
                   {projectInfo.stats?.total > 0 && (
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-slate-700 font-medium">
-                      <Users className="w-4 h-4 text-blue-900" />
-                      <span>มีผู้ลงทะเบียนทั้งหมด <strong className="text-blue-950 font-bold">{projectInfo.stats.total}</strong> คน</span>
+                      <Users className="w-4 h-4 text-theme-primary" />
+                      <span>มีผู้ลงทะเบียนทั้งหมด <strong className="text-slate-950 font-bold">{projectInfo.stats.total}</strong> คน</span>
                     </div>
                   )}
 
@@ -509,7 +510,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                       <button
                         type="button"
                         onClick={() => setActiveTab('lookup_certificate')}
-                        className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm rounded-xl transition flex items-center gap-2 shadow-md hover:shadow-lg"
+                        className="px-6 py-3 bg-theme-accent hover:brightness-110 text-white font-bold text-xs sm:text-sm rounded-theme transition flex items-center gap-2 shadow-md"
                       >
                         <Award className="w-4 h-4" />
                         <span>ค้นหาและรับเกียรติบัตร</span>
@@ -520,7 +521,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
               ) : (
                 /* Registration Open State - Show Form */
                 <>
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-theme text-emerald-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-2.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                       <span className="font-bold">ระบบกำลังเปิดรับลงทะเบียน</span>
@@ -539,7 +540,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                         <select
                           value={form.title_name}
                           onChange={(e) => setForm((p) => ({ ...p, title_name: e.target.value }))}
-                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition font-medium"
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:bg-white transition font-medium"
                         >
                           <option value="นาย">นาย</option>
                           <option value="นาง">นาง</option>
@@ -561,7 +562,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                           placeholder="เช่น สมชาย ใจดีมั่นคง (ไม่ต้องใส่คำนำหน้า)"
                           value={form.full_name}
                           onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs font-semibold"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:bg-white transition text-xs font-semibold"
                         />
                       </div>
                     </div>
@@ -574,7 +575,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                           placeholder="เช่น ครู, นักเรียน ปวช., บุคลากรทางการศึกษา"
                           value={form.position}
                           onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:bg-white transition text-xs"
                         />
                       </div>
 
@@ -585,7 +586,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                           placeholder="เช่น วิทยาลัยอาชีวศึกษาเชียงราย, แผนกวิชาคอมพิวเตอร์ธุรกิจ"
                           value={form.organization}
                           onChange={(e) => setForm((p) => ({ ...p, organization: e.target.value }))}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:bg-white transition text-xs"
                         />
                       </div>
                     </div>
@@ -601,7 +602,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                           placeholder="08X-XXX-XXXX"
                           value={form.phone}
                           onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs font-mono"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:bg-white transition text-xs font-mono"
                         />
                       </div>
 
@@ -612,7 +613,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                           placeholder="example@email.com"
                           value={form.email}
                           onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:border-blue-900 focus:bg-white transition text-xs"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:bg-white transition text-xs"
                         />
                       </div>
                     </div>
@@ -621,9 +622,9 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                       <button
                         type="submit"
                         disabled={submitting}
-                        className="w-full py-3.5 rounded-2xl font-bold text-sm transition shadow-lg flex items-center justify-center gap-2 bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 text-white hover:opacity-95"
+                        className="w-full py-3.5 rounded-theme font-bold text-sm transition shadow-lg flex items-center justify-center gap-2 bg-theme-primary hover:bg-theme-primary-hover text-white active:scale-[0.99]"
                       >
-                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        <Sparkles className="w-4 h-4 text-amber-300" />
                         <span>{submitting ? 'กำลังบันทึกข้อมูลการลงทะเบียน...' : 'ยืนยันการลงทะเบียนเข้าร่วม'}</span>
                       </button>
                     </div>
@@ -641,7 +642,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
         {activeTab === 'lookup_certificate' && (
           <div className="space-y-6">
             {/* Search Box */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-4">
+            <div className="bg-white rounded-theme p-6 sm:p-8 border border-slate-200 shadow-md space-y-4">
               <div className="text-center max-w-lg mx-auto space-y-1">
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900">
                   ค้นหาและดาวน์โหลดเกียรติบัตร
@@ -664,18 +665,18 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                         if (certSuggestions.length > 0) setShowSuggestions(true);
                       }}
                       placeholder="พิมพ์ชื่อ-นามสกุล หรือเบอร์โทรศัพท์ (มี Auto-fill)..."
-                      className="w-full pl-10 pr-9 py-3 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold outline-none focus:border-amber-600 focus:bg-white transition"
+                      className="w-full pl-10 pr-9 py-3 bg-slate-50 border border-slate-300 rounded-theme text-xs sm:text-sm font-semibold outline-none focus:border-theme-primary focus:bg-white transition"
                     />
                     {loadingSuggestions && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                        <div className="w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-3.5 h-3.5 border-2 border-theme-primary border-t-transparent rounded-full animate-spin" />
                       </div>
                     )}
                   </div>
                   <button
                     type="submit"
                     disabled={searching || !searchQuery.trim()}
-                    className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-md transition shrink-0"
+                    className="px-6 py-3 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs sm:text-sm font-bold rounded-theme shadow-md transition shrink-0"
                   >
                     {searching ? 'กำลังค้นหา...' : 'ค้นหาเกียรติบัตร'}
                   </button>
@@ -683,10 +684,10 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
 
                 {/* Auto-fill Suggestions Dropdown */}
                 {showSuggestions && certSuggestions.length > 0 && (
-                  <div className="absolute left-0 right-0 z-30 mt-1.5 bg-white rounded-2xl shadow-2xl border border-amber-200 overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-100 animate-in fade-in duration-150">
-                    <div className="px-3.5 py-1.5 bg-amber-50 text-[11px] font-bold text-amber-900 flex items-center justify-between">
+                  <div className="absolute left-0 right-0 z-30 mt-1.5 bg-white rounded-theme shadow-2xl border border-slate-200 overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-100 animate-in fade-in duration-150">
+                    <div className="px-3.5 py-1.5 bg-theme-primary-light text-[11px] font-bold text-theme-primary flex items-center justify-between">
                       <span className="flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-amber-600" />
+                        <Sparkles className="w-3 h-3 text-amber-500" />
                         พบรายชื่อผู้ได้รับเกียรติบัตร (คลิกเพื่อเลือกดูทันที)
                       </span>
                       <button
@@ -702,13 +703,13 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                         key={att.id}
                         type="button"
                         onClick={() => handleSelectSuggestion(att)}
-                        className="w-full text-left px-4 py-2.5 hover:bg-amber-50/70 transition-colors flex items-center justify-between gap-3 text-xs group"
+                        className="w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between gap-3 text-xs group"
                       >
                         <div>
-                          <div className="font-bold text-slate-800 group-hover:text-amber-700 flex items-center gap-1.5">
+                          <div className="font-bold text-slate-800 group-hover:text-theme-primary flex items-center gap-1.5">
                             <span>{att.title_name || ''} {att.full_name}</span>
                             {att.certificate_no && (
-                              <span className="text-[10px] font-mono bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">
+                              <span className="text-[10px] font-mono bg-theme-primary-light text-theme-primary px-1.5 py-0.5 rounded">
                                 {att.certificate_no}
                               </span>
                             )}
@@ -718,7 +719,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                             {att.position && <span>({att.position})</span>}
                           </div>
                         </div>
-                        <span className="text-[11px] font-bold text-amber-700 bg-amber-100 group-hover:bg-amber-600 group-hover:text-white px-2.5 py-1 rounded-lg transition-colors shrink-0">
+                        <span className="text-[11px] font-bold text-theme-primary bg-theme-primary-light group-hover:bg-theme-primary group-hover:text-white px-2.5 py-1 rounded-theme transition-colors shrink-0">
                           ดูเกียรติบัตร
                         </span>
                       </button>
@@ -737,7 +738,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                     {searchCertResults.map((att) => (
                       <div
                         key={att.id}
-                        className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-amber-400 transition shadow-2xs"
+                        className="p-4 bg-slate-50 rounded-theme border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-theme-primary transition shadow-2xs"
                       >
                         <div className="space-y-0.5">
                           <div className="font-bold text-sm text-slate-900">
@@ -746,7 +747,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                           <div className="text-xs text-slate-500">
                             {att.organization || 'วิทยาลัยอาชีวศึกษาเชียงราย'} {att.position ? `(${att.position})` : ''}
                           </div>
-                          <div className="text-[11px] font-mono text-amber-700 font-semibold pt-1">
+                          <div className="text-[11px] font-mono text-theme-primary font-semibold pt-1">
                             เลขที่เกียรติบัตร: {att.certificate_no}
                           </div>
                         </div>
@@ -754,7 +755,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                         <button
                           type="button"
                           onClick={() => setSelectedCertAttendee(att)}
-                          className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center justify-center gap-1.5 shrink-0"
+                          className="px-5 py-2.5 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-md transition flex items-center justify-center gap-1.5 shrink-0"
                         >
                           <Download className="w-4 h-4" />
                           <span>ดูและดาวน์โหลดเกียรติบัตร</span>
@@ -768,7 +769,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
 
             {/* Certificate Display Modal / Bottom Section */}
             {selectedCertAttendee && (
-              <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+              <div className="bg-slate-900 text-white rounded-theme p-6 sm:p-8 shadow-2xl space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                   <div>
                     <h3 className="text-base sm:text-lg font-black text-white">
@@ -778,7 +779,7 @@ export default function PublicProjectRegistrationPage({ params }: PageProps) {
                   </div>
                   <button
                     onClick={() => setSelectedCertAttendee(null)}
-                    className="text-xs text-slate-400 hover:text-white px-3 py-1 bg-slate-800 rounded-lg"
+                    className="text-xs text-slate-400 hover:text-white px-3 py-1 bg-slate-800 rounded-theme"
                   >
                     ปิดการแสดงผล
                   </button>
