@@ -666,7 +666,7 @@ export default function CertificateRenderer({
             type="button"
             disabled={downloadingPdf || downloadingPng || printing}
             onClick={handleDownloadPdf}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900 hover:from-blue-800 hover:to-indigo-950 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-2 px-5 py-2.5 bg-theme-primary hover:bg-theme-primary-hover text-white font-bold text-xs sm:text-sm rounded-theme shadow-md hover:shadow-lg transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {downloadingPdf ? (
               <>
@@ -686,7 +686,7 @@ export default function CertificateRenderer({
             type="button"
             disabled={downloadingPdf || downloadingPng || printing}
             onClick={handleDownloadPng}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md hover:shadow-lg transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-2 px-5 py-2.5 bg-theme-accent hover:brightness-110 text-white font-bold text-xs sm:text-sm rounded-theme shadow-md hover:shadow-lg transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {downloadingPng ? (
               <>
@@ -706,7 +706,7 @@ export default function CertificateRenderer({
             type="button"
             disabled={downloadingPdf || downloadingPng || printing}
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs sm:text-sm rounded-xl border border-slate-700 shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold text-xs sm:text-sm rounded-theme border border-slate-700 shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {printing ? (
               <RefreshCw className="w-4 h-4 animate-spin" />

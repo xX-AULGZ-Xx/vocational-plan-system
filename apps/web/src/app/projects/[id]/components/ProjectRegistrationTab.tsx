@@ -568,8 +568,8 @@ export default function ProjectRegistrationTab({
   return (
     <div className="space-y-6">
       {/* Top Banner & Quick Links */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="bg-gradient-to-r from-theme-primary via-slate-900 to-theme-primary-hover rounded-theme p-5 sm:p-6 text-white shadow-lg relative overflow-hidden">
+        <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-theme-accent/15 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="space-y-2">
@@ -596,7 +596,7 @@ export default function ProjectRegistrationTab({
             <h2 className="text-xl sm:text-2xl font-black tracking-tight">
               ระบบจัดการการลงทะเบียน & ออกเกียรติบัตร
             </h2>
-            <p className="text-xs sm:text-sm text-blue-200/80 max-w-2xl">
+            <p className="text-xs sm:text-sm text-white/80 max-w-2xl">
               โครงการ: &ldquo;{project?.title}&rdquo;
             </p>
           </div>
@@ -605,7 +605,7 @@ export default function ProjectRegistrationTab({
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <button
               onClick={() => setShowQrModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-xs font-bold transition shadow-xs"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-theme text-xs font-bold transition shadow-xs"
             >
               <QrCode className="w-4 h-4 text-amber-400" />
               <span>QR Code รับสมัคร</span>
@@ -613,9 +613,9 @@ export default function ProjectRegistrationTab({
 
             <button
               onClick={() => handleCopyLink(publicRegUrl)}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-xs font-bold transition shadow-xs"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-theme text-xs font-bold transition shadow-xs"
             >
-              <Copy className="w-4 h-4 text-blue-300" />
+              <Copy className="w-4 h-4 text-blue-200" />
               <span>{copiedLink ? 'คัดลอกแล้ว!' : 'คัดลอกลิงก์รับสมัคร'}</span>
             </button>
 
@@ -623,7 +623,7 @@ export default function ProjectRegistrationTab({
               href={publicRegUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-extrabold transition shadow-md"
+              className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-theme text-xs font-extrabold transition shadow-md"
             >
               <ExternalLink className="w-4 h-4" />
               <span>เปิดหน้ารับสมัครจริง</span>
@@ -633,36 +633,36 @@ export default function ProjectRegistrationTab({
 
         {/* Metrics Counter Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-white/10">
-          <div className="bg-white/5 backdrop-blur-xs rounded-xl p-3 border border-white/10">
-            <div className="text-[11px] text-blue-200">ผู้ลงทะเบียนทั้งหมด</div>
-            <div className="text-2xl font-black text-white mt-0.5">{stats.total} <span className="text-xs font-normal text-blue-300">คน</span></div>
+          <div className="bg-white/5 backdrop-blur-xs rounded-theme p-3 border border-white/10">
+            <div className="text-[11px] text-blue-100/90">ผู้ลงทะเบียนทั้งหมด</div>
+            <div className="text-2xl font-black text-white mt-0.5">{stats.total} <span className="text-xs font-normal text-white/80">คน</span></div>
             {regConfig.max_participants && (
-              <div className="text-[10px] text-blue-300/80 mt-0.5">จำกัด {regConfig.max_participants} คน</div>
+              <div className="text-[10px] text-white/70 mt-0.5">จำกัด {regConfig.max_participants} คน</div>
             )}
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xs rounded-xl p-3 border border-white/10">
-            <div className="text-[11px] text-blue-200">เช็คอินหน้างานแล้ว</div>
-            <div className="text-2xl font-black text-emerald-300 mt-0.5">{stats.checked_in} <span className="text-xs font-normal text-blue-300">คน</span></div>
+          <div className="bg-white/5 backdrop-blur-xs rounded-theme p-3 border border-white/10">
+            <div className="text-[11px] text-emerald-200">เช็คอินหน้างานแล้ว</div>
+            <div className="text-2xl font-black text-emerald-300 mt-0.5">{stats.checked_in} <span className="text-xs font-normal text-emerald-200/80">คน</span></div>
             <div className="text-[10px] text-emerald-400/80 mt-0.5">
               {stats.total > 0 ? `${Math.round((stats.checked_in / stats.total) * 100)}% ของผู้ลงทะเบียน` : '-'}
             </div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xs rounded-xl p-3 border border-white/10">
-            <div className="text-[11px] text-blue-200">ผ่าน/รับเกียรติบัตรแล้ว</div>
-            <div className="text-2xl font-black text-amber-300 mt-0.5">{stats.passed} <span className="text-xs font-normal text-blue-300">คน</span></div>
+          <div className="bg-white/5 backdrop-blur-xs rounded-theme p-3 border border-white/10">
+            <div className="text-[11px] text-amber-200">ผ่าน/รับเกียรติบัตรแล้ว</div>
+            <div className="text-2xl font-black text-amber-300 mt-0.5">{stats.passed} <span className="text-xs font-normal text-amber-200/80">คน</span></div>
             <div className="text-[10px] text-amber-400/80 mt-0.5">พร้อมดาวน์โหลดเกียรติบัตร</div>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-xs rounded-xl p-3 border border-white/10">
-            <div className="text-[11px] text-blue-200">ที่นั่งว่างคงเหลือ</div>
-            <div className="text-2xl font-black text-purple-300 mt-0.5">
+          <div className="bg-white/5 backdrop-blur-xs rounded-theme p-3 border border-white/10">
+            <div className="text-[11px] text-sky-200">ที่นั่งว่างคงเหลือ</div>
+            <div className="text-2xl font-black text-sky-300 mt-0.5">
               {regConfig.max_participants
                 ? Math.max(0, Number(regConfig.max_participants) - stats.total)
-                : '∞'} <span className="text-xs font-normal text-blue-300">ที่นั่ง</span>
+                : '∞'} <span className="text-xs font-normal text-sky-200/80">ที่นั่ง</span>
             </div>
-            <div className="text-[10px] text-purple-400/80 mt-0.5">
+            <div className="text-[10px] text-sky-300/80 mt-0.5">
               {regConfig.max_participants ? 'ตามจำนวนรับสมัคร' : 'ไม่จำกัดจำนวน'}
             </div>
           </div>
@@ -670,13 +670,13 @@ export default function ProjectRegistrationTab({
       </div>
 
       {/* Sub-Tabs Nav */}
-      <div className="flex items-center gap-2 border-b border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto pb-px">
         <button
           onClick={() => setSubTab('attendees')}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 whitespace-nowrap rounded-t-theme transition ${
             subTab === 'attendees'
-              ? 'border-blue-900 text-blue-900 bg-blue-50/50'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
+              ? 'border-theme-primary text-theme-primary bg-theme-primary-light'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
           }`}
         >
           <Users className="w-4 h-4" />
@@ -685,10 +685,10 @@ export default function ProjectRegistrationTab({
 
         <button
           onClick={() => setSubTab('certificate')}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 whitespace-nowrap rounded-t-theme transition ${
             subTab === 'certificate'
-              ? 'border-amber-600 text-amber-700 bg-amber-50/50'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
+              ? 'border-theme-primary text-theme-primary bg-theme-primary-light'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
           }`}
         >
           <Award className="w-4 h-4 text-amber-600" />
@@ -697,10 +697,10 @@ export default function ProjectRegistrationTab({
 
         <button
           onClick={() => setSubTab('settings')}
-          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 whitespace-nowrap rounded-t-theme transition ${
             subTab === 'settings'
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
+              ? 'border-theme-primary text-theme-primary bg-theme-primary-light'
+              : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
           }`}
         >
           <Settings className="w-4 h-4" />
@@ -714,7 +714,7 @@ export default function ProjectRegistrationTab({
       {subTab === 'attendees' && (
         <div className="space-y-4">
           {/* Action Toolbar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-theme border border-slate-200 shadow-xs">
             {/* Search & Filter */}
             <div className="flex flex-wrap items-center gap-2 flex-1">
               <div className="relative min-w-[220px] flex-1 max-w-sm">
@@ -725,14 +725,14 @@ export default function ProjectRegistrationTab({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && fetchAttendees()}
                   placeholder="ค้นหาชื่อ, เบอร์โทร, สังกัด, เลขที่เกียรติบัตร..."
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg outline-none focus:border-blue-600 focus:bg-white transition"
+                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-theme outline-none focus:border-theme-primary focus:bg-white transition"
                 />
               </div>
 
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg outline-none font-medium text-slate-700"
+                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-theme outline-none font-medium text-slate-700 focus:border-theme-primary"
               >
                 <option value="all">ทุกสถานะ ({stats.total})</option>
                 <option value="registered">ลงทะเบียนแล้ว ({stats.registered})</option>
@@ -743,7 +743,7 @@ export default function ProjectRegistrationTab({
               <button
                 onClick={fetchAttendees}
                 disabled={loadingAttendees}
-                className="p-2 text-slate-600 hover:text-blue-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
+                className="p-2 text-slate-600 hover:text-theme-primary hover:bg-theme-primary-light rounded-theme transition"
                 title="รีเฟรชข้อมูล"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loadingAttendees ? 'animate-spin' : ''}`} />
@@ -768,7 +768,7 @@ export default function ProjectRegistrationTab({
                   });
                   setShowAttendeeModal(true);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-lg text-xs font-bold shadow-xs transition"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme text-xs font-bold shadow-xs transition"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>เพิ่มผู้เข้าร่วม</span>
@@ -776,7 +776,7 @@ export default function ProjectRegistrationTab({
 
               <button
                 onClick={() => setShowImportModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold border border-slate-200 transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-theme text-xs font-bold border border-slate-200 transition"
               >
                 <Upload className="w-3.5 h-3.5 text-slate-500" />
                 <span>นำเข้ารายชื่อ</span>
@@ -784,7 +784,7 @@ export default function ProjectRegistrationTab({
 
               <button
                 onClick={handleExportCSV}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold border border-emerald-200 transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-theme text-xs font-bold border border-emerald-200 transition"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                 <span>ส่งออก CSV</span>
@@ -794,28 +794,28 @@ export default function ProjectRegistrationTab({
 
           {/* Batch Actions Bar (When items selected) */}
           {selectedIds.length > 0 && (
-            <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900">
+            <div className="flex items-center justify-between p-3 bg-theme-primary-light border border-theme-primary/30 rounded-theme text-xs text-theme-primary">
               <div className="flex items-center gap-2">
                 <span className="font-bold">เลือกแล้ว {selectedIds.length} รายการ:</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleBatchStatus('checked_in')}
-                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-bold transition flex items-center gap-1"
+                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-theme font-bold transition flex items-center gap-1 shadow-2xs"
                 >
                   <CheckCircle className="w-3 h-3" />
                   <span>เช็คอินที่เลือก</span>
                 </button>
                 <button
                   onClick={() => handleBatchStatus('passed')}
-                  className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-md font-bold transition flex items-center gap-1"
+                  className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-theme font-bold transition flex items-center gap-1 shadow-2xs"
                 >
                   <Award className="w-3 h-3" />
                   <span>ออกเกียรติบัตรที่เลือก</span>
                 </button>
                 <button
                   onClick={() => setSelectedIds([])}
-                  className="px-2.5 py-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-md transition"
+                  className="px-2.5 py-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-theme transition"
                 >
                   ยกเลิก
                 </button>
@@ -824,7 +824,7 @@ export default function ProjectRegistrationTab({
           )}
 
           {/* Attendees Table */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="bg-white rounded-theme border border-slate-200 overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
@@ -869,7 +869,7 @@ export default function ProjectRegistrationTab({
                         <tr
                           key={att.id}
                           className={`hover:bg-slate-50/80 transition ${
-                            isChecked ? 'bg-blue-50/40' : ''
+                            isChecked ? 'bg-theme-primary-light' : ''
                           }`}
                         >
                           <td className="p-3 text-center">
@@ -883,7 +883,7 @@ export default function ProjectRegistrationTab({
                                   setSelectedIds((prev) => prev.filter((i) => i !== att.id));
                                 }
                               }}
-                              className="rounded"
+                              className="rounded text-theme-primary"
                             />
                           </td>
                           <td className="p-3 text-center font-mono text-slate-400">{idx + 1}</td>
@@ -943,7 +943,7 @@ export default function ProjectRegistrationTab({
                               {isPassed && (
                                 <button
                                   onClick={() => setPreviewAttendee(att)}
-                                  className="p-1.5 text-blue-700 hover:bg-blue-100 rounded-lg transition"
+                                  className="p-1.5 text-theme-primary hover:bg-theme-primary-light rounded-theme transition"
                                   title="ดูและพิมพ์เกียรติบัตร"
                                 >
                                   <Eye className="w-4 h-4" />
@@ -965,14 +965,14 @@ export default function ProjectRegistrationTab({
                                   });
                                   setShowAttendeeModal(true);
                                 }}
-                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                                className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-theme transition"
                                 title="แก้ไข"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => handleDeleteAttendee(att.id)}
-                                className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-lg transition"
+                                className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-theme transition"
                                 title="ลบ"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -996,10 +996,10 @@ export default function ProjectRegistrationTab({
       {subTab === 'certificate' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Controls & Customizer Panel (Left 5 cols) */}
-          <div className="lg:col-span-5 space-y-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+          <div className="lg:col-span-5 space-y-4 bg-white p-5 rounded-theme border border-slate-200 shadow-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-theme bg-theme-primary-light text-theme-primary flex items-center justify-center">
                   <Palette className="w-4 h-4" />
                 </div>
                 <div>
@@ -1014,7 +1014,7 @@ export default function ProjectRegistrationTab({
               <button
                 onClick={handleSaveCertConfig}
                 disabled={savingCertConfig}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5"
+                className="px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs transition active:scale-95 flex items-center gap-1.5"
               >
                 {savingCertConfig ? 'กำลังบันทึก...' : '💾 บันทึกรูปแบบ'}
               </button>
@@ -1025,13 +1025,13 @@ export default function ProjectRegistrationTab({
               <label className="block text-xs font-bold text-slate-700">
                 เลือกบล็อกข้อความที่ต้องการปรับแต่ง:
               </label>
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl">
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-theme">
                 <button
                   type="button"
                   onClick={() => setSelectedStudioBlock('name')}
-                  className={`py-2 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  className={`py-2 px-2 rounded-theme text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                     selectedStudioBlock === 'name'
-                      ? 'bg-amber-500 text-slate-950 shadow-sm'
+                      ? 'bg-amber-500 text-slate-950 shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -1042,9 +1042,9 @@ export default function ProjectRegistrationTab({
                 <button
                   type="button"
                   onClick={() => setSelectedStudioBlock('course')}
-                  className={`py-2 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  className={`py-2 px-2 rounded-theme text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                     selectedStudioBlock === 'course'
-                      ? 'bg-blue-600 text-white shadow-sm'
+                      ? 'bg-theme-primary text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -1055,9 +1055,9 @@ export default function ProjectRegistrationTab({
                 <button
                   type="button"
                   onClick={() => setSelectedStudioBlock('cert_no')}
-                  className={`py-2 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  className={`py-2 px-2 rounded-theme text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                     selectedStudioBlock === 'cert_no'
-                      ? 'bg-indigo-600 text-white shadow-sm'
+                      ? 'bg-slate-800 text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -1068,7 +1068,7 @@ export default function ProjectRegistrationTab({
             </div>
 
             {/* Interactive Drag Tip Box */}
-            <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-start gap-2.5 text-xs text-amber-950">
+            <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-theme flex items-start gap-2.5 text-xs text-amber-950">
               <MousePointer className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 animate-bounce" />
               <div className="text-[11px] leading-relaxed">
                 <strong>ลากวางตำแหน่งอิสระ:</strong> คลิกและลากบล็อกข้อความบนผืนผ้าใบจำลองด้านขวาได้โดยตรง หรือใช้แถบเลื่อนด้านล่างเพื่อปรับพิกัด X, Y และขนาดตัวอักษร
@@ -1083,7 +1083,7 @@ export default function ProjectRegistrationTab({
               const artisticFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'artistic');
 
               return (
-                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-theme">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
                       <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
@@ -1416,10 +1416,10 @@ export default function ProjectRegistrationTab({
               const artisticFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'artistic');
 
               return (
-                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-theme">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-theme-primary" />
                       <span>บล็อกชื่อโครงการ (Project / Course Name)</span>
                     </div>
                     <button
@@ -1445,7 +1445,7 @@ export default function ProjectRegistrationTab({
                         setStudioConfig((prev) => ({ ...prev, course_name: e.target.value }))
                       }
                       placeholder={project?.title || 'ชื่อโครงการ...'}
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-blue-600 font-semibold text-slate-900"
+                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-theme outline-none focus:border-theme-primary font-semibold text-slate-900"
                     />
                   </div>
 
@@ -1457,7 +1457,7 @@ export default function ProjectRegistrationTab({
                         <button
                           type="button"
                           onClick={() => handleBlockChange('course', { ...blk, x: 50 })}
-                          className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-900 rounded font-bold hover:bg-blue-200 transition"
+                          className="text-[10px] px-2 py-0.5 bg-theme-primary-light text-theme-primary rounded-theme font-bold hover:bg-theme-primary hover:text-white transition"
                         >
                           จัดกึ่งกลาง (50%)
                         </button>
@@ -1471,7 +1471,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('course', { ...blk, x: parseFloat(e.target.value) })
                         }
-                        className="w-full accent-blue-600 cursor-pointer"
+                        className="w-full accent-blue-900 cursor-pointer"
                       />
                     </div>
 
@@ -1488,7 +1488,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('course', { ...blk, y: parseFloat(e.target.value) })
                         }
-                        className="w-full accent-blue-600 cursor-pointer"
+                        className="w-full accent-blue-900 cursor-pointer"
                       />
                     </div>
                   </div>
@@ -1503,7 +1503,7 @@ export default function ProjectRegistrationTab({
                       onChange={(e) =>
                         handleBlockChange('course', { ...blk, fontFamily: e.target.value })
                       }
-                      className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none font-semibold text-slate-800 focus:border-blue-600 shadow-2xs"
+                      className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-theme outline-none font-semibold text-slate-800 focus:border-theme-primary shadow-2xs"
                     >
                       <optgroup label="🏛️ เกียรติบัตรทางการ & อาลักษณ์ (Formal & Calligraphy)">
                         {formalFonts.map(([k, f]) => (
@@ -1534,7 +1534,7 @@ export default function ProjectRegistrationTab({
                     <div>
                       <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
                         <span>ขนาดตัวอักษร:</span>
-                        <span className="font-mono text-blue-700">{blk.fontSize || 22}px</span>
+                        <span className="font-mono text-theme-primary font-bold">{blk.fontSize || 22}px</span>
                       </div>
                       <input
                         type="range"
@@ -1545,7 +1545,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('course', { ...blk, fontSize: parseInt(e.target.value) })
                         }
-                        className="w-full accent-blue-600 cursor-pointer"
+                        className="w-full accent-blue-900 cursor-pointer"
                       />
                     </div>
 
@@ -1566,9 +1566,9 @@ export default function ProjectRegistrationTab({
                             onClick={() =>
                               handleBlockChange('course', { ...blk, fontWeight: w.id as any })
                             }
-                            className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition ${
+                            className={`flex-1 py-1 text-[10px] font-bold rounded-theme border transition ${
                               (blk.fontWeight || 'bold') === w.id
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                                ? 'bg-theme-primary text-white border-theme-primary shadow-2xs'
                                 : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                             }`}
                           >
@@ -1594,9 +1594,9 @@ export default function ProjectRegistrationTab({
                               fontStyle: blk.fontStyle === 'italic' ? 'normal' : 'italic',
                             })
                           }
-                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-lg border transition ${
+                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-theme border transition ${
                             blk.fontStyle === 'italic'
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                              ? 'bg-theme-primary text-white border-theme-primary shadow-2xs'
                               : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                           }`}
                           title="ตัวเอียง (Italic)"
@@ -1613,9 +1613,9 @@ export default function ProjectRegistrationTab({
                               textDecoration: blk.textDecoration === 'underline' ? 'none' : 'underline',
                             })
                           }
-                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-lg border transition ${
+                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-theme border transition ${
                             blk.textDecoration === 'underline'
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                              ? 'bg-theme-primary text-white border-theme-primary shadow-2xs'
                               : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                           }`}
                           title="ขีดเส้นใต้ (Underline)"
@@ -1645,9 +1645,9 @@ export default function ProjectRegistrationTab({
                               onClick={() =>
                                 handleBlockChange('course', { ...blk, textAlign: align.id as any })
                               }
-                              className={`flex-1 py-1 flex items-center justify-center rounded-lg border transition ${
+                              className={`flex-1 py-1 flex items-center justify-center rounded-theme border transition ${
                                 isSel
-                                  ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                                  ? 'bg-theme-primary text-white border-theme-primary shadow-2xs'
                                   : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                               }`}
                             >
@@ -1664,7 +1664,7 @@ export default function ProjectRegistrationTab({
                     <div>
                       <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
                         <span>ช่องไฟ (Spacing):</span>
-                        <span className="font-mono text-blue-700">{blk.letterSpacing || 0}px</span>
+                        <span className="font-mono text-theme-primary font-bold">{blk.letterSpacing || 0}px</span>
                       </div>
                       <input
                         type="range"
@@ -1678,7 +1678,7 @@ export default function ProjectRegistrationTab({
                             letterSpacing: parseFloat(e.target.value),
                           })
                         }
-                        className="w-full accent-blue-600 cursor-pointer"
+                        className="w-full accent-blue-900 cursor-pointer"
                       />
                     </div>
 
@@ -1691,7 +1691,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('course', { ...blk, textShadow: e.target.value as any })
                         }
-                        className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-medium text-slate-800"
+                        className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-theme outline-none font-medium text-slate-800 focus:border-theme-primary"
                       >
                         <option value="none">ไม่มีเงา (None)</option>
                         <option value="soft">เงาดำนุ่มนวล (Soft)</option>
@@ -1723,7 +1723,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('course', { ...blk, color: e.target.value })
                         }
-                        className="w-24 px-2 py-1 text-xs font-mono border border-slate-300 rounded-lg outline-none uppercase"
+                        className="w-24 px-2 py-1 text-xs font-mono border border-slate-300 rounded-theme outline-none uppercase focus:border-theme-primary"
                       />
                       <div className="flex items-center gap-1 ml-auto">
                         {['#000000', '#0f172a', '#1e3a8a', '#881337', '#b45309', '#047857'].map(
@@ -1751,7 +1751,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('course', { ...blk, enabled: e.target.checked })
                         }
-                        className="rounded text-blue-600 focus:ring-blue-500"
+                        className="rounded text-theme-primary focus:ring-theme-primary"
                       />
                       <span className="text-xs text-slate-700 font-semibold">
                         แสดงบล็อกชื่อโครงการบนเกียรติบัตร
@@ -1769,10 +1769,10 @@ export default function ProjectRegistrationTab({
               const artisticFonts = Object.entries(FONT_FAMILIES).filter(([_, f]) => f.category === 'artistic');
 
               return (
-                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-theme">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-slate-700" />
                       <span>บล็อกเลขที่เกียรติบัตร & QR Code</span>
                     </div>
                     <button
@@ -1787,10 +1787,10 @@ export default function ProjectRegistrationTab({
                   </div>
 
                   {/* QR Code Controls Section */}
-                  <div className="p-3 bg-indigo-50/60 border border-indigo-200/80 rounded-xl space-y-2.5">
+                  <div className="p-3 bg-slate-100/70 border border-slate-200 rounded-theme space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-950">
-                        <QrCode className="w-4 h-4 text-indigo-600" />
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                        <QrCode className="w-4 h-4 text-theme-primary" />
                         <span>ตั้งค่า QR Code ตรวจสอบเกียรติบัตร</span>
                       </div>
                       <label className="flex items-center gap-1.5 cursor-pointer">
@@ -1800,16 +1800,16 @@ export default function ProjectRegistrationTab({
                           onChange={(e) =>
                             handleBlockChange('cert_no', { ...blk, showQr: e.target.checked })
                           }
-                          className="rounded text-indigo-600 focus:ring-indigo-500"
+                          className="rounded text-theme-primary focus:ring-theme-primary"
                         />
-                        <span className="text-[11px] font-bold text-indigo-900">เปิดแสดง QR</span>
+                        <span className="text-[11px] font-bold text-slate-800">เปิดแสดง QR</span>
                       </label>
                     </div>
 
                     {blk.showQr !== false && (
-                      <div className="space-y-2 pt-1 border-t border-indigo-200/60">
+                      <div className="space-y-2 pt-1 border-t border-slate-200">
                         <div>
-                          <div className="flex items-center justify-between text-[11px] font-semibold text-indigo-900 mb-1">
+                          <div className="flex items-center justify-between text-[11px] font-semibold text-slate-800 mb-1">
                             <span>ขนาด QR Code: {blk.qrSize || 52}px</span>
                           </div>
                           <input
@@ -1824,7 +1824,7 @@ export default function ProjectRegistrationTab({
                                 qrSize: parseInt(e.target.value),
                               })
                             }
-                            className="w-full accent-indigo-600 cursor-pointer"
+                            className="w-full accent-slate-700 cursor-pointer"
                           />
                         </div>
 
@@ -1839,7 +1839,7 @@ export default function ProjectRegistrationTab({
                                   qrBg: e.target.checked ? 'white' : 'transparent',
                                 })
                               }
-                              className="rounded text-indigo-600"
+                              className="rounded text-theme-primary"
                             />
                             <span className="text-[11px] text-slate-700 font-medium">
                               กล่องสีขาวรองหลัง QR
@@ -1856,7 +1856,7 @@ export default function ProjectRegistrationTab({
                                   showScanLabel: e.target.checked,
                                 })
                               }
-                              className="rounded text-indigo-600"
+                              className="rounded text-theme-primary"
                             />
                             <span className="text-[11px] text-slate-700 font-medium">
                               แสดงคำว่า &ldquo;สแกนเพื่อตรวจสอบ&rdquo;
@@ -1882,7 +1882,7 @@ export default function ProjectRegistrationTab({
                         }))
                       }
                       placeholder="เช่น CERT-2569-PRJ01"
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none font-mono"
+                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-theme outline-none font-mono focus:border-theme-primary"
                     />
                   </div>
 
@@ -1902,7 +1902,7 @@ export default function ProjectRegistrationTab({
                           <button
                             type="button"
                             onClick={() => handleBlockChange('cert_no', { ...blk, x: 90 })}
-                            className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-900 rounded font-semibold hover:bg-indigo-200 transition"
+                            className="text-[10px] px-1.5 py-0.5 bg-theme-primary-light text-theme-primary rounded font-semibold hover:bg-theme-primary hover:text-white transition"
                           >
                             มุมขวา (90%)
                           </button>
@@ -1917,7 +1917,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('cert_no', { ...blk, x: parseFloat(e.target.value) })
                         }
-                        className="w-full accent-indigo-600 cursor-pointer"
+                        className="w-full accent-slate-700 cursor-pointer"
                       />
                     </div>
 
@@ -1934,7 +1934,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('cert_no', { ...blk, y: parseFloat(e.target.value) })
                         }
-                        className="w-full accent-indigo-600 cursor-pointer"
+                        className="w-full accent-slate-700 cursor-pointer"
                       />
                     </div>
                   </div>
@@ -1949,7 +1949,7 @@ export default function ProjectRegistrationTab({
                       onChange={(e) =>
                         handleBlockChange('cert_no', { ...blk, fontFamily: e.target.value })
                       }
-                      className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none font-semibold text-slate-800 focus:border-indigo-600 shadow-2xs"
+                      className="w-full px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-theme outline-none font-semibold text-slate-800 focus:border-theme-primary shadow-2xs"
                     >
                       <optgroup label="🏛️ เกียรติบัตรทางการ & อาลักษณ์ (Formal & Calligraphy)">
                         {formalFonts.map(([k, f]) => (
@@ -1980,7 +1980,7 @@ export default function ProjectRegistrationTab({
                     <div>
                       <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 mb-1">
                         <span>ขนาดตัวอักษร:</span>
-                        <span className="font-mono text-indigo-700">{blk.fontSize || 11}px</span>
+                        <span className="font-mono text-slate-800 font-bold">{blk.fontSize || 11}px</span>
                       </div>
                       <input
                         type="range"
@@ -1994,7 +1994,7 @@ export default function ProjectRegistrationTab({
                             fontSize: parseInt(e.target.value),
                           })
                         }
-                        className="w-full accent-indigo-600 cursor-pointer"
+                        className="w-full accent-slate-700 cursor-pointer"
                       />
                     </div>
 
@@ -2013,9 +2013,9 @@ export default function ProjectRegistrationTab({
                             onClick={() =>
                               handleBlockChange('cert_no', { ...blk, fontWeight: w.id as any })
                             }
-                            className={`flex-1 py-1 text-[10px] font-bold rounded-lg border transition ${
+                            className={`flex-1 py-1 text-[10px] font-bold rounded-theme border transition ${
                               (blk.fontWeight || 'normal') === w.id
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                                ? 'bg-slate-800 text-white border-slate-800 shadow-2xs'
                                 : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                             }`}
                           >
@@ -2041,9 +2041,9 @@ export default function ProjectRegistrationTab({
                               fontStyle: blk.fontStyle === 'italic' ? 'normal' : 'italic',
                             })
                           }
-                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-lg border transition ${
+                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-theme border transition ${
                             blk.fontStyle === 'italic'
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                              ? 'bg-slate-800 text-white border-slate-800 shadow-2xs'
                               : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                           }`}
                           title="ตัวเอียง (Italic)"
@@ -2060,9 +2060,9 @@ export default function ProjectRegistrationTab({
                               textDecoration: blk.textDecoration === 'underline' ? 'none' : 'underline',
                             })
                           }
-                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-lg border transition ${
+                          className={`flex-1 py-1 flex items-center justify-center gap-1 text-[10px] font-bold rounded-theme border transition ${
                             blk.textDecoration === 'underline'
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                              ? 'bg-slate-800 text-white border-slate-800 shadow-2xs'
                               : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'
                           }`}
                           title="ขีดเส้นใต้ (Underline)"
@@ -2082,7 +2082,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('cert_no', { ...blk, textShadow: e.target.value as any })
                         }
-                        className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none font-medium text-slate-800"
+                        className="w-full px-2 py-1.5 text-xs bg-white border border-slate-300 rounded-theme outline-none font-medium text-slate-800 focus:border-theme-primary"
                       >
                         <option value="none">ไม่มีเงา (None)</option>
                         <option value="soft">เงาดำนุ่มนวล (Soft)</option>
@@ -2112,7 +2112,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('cert_no', { ...blk, color: e.target.value })
                         }
-                        className="w-24 px-2 py-1 text-xs font-mono border border-slate-300 rounded-lg outline-none uppercase"
+                        className="w-24 px-2 py-1 text-xs font-mono border border-slate-300 rounded-theme outline-none uppercase focus:border-theme-primary"
                       />
                       <div className="flex items-center gap-1 ml-auto">
                         {['#000000', '#0f172a', '#1e3a8a', '#475569', '#881337', '#047857'].map(
@@ -2140,7 +2140,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('cert_no', { ...blk, showText: e.target.checked })
                         }
-                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                        className="rounded text-theme-primary focus:ring-theme-primary"
                       />
                       <span className="text-xs text-slate-700 font-semibold">
                         แสดงตัวหนังสือเลขที่เกียรติบัตร (Text)
@@ -2154,7 +2154,7 @@ export default function ProjectRegistrationTab({
                         onChange={(e) =>
                           handleBlockChange('cert_no', { ...blk, enabled: e.target.checked })
                         }
-                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                        className="rounded text-theme-primary focus:ring-theme-primary"
                       />
                       <span className="text-xs text-slate-700 font-semibold">
                         เปิดใช้งานบล็อกนี้ทั้งหมด
@@ -2169,7 +2169,7 @@ export default function ProjectRegistrationTab({
             <div className="pt-3 border-t border-slate-200 space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <ImageIcon className="w-4 h-4 text-indigo-600" />
+                  <ImageIcon className="w-4 h-4 text-theme-primary" />
                   <span>ภาพพื้นหลังเกียรติบัตร (Custom A4 Background)</span>
                 </h4>
                 {studioConfig.background_image ? (
@@ -2184,7 +2184,7 @@ export default function ProjectRegistrationTab({
               </div>
 
               {/* Custom Upload Area */}
-              <div className="p-3.5 bg-indigo-50/50 border border-indigo-200/80 rounded-xl space-y-2.5">
+              <div className="p-3.5 bg-theme-primary-light/50 border border-theme-primary/20 rounded-theme space-y-2.5">
                 <p className="text-[11px] text-slate-600 leading-relaxed">
                   อัปโหลดภาพเกียรติบัตรที่ออกแบบไว้ (เช่น ออกแบบจาก <strong>Canva / Photoshop</strong> โดยใช้ขนาดมาตรฐาน A4 แนวนอน แนะนำขนาด <strong>2970 x 2100 px</strong>)
                 </p>
@@ -2200,7 +2200,7 @@ export default function ProjectRegistrationTab({
                     type="button"
                     onClick={() => bgFileInputRef.current?.click()}
                     disabled={uploadingBg}
-                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs active:scale-95"
+                    className="px-3.5 py-1.5 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme text-xs font-bold transition flex items-center gap-1.5 shadow-xs active:scale-95"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>{uploadingBg ? 'กำลังอัปโหลด...' : 'เลือกไฟล์ภาพพื้นหลัง (JPG, PNG)'}</span>
@@ -2215,7 +2215,7 @@ export default function ProjectRegistrationTab({
                           background_image: null,
                         }))
                       }
-                      className="px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg text-xs font-semibold border border-rose-200 transition"
+                      className="px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-theme text-xs font-semibold border border-rose-200 transition"
                     >
                       ลบภาพพื้นหลัง
                     </button>
@@ -2227,7 +2227,7 @@ export default function ProjectRegistrationTab({
 
           {/* Live Studio Preview (Right 7 cols) */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="bg-slate-900/95 backdrop-blur-md text-white p-3.5 rounded-2xl flex items-center justify-between shadow-md">
+            <div className="bg-slate-900 text-white p-3.5 rounded-theme flex items-center justify-between shadow-md">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
                 <span className="text-xs font-bold">ผืนผ้าใบจำลองเกียรติบัตร (Live Interactive Studio)</span>
@@ -2259,7 +2259,7 @@ export default function ProjectRegistrationTab({
           SUB-TAB 3: REGISTRATION SETTINGS
       ======================================================== */}
       {subTab === 'settings' && (
-        <form onSubmit={handleSaveSettings} className="max-w-3xl bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+        <form onSubmit={handleSaveSettings} className="max-w-3xl bg-white p-6 rounded-theme border border-slate-200 shadow-xs space-y-6">
           <div className="border-b border-slate-100 pb-4">
             <h3 className="text-base font-black text-slate-900">
               ตั้งค่าประเภทโครงการและระยะเวลารับลงทะเบียน
@@ -2299,9 +2299,9 @@ export default function ProjectRegistrationTab({
                   key={t.id}
                   type="button"
                   onClick={() => setSettingsForm((prev) => ({ ...prev, project_type: t.id }))}
-                  className={`p-4 rounded-xl border text-left transition flex flex-col gap-1.5 ${
+                  className={`p-4 rounded-theme border text-left transition flex flex-col gap-1.5 ${
                     settingsForm.project_type === t.id
-                      ? 'border-blue-900 bg-blue-50/60 ring-2 ring-blue-900/10'
+                      ? 'border-theme-primary bg-theme-primary-light ring-2 ring-theme-primary/20'
                       : 'border-slate-200 hover:bg-slate-50'
                   }`}
                 >
@@ -2314,7 +2314,7 @@ export default function ProjectRegistrationTab({
           </div>
 
           {/* Registration Timing & Seats */}
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+          <div className="p-4 bg-slate-50 rounded-theme border border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900">กำหนดเวลาและโควตารับสมัคร</span>
               <label className="flex items-center gap-2 cursor-pointer">
@@ -2322,7 +2322,7 @@ export default function ProjectRegistrationTab({
                   type="checkbox"
                   checked={settingsForm.is_active}
                   onChange={(e) => setSettingsForm((prev) => ({ ...prev, is_active: e.target.checked }))}
-                  className="rounded text-blue-900"
+                  className="rounded text-theme-primary focus:ring-theme-primary"
                 />
                 <span className="text-xs font-bold text-slate-700">เปิดรับสมัคร (Active)</span>
               </label>
@@ -2337,7 +2337,7 @@ export default function ProjectRegistrationTab({
                   type="datetime-local"
                   value={settingsForm.start_at}
                   onChange={(e) => setSettingsForm((prev) => ({ ...prev, start_at: e.target.value }))}
-                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-blue-900"
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-theme outline-none focus:border-theme-primary"
                 />
               </div>
 
@@ -2349,7 +2349,7 @@ export default function ProjectRegistrationTab({
                   type="datetime-local"
                   value={settingsForm.end_at}
                   onChange={(e) => setSettingsForm((prev) => ({ ...prev, end_at: e.target.value }))}
-                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-blue-900"
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-theme outline-none focus:border-theme-primary"
                 />
               </div>
             </div>
@@ -2364,7 +2364,7 @@ export default function ProjectRegistrationTab({
                 value={settingsForm.max_participants}
                 onChange={(e) => setSettingsForm((prev) => ({ ...prev, max_participants: e.target.value }))}
                 placeholder="เช่น 100"
-                className="w-full max-w-xs px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-blue-900"
+                className="w-full max-w-xs px-3 py-2 text-xs bg-white border border-slate-300 rounded-theme outline-none focus:border-theme-primary"
               />
             </div>
           </div>
@@ -2373,7 +2373,7 @@ export default function ProjectRegistrationTab({
             <button
               type="submit"
               disabled={savingSettings}
-              className="px-6 py-2.5 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-md transition"
+              className="px-6 py-2.5 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-md transition"
             >
               {savingSettings ? 'กำลังบันทึก...' : '💾 บันทึกการตั้งค่า'}
             </button>
@@ -2386,7 +2386,7 @@ export default function ProjectRegistrationTab({
       ======================================================== */}
       {showQrModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl relative">
+          <div className="bg-white rounded-theme max-w-sm w-full p-6 text-center space-y-4 shadow-2xl relative">
             <button
               onClick={() => setShowQrModal(false)}
               className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 rounded-lg"
@@ -2394,7 +2394,7 @@ export default function ProjectRegistrationTab({
               <X className="w-5 h-5" />
             </button>
 
-            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-theme-primary-light text-theme-primary mx-auto flex items-center justify-center">
               <QrCode className="w-6 h-6" />
             </div>
 
@@ -2404,7 +2404,7 @@ export default function ProjectRegistrationTab({
             </div>
 
             {/* QR Visual */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl inline-block mx-auto shadow-inner">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-theme inline-block mx-auto shadow-inner">
               <QRCodeSVG ref={regQrRef} value={publicRegUrl} size={180} level="H" includeMargin />
             </div>
 
@@ -2412,7 +2412,7 @@ export default function ProjectRegistrationTab({
               <button
                 type="button"
                 onClick={handleDownloadRegQR}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-theme text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
               >
                 <Download className="w-4 h-4" />
                 <span>ดาวน์โหลดรูปภาพ QR Code (PNG)</span>
@@ -2421,7 +2421,7 @@ export default function ProjectRegistrationTab({
               <button
                 type="button"
                 onClick={() => handleCopyLink(publicRegUrl)}
-                className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs"
+                className="w-full py-2.5 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs"
               >
                 <Copy className="w-4 h-4" />
                 <span>{copiedLink ? 'คัดลอกลิงก์สำเร็จแล้ว!' : 'คัดลอกลิงก์รับสมัคร'}</span>
@@ -2430,7 +2430,7 @@ export default function ProjectRegistrationTab({
               <button
                 type="button"
                 onClick={() => handleCopyLink(publicCertUrl)}
-                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5"
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-theme text-xs font-bold transition flex items-center justify-center gap-1.5"
               >
                 <Award className="w-4 h-4 text-amber-600" />
                 <span>คัดลอกลิงก์ตรวจสอบเกียรติบัตร</span>
@@ -2445,7 +2445,7 @@ export default function ProjectRegistrationTab({
       ======================================================== */}
       {showAttendeeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative">
+          <div className="bg-white rounded-theme max-w-lg w-full p-6 space-y-4 shadow-2xl relative">
             <button
               onClick={() => setShowAttendeeModal(false)}
               className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 rounded-lg"
@@ -2466,7 +2466,7 @@ export default function ProjectRegistrationTab({
                     placeholder="เช่น นาย, นาง, นางสาว"
                     value={attendeeForm.title_name}
                     onChange={(e) => setAttendeeForm((p) => ({ ...p, title_name: e.target.value }))}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg outline-none"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary"
                   />
                 </div>
                 <div className="col-span-2">
@@ -2477,7 +2477,7 @@ export default function ProjectRegistrationTab({
                     placeholder="ระบุชื่อและนามสกุล"
                     value={attendeeForm.full_name}
                     onChange={(e) => setAttendeeForm((p) => ({ ...p, full_name: e.target.value }))}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg outline-none focus:border-blue-900"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary"
                   />
                 </div>
               </div>
@@ -2490,7 +2490,7 @@ export default function ProjectRegistrationTab({
                     placeholder="เช่น ครู, นักศึกษา, เจ้าหน้าที่"
                     value={attendeeForm.position}
                     onChange={(e) => setAttendeeForm((p) => ({ ...p, position: e.target.value }))}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg outline-none"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary"
                   />
                 </div>
                 <div>
@@ -2500,7 +2500,7 @@ export default function ProjectRegistrationTab({
                     placeholder="เช่น วก.เชียงราย, แผนกวิชา..."
                     value={attendeeForm.organization}
                     onChange={(e) => setAttendeeForm((p) => ({ ...p, organization: e.target.value }))}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg outline-none"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary"
                   />
                 </div>
               </div>
@@ -2513,7 +2513,7 @@ export default function ProjectRegistrationTab({
                     placeholder="08X-XXX-XXXX"
                     value={attendeeForm.phone}
                     onChange={(e) => setAttendeeForm((p) => ({ ...p, phone: e.target.value }))}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg outline-none"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary"
                   />
                 </div>
                 <div>
@@ -2523,7 +2523,7 @@ export default function ProjectRegistrationTab({
                     placeholder="example@email.com"
                     value={attendeeForm.email}
                     onChange={(e) => setAttendeeForm((p) => ({ ...p, email: e.target.value }))}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg outline-none"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-theme outline-none focus:border-theme-primary"
                   />
                 </div>
               </div>
@@ -2534,7 +2534,7 @@ export default function ProjectRegistrationTab({
                   <select
                     value={attendeeForm.status}
                     onChange={(e) => setAttendeeForm((p) => ({ ...p, status: e.target.value }))}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg outline-none font-bold"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-theme outline-none font-bold focus:border-theme-primary"
                   >
                     <option value="registered">ลงทะเบียนแล้ว</option>
                     <option value="checked_in">เช็คอินแล้ว</option>
@@ -2548,7 +2548,7 @@ export default function ProjectRegistrationTab({
                     placeholder="เว้นว่างเพื่อให้ระบบกำหนดอัตโนมัติ"
                     value={attendeeForm.certificate_no}
                     onChange={(e) => setAttendeeForm((p) => ({ ...p, certificate_no: e.target.value }))}
-                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg outline-none font-mono"
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-theme outline-none font-mono focus:border-theme-primary"
                   />
                 </div>
               </div>
@@ -2557,14 +2557,14 @@ export default function ProjectRegistrationTab({
                 <button
                   type="button"
                   onClick={() => setShowAttendeeModal(false)}
-                  className="px-4 py-2 border border-slate-300 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition"
+                  className="px-4 py-2 border border-slate-300 text-slate-600 rounded-theme font-bold hover:bg-slate-50 transition"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={savingAttendee}
-                  className="px-5 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold shadow-xs transition"
+                  className="px-5 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme font-bold shadow-xs transition"
                 >
                   {savingAttendee ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
                 </button>
@@ -2579,7 +2579,7 @@ export default function ProjectRegistrationTab({
       ======================================================== */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl relative">
+          <div className="bg-white rounded-theme max-w-xl w-full p-6 space-y-4 shadow-2xl relative">
             <button
               onClick={() => setShowImportModal(false)}
               className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 rounded-lg"
@@ -2594,7 +2594,7 @@ export default function ProjectRegistrationTab({
               <p className="text-xs text-slate-500 mt-1">
                 คัดลอกรายชื่อจากตาราง Excel หรือข้อความวางลงในช่องนี้ 1 บรรทัดต่อ 1 คน
                 <br />
-                รูปแบบคอลัมน์: <span className="font-mono text-blue-900">ชื่อ-นามสกุล, ตำแหน่ง, หน่วยงาน, เบอร์โทร, อีเมล</span>
+                รูปแบบคอลัมน์: <span className="font-mono text-theme-primary font-bold">ชื่อ-นามสกุล, ตำแหน่ง, หน่วยงาน, เบอร์โทร, อีเมล</span>
               </p>
             </div>
 
@@ -2603,7 +2603,7 @@ export default function ProjectRegistrationTab({
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
               placeholder="ตัวอย่าง:&#10;นายสมชาย ใจดี, ครูชำนาญการ, วิทยาลัยอาชีวศึกษาเชียงราย, 0812345678, somchai@mail.com&#10;นางสาวสมหญิง รักเรียน, นักเรียน, แผนกวิชาการบัญชี, 0898765432"
-              className="w-full p-3 text-xs font-mono border border-slate-300 rounded-xl outline-none focus:border-blue-900"
+              className="w-full p-3 text-xs font-mono border border-slate-300 rounded-theme outline-none focus:border-theme-primary"
             />
 
             <div className="flex items-center justify-between gap-3 pt-2">
@@ -2615,7 +2615,7 @@ export default function ProjectRegistrationTab({
                 <button
                   type="button"
                   onClick={() => setShowImportModal(false)}
-                  className="px-4 py-2 border border-slate-300 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition"
+                  className="px-4 py-2 border border-slate-300 text-slate-600 rounded-theme text-xs font-bold hover:bg-slate-50 transition"
                 >
                   ยกเลิก
                 </button>
@@ -2623,7 +2623,7 @@ export default function ProjectRegistrationTab({
                   type="button"
                   onClick={handleBatchImport}
                   disabled={importing || !importText.trim()}
-                  className="px-5 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition"
+                  className="px-5 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-theme text-xs font-bold shadow-xs transition"
                 >
                   {importing ? 'กำลังนำเข้า...' : 'นำเข้ารายชื่อ'}
                 </button>
@@ -2638,7 +2638,7 @@ export default function ProjectRegistrationTab({
       ======================================================== */}
       {previewAttendee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-slate-900 text-white rounded-2xl max-w-4xl w-full p-6 space-y-4 shadow-2xl relative my-8">
+          <div className="bg-slate-900 text-white rounded-theme max-w-4xl w-full p-6 space-y-4 shadow-2xl relative my-8">
             <button
               onClick={() => setPreviewAttendee(null)}
               className="absolute top-4 right-4 p-1 text-slate-400 hover:text-white rounded-lg"
