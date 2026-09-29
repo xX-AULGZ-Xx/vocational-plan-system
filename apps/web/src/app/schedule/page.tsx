@@ -39,11 +39,68 @@ const THAI_MONTHS_FULL = [
 
 const WEEKDAYS = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 
+const THAI_MONTHS_MAP: Record<string, number> = {
+  'มกราคม': 0, 'ม.ค.': 0, 'ม.ค': 0,
+  'กุมภาพันธ์': 1, 'ก.พ.': 1, 'ก.พ': 1,
+  'มีนาคม': 2, 'มี.ค.': 2, 'มี.ค': 2,
+  'เมษายน': 3, 'เม.ย.': 3, 'เม.ย': 3,
+  'พฤษภาคม': 4, 'พ.ค.': 4, 'พ.ค': 4,
+  'มิถุนายน': 5, 'มิ.ย.': 5, 'มิ.ย': 5,
+  'กรกฎาคม': 6, 'ก.ค.': 6, 'ก.ค': 6,
+  'สิงหาคม': 7, 'ส.ค.': 7, 'ส.ค': 7,
+  'กันยายน': 8, 'ก.ย.': 8, 'ก.ย': 8,
+  'ตุลาคม': 9, 'ต.ค.': 9, 'ต.ค': 9,
+  'พฤศจิกายน': 10, 'พ.ย.': 10, 'พ.ย': 10,
+  'ธันวาคม': 11, 'ธ.ค.': 11, 'ธ.ค': 11,
+};
+
+// Robust Thai date string parser (handles both Thai text and ISO formats)
+function parseThaiDateStringToDate(str: any): Date | null {
+  if (!str) return null;
+  if (str instanceof Date) return isNaN(str.getTime()) ? null : str;
+  if (typeof str !== 'string') return null;
+
+  // ISO format: YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+    const parts = str.split('T')[0].split('-');
+    return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  }
+
+  // Thai date text: e.g. "1 ตุลาคม 2569" or "30 ก.ย. 2570" or "วันที่ 1 ตุลาคม พ.ศ. 2569"
+  const cleanStr = str.replace(/วันที่/g, '').trim();
+  const match = cleanStr.match(/(\d{1,2})\s+([^\s\d]+)\s+(?:พ\.ศ\.\s*)?(\d{4})/);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const monthName = match[2].trim();
+    let year = parseInt(match[3], 10);
+    if (year > 2400) year = year - 543;
+    const month = THAI_MONTHS_MAP[monthName];
+    if (month !== undefined) {
+      return new Date(year, month, day);
+    }
+  }
+  return null;
+}
+
+// Robust Thai date range parser (handles "1 ตุลาคม 2569 ถึง 30 กันยายน 2570" or "1 ต.ค. 2569 - 30 ก.ย. 2570")
+function parseThaiDateRangeString(str: any): { start: Date | null; end: Date | null } | null {
+  if (!str || typeof str !== 'string') return null;
+  const parts = str.split(/\s+(?:ถึง|-|–|—|to)\s+/i);
+  if (parts.length === 2) {
+    const start = parseThaiDateStringToDate(parts[0]);
+    const end = parseThaiDateStringToDate(parts[1]);
+    if (start || end) {
+      return { start: start || end, end: end || start };
+    }
+  }
+  return null;
+}
+
 // Helper to format Thai date nicely
 const formatThaiDate = (dStr: string | Date | null | undefined) => {
   if (!dStr) return '-';
-  const d = typeof dStr === 'string' ? new Date(dStr) : dStr;
-  if (isNaN(d.getTime())) return '-';
+  const d = parseThaiDateStringToDate(dStr) || (typeof dStr === 'string' ? new Date(dStr) : dStr);
+  if (!d || isNaN(d.getTime())) return typeof dStr === 'string' ? dStr : '-';
   const months = [
     'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
     'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
@@ -57,28 +114,29 @@ function extractProjectDuration(p: any) {
   let maxEndMs: number | null = null;
   let source = 'none';
 
-  const updateRange = (sStr?: string | null, eStr?: string | null, src?: string) => {
-    if (sStr) {
-      const s = new Date(sStr);
-      if (!isNaN(s.getTime())) {
-        const ms = s.getTime();
-        if (minStartMs === null || ms < minStartMs) {
-          minStartMs = ms;
-          if (src) source = src;
-        }
+  const updateRangeWithDates = (s?: Date | null, e?: Date | null, src?: string) => {
+    if (s && !isNaN(s.getTime())) {
+      const ms = s.getTime();
+      if (minStartMs === null || ms < minStartMs) {
+        minStartMs = ms;
+        if (src) source = src;
       }
     }
-    const endStr = eStr || sStr;
-    if (endStr) {
-      const e = new Date(endStr);
-      if (!isNaN(e.getTime())) {
-        const ms = e.getTime();
-        if (maxEndMs === null || ms > maxEndMs) {
-          maxEndMs = ms;
-          if (src) source = src;
-        }
+    const end = e || s;
+    if (end && !isNaN(end.getTime())) {
+      const ms = end.getTime();
+      if (maxEndMs === null || ms > maxEndMs) {
+        maxEndMs = ms;
+        if (src) source = src;
       }
     }
+  };
+
+  const updateRange = (sStr?: any, eStr?: any, src?: string) => {
+    if (!sStr && !eStr) return;
+    const s = parseThaiDateStringToDate(sStr);
+    const e = parseThaiDateStringToDate(eStr);
+    updateRangeWithDates(s, e, src);
   };
 
   // 1. Check timelines
@@ -105,11 +163,48 @@ function extractProjectDuration(p: any) {
     });
   }
 
-  // 2.2 Check direct start_date / end_date / period in dynamic_data
+  // 2.2 Deep scan all keys and values in dynamic_data for DATERANGE objects or date strings
+  if (dyn && typeof dyn === 'object') {
+    for (const [key, val] of Object.entries(dyn)) {
+      if (!val) continue;
+
+      // Object format: { start: '...', end: '...' } or { startDate, endDate }
+      if (typeof val === 'object' && !Array.isArray(val)) {
+        const vObj = val as any;
+        const s = vObj.start || vObj.startDate || vObj.start_date || vObj.from;
+        const e = vObj.end || vObj.endDate || vObj.end_date || vObj.to || s;
+        if (s) {
+          updateRange(s, e, `dynamic_data.${key}`);
+        }
+      } else if (typeof val === 'string') {
+        // String range format e.g. "1 ตุลาคม 2569 ถึง 30 กันยายน 2570"
+        const parsedRange = parseThaiDateRangeString(val);
+        if (parsedRange && (parsedRange.start || parsedRange.end)) {
+          updateRangeWithDates(parsedRange.start, parsedRange.end, `dynamic_data.${key}`);
+        } else {
+          // Single date string
+          const lk = key.toLowerCase();
+          if (lk.includes('start') || lk.includes('begin') || lk.includes('date') || lk.includes('period') || lk.includes('duration')) {
+            const parsedSingle = parseThaiDateStringToDate(val);
+            if (parsedSingle) {
+              updateRangeWithDates(parsedSingle, parsedSingle, `dynamic_data.${key}`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 3. If still no date found, fallback to project's fiscal_year
   if (minStartMs === null || maxEndMs === null) {
-    const sStr = dyn?.start_date || dyn?.startDate || dyn?.project_start_date || dyn?.period_start;
-    const eStr = dyn?.end_date || dyn?.endDate || dyn?.project_end_date || dyn?.period_end || sStr;
-    updateRange(sStr, eStr, 'dynamic_data');
+    const fyNum = parseInt(String(p.fiscal_year || dyn?.fiscal_year || ''), 10);
+    if (fyNum && fyNum > 2500) {
+      const startYear = fyNum - 1 - 543;
+      const endYear = fyNum - 543;
+      const s = new Date(startYear, 9, 1); // 1 October
+      const e = new Date(endYear, 8, 30); // 30 September
+      updateRangeWithDates(s, e, 'fiscal_year');
+    }
   }
 
   const startDate = minStartMs !== null ? new Date(minStartMs) : null;
@@ -122,11 +217,19 @@ function extractProjectDuration(p: any) {
     durationDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
   }
 
+  const formatToYYYYMMDD = (d: Date | null) => {
+    if (!d || isNaN(d.getTime())) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   return {
     startDate,
     endDate,
-    startDateStr: startDate ? startDate.toISOString().split('T')[0] : null,
-    endDateStr: endDate ? endDate.toISOString().split('T')[0] : null,
+    startDateStr: formatToYYYYMMDD(startDate),
+    endDateStr: formatToYYYYMMDD(endDate),
     durationDays,
     source,
     hasDates: Boolean(startDate && endDate),
@@ -426,7 +529,7 @@ export default function SchedulePage() {
           project_status: p.status,
           is_approved: isApproved,
           step_info: p.stepInfo,
-          activity_name: `⏳ ระยะเวลาดำเนินโครงการที่เสนอ: ${p.title}`,
+          activity_name: `⏳ ${p.title}`,
           start_date: p.durationInfo.startDateStr,
           end_date: p.durationInfo.endDateStr,
           location: p.durationInfo.location || '',
@@ -597,11 +700,11 @@ export default function SchedulePage() {
     const time = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
     return filteredActivities.filter((act) => {
       if (!act.start_date) return false;
-      const s = new Date(act.start_date);
+      const s = parseThaiDateStringToDate(act.start_date) || new Date(act.start_date);
       if (isNaN(s.getTime())) return false;
       const sTime = new Date(s.getFullYear(), s.getMonth(), s.getDate()).getTime();
 
-      const e = act.end_date ? new Date(act.end_date) : s;
+      const e = act.end_date ? (parseThaiDateStringToDate(act.end_date) || new Date(act.end_date)) : s;
       const eTime = isNaN(e.getTime()) ? sTime : new Date(e.getFullYear(), e.getMonth(), e.getDate()).getTime();
 
       return time >= sTime && time <= eTime;
