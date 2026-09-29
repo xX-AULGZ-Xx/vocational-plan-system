@@ -582,31 +582,76 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
         <div className="lg:col-span-2 bg-white p-6 sm:p-7 rounded-theme border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-6">
           
           {/* Header & Actions */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-theme-primary" />
-                  <span>ผลการประเมินความพึงพอใจ</span>
-                </h3>
-                {(() => {
-                  const t = getSurveyTheme(formMeta?.theme_config);
-                  return (
-                    <div className="flex items-center gap-1.5 text-[11px]">
-                      <span className={`px-2 py-0.5 rounded-full font-medium ${t.color.badgeClass}`}>
-                        🎨 {t.color.name.split(' (')[0]}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                        🔤 {t.font.name.split(' (')[0]}
-                      </span>
-                    </div>
-                  );
-                })()}
+          <div className="border-b border-slate-100 pb-4 space-y-3.5">
+            {/* Top Row: Title, Theme badges & Auto Update Status */}
+            <div className="flex flex-wrap items-start sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-theme-primary shrink-0" />
+                    <span>ผลการประเมินความพึงพอใจ</span>
+                  </h3>
+                  {(() => {
+                    const t = getSurveyTheme(formMeta?.theme_config);
+                    return (
+                      <div className="flex items-center gap-1.5 text-[11px]">
+                        <span className={`px-2 py-0.5 rounded-full font-medium ${t.color.badgeClass}`}>
+                          🎨 {t.color.name.split(' (')[0]}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                          🔤 {t.font.name.split(' (')[0]}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </div>
+                <p className="text-xs text-slate-500">{formMeta.title}</p>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">{formMeta.title}</p>
+
+              {/* Auto Update Live Status & Manual Refresh */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAutoUpdate(!autoUpdate)}
+                  className={`px-3 py-1.5 rounded-theme text-xs font-semibold border flex items-center gap-2 transition-all shadow-xs ${
+                    autoUpdate
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                      : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
+                  }`}
+                  title={autoUpdate ? 'กำลังอัปเดตผลประเมินอัตโนมัติ (คลิกเพื่อหยุด)' : 'คลิกเพื่อเปิด Auto Update'}
+                >
+                  <span className="relative flex h-2 w-2">
+                    {autoUpdate && (
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    )}
+                    <span
+                      className={`relative inline-flex rounded-full h-2 w-2 ${
+                        autoUpdate ? 'bg-emerald-500' : 'bg-slate-400'
+                      }`}
+                    ></span>
+                  </span>
+                  <span>{autoUpdate ? 'Auto Update (Live)' : 'Auto Update: ปิด'}</span>
+                  {lastUpdated && autoUpdate && (
+                    <span className="text-[10px] text-emerald-600 font-mono">
+                      {lastUpdated.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => loadEvaluation(false)}
+                  disabled={loading || isAutoUpdating}
+                  className="p-1.5 rounded-theme text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors border border-slate-200"
+                  title="รีเฟรชข้อมูลทันที"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isAutoUpdating || loading ? 'animate-spin text-emerald-600' : ''}`} />
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+            {/* Bottom Row: Action Buttons Toolbar */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               {/* Export Dropdown */}
               <div className="relative" ref={exportMenuRef}>
                 <button
@@ -631,7 +676,7 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
                 </button>
 
                 {showExportMenu && (
-                  <div className="absolute right-0 mt-1.5 w-64 bg-white rounded-theme shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="absolute left-0 sm:left-auto sm:right-0 mt-1.5 w-64 bg-white rounded-theme shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
                     <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
                       สรุปผลและค่าสถิติ (Summary)
                     </div>
@@ -687,6 +732,7 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
                 )}
               </div>
 
+              {/* Customize questions & theme */}
               <button
                 type="button"
                 onClick={() => setShowEditor(true)}
@@ -696,11 +742,12 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
                 <span>ปรับแต่งคำถาม & ธีม</span>
               </button>
 
+              {/* Toggle Open/Closed */}
               <button
                 type="button"
                 onClick={handleToggleStatus}
                 disabled={togglingStatus}
-                className={`px-3 py-1.5 rounded-theme text-xs font-semibold border flex items-center gap-1.5 transition-all shadow-xs ${
+                className={`px-3.5 py-1.5 rounded-theme text-xs font-semibold border flex items-center gap-1.5 transition-all shadow-xs ${
                   formMeta.is_active
                     ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
                     : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
@@ -710,43 +757,15 @@ export default function EvaluationTab({ projectId, project, token, user }: Evalu
                 <span>{formMeta.is_active ? 'ปิดรับคำตอบ' : 'เปิดรับคำตอบ'}</span>
               </button>
 
-              {/* Auto Update Live Toggle */}
+              {/* Switch template button */}
               <button
                 type="button"
-                onClick={() => setAutoUpdate(!autoUpdate)}
-                className={`px-3 py-1.5 rounded-theme text-xs font-semibold border flex items-center gap-2 transition-all shadow-xs ${
-                  autoUpdate
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
-                    : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
-                }`}
-                title={autoUpdate ? 'กำลังอัปเดตผลประเมินอัตโนมัติ (คลิกเพื่อหยุด)' : 'คลิกเพื่อเปิด Auto Update'}
+                onClick={() => setShowTemplateModal(true)}
+                className="px-3 py-1.5 rounded-theme text-xs font-medium bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1.5 transition-all"
+                title="เปลี่ยนแม่แบบแบบประเมิน"
               >
-                <span className="relative flex h-2 w-2">
-                  {autoUpdate && (
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  )}
-                  <span
-                    className={`relative inline-flex rounded-full h-2 w-2 ${
-                      autoUpdate ? 'bg-emerald-500' : 'bg-slate-400'
-                    }`}
-                  ></span>
-                </span>
-                <span>{autoUpdate ? 'Auto Update (Live)' : 'Auto Update: ปิด'}</span>
-                {lastUpdated && autoUpdate && (
-                  <span className="text-[10px] text-emerald-600 font-mono hidden sm:inline">
-                    {lastUpdated.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => loadEvaluation(false)}
-                disabled={loading || isAutoUpdating}
-                className="p-1.5 rounded-theme text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                title="รีเฟรชข้อมูลทันที"
-              >
-                <RefreshCw className={`w-4 h-4 ${isAutoUpdating || loading ? 'animate-spin text-emerald-600' : ''}`} />
+                <Layers className="w-3.5 h-3.5 text-slate-500" />
+                <span>เปลี่ยนแม่แบบ</span>
               </button>
             </div>
           </div>
