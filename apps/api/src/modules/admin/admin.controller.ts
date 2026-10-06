@@ -142,6 +142,7 @@ const DEFAULT_SETTINGS = [
   { key: 'theme_font_family', value: 'Prompt', description: 'ฟอนต์หลักของส่วนติดต่อผู้ใช้ (UI Font Family)' },
   { key: 'theme_sidebar_style', value: 'dark', description: 'สไตล์แถบเมนูด้านข้าง Sidebar (dark หรือ light)' },
   { key: 'theme_border_radius', value: 'md', description: 'ความโค้งมนของขอบ UI (sm, md, lg, full)' },
+  { key: 'app_url', value: process.env.APP_URL || process.env.WEB_APP_URL || 'http://localhost:3005', description: 'URL สำหรับเข้าสู่ระบบผ่านลิงก์ในอีเมลแจ้งเตือน (เช่น https://plan.cric.ac.th)' },
   { key: 'developer_info', value: 'พัฒนาระบบโดย งานส่งเสริมการวิจัย นวัตกรรม และสิ่งประดิษฐ์ ร่วมกับ งานศูนย์ข้อมูลสารสนเทศ', description: 'ข้อความข้อมูลผู้พัฒนา (แสดงที่แถบเมนูด้านข้าง Sidebar)' },
 ];
 
@@ -2027,7 +2028,7 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
 // POST /api/v1/admin/settings/test-email
 router.post('/settings/test-email', async (req: AuthRequest, res: Response) => {
   try {
-    const { to, host, port, secure, user, pass, fromName, fromEmail } = req.body;
+    const { to, host, port, secure, user, pass, fromName, fromEmail, appUrl: customAppUrl } = req.body;
 
     if (!to) {
       return res.status(400).json({ success: false, message: 'กรุณาระบุอีเมลผู้รับสำหรับทดสอบ' });
@@ -2074,7 +2075,7 @@ router.post('/settings/test-email', async (req: AuthRequest, res: Response) => {
     const collegeName = settingMap['college_name'] || 'วิทยาลัยการอาชีพเชียงราย';
     const primaryColor = settingMap['theme_primary_color'] || '#064e3b';
     const accentColor = settingMap['theme_accent_color'] || '#059669';
-    const appUrl = settingMap['app_url'] || process.env.APP_URL || process.env.WEB_APP_URL || 'http://localhost:3005';
+    const appUrl = customAppUrl || settingMap['app_url'] || process.env.APP_URL || process.env.WEB_APP_URL || 'http://localhost:3005';
 
     const fromHeader = `"${customConfig.fromName}" <${customConfig.fromEmail || customConfig.user}>`;
     const emailHtml = buildNotificationEmailHtml({

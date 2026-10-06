@@ -100,6 +100,7 @@ export default function AdminSettingsPage() {
     theme_font_family: 'Prompt',
     theme_sidebar_style: 'dark',
     theme_border_radius: 'md',
+    app_url: 'http://localhost:3005',
     developer_info: 'พัฒนาระบบโดย งานส่งเสริมการวิจัย นวัตกรรม และสิ่งประดิษฐ์ ร่วมกับ งานศูนย์ข้อมูลสารสนเทศ',
     project_code_template: 'PRJ-{YEAR}-{DIV}-{NUM}',
     project_code_digits: '4',
@@ -472,6 +473,7 @@ export default function AdminSettingsPage() {
           pass: settings.smtp_pass,
           fromName: settings.smtp_from_name,
           fromEmail: settings.smtp_from_email,
+          appUrl: settings.app_url || '',
         }),
       });
 
@@ -1288,6 +1290,23 @@ export default function AdminSettingsPage() {
                     placeholder="เช่น www.cic.ac.th"
                     className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white"
                   />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <ExternalLink className="w-3.5 h-3.5 text-theme-primary" />
+                    <span>URL สำหรับเข้าสู่ระบบ (Application System URL)</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={settings.app_url || ''}
+                    onChange={(e) => handleChange('app_url', e.target.value)}
+                    placeholder="เช่น https://plan.cric.ac.th หรือ http://26.132.82.219:3005"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    URL ของระบบนี้จะถูกนำไปใช้สร้างปุ่มลิงก์ &quot;เข้าสู่ระบบ&quot; ในอีเมลแจ้งเตือนที่ส่งไปยังผู้ใช้งาน (เปลี่ยนเป็น Domain หรือ IP ของเซิร์ฟเวอร์จริง)
+                  </p>
                 </div>
 
                 <div className="md:col-span-2 pt-2 border-t border-slate-100">
@@ -2687,6 +2706,23 @@ export default function AdminSettingsPage() {
                       className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono"
                     />
                   </div>
+                </div>
+
+                <div className="pt-2">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <ExternalLink className="w-3.5 h-3.5 text-theme-primary" />
+                    <span>URL ลิงก์ปลายทางในอีเมลแจ้งเตือน (Application Link URL)</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={settings.app_url || ''}
+                    onChange={(e) => handleChange('app_url', e.target.value)}
+                    placeholder="เช่น https://plan.cric.ac.th หรือ http://26.132.82.219:3005"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    เมื่อผู้รับเปิดอีเมลและกดปุ่ม &quot;เข้าสู่ระบบ&quot; ระบบจะนำทางไปยัง URL นี้ (หากใช้งานบน Server หรือ Domain จริง ให้เปลี่ยนจาก localhost เป็น Domain/IP ของเซิร์ฟเวอร์ท่าน)
+                  </p>
                 </div>
 
                 {/* SMTP Setup Guide Accordion / Instruction Cards */}
