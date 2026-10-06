@@ -2058,20 +2058,41 @@ router.post('/settings/test-email', async (req: AuthRequest, res: Response) => {
     // Verify SMTP connection
     await transporter.verify();
 
+    const settings = await prisma.systemSetting.findMany({
+      where: {
+        key: {
+          in: ['college_name', 'theme_primary_color', 'theme_accent_color', 'app_url'],
+        },
+      },
+    });
+
+    const settingMap: Record<string, string> = {};
+    settings.forEach((s) => {
+      settingMap[s.key] = s.value;
+    });
+
+    const collegeName = settingMap['college_name'] || 'วิทยาลัยการอาชีพเชียงราย';
+    const primaryColor = settingMap['theme_primary_color'] || '#064e3b';
+    const accentColor = settingMap['theme_accent_color'] || '#059669';
+    const appUrl = settingMap['app_url'] || process.env.APP_URL || process.env.WEB_APP_URL || 'http://localhost:3005';
+
     const fromHeader = `"${customConfig.fromName}" <${customConfig.fromEmail || customConfig.user}>`;
     const emailHtml = buildNotificationEmailHtml({
       recipientName: req.user?.full_name || 'ผู้ดูแลระบบ',
       title: 'ทดสอบการส่งอีเมลแจ้งเตือน (Email Test)',
-      message: 'นี่คืออีเมลทดสอบจากระบบบริหารจัดการงานแผนงานและโครงการ (วก.เชียงราย) ระบบ SMTP ทำงานได้อย่างสมบูรณ์และพร้อมส่งข้อความแจ้งเตือนอัตโนมัติแล้ว',
-      actionUrl: process.env.APP_URL || 'http://localhost:3005',
+      message: `นี่คืออีเมลทดสอบจากระบบบริหารจัดการงานแผนงานและโครงการ (${collegeName}) ระบบ SMTP ทำงานได้อย่างสมบูรณ์และพร้อมส่งข้อความแจ้งเตือนอัตโนมัติแล้ว`,
+      actionUrl: appUrl,
       actionLabel: 'เข้าสู่ระบบ',
+      collegeName,
+      primaryColor,
+      accentColor,
     });
 
     const info = await transporter.sendMail({
       from: fromHeader,
       to,
-      subject: '[ทดสอบระบบ] การเชื่อมต่อ SMTP สำเร็จ - วก.เชียงราย',
-      text: 'นี่คือข้อความทดสอบจากระบบบริหารจัดการโครงการ วก.เชียงราย ระบบ SMTP สามารถส่งข้อความได้ปกติ',
+      subject: `[ทดสอบระบบ] การเชื่อมต่อ SMTP สำเร็จ - ${collegeName}`,
+      text: `นี่คือข้อความทดสอบจากระบบบริหารจัดการโครงการ ${collegeName} ระบบ SMTP สามารถส่งข้อความได้ปกติ\n\nเข้าสู่ระบบ: ${appUrl}`,
       html: emailHtml,
     });
 

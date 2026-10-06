@@ -1,4 +1,4 @@
-﻿import { prisma, serializeBigInt } from '../../lib/prisma';
+import { prisma, serializeBigInt } from '../../lib/prisma';
 import { NotificationType } from '@prisma/client';
 import { sseManager } from './sse.manager';
 import { sendEmail, buildNotificationEmailHtml } from '../email/email.service';
@@ -71,12 +71,24 @@ export class NotificationService {
         return;
       }
 
-      const collegeSetting = await prisma.systemSetting.findUnique({
-        where: { key: 'college_name' },
+      const settings = await prisma.systemSetting.findMany({
+        where: {
+          key: {
+            in: ['college_name', 'theme_primary_color', 'theme_accent_color', 'app_url'],
+          },
+        },
       });
 
-      const collegeName = collegeSetting?.value || 'วิทยาลัยการอาชีพเชียงราย';
-      const appUrl = process.env.APP_URL || 'http://localhost:3005';
+      const settingMap: Record<string, string> = {};
+      settings.forEach((s) => {
+        settingMap[s.key] = s.value;
+      });
+
+      const collegeName = settingMap['college_name'] || 'วิทยาลัยการอาชีพเชียงราย';
+      const primaryColor = settingMap['theme_primary_color'] || '#064e3b';
+      const accentColor = settingMap['theme_accent_color'] || '#059669';
+      const appUrl = settingMap['app_url'] || process.env.APP_URL || process.env.WEB_APP_URL || 'http://localhost:3005';
+
       const fullActionUrl = params.linkUrl
         ? params.linkUrl.startsWith('http')
           ? params.linkUrl
@@ -90,6 +102,8 @@ export class NotificationService {
         actionUrl: fullActionUrl,
         actionLabel: 'เปิดดูในระบบงานแผน',
         collegeName,
+        primaryColor,
+        accentColor,
       });
 
       await sendEmail({

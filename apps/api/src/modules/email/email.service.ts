@@ -1,4 +1,4 @@
-﻿import nodemailer from 'nodemailer';
+import nodemailer from 'nodemailer';
 import { prisma } from '../../lib/prisma';
 
 export interface EmailOptions {
@@ -118,16 +118,29 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
  * Generate standard HTML email template for notifications
  */
 export function buildNotificationEmailHtml(params: {
-  recipientName: string;
+  recipientName?: string;
   title: string;
   message: string;
   actionUrl?: string;
   actionLabel?: string;
   collegeName?: string;
+  primaryColor?: string;
+  accentColor?: string;
 }) {
   const college = params.collegeName || 'วิทยาลัยการอาชีพเชียงราย';
   const actionLabel = params.actionLabel || 'เปิดดูในระบบ';
   const actionUrl = params.actionUrl || process.env.APP_URL || 'http://localhost:3005';
+  const primaryColor = params.primaryColor || '#064e3b';
+  const accentColor = params.accentColor || '#059669';
+
+  // Format recipient name with proper spacing and prefix cleanup
+  const rawRecipient = params.recipientName ? params.recipientName.trim() : '';
+  const cleanRecipient = rawRecipient.replace(/^(คุณ|นาย|นาง|นางสาว|ดร\.|ผศ\.|อาจารย์)\s*/, '');
+  const greeting = rawRecipient
+    ? rawRecipient.startsWith('คุณ') || rawRecipient.startsWith('นาย') || rawRecipient.startsWith('นาง') || rawRecipient.startsWith('นางสาว') || rawRecipient.startsWith('ดร.') || rawRecipient.startsWith('ผศ.') || rawRecipient.startsWith('อาจารย์')
+      ? `เรียน ${rawRecipient}`
+      : `เรียน คุณ ${rawRecipient}`
+    : 'เรียน ผู้ใช้งานระบบ';
 
   return `
 <!DOCTYPE html>
@@ -137,30 +150,37 @@ export function buildNotificationEmailHtml(params: {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${params.title}</title>
   <style>
-    body { font-family: 'Sarabun', 'Segoe UI', Tahoma, sans-serif; line-height: 1.6; color: #1e293b; background-color: #f8fafc; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-    .header { background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); color: #ffffff; padding: 24px 30px; text-align: center; }
-    .header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
-    .header p { margin: 4px 0 0 0; font-size: 12px; opacity: 0.85; }
-    .content { padding: 30px; }
-    .greeting { font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 12px; }
-    .card { background: #f1f5f9; border-left: 4px solid #2563eb; padding: 16px 20px; border-radius: 6px; margin: 16px 0; }
-    .card-title { font-size: 15px; font-weight: bold; color: #1e293b; margin-bottom: 6px; }
-    .card-desc { font-size: 14px; color: #475569; white-space: pre-wrap; margin: 0; }
-    .btn-container { text-align: center; margin: 28px 0; }
-    .btn { display: inline-block; background-color: #1e40af; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2); }
-    .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 30px; text-align: center; font-size: 12px; color: #94a3b8; }
+    body { font-family: 'Prompt', 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; background-color: #f1f5f9; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+    .container { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02); }
+    .header { background: linear-gradient(135deg, ${primaryColor} 0%, #047857 60%, #0f766e 100%); color: #ffffff; padding: 32px 30px; text-align: center; position: relative; }
+    .header-badge { display: inline-block; background: rgba(255, 255, 255, 0.16); backdrop-filter: blur(4px); padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; color: #fef08a; letter-spacing: 0.5px; margin-bottom: 8px; border: 1px solid rgba(255, 255, 255, 0.2); }
+    .header h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: 0.3px; line-height: 1.3; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15); }
+    .header p { margin: 6px 0 0 0; font-size: 12px; color: rgba(255, 255, 255, 0.9); font-weight: 500; }
+    .content { padding: 32px 30px; background: #ffffff; }
+    .greeting { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
+    .intro-text { font-size: 14px; color: #475569; margin: 0 0 18px 0; line-height: 1.6; }
+    .card { background: #f8fafc; border-left: 4px solid ${accentColor}; border: 1px solid #e2e8f0; padding: 18px 22px; border-radius: 10px; margin: 20px 0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02); }
+    .card-title { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 8px; display: flex; align-items: center; }
+    .card-desc { font-size: 14px; color: #334155; white-space: pre-wrap; margin: 0; line-height: 1.65; }
+    .btn-container { text-align: center; margin: 32px 0 24px 0; }
+    .btn { display: inline-block; background: linear-gradient(135deg, ${primaryColor} 0%, #047857 100%); color: #ffffff !important; text-decoration: none; padding: 13px 36px; border-radius: 10px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 14px rgba(4, 120, 87, 0.3); letter-spacing: 0.3px; transition: all 0.2s ease; }
+    .fallback-link { font-size: 12px; color: #64748b; margin-top: 24px; padding-top: 18px; border-top: 1px dashed #e2e8f0; line-height: 1.6; }
+    .fallback-link a { color: ${accentColor}; word-break: break-all; text-decoration: none; font-weight: 600; }
+    .footer { background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 30px; text-align: center; font-size: 12px; color: #94a3b8; line-height: 1.6; }
+    .footer p { margin: 0; }
+    .footer .copy { margin-top: 6px; font-size: 11px; color: #cbd5e1; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
+      <div class="header-badge">ระบบแจ้งเตือนอัตโนมัติ</div>
       <h1>${college}</h1>
       <p>ระบบบริหารจัดการงานแผนงานและโครงการ (Chiang Rai Vocational Plan)</p>
     </div>
     <div class="content">
-      <div class="greeting">เรียน คุณ${params.recipientName}</div>
-      <p style="font-size: 14px; color: #334155; margin: 0 0 16px 0;">
+      <div class="greeting">${greeting}</div>
+      <p class="intro-text">
         ระบบมีการแจ้งเตือนความเคลื่อนไหวเกี่ยวกับโครงการของท่านหรือโครงการที่อยู่ในความรับผิดชอบ ดังนี้:
       </p>
       <div class="card">
@@ -170,14 +190,14 @@ export function buildNotificationEmailHtml(params: {
       <div class="btn-container">
         <a href="${actionUrl}" class="btn" target="_blank">${actionLabel}</a>
       </div>
-      <p style="font-size: 12px; color: #64748b; margin-top: 20px;">
+      <div class="fallback-link">
         * หากปุ่มด้านบนไม่สามารถคลิกได้ กรุณาคัดลอกลิงก์นี้ไปวางในเบราว์เซอร์: <br>
-        <a href="${actionUrl}" style="color: #2563eb; word-break: break-all;">${actionUrl}</a>
-      </p>
+        <a href="${actionUrl}">${actionUrl}</a>
+      </div>
     </div>
     <div class="footer">
-      <p style="margin: 0;">อีเมลนี้เป็นการแจ้งเตือนอัตโนมัติจากระบบ กรุณาอย่าตอบกลับอีเมลนี้</p>
-      <p style="margin: 4px 0 0 0;">&copy; ${new Date().getFullYear()} ${college}. สงวนลิขสิทธิ์</p>
+      <p>อีเมลนี้เป็นการแจ้งเตือนอัตโนมัติจากระบบ กรุณาอย่าตอบกลับอีเมลนี้</p>
+      <p class="copy">&copy; ${new Date().getFullYear()} ${college}. สงวนลิขสิทธิ์</p>
     </div>
   </div>
 </body>
