@@ -21,16 +21,6 @@
   ],
   "author": "Chiang Rai Vocational College",
   "license": "ISC",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "prisma",
-      "esbuild",
-      "core-js",
-      "unrs-resolver"
-    ]
-  },
   "devDependencies": {
     "typescript": "^5.9.3"
   }
