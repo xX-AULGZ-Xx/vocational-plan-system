@@ -416,20 +416,26 @@ export default function ProjectRegistrationTab({
   const handleExportCSV = () => {
     if (attendees.length === 0) return;
     const headers = ['ลำดับ', 'คำนำหน้า', 'ชื่อ-นามสกุล', 'ตำแหน่ง', 'หน่วยงาน/สถานศึกษา', 'เบอร์โทรศัพท์', 'อีเมล', 'สถานะ', 'เวลาเช็คอิน', 'เลขที่เกียรติบัตร'];
+    const escapeCsv = (str: any) => {
+      if (str === null || str === undefined) return '""';
+      const s = String(str).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
     const rows = attendees.map((a, i) => [
       i + 1,
-      a.title_name || '',
-      `"${a.full_name || ''}"`,
-      `"${a.position || ''}"`,
-      `"${a.organization || ''}"`,
-      `"${a.phone || ''}"`,
-      `"${a.email || ''}"`,
-      a.status === 'passed' ? 'ผ่าน/ได้รับเกียรติบัตร' : a.status === 'checked_in' ? 'เช็คอินแล้ว' : 'ลงทะเบียนแล้ว',
-      a.checked_in_at ? new Date(a.checked_in_at).toLocaleString('th-TH') : '-',
-      a.certificate_no || '-',
+      escapeCsv(a.title_name || ''),
+      escapeCsv(a.full_name || ''),
+      escapeCsv(a.position || ''),
+      escapeCsv(a.organization || ''),
+      escapeCsv(a.phone || ''),
+      escapeCsv(a.email || ''),
+      escapeCsv(a.status === 'passed' ? 'ผ่าน/ได้รับเกียรติบัตร' : a.status === 'checked_in' ? 'เช็คอินแล้ว' : 'ลงทะเบียนแล้ว'),
+      escapeCsv(a.checked_in_at ? new Date(a.checked_in_at).toLocaleString('th-TH') : '-'),
+      escapeCsv(a.certificate_no || '-'),
     ]);
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const csvContent = '\uFEFF' + [headers.map(escapeCsv).join(','), ...rows.map((r) => r.join(','))].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -438,6 +444,7 @@ export default function ProjectRegistrationTab({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Upload Custom Background Image

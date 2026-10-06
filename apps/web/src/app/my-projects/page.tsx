@@ -316,23 +316,24 @@ export default function MyProjectsPage() {
       return '-';
     };
 
+    const escapeCsv = (str: any) => {
+      if (str === null || str === undefined) return '""';
+      const s = String(str).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
     const rows = exportProjects.map((p, idx) => {
       const stepInfo = getApprovalStepInfo(p);
-      const escapeCsv = (str: any) => {
-        if (str === null || str === undefined) return '""';
-        const s = String(str).replace(/"/g, '""');
-        return `"${s}"`;
-      };
 
       return [
         idx + 1,
         escapeCsv(p.project_code || 'รอออกรหัส'),
         escapeCsv(p.title || p.name_th || ''),
-        p.fiscal_year || '',
+        escapeCsv(p.fiscal_year || ''),
         escapeCsv(p.department?.division?.name || ''),
         escapeCsv(p.department?.name || ''),
         escapeCsv(p.leader?.full_name || ''),
-        Number(p.total_budget || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        escapeCsv(Number(p.total_budget || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
         escapeCsv(stepInfo.label),
         escapeCsv(formatAppStep(p, 1)),
         escapeCsv(formatAppStep(p, 2)),
@@ -342,7 +343,7 @@ export default function MyProjectsPage() {
       ].join(',');
     });
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+    const csvContent = '\uFEFF' + [headers.map(escapeCsv).join(','), ...rows].join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
