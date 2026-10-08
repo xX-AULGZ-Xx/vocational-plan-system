@@ -25,7 +25,7 @@ const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🎉', 
 
 export default function ChatMessageItem({ message, showSenderName = true }: ChatMessageItemProps) {
   const { user } = useAuth();
-  const { toggleReaction, setReplyingToMessage } = useChat();
+  const { toggleReaction, setReplyingToMessage, activeRoom } = useChat();
   const isMe = user && message.sender_id.toString() === user.id.toString();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string; size?: number } | null>(null);
@@ -111,6 +111,76 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
       default:
         return <File className="w-5 h-5 text-slate-500 shrink-0" />;
     }
+  };
+
+  // Render message text with highlighted mentions (@User, @ทุกคน, @all)
+  const renderFormattedContent = (contentStr: string) => {
+    if (!contentStr) return null;
+
+    // Collect participant names to accurately match multi-word names
+    const participantNames: string[] = [];
+    if (activeRoom && activeRoom.participants) {
+      activeRoom.participants.forEach((p) => {
+        if (p.user?.full_name) participantNames.push(p.user.full_name);
+        if (p.user?.username) participantNames.push(p.user.username);
+      });
+    }
+    participantNames.push('ทุกคน', 'all', 'All');
+
+    // Sort longest names first to prevent partial truncation
+    const uniqueNames = Array.from(new Set(participantNames)).sort((a, b) => b.length - a.length);
+    const escapedNames = uniqueNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    const mentionPattern = escapedNames
+      ? new RegExp(`(@(?:${escapedNames}|[\\u0E00-\\u0E7F\\w._-]+))`, 'gi')
+      : /(@(?:ทุกคน|all|[\u0E00-\u0E7F\w._-]+))/gi;
+
+    const parts = contentStr.split(mentionPattern);
+    const myFullName = user?.full_name?.toLowerCase();
+    const myUsername = user?.username?.toLowerCase();
+
+    return (
+      <span className="whitespace-pre-wrap leading-relaxed">
+        {parts.map((part, idx) => {
+          if (part.startsWith('@') && part.length > 1) {
+            const mentionText = part.slice(1).trim().toLowerCase();
+            const isMentioningMe =
+              (myFullName && mentionText === myFullName) ||
+              (myUsername && mentionText === myUsername) ||
+              mentionText === 'ทุกคน' ||
+              mentionText === 'all';
+
+            if (isMentioningMe) {
+              return (
+                <span
+                  key={idx}
+                  className={`inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded-md font-semibold text-xs shadow-2xs transition-all ${
+                    isMe
+                      ? 'bg-amber-400 text-amber-950 ring-1 ring-amber-500/50'
+                      : 'bg-amber-100 text-amber-950 border border-amber-300 ring-1 ring-amber-200'
+                  }`}
+                >
+                  {part}
+                </span>
+              );
+            }
+
+            return (
+              <span
+                key={idx}
+                className={`inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded-md text-xs font-medium transition ${
+                  isMe
+                    ? 'bg-blue-700 text-blue-100 border border-blue-500/80'
+                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                }`}
+              >
+                {part}
+              </span>
+            );
+          }
+          return part;
+        })}
+      </span>
+    );
   };
 
   return (
@@ -242,7 +312,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
             {/* Text Content */}
             {message.content && (
               <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                {message.content}
+                {renderFormattedContent(message.content)}
               </p>
             )}
 
