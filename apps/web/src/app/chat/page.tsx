@@ -9,6 +9,7 @@ import ChatMessageItem from '@/components/chat/ChatMessageItem';
 import ChatInput from '@/components/chat/ChatInput';
 import NewChatModal from '@/components/chat/NewChatModal';
 import ChatAvatar from '@/components/chat/ChatAvatar';
+import DeleteChatRoomModal from '@/components/chat/DeleteChatRoomModal';
 import {
   MessageSquare,
   Search,
@@ -24,6 +25,7 @@ import {
   PhoneCall,
   Sparkles,
   Paperclip,
+  Trash2,
 } from 'lucide-react';
 
 function ChatPageContent() {
@@ -48,6 +50,7 @@ function ChatPageContent() {
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [showInfoSidebar, setShowInfoSidebar] = useState(false);
   const [isMobileViewList, setIsMobileViewList] = useState(true);
+  const [roomToDelete, setRoomToDelete] = useState<ChatRoom | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -249,7 +252,7 @@ function ChatPageContent() {
                       )}
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-slate-500 truncate max-w-[180px]">
+                      <p className="text-xs text-slate-500 truncate max-w-[150px]">
                         {room.last_message ? (
                           room.last_message.message_type === 'PROJECT_CARD' ? (
                             '📋 การ์ดข้อมูลโครงการ'
@@ -262,11 +265,24 @@ function ChatPageContent() {
                           <span className="italic text-slate-400">ยังไม่มีข้อความ</span>
                         )}
                       </p>
-                      {isUnread && (
-                        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-bold text-white shrink-0">
-                          {room.unread_count}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {isUnread && (
+                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-bold text-white">
+                            {room.unread_count}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRoomToDelete(room);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                          title="ลบห้องสนทนา"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -311,7 +327,7 @@ function ChatPageContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {activeRoom.project_id && (
                 <Link
                   href={`/projects/${activeRoom.project_id}`}
@@ -322,6 +338,14 @@ function ChatPageContent() {
                   <ArrowUpRight className="w-3.5 h-3.5" />
                 </Link>
               )}
+
+              <button
+                onClick={() => setRoomToDelete(activeRoom)}
+                className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                title="ลบห้องสนทนานี้"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
 
               <button
                 onClick={() => setShowInfoSidebar(!showInfoSidebar)}
@@ -383,30 +407,44 @@ function ChatPageContent() {
 
             {/* Room Info / Participants Sidebar */}
             {showInfoSidebar && (
-              <div className="w-72 border-l border-slate-200 bg-white p-4 overflow-y-auto shrink-0 hidden md:block animate-in slide-in-from-right duration-150">
-                <h4 className="font-bold text-slate-900 text-sm mb-3">สมาชิกในห้อง ({activeRoom.participants.length})</h4>
-                <div className="space-y-2">
-                  {activeRoom.participants.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <ChatAvatar
-                          src={p.user?.avatar_url}
-                          name={p.user?.full_name}
-                          size="sm"
-                          isOnline={p.user?.is_online}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{p.user?.full_name}</p>
-                          <p className="text-[10px] text-slate-400 truncate">{p.user?.position || p.user?.role}</p>
+              <div className="w-72 border-l border-slate-200 bg-white p-4 overflow-y-auto shrink-0 hidden md:block animate-in slide-in-from-right duration-150 flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm mb-3">สมาชิกในห้อง ({activeRoom.participants.length})</h4>
+                  <div className="space-y-2">
+                    {activeRoom.participants.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <ChatAvatar
+                            src={p.user?.avatar_url}
+                            name={p.user?.full_name}
+                            size="sm"
+                            isOnline={p.user?.is_online}
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-slate-800 truncate">{p.user?.full_name}</p>
+                            <p className="text-[10px] text-slate-400 truncate">{p.user?.position || p.user?.role}</p>
+                          </div>
                         </div>
+                        {p.role === 'OWNER' && (
+                          <span className="text-[10px] bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full shrink-0">
+                            เจ้าของ
+                          </span>
+                        )}
                       </div>
-                      {p.role === 'OWNER' && (
-                        <span className="text-[10px] bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full shrink-0">
-                          เจ้าของ
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+
+                {/* Danger Zone: Delete Room Button */}
+                <div className="pt-4 mt-6 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setRoomToDelete(activeRoom)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl border border-rose-200/80 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>ลบห้องสนทนานี้</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -442,6 +480,17 @@ function ChatPageContent() {
         onRoomCreated={(rId) => {
           selectRoom(rId);
           setIsMobileViewList(false);
+        }}
+      />
+
+      {/* Delete Chat Room Modal */}
+      <DeleteChatRoomModal
+        isOpen={!!roomToDelete}
+        room={roomToDelete}
+        onClose={() => setRoomToDelete(null)}
+        onDeleted={() => {
+          setRoomToDelete(null);
+          setIsMobileViewList(true);
         }}
       />
     </div>

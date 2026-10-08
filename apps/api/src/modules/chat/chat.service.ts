@@ -875,6 +875,54 @@ export class ChatService {
   }
 
   /**
+   * Delete a chat room and all its messages
+   */
+  async deleteRoom(userId: bigint, roomId: bigint, userRole?: string) {
+    const room = await prisma.chatRoom.findUnique({
+      where: { id: roomId },
+      include: {
+        participants: true,
+      },
+    });
+
+    if (!room) {
+      throw new Error('ไม่พบห้องสนทนานี้');
+    }
+
+    const isParticipant = room.participants.some((p) => p.user_id === userId);
+    const isOwner = room.created_by === userId || room.participants.some((p) => p.user_id === userId && p.role === 'OWNER');
+    const isAdmin = userRole === 'ADMIN';
+
+    // In direct chats, any participant can delete/close the conversation
+    // In group/project chats, the owner or admin can delete
+    const canDelete = room.type === 'DIRECT' ? isParticipant : (isOwner || isAdmin);
+
+    if (!canDelete) {
+      throw new Error('คุณไม่มีสิทธิ์ในการลบห้องสนทนานี้ (เฉพาะผู้สร้างกลุ่มหรือผู้ดูแลระบบ)');
+    }
+
+    // Broadcast room deletion to all room participants before deleting from DB
+    wsManager.sendToChatRoom(roomId, 'chat_room_deleted', {
+      roomId: roomId.toString(),
+      deletedBy: userId.toString(),
+    });
+
+    room.participants.forEach((p) => {
+      wsManager.sendToUser(p.user_id, 'chat_room_deleted', {
+        roomId: roomId.toString(),
+        deletedBy: userId.toString(),
+      });
+    });
+
+    // Cascade delete room from DB
+    await prisma.chatRoom.delete({
+      where: { id: roomId },
+    });
+
+    return { success: true, message: 'ลบห้องสนทนาเรียบร้อยแล้ว' };
+  }
+
+  /**
    * Search projects to share or create room
    */
   async searchProjects(query: string) {

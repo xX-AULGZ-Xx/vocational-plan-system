@@ -136,6 +136,7 @@ interface ChatContextType {
   markAsRead: (roomId: string) => Promise<void>;
   uploadFile: (file: File) => Promise<any>;
   toggleReaction: (messageId: string, emoji: string) => Promise<void>;
+  deleteRoom: (roomId: string) => Promise<boolean>;
   toggleWidget: (open?: boolean) => void;
   setWidgetActiveRoom: (roomId: string | null) => void;
 }
@@ -165,6 +166,7 @@ const ChatContext = createContext<ChatContextType>({
   markAsRead: async () => {},
   uploadFile: async () => null,
   toggleReaction: async () => {},
+  deleteRoom: async () => false,
   toggleWidget: () => {},
   setWidgetActiveRoom: () => {},
 });
@@ -409,6 +411,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           m.id === data.message_id ? { ...m, reactions: data.reactions } : m
         )
       );
+    });
+
+    // Real-time room deletion
+    socket.on('chat_room_deleted', (data: { roomId: string; deletedBy?: string }) => {
+      const deletedId = data.roomId.toString();
+      setRooms((prev) => prev.filter((r) => r.id !== deletedId));
+      setActiveRoomId((curr) => {
+        if (curr === deletedId) {
+          setMessages([]);
+          return null;
+        }
+        return curr;
+      });
+      setWidgetActiveRoomId((curr) => (curr === deletedId ? null : curr));
     });
 
     // User online status change
@@ -670,6 +686,34 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [getAuthHeaders]
   );
 
+  // Delete a chat room
+  const deleteRoom = useCallback(
+    async (roomId: string): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/v1/chat/rooms/${roomId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setRooms((prev) => prev.filter((r) => r.id !== roomId));
+          if (activeRoomRef.current === roomId) {
+            setActiveRoomId(null);
+            setMessages([]);
+          }
+          setWidgetActiveRoomId((curr) => (curr === roomId ? null : curr));
+          return true;
+        } else {
+          throw new Error(data.message || 'ไม่สามารถลบห้องสนทนาได้');
+        }
+      } catch (err: any) {
+        console.error('Error deleting room:', err);
+        throw err;
+      }
+    },
+    [getAuthHeaders]
+  );
+
   // Toggle floating widget
   const toggleWidget = useCallback((open?: boolean) => {
     setIsWidgetOpen((prev) => (open !== undefined ? open : !prev));
@@ -713,6 +757,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         markAsRead,
         uploadFile,
         toggleReaction,
+        deleteRoom,
         toggleWidget,
         setWidgetActiveRoom,
       }}

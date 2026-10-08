@@ -203,6 +203,21 @@ router.post('/rooms/:roomId/read', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// DELETE /api/v1/chat/rooms/:roomId - Delete chat room
+router.delete('/rooms/:roomId', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = BigInt(req.user!.id);
+    const roomId = BigInt(req.params.roomId);
+    const userRole = req.user?.role;
+
+    const result = await chatService.deleteRoom(userId, roomId, userRole);
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error deleting chat room:', error);
+    res.status(400).json({ success: false, message: error.message || 'ไม่สามารถลบห้องสนทนาได้' });
+  }
+});
+
 // POST /api/v1/chat/messages/:messageId/reactions - Toggle reaction on a message
 router.post('/messages/:messageId/reactions', async (req: AuthRequest, res: Response) => {
   try {

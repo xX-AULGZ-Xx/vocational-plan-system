@@ -9,6 +9,7 @@ import ChatMessageItem from './ChatMessageItem';
 import ChatInput from './ChatInput';
 import NewChatModal from './NewChatModal';
 import ChatAvatar from './ChatAvatar';
+import DeleteChatRoomModal from './DeleteChatRoomModal';
 import {
   MessageSquare,
   MessageCircle,
@@ -24,6 +25,7 @@ import {
   Circle,
   ExternalLink,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 
 export default function FloatingChatWidget() {
@@ -46,6 +48,7 @@ export default function FloatingChatWidget() {
   const [activeTab, setActiveTab] = useState<'ALL' | 'PROJECT' | 'DIRECT' | 'GROUP'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState<ChatRoom | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll to bottom of messages
@@ -138,6 +141,16 @@ export default function FloatingChatWidget() {
             </div>
 
             <div className="flex items-center gap-1 text-slate-300">
+              {widgetActiveRoomId && activeRoom && (
+                <button
+                  type="button"
+                  onClick={() => setRoomToDelete(activeRoom)}
+                  className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition"
+                  title="ลบห้องสนทนา"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
               <Link
                 href={widgetActiveRoomId ? `/chat?roomId=${widgetActiveRoomId}` : '/chat'}
                 onClick={() => toggleWidget(false)}
@@ -261,7 +274,7 @@ export default function FloatingChatWidget() {
                           setWidgetActiveRoom(r.id);
                           markAsRead(r.id);
                         }}
-                        className={`flex items-center gap-3 p-3 hover:bg-blue-50/50 cursor-pointer transition ${
+                        className={`group/room flex items-center gap-3 p-3 hover:bg-blue-50/50 cursor-pointer transition ${
                           isUnread ? 'bg-blue-50/30' : ''
                         }`}
                       >
@@ -292,7 +305,7 @@ export default function FloatingChatWidget() {
                             )}
                           </div>
                           <div className="flex items-center justify-between gap-1">
-                            <p className="text-[11px] text-slate-500 truncate max-w-[180px]">
+                            <p className="text-[11px] text-slate-500 truncate max-w-[140px]">
                               {r.last_message ? (
                                 r.last_message.message_type === 'PROJECT_CARD' ? '📋 การ์ดข้อมูลโครงการ' :
                                 r.last_message.message_type === 'FILE' ? '📎 ไฟล์แนบ' :
@@ -301,11 +314,24 @@ export default function FloatingChatWidget() {
                                 <span className="italic text-slate-400">ยังไม่มีข้อความ</span>
                               )}
                             </p>
-                            {isUnread && (
-                              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shrink-0">
-                                {r.unread_count}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isUnread && (
+                                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white">
+                                  {r.unread_count}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRoomToDelete(r);
+                                }}
+                                className="opacity-0 group-hover/room:opacity-100 p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                                title="ลบห้องสนทนา"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -325,6 +351,14 @@ export default function FloatingChatWidget() {
         onRoomCreated={(roomId) => {
           setWidgetActiveRoom(roomId);
         }}
+      />
+
+      {/* Delete Chat Room Modal */}
+      <DeleteChatRoomModal
+        isOpen={!!roomToDelete}
+        room={roomToDelete}
+        onClose={() => setRoomToDelete(null)}
+        onDeleted={() => setRoomToDelete(null)}
       />
     </>
   );
