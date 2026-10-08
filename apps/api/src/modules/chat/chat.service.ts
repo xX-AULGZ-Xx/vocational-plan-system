@@ -269,7 +269,7 @@ export class ChatService {
       include: {
         leader: { select: { id: true, full_name: true } },
         department: true,
-        approvals: { select: { approver_id: true } },
+        approvals: { select: { step_order: true, approver_id: true } },
       },
     });
 
@@ -277,7 +277,7 @@ export class ChatService {
       throw new Error('ไม่พบข้อมูลโครงการ');
     }
 
-    // 1. Fetch all active users to match proposal names and planning officers
+    // 1. Fetch all active users to match proposal names and roles
     const allUsers = await prisma.user.findMany({
       where: { is_active: true },
       select: {
@@ -297,93 +297,90 @@ export class ChatService {
             .trim()
         : '';
 
-    const stakeholderUserIds = new Set<string>();
-
-    // A. Project Leader
-    if (project.leader_id) {
-      stakeholderUserIds.add(project.leader_id.toString());
-    }
-
-    // B. Current User
-    if (currentUserId) {
-      stakeholderUserIds.add(currentUserId.toString());
-    }
-
-    // C. Approvers in project approval pipeline
-    if (project.approvals) {
-      project.approvals.forEach((a) => {
-        if (a.approver_id) stakeholderUserIds.add(a.approver_id.toString());
+    const findUserByName = (rawName?: string) => {
+      if (!rawName) return null;
+      const norm = normalizeName(rawName);
+      if (!norm || norm.length < 3) return null;
+      return allUsers.find((u) => {
+        const uNorm = normalizeName(u.full_name);
+        return (
+          uNorm === norm ||
+          u.full_name.trim() === rawName.trim() ||
+          (norm.length >= 5 && (uNorm.includes(norm) || norm.includes(uNorm)))
+        );
       });
-    }
+    };
 
-    // D. Scan dynamic_data in project proposal (proposer, committee, responsible persons, endorser, etc.)
     let dyn: any = project.dynamic_data;
     if (typeof dyn === 'string') {
       try {
         dyn = JSON.parse(dyn);
       } catch {}
     }
+    dyn = dyn || {};
 
-    const candidateNames = new Set<string>();
-    if (dyn && typeof dyn === 'object') {
-      for (const [k, v] of Object.entries(dyn)) {
-        if (typeof v === 'string' && v.trim()) {
-          const lowerK = k.toLowerCase();
-          if (
-            lowerK.includes('name') ||
-            lowerK.includes('leader') ||
-            lowerK.includes('proposer') ||
-            lowerK.includes('endorser') ||
-            lowerK.includes('approver') ||
-            lowerK.includes('head') ||
-            lowerK.includes('director') ||
-            lowerK.includes('reporter') ||
-            lowerK.includes('teacher') ||
-            lowerK.includes('member') ||
-            lowerK.includes('committee') ||
-            lowerK.includes('coordinator') ||
-            lowerK.includes('consultant')
-          ) {
-            candidateNames.add(v.trim());
-          }
-        } else if (Array.isArray(v)) {
-          // Table loops (e.g. committee, team members)
-          v.forEach((row) => {
-            if (row && typeof row === 'object') {
-              for (const [, rv] of Object.entries(row)) {
-                if (typeof rv === 'string' && rv.trim()) {
-                  candidateNames.add(rv.trim());
-                }
-              }
-            }
-          });
-        }
-      }
+    const stakeholderUserIds = new Set<string>();
+
+    // 1. ผู้เสนอ (Proposer / Leader)
+    const proposerUser =
+      findUserByName(dyn.leader_name || dyn.proposer_name) ||
+      (project.leader_id ? allUsers.find((u) => u.id === project.leader_id) : null);
+    if (proposerUser) {
+      stakeholderUserIds.add(proposerUser.id.toString());
     }
 
-    // Match candidate names from proposal against active users
-    for (const name of candidateNames) {
-      const norm = normalizeName(name);
-      if (!norm || norm.length < 3) continue;
-
-      const matchedUser = allUsers.find((u) => {
-        const uNorm = normalizeName(u.full_name);
-        return (
-          uNorm === norm ||
-          u.full_name.trim() === name.trim() ||
-          (norm.length >= 5 && (uNorm.includes(norm) || norm.includes(uNorm)))
-        );
-      });
-
-      if (matchedUser) {
-        stakeholderUserIds.add(matchedUser.id.toString());
-      }
+    // 2. ผู้เห็นชอบ (Endorser / Head of Department)
+    const step1ApproverId = project.approvals?.find((a) => a.step_order === 1)?.approver_id;
+    const endorserUser =
+      findUserByName(dyn.endorser_name || dyn.head_dept_name || dyn.head_name || dyn.approver_name) ||
+      (step1ApproverId ? allUsers.find((u) => u.id === step1ApproverId) : null) ||
+      allUsers.find(
+        (u) =>
+          (project.department?.name && u.position?.includes(`หัวหน้า${project.department.name}`)) ||
+          u.role === 'HEAD_DEPT'
+      );
+    if (endorserUser) {
+      stakeholderUserIds.add(endorserUser.id.toString());
     }
 
-    // E. Planning officers & Key Admins
-    allUsers
-      .filter((u) => ['PLANNING_OFFICER', 'ADMIN', 'DIRECTOR', 'DEPUTY_DIRECTOR'].includes(u.role))
-      .forEach((u) => stakeholderUserIds.add(u.id.toString()));
+    // 3. หัวหน้างานแผนงาน (Head of Planning)
+    const planningHeadUser =
+      findUserByName(dyn.planning_head_name) ||
+      allUsers.find((u) => u.position?.includes('หัวหน้างานวางแผน') || u.position?.includes('หัวหน้างานแผนงาน')) ||
+      allUsers.find((u) => u.role === 'PLANNING_OFFICER');
+    if (planningHeadUser) {
+      stakeholderUserIds.add(planningHeadUser.id.toString());
+    }
+
+    // 4. รองผู้อำนวยการฝ่ายแผนงานฯ (Deputy Director of Planning)
+    const deputyStratUser =
+      findUserByName(dyn.deputy_strat_name || dyn.deputy_name) ||
+      allUsers.find(
+        (u) =>
+          u.position?.includes('รองผู้อำนวยการฝ่ายแผนงาน') ||
+          (u.role === 'DEPUTY_DIRECTOR' && u.position?.includes('แผนงาน'))
+      );
+    if (deputyStratUser) {
+      stakeholderUserIds.add(deputyStratUser.id.toString());
+    }
+
+    // 5. ผู้อำนวยการสถานศึกษา (Director)
+    const directorUser =
+      findUserByName(dyn.director_name) ||
+      allUsers.find(
+        (u) =>
+          u.role === 'DIRECTOR' ||
+          u.position?.includes('ผู้อำนวยการวิทยาลัย') ||
+          u.position?.includes('ผู้อำนวยการสถานศึกษา')
+      );
+    if (directorUser) {
+      stakeholderUserIds.add(directorUser.id.toString());
+    }
+
+    // 6. Current User (if authorized viewer/admin)
+    if (currentUserId) {
+      stakeholderUserIds.add(currentUserId.toString());
+    }
 
     // Find all existing project rooms (and cleanup duplicates if multiple exist)
     const existingRooms = await prisma.chatRoom.findMany({
@@ -439,7 +436,7 @@ export class ChatService {
     }
 
     if (!room) {
-      // Create new Project Chat Room with all stakeholders from proposal
+      // Create new Project Chat Room with exactly the 5 proposal stakeholders + current user
       room = await prisma.chatRoom.create({
         data: {
           type: 'PROJECT',
@@ -450,7 +447,10 @@ export class ChatService {
           participants: {
             create: Array.from(stakeholderUserIds).map((uid) => ({
               user_id: BigInt(uid),
-              role: uid === project.leader_id?.toString() ? 'OWNER' : 'MEMBER',
+              role:
+                uid === (proposerUser?.id.toString() || project.leader_id?.toString())
+                  ? 'OWNER'
+                  : 'MEMBER',
             })),
           },
         },
@@ -503,8 +503,10 @@ export class ChatService {
         },
       });
     } else {
-      // Room already exists: Synchronize any new stakeholders from proposal into participants
+      // Room already exists: Synchronize participants to match the 5 proposal stakeholders
       const existingParticipantIds = new Set(room.participants.map((p) => p.user_id.toString()));
+
+      // 1. Add missing stakeholders
       const missingStakeholderIds = Array.from(stakeholderUserIds).filter(
         (uid) => !existingParticipantIds.has(uid)
       );
@@ -514,8 +516,29 @@ export class ChatService {
           data: missingStakeholderIds.map((uid) => ({
             room_id: room!.id,
             user_id: BigInt(uid),
-            role: uid === project.leader_id?.toString() ? 'OWNER' : 'MEMBER',
+            role:
+              uid === (proposerUser?.id.toString() || project.leader_id?.toString())
+                ? 'OWNER'
+                : 'MEMBER',
           })),
+        });
+      }
+
+      // 2. Remove any obsolete participants who are no longer among the 5 proposal roles (except current user)
+      const obsoleteParticipantIds = room.participants
+        .filter(
+          (p) =>
+            !stakeholderUserIds.has(p.user_id.toString()) &&
+            p.user_id.toString() !== currentUserId.toString()
+        )
+        .map((p) => p.user_id);
+
+      if (obsoleteParticipantIds.length > 0) {
+        await prisma.chatParticipant.deleteMany({
+          where: {
+            room_id: room.id,
+            user_id: { in: obsoleteParticipantIds },
+          },
         });
       }
 
