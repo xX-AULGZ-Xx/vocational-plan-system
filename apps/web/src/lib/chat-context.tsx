@@ -215,6 +215,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const socketRef = useRef<Socket | null>(null);
   const activeRoomRef = useRef<string | null>(null);
+  const openProjectChatRequestsRef = useRef<Map<string, Promise<string | null>>>(new Map());
   activeRoomRef.current = activeRoomId || widgetActiveRoomId;
 
   // Calculate active room
@@ -610,23 +611,35 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Open project chat
   const openProjectChat = useCallback(
     async (projectId: string): Promise<string | null> => {
-      try {
-        const res = await fetch(`/api/v1/chat/rooms/project/${projectId}`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-        });
-        const data = await res.json();
-        if (data.success && data.data) {
-          const roomId = data.data.id.toString();
-          await fetchRooms();
-          await selectRoom(roomId);
-          setWidgetActiveRoomId(roomId);
-          return roomId;
-        }
-      } catch (err) {
-        console.error('Error opening project chat:', err);
+      if (!projectId) return null;
+      if (openProjectChatRequestsRef.current.has(projectId)) {
+        return await openProjectChatRequestsRef.current.get(projectId)!;
       }
-      return null;
+
+      const task = (async (): Promise<string | null> => {
+        try {
+          const res = await fetch(`/api/v1/chat/rooms/project/${projectId}`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+          });
+          const data = await res.json();
+          if (data.success && data.data) {
+            const roomId = data.data.id.toString();
+            await fetchRooms();
+            await selectRoom(roomId);
+            setWidgetActiveRoomId(roomId);
+            return roomId;
+          }
+        } catch (err) {
+          console.error('Error opening project chat:', err);
+        } finally {
+          openProjectChatRequestsRef.current.delete(projectId);
+        }
+        return null;
+      })();
+
+      openProjectChatRequestsRef.current.set(projectId, task);
+      return await task;
     },
     [getAuthHeaders, fetchRooms, selectRoom]
   );

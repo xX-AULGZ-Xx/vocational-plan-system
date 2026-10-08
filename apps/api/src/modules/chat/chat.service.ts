@@ -3,6 +3,8 @@ import { wsManager } from '../notifications/socket.manager';
 import { ChatRoomType } from '@prisma/client';
 
 export class ChatService {
+  private projectRoomLocks = new Map<string, Promise<any>>();
+
   /**
    * Get all chat rooms for a given user with unread counts, latest message, and online status
    */
@@ -247,6 +249,21 @@ export class ChatService {
    * Get or create project room and automatically sync project stakeholders from proposal & dynamic_data
    */
   async getOrCreateProjectRoom(projectId: bigint, currentUserId: bigint) {
+    const lockKey = projectId.toString();
+    if (this.projectRoomLocks.has(lockKey)) {
+      return await this.projectRoomLocks.get(lockKey);
+    }
+
+    const task = this._internalGetOrCreateProjectRoom(projectId, currentUserId);
+    this.projectRoomLocks.set(lockKey, task);
+    try {
+      return await task;
+    } finally {
+      this.projectRoomLocks.delete(lockKey);
+    }
+  }
+
+  private async _internalGetOrCreateProjectRoom(projectId: bigint, currentUserId: bigint) {
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: {
@@ -368,11 +385,13 @@ export class ChatService {
       .filter((u) => ['PLANNING_OFFICER', 'ADMIN', 'DIRECTOR', 'DEPUTY_DIRECTOR'].includes(u.role))
       .forEach((u) => stakeholderUserIds.add(u.id.toString()));
 
-    let room = await prisma.chatRoom.findFirst({
+    // Find all existing project rooms (and cleanup duplicates if multiple exist)
+    const existingRooms = await prisma.chatRoom.findMany({
       where: {
         type: 'PROJECT',
         project_id: projectId,
       },
+      orderBy: { id: 'asc' },
       include: {
         project: {
           select: {
@@ -402,6 +421,22 @@ export class ChatService {
         },
       },
     });
+
+    let room = existingRooms[0] || null;
+
+    // If duplicate rooms were created in the past, clean them up safely
+    if (existingRooms.length > 1) {
+      const [primaryRoom, ...duplicateRooms] = existingRooms;
+      for (const dup of duplicateRooms) {
+        // Move any messages from duplicate room to primary room before deleting
+        await prisma.chatMessage.updateMany({
+          where: { room_id: dup.id },
+          data: { room_id: primaryRoom.id },
+        });
+        await prisma.chatRoom.delete({ where: { id: dup.id } }).catch(() => {});
+      }
+      room = primaryRoom;
+    }
 
     if (!room) {
       // Create new Project Chat Room with all stakeholders from proposal
