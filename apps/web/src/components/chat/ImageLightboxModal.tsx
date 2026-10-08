@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   ZoomIn,
@@ -28,6 +29,11 @@ export default function ImageLightboxModal({
 }: ImageLightboxModalProps) {
   const [scale, setScale] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Reset zoom & rotation when modal opens/changes image
   useEffect(() => {
@@ -93,13 +99,13 @@ export default function ImageLightboxModal({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  if (!isOpen || !imageUrl) return null;
+  if (!mounted || !isOpen || !imageUrl) return null;
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md select-none animate-in fade-in duration-200"
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 backdrop-blur-md select-none animate-in fade-in duration-200"
       onClick={onClose}
     >
       {/* Top Header Bar */}
@@ -221,6 +227,7 @@ export default function ImageLightboxModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
