@@ -704,6 +704,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       title,
       fiscal_year,
       department_id,
+      leader_id,
       template_id,
       background,
       objectives,
@@ -716,6 +717,31 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       timelines,
       budget_items,
     } = req.body;
+
+    // Resolve leader_id if explicitly provided or dynamically changed via leader_name
+    let finalLeaderId: bigint | undefined = leader_id ? BigInt(leader_id) : undefined;
+    if (!finalLeaderId && dynamic_data) {
+      try {
+        let parsed = dynamic_data;
+        while (typeof parsed === 'string') {
+          parsed = JSON.parse(parsed);
+        }
+        if (parsed && typeof parsed === 'object') {
+          const lName = parsed.leader_name || parsed.responsible_person || parsed.proposer_name;
+          if (lName && typeof lName === 'string' && lName.trim()) {
+            const matchedUser = await prisma.user.findFirst({
+              where: {
+                full_name: lName.trim(),
+              },
+              select: { id: true },
+            });
+            if (matchedUser) {
+              finalLeaderId = matchedUser.id;
+            }
+          }
+        }
+      } catch (e) {}
+    }
 
     const hasBudgetItems = Array.isArray(budget_items);
     const hasTimelines = Array.isArray(timelines);
@@ -746,6 +772,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         where: { id: projectId },
         data: {
           title: title !== undefined ? title : existingProject.title,
+          leader_id: finalLeaderId !== undefined ? finalLeaderId : existingProject.leader_id,
           fiscal_year: dynamic_data !== undefined
             ? extractFiscalYearFromDynamicData(dynamic_data, fiscal_year !== undefined ? parseInt(fiscal_year) : existingProject.fiscal_year)
             : (fiscal_year !== undefined ? parseInt(fiscal_year) : existingProject.fiscal_year),

@@ -172,19 +172,27 @@ export default function ProjectDetailPage() {
         return;
       }
 
+      // Determine dynamic proposer name & position if updated
+      const dynamicLeaderName = parsedDynamicData?.leader_name || parsedDynamicData?.responsible_person || parsedDynamicData?.proposer_name || project.leader?.full_name;
+      const dynamicLeaderPos = parsedDynamicData?.leader_position || parsedDynamicData?.responsible_position || parsedDynamicData?.proposer_position || project.leader?.position;
+
       // Combine form data from project & dynamic_data
       const formData = {
-        ...(parsedDynamicData || {}),
         title: project.title,
         fiscal_year: project.fiscal_year,
         project_code: project.project_code,
-        department_name: project.department?.name,
+        department_name: parsedDynamicData?.leader_department_name || project.department?.name,
         division_name: project.department?.division?.name,
-        leader_name: project.leader?.full_name,
-        leader_position: project.leader?.position,
         total_budget: project.total_budget,
         budget_items: project.budget_items || [],
         timelines: project.timelines || [],
+        ...(parsedDynamicData || {}),
+        leader_name: dynamicLeaderName,
+        leader_position: dynamicLeaderPos,
+        responsible_person: dynamicLeaderName,
+        responsible_position: dynamicLeaderPos,
+        proposer_name: dynamicLeaderName,
+        proposer_position: dynamicLeaderPos,
       };
 
       const res = await fetch('/api/v1/documents/export-dynamic', {
@@ -371,6 +379,10 @@ export default function ProjectDetailPage() {
     );
   }
 
+  // Determine dynamic proposer name & position if updated
+  const dynamicLeaderName = parsedDynamicData?.leader_name || parsedDynamicData?.responsible_person || parsedDynamicData?.proposer_name || project.leader?.full_name;
+  const dynamicLeaderPos = parsedDynamicData?.leader_position || parsedDynamicData?.responsible_position || parsedDynamicData?.proposer_position || project.leader?.position;
+
   // Convert project to form data structure for A4 preview
   const previewData: ProjectFormData = {
     title: project.title,
@@ -378,10 +390,10 @@ export default function ProjectDetailPage() {
     project_code: project.project_code,
     template_id: project.template_id,
     template_name: project.template?.name || '',
-    department_name: project.department?.name,
+    department_name: parsedDynamicData?.leader_department_name || project.department?.name,
     division_name: project.department?.division?.name,
-    leader_name: project.leader?.full_name,
-    leader_position: project.leader?.position,
+    leader_name: dynamicLeaderName,
+    leader_position: dynamicLeaderPos,
     background: project.background,
     objectives: Array.isArray(project.objectives) ? project.objectives : [],
     target_quantitative: project.target_groups?.quantitative || '',
@@ -390,6 +402,7 @@ export default function ProjectDetailPage() {
     timelines: project.timelines || [],
     budget_items: project.budget_items || [],
     mappings: project.template?.mappings || {},
+    ...(parsedDynamicData || {}),
   };
 
   const pendingApproval = project.approvals?.find((a: any) => a.status === 'PENDING');
@@ -452,7 +465,7 @@ export default function ProjectDetailPage() {
 
                 return (
                   <>
-                    สังกัด: {deptName} {targetDivName ? `(${targetDivName})` : ''} • ผู้เสนอ: {project.leader?.full_name}
+                    สังกัด: {deptName} {targetDivName ? `(${targetDivName})` : ''} • ผู้เสนอ: {dynamicLeaderName || project.leader?.full_name}
                   </>
                 );
               })()}
