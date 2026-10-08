@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import ProfileSetupModal from '../profile/ProfileSetupModal';
+import FloatingChatWidget from '../chat/FloatingChatWidget';
 import { usePathname, useRouter } from 'next/navigation';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -48,6 +49,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </main>
       </div>
       <ProfileSetupModal />
+      <FloatingChatWidget />
     </div>
   );
 }

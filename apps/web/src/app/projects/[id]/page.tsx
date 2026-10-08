@@ -12,6 +12,7 @@ import ProjectSummaryModal from '@/components/reports/ProjectSummaryModal';
 import ProjectSummaryTab from '@/components/reports/ProjectSummaryTab';
 import EvaluationTab from '@/components/evaluation/EvaluationTab';
 import ProjectRegistrationTab from './components/ProjectRegistrationTab';
+import ProjectChatTab from './components/ProjectChatTab';
 import ModalPortal from '@/components/ui/ModalPortal';
 import {
   ArrowLeft,
@@ -44,6 +45,7 @@ import {
   MapPin,
   PlayCircle,
   Award,
+  MessageSquare,
 } from 'lucide-react';
 
 const formatThaiDate = (dateStr: string) => {
@@ -74,13 +76,13 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<number>(0.85);
-  const [activeTab, setActiveTab] = useState<'details' | 'approvals' | 'attachments' | 'evaluation' | 'summary' | 'registration'>(
-    ['details', 'approvals', 'attachments', 'evaluation', 'summary', 'registration'].includes(initialTab) ? (initialTab as any) : 'details'
+  const [activeTab, setActiveTab] = useState<'details' | 'approvals' | 'attachments' | 'evaluation' | 'summary' | 'registration' | 'chat'>(
+    ['details', 'approvals', 'attachments', 'evaluation', 'summary', 'registration', 'chat'].includes(initialTab) ? (initialTab as any) : 'details'
   );
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['details', 'approvals', 'attachments', 'evaluation', 'summary', 'registration'].includes(tabParam)) {
+    if (tabParam && ['details', 'approvals', 'attachments', 'evaluation', 'summary', 'registration', 'chat'].includes(tabParam)) {
       setActiveTab(tabParam as any);
     }
   }, [searchParams]);
@@ -888,6 +890,7 @@ export default function ProjectDetailPage() {
           { id: 'registration', label: 'ลงทะเบียน & เกียรติบัตร', icon: Award },
           { id: 'evaluation', label: 'ประเมินความพึงพอใจ', icon: ClipboardCheck },
           { id: 'summary', label: 'สรุปโครงการ', icon: Sparkles },
+          { id: 'chat', label: 'ห้องปรึกษาโครงการ (Chat)', icon: MessageSquare },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1169,6 +1172,13 @@ export default function ProjectDetailPage() {
           project={project}
           token={token}
           onProjectUpdated={fetchProject}
+        />
+      )}
+
+      {activeTab === 'chat' && (
+        <ProjectChatTab
+          projectId={projectId}
+          project={project}
         />
       )}
 

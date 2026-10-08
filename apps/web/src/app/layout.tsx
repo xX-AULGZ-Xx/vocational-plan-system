@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { SettingsProvider } from '@/lib/settings-context';
 import { NotificationProvider } from '@/lib/notification-context';
+import { ChatProvider } from '@/lib/chat-context';
 import MainLayout from '@/components/layout/MainLayout';
 
 const prompt = Prompt({
@@ -56,7 +57,9 @@ export default function RootLayout({
         <AuthProvider>
           <SettingsProvider>
             <NotificationProvider>
-              <MainLayout>{children}</MainLayout>
+              <ChatProvider>
+                <MainLayout>{children}</MainLayout>
+              </ChatProvider>
             </NotificationProvider>
           </SettingsProvider>
         </AuthProvider>

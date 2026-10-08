@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import { useNotifications } from '@/lib/notification-context';
+import { useChat } from '@/lib/chat-context';
 import {
   LayoutDashboard,
   Calendar,
@@ -21,6 +22,7 @@ import {
   Settings,
   ArrowUpCircle,
   X,
+  MessageSquare,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -32,6 +34,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
   const pathname = usePathname();
   const { user, token } = useAuth();
   const { unreadCount, subscribeDataUpdate } = useNotifications();
+  const { totalUnreadCount } = useChat();
   const { themeSidebarStyle, themePrimaryColor, collegeLogoUrl, collegeName, developerInfo, divisions } = useSettings();
 
   const [pendingApprovalCount, setPendingApprovalCount] = useState<number>(0);
@@ -136,6 +139,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
     { name: 'แผนปฏิบัติงาน / ไทม์ไลน์', href: '/schedule', icon: Calendar, roles: ['TEACHER', 'HEAD_DEPT', 'DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'] },
     { name: 'คิวงานและอนุมัติ', href: '/approvals', icon: CheckCircle2, roles: ['HEAD_DEPT', 'DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'] },
     { name: 'การแจ้งเตือน', href: '/notifications', icon: Clock, roles: ['TEACHER', 'HEAD_DEPT', 'DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'] },
+    { name: 'ห้องแชทและการสนทนา', href: '/chat', icon: MessageSquare, roles: ['TEACHER', 'HEAD_DEPT', 'DEPUTY_DIRECTOR', 'PLANNING_OFFICER', 'DIRECTOR', 'ADMIN'] },
   ];
 
   // Dynamic division navigation based on system settings / database
@@ -385,6 +389,18 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                           }`}
                       >
                         {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+
+                    {/* Badge for Chat unread messages */}
+                    {item.href === '/chat' && totalUnreadCount > 0 && (
+                      <span
+                        className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${active
+                            ? 'bg-blue-400 text-slate-900 font-black shadow-xs'
+                            : 'bg-blue-600 text-white font-black shadow-xs animate-pulse'
+                          }`}
+                      >
+                        {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
                       </span>
                     )}
                   </Link>

@@ -84,6 +84,9 @@ model User {
   projects      Project[]         @relation("ProjectLeader")
   approvals     ProjectApproval[]
   notifications Notification[]
+  chat_rooms_created ChatRoom[]   @relation("ChatRoomCreator")
+  chat_participants  ChatParticipant[]
+  chat_messages      ChatMessage[]
 
   @@map("users")
 }
@@ -136,6 +139,7 @@ model Project {
   documents        ProjectDocument[]
   evaluation_form  ProjectEvaluationForm?
   attendees        ProjectAttendee[]
+  chat_rooms       ChatRoom[]
 
   @@map("projects")
 }
@@ -457,3 +461,83 @@ model ProjectAttendee {
   @@index([project_id, phone])
   @@map("project_attendees")
 }
+
+enum ChatRoomType {
+  DIRECT
+  GROUP
+  PROJECT
+}
+
+model ChatRoom {
+  id           BigInt            @id @default(autoincrement())
+  type         ChatRoomType      @default(DIRECT)
+  name         String?           @db.VarChar(255)
+  description  String?           @db.Text
+  avatar_url   String?           @db.Text
+  project_id   BigInt?
+  created_by   BigInt?
+  created_at   DateTime          @default(now())
+  updated_at   DateTime          @updatedAt
+  
+  project      Project?          @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  creator      User?             @relation("ChatRoomCreator", fields: [created_by], references: [id], onDelete: SetNull)
+  participants ChatParticipant[]
+  messages     ChatMessage[]
+
+  @@index([project_id])
+  @@index([created_by])
+  @@map("chat_rooms")
+}
+
+model ChatParticipant {
+  id           BigInt    @id @default(autoincrement())
+  room_id      BigInt
+  user_id      BigInt
+  role         String    @default("MEMBER") @db.VarChar(50)
+  last_read_at DateTime?
+  is_muted     Boolean   @default(false)
+  joined_at    DateTime  @default(now())
+
+  room         ChatRoom  @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([room_id, user_id])
+  @@index([user_id])
+  @@map("chat_participants")
+}
+
+model ChatMessage {
+  id           BigInt           @id @default(autoincrement())
+  room_id      BigInt
+  sender_id    BigInt
+  content      String?          @db.Text
+  message_type String           @default("TEXT") @db.VarChar(50)
+  metadata     Json?
+  is_deleted   Boolean          @default(false)
+  created_at   DateTime         @default(now())
+  updated_at   DateTime         @default(now()) @updatedAt
+
+  room         ChatRoom         @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  sender       User             @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+  attachments  ChatAttachment[]
+
+  @@index([room_id, created_at])
+  @@index([sender_id])
+  @@map("chat_messages")
+}
+
+model ChatAttachment {
+  id           BigInt      @id @default(autoincrement())
+  message_id   BigInt
+  file_name    String      @db.VarChar(255)
+  file_url     String      @db.Text
+  file_type    String      @db.VarChar(50)
+  file_size    Int
+  created_at   DateTime    @default(now())
+
+  message      ChatMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
+
+  @@index([message_id])
+  @@map("chat_attachments")
+}
+

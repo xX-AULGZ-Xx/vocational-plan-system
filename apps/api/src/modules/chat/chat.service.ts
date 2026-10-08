@@ -1,0 +1,768 @@
+import { prisma, serializeBigInt } from '../../lib/prisma';
+import { wsManager } from '../notifications/socket.manager';
+import { ChatRoomType } from '@prisma/client';
+
+export class ChatService {
+  /**
+   * Get all chat rooms for a given user with unread counts, latest message, and online status
+   */
+  async getUserRooms(userId: bigint) {
+    const userParticipants = await prisma.chatParticipant.findMany({
+      where: { user_id: userId },
+      include: {
+        room: {
+          include: {
+            project: {
+              select: {
+                id: true,
+                project_code: true,
+                title: true,
+                status: true,
+                total_budget: true,
+                fiscal_year: true,
+                department: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    full_name: true,
+                    username: true,
+                    avatar_url: true,
+                    role: true,
+                    position: true,
+                    department: {
+                      select: { id: true, name: true },
+                    },
+                  },
+                },
+              },
+            },
+            messages: {
+              where: { is_deleted: false },
+              orderBy: { created_at: 'desc' },
+              take: 1,
+              include: {
+                sender: {
+                  select: {
+                    id: true,
+                    full_name: true,
+                    avatar_url: true,
+                  },
+                },
+                attachments: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        room: {
+          updated_at: 'desc',
+        },
+      },
+    });
+
+    const roomsWithDetails = await Promise.all(
+      userParticipants.map(async (up) => {
+        const room = up.room;
+        const lastMessage = room.messages[0] || null;
+
+        // Unread messages count for this user
+        const unreadCount = await prisma.chatMessage.count({
+          where: {
+            room_id: room.id,
+            is_deleted: false,
+            sender_id: { not: userId },
+            ...(up.last_read_at ? { created_at: { gt: up.last_read_at } } : {}),
+          },
+        });
+
+        // Other participants (excluding current user if direct)
+        const otherParticipants = room.participants
+          .filter((p) => p.user_id !== userId)
+          .map((p) => ({
+            ...p,
+            user: {
+              ...p.user,
+              is_online: wsManager.isUserOnline(p.user_id),
+            },
+          }));
+
+        // Display name and avatar resolution
+        let displayName = room.name;
+        let displayAvatar = room.avatar_url;
+        let subtitle = '';
+
+        if (room.type === 'DIRECT') {
+          const otherUser = otherParticipants[0]?.user;
+          if (otherUser) {
+            displayName = otherUser.full_name;
+            displayAvatar = otherUser.avatar_url || null;
+            subtitle = otherUser.position || otherUser.department?.name || otherUser.role;
+          } else {
+            displayName = 'แชทส่วนตัว';
+          }
+        } else if (room.type === 'PROJECT') {
+          displayName = room.project?.title || room.name || 'ห้องแชทโครงการ';
+          subtitle = room.project?.project_code ? `รหัส: ${room.project.project_code}` : 'ห้องปรึกษาโครงการ';
+        } else if (room.type === 'GROUP') {
+          subtitle = `${room.participants.length} สมาชิก`;
+        }
+
+        return {
+          id: room.id.toString(),
+          type: room.type,
+          name: room.name,
+          displayName,
+          displayAvatar,
+          subtitle,
+          description: room.description,
+          project_id: room.project_id ? room.project_id.toString() : null,
+          project: room.project ? serializeBigInt(room.project) : null,
+          unread_count: unreadCount,
+          last_read_at: up.last_read_at,
+          last_message: lastMessage ? serializeBigInt(lastMessage) : null,
+          participants: room.participants.map((p) => ({
+            id: p.id.toString(),
+            user_id: p.user_id.toString(),
+            role: p.role,
+            is_muted: p.is_muted,
+            user: {
+              ...serializeBigInt(p.user),
+              is_online: wsManager.isUserOnline(p.user_id),
+            },
+          })),
+          updated_at: room.updated_at,
+          created_at: room.created_at,
+        };
+      })
+    );
+
+    // Sort rooms by latest activity (last message created_at or room updated_at)
+    roomsWithDetails.sort((a, b) => {
+      const timeA = a.last_message?.created_at ? new Date(a.last_message.created_at).getTime() : new Date(a.updated_at).getTime();
+      const timeB = b.last_message?.created_at ? new Date(b.last_message.created_at).getTime() : new Date(b.updated_at).getTime();
+      return timeB - timeA;
+    });
+
+    return roomsWithDetails;
+  }
+
+  /**
+   * Get or create a 1-on-1 direct chat room
+   */
+  async getOrCreateDirectRoom(userId: bigint, targetUserId: bigint) {
+    if (userId === targetUserId) {
+      throw new Error('ไม่สามารถสร้างห้องแชทกับตัวเองได้');
+    }
+
+    // Find if a direct room already exists between these 2 users
+    const existingDirectRooms = await prisma.chatRoom.findMany({
+      where: {
+        type: 'DIRECT',
+        AND: [
+          { participants: { some: { user_id: userId } } },
+          { participants: { some: { user_id: targetUserId } } },
+        ],
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                full_name: true,
+                username: true,
+                avatar_url: true,
+                role: true,
+                position: true,
+                department: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (existingDirectRooms.length > 0) {
+      return serializeBigInt(existingDirectRooms[0]);
+    }
+
+    // Create new direct room
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { full_name: true },
+    });
+
+    if (!targetUser) {
+      throw new Error('ไม่พบผู้ใช้งานที่ต้องการเริ่มแชท');
+    }
+
+    const newRoom = await prisma.chatRoom.create({
+      data: {
+        type: 'DIRECT',
+        created_by: userId,
+        participants: {
+          create: [
+            { user_id: userId, role: 'OWNER' },
+            { user_id: targetUserId, role: 'MEMBER' },
+          ],
+        },
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                full_name: true,
+                username: true,
+                avatar_url: true,
+                role: true,
+                position: true,
+                department: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return serializeBigInt(newRoom);
+  }
+
+  /**
+   * Get or create project room and automatically sync project stakeholders
+   */
+  async getOrCreateProjectRoom(projectId: bigint, currentUserId: bigint) {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        leader: { select: { id: true, full_name: true } },
+        department: true,
+        approvals: { select: { approver_id: true } },
+      },
+    });
+
+    if (!project) {
+      throw new Error('ไม่พบข้อมูลโครงการ');
+    }
+
+    let room = await prisma.chatRoom.findFirst({
+      where: {
+        type: 'PROJECT',
+        project_id: projectId,
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            project_code: true,
+            title: true,
+            status: true,
+            total_budget: true,
+            fiscal_year: true,
+            department: { select: { id: true, name: true } },
+          },
+        },
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                full_name: true,
+                username: true,
+                avatar_url: true,
+                role: true,
+                position: true,
+                department: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Gather stakeholder user IDs (Project Leader, Approvers, Planning Officers, Director, Current User)
+    const planningUsers = await prisma.user.findMany({
+      where: {
+        role: { in: ['PLANNING_OFFICER', 'ADMIN', 'DIRECTOR', 'DEPUTY_DIRECTOR'] },
+        is_active: true,
+      },
+      select: { id: true },
+    });
+
+    const stakeholderUserIds = new Set<string>();
+    stakeholderUserIds.add(project.leader_id.toString());
+    stakeholderUserIds.add(currentUserId.toString());
+    project.approvals.forEach((a) => {
+      if (a.approver_id) stakeholderUserIds.add(a.approver_id.toString());
+    });
+    planningUsers.forEach((u) => stakeholderUserIds.add(u.id.toString()));
+
+    if (!room) {
+      // Create new Project Chat Room
+      room = await prisma.chatRoom.create({
+        data: {
+          type: 'PROJECT',
+          name: `ห้องปรึกษา: ${project.title}`,
+          description: `ห้องสนทนาและติดตามงานโครงการ ${project.project_code || ''} - ${project.title}`,
+          project_id: projectId,
+          created_by: currentUserId,
+          participants: {
+            create: Array.from(stakeholderUserIds).map((uid) => ({
+              user_id: BigInt(uid),
+              role: uid === project.leader_id.toString() ? 'OWNER' : 'MEMBER',
+            })),
+          },
+        },
+        include: {
+          project: {
+            select: {
+              id: true,
+              project_code: true,
+              title: true,
+              status: true,
+              total_budget: true,
+              fiscal_year: true,
+              department: { select: { id: true, name: true } },
+            },
+          },
+          participants: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  full_name: true,
+                  username: true,
+                  avatar_url: true,
+                  role: true,
+                  position: true,
+                  department: { select: { id: true, name: true } },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Post initial system message
+      await prisma.chatMessage.create({
+        data: {
+          room_id: room.id,
+          sender_id: currentUserId,
+          message_type: 'PROJECT_CARD',
+          content: `เปิดห้องปรึกษาโครงการ "${project.title}"`,
+          metadata: {
+            project_id: project.id.toString(),
+            project_code: project.project_code,
+            title: project.title,
+            status: project.status,
+            total_budget: project.total_budget,
+            fiscal_year: project.fiscal_year,
+            department_name: project.department?.name,
+          },
+        },
+      });
+    } else {
+      // Ensure current user is a participant
+      const isParticipant = room.participants.some((p) => p.user_id === currentUserId);
+      if (!isParticipant) {
+        await prisma.chatParticipant.create({
+          data: {
+            room_id: room.id,
+            user_id: currentUserId,
+            role: 'MEMBER',
+          },
+        });
+        // Re-fetch room participants
+        room = (await prisma.chatRoom.findUnique({
+          where: { id: room.id },
+          include: {
+            project: {
+              select: {
+                id: true,
+                project_code: true,
+                title: true,
+                status: true,
+                total_budget: true,
+                fiscal_year: true,
+                department: { select: { id: true, name: true } },
+              },
+            },
+            participants: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    full_name: true,
+                    username: true,
+                    avatar_url: true,
+                    role: true,
+                    position: true,
+                    department: { select: { id: true, name: true } },
+                  },
+                },
+              },
+            },
+          },
+        }))!;
+      }
+    }
+
+    return serializeBigInt(room);
+  }
+
+  /**
+   * Create a group chat
+   */
+  async createGroupRoom(creatorId: bigint, name: string, description?: string, participantIds: bigint[] = []) {
+    const uniqueUserIds = Array.from(new Set([creatorId.toString(), ...participantIds.map((id) => id.toString())]));
+
+    const room = await prisma.chatRoom.create({
+      data: {
+        type: 'GROUP',
+        name: name || 'กลุ่มสนทนา',
+        description: description || null,
+        created_by: creatorId,
+        participants: {
+          create: uniqueUserIds.map((uid) => ({
+            user_id: BigInt(uid),
+            role: uid === creatorId.toString() ? 'OWNER' : 'MEMBER',
+          })),
+        },
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                full_name: true,
+                username: true,
+                avatar_url: true,
+                role: true,
+                position: true,
+                department: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Send system message
+    const creator = await prisma.user.findUnique({ where: { id: creatorId }, select: { full_name: true } });
+    await prisma.chatMessage.create({
+      data: {
+        room_id: room.id,
+        sender_id: creatorId,
+        message_type: 'SYSTEM',
+        content: `${creator?.full_name || 'ผู้ดูแล'} ได้สร้างกลุ่ม "${name}"`,
+      },
+    });
+
+    return serializeBigInt(room);
+  }
+
+  /**
+   * Get messages for a specific chat room
+   */
+  async getRoomMessages(roomId: bigint, userId: bigint, limit = 50, beforeId?: bigint) {
+    // Verify user is a participant
+    const participant = await prisma.chatParticipant.findUnique({
+      where: {
+        room_id_user_id: {
+          room_id: roomId,
+          user_id: userId,
+        },
+      },
+    });
+
+    if (!participant) {
+      throw new Error('คุณไม่ได้เป็นสมาชิกในห้องสนทนานี้');
+    }
+
+    const whereClause: any = {
+      room_id: roomId,
+      is_deleted: false,
+    };
+
+    if (beforeId) {
+      whereClause.id = { lt: beforeId };
+    }
+
+    const messages = await prisma.chatMessage.findMany({
+      where: whereClause,
+      include: {
+        sender: {
+          select: {
+            id: true,
+            full_name: true,
+            username: true,
+            avatar_url: true,
+            role: true,
+            position: true,
+          },
+        },
+        attachments: true,
+      },
+      orderBy: { id: 'desc' },
+      take: limit,
+    });
+
+    // Auto mark room as read when fetching messages
+    await prisma.chatParticipant.update({
+      where: {
+        room_id_user_id: {
+          room_id: roomId,
+          user_id: userId,
+        },
+      },
+      data: {
+        last_read_at: new Date(),
+      },
+    });
+
+    // Return in chronological order (oldest to newest)
+    return serializeBigInt(messages.reverse());
+  }
+
+  /**
+   * Send a message to a chat room
+   */
+  async sendMessage(
+    senderId: bigint,
+    roomId: bigint,
+    data: {
+      content?: string;
+      message_type?: string;
+      metadata?: any;
+      attachments?: Array<{
+        file_name: string;
+        file_url: string;
+        file_type: string;
+        file_size: number;
+      }>;
+    }
+  ) {
+    // Verify participant
+    let participant = await prisma.chatParticipant.findUnique({
+      where: {
+        room_id_user_id: {
+          room_id: roomId,
+          user_id: senderId,
+        },
+      },
+    });
+
+    if (!participant) {
+      // Auto join if room exists
+      const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
+      if (!room) throw new Error('ไม่พบห้องสนทนานี้');
+      participant = await prisma.chatParticipant.create({
+        data: {
+          room_id: roomId,
+          user_id: senderId,
+          role: 'MEMBER',
+        },
+      });
+    }
+
+    const newMessage = await prisma.chatMessage.create({
+      data: {
+        room_id: roomId,
+        sender_id: senderId,
+        content: data.content || '',
+        message_type: data.message_type || (data.attachments && data.attachments.length > 0 ? 'FILE' : 'TEXT'),
+        metadata: data.metadata || {},
+        attachments: data.attachments && data.attachments.length > 0 ? {
+          create: data.attachments.map((att) => ({
+            file_name: att.file_name,
+            file_url: att.file_url,
+            file_type: att.file_type,
+            file_size: att.file_size,
+          })),
+        } : undefined,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            full_name: true,
+            username: true,
+            avatar_url: true,
+            role: true,
+            position: true,
+          },
+        },
+        attachments: true,
+        room: {
+          include: {
+            participants: {
+              select: {
+                user_id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Update room update timestamp and sender last_read_at
+    await prisma.$transaction([
+      prisma.chatRoom.update({
+        where: { id: roomId },
+        data: { updated_at: new Date() },
+      }),
+      prisma.chatParticipant.update({
+        where: {
+          room_id_user_id: {
+            room_id: roomId,
+            user_id: senderId,
+          },
+        },
+        data: { last_read_at: new Date() },
+      }),
+    ]);
+
+    const serializedMessage = serializeBigInt(newMessage);
+
+    // Broadcast message to room members in real-time
+    wsManager.sendToChatRoom(roomId, 'chat_message', serializedMessage);
+
+    // Send instant badge update notification to all other participants
+    newMessage.room.participants.forEach((p) => {
+      if (p.user_id !== senderId) {
+        wsManager.sendToUser(p.user_id, 'chat_notification', {
+          room_id: roomId.toString(),
+          message: serializedMessage,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    });
+
+    return serializedMessage;
+  }
+
+  /**
+   * Mark room as read for user
+   */
+  async markRoomAsRead(userId: bigint, roomId: bigint) {
+    const now = new Date();
+    await prisma.chatParticipant.updateMany({
+      where: {
+        room_id: roomId,
+        user_id: userId,
+      },
+      data: {
+        last_read_at: now,
+      },
+    });
+
+    wsManager.sendToChatRoom(roomId, 'chat_read_receipt', {
+      roomId: roomId.toString(),
+      userId: userId.toString(),
+      readAt: now.toISOString(),
+    });
+
+    return { success: true, read_at: now };
+  }
+
+  /**
+   * Get total unread count across all rooms for current user
+   */
+  async getTotalUnreadCount(userId: bigint): Promise<number> {
+    const participants = await prisma.chatParticipant.findMany({
+      where: { user_id: userId },
+      select: { room_id: true, last_read_at: true },
+    });
+
+    let totalUnread = 0;
+    for (const p of participants) {
+      const count = await prisma.chatMessage.count({
+        where: {
+          room_id: p.room_id,
+          is_deleted: false,
+          sender_id: { not: userId },
+          ...(p.last_read_at ? { created_at: { gt: p.last_read_at } } : {}),
+        },
+      });
+      totalUnread += count;
+    }
+
+    return totalUnread;
+  }
+
+  /**
+   * Search users to start chat
+   */
+  async searchUsers(query: string, currentUserId: bigint) {
+    const users = await prisma.user.findMany({
+      where: {
+        id: { not: currentUserId },
+        is_active: true,
+        OR: query
+          ? [
+              { full_name: { contains: query } },
+              { username: { contains: query } },
+              { position: { contains: query } },
+              { department: { name: { contains: query } } },
+            ]
+          : undefined,
+      },
+      select: {
+        id: true,
+        full_name: true,
+        username: true,
+        avatar_url: true,
+        role: true,
+        position: true,
+        department: { select: { id: true, name: true } },
+      },
+      take: 20,
+    });
+
+    return users.map((u) => ({
+      ...serializeBigInt(u),
+      is_online: wsManager.isUserOnline(u.id),
+    }));
+  }
+
+  /**
+   * Search projects to share or create room
+   */
+  async searchProjects(query: string) {
+    const projects = await prisma.project.findMany({
+      where: {
+        OR: query
+          ? [
+              { title: { contains: query } },
+              { project_code: { contains: query } },
+            ]
+          : undefined,
+      },
+      select: {
+        id: true,
+        project_code: true,
+        title: true,
+        status: true,
+        total_budget: true,
+        fiscal_year: true,
+        department: { select: { id: true, name: true } },
+        leader: { select: { id: true, full_name: true } },
+      },
+      take: 15,
+      orderBy: { created_at: 'desc' },
+    });
+
+    return serializeBigInt(projects);
+  }
+}
+
+export const chatService = new ChatService();

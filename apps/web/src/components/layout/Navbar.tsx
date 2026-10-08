@@ -20,8 +20,10 @@ import {
   Menu,
   X,
   Settings,
+  MessageSquare,
 } from 'lucide-react';
 import NotificationBell from './NotificationBell';
+import { useChat } from '@/lib/chat-context';
 
 interface NavbarProps {
   mobileMenuOpen?: boolean;
@@ -30,6 +32,7 @@ interface NavbarProps {
 
 export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProps) {
   const { user, login, logout } = useAuth();
+  const { totalUnreadCount, toggleWidget } = useChat();
   const { collegeLogoUrl, collegeName, collegeNameEn, enableTestMode } = useSettings();
   const [mounted, setMounted] = useState(false);
   const [showSwitcher, setShowSwitcher] = useState(false);
@@ -257,6 +260,21 @@ export default function Navbar({ mobileMenuOpen, setMobileMenuOpen }: NavbarProp
                   </div>
                 )}
               </div>
+
+              {/* Chat & Messaging Button */}
+              <button
+                type="button"
+                onClick={() => toggleWidget()}
+                className="relative p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50/80 rounded-xl transition duration-150 focus:outline-none"
+                title="แชทและสนทนา (Chat)"
+              >
+                <MessageSquare className="w-5 h-5" />
+                {totalUnreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                    {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                  </span>
+                )}
+              </button>
 
               {/* In-App Real-time Notification Bell */}
               <NotificationBell />

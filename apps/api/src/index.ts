@@ -19,6 +19,7 @@ import notificationsRouter from './modules/notifications/notifications.controlle
 import setupRouter from './modules/setup/setup.controller';
 import systemUpdateRouter from './modules/system-update/update.controller';
 import registrationRouter from './modules/projects/registration.controller';
+import chatRouter from './modules/chat/chat.controller';
 import { wsManager } from './modules/notifications/socket.manager';
 
 const app = express();
@@ -52,6 +53,7 @@ app.get('/', (req: Request, res: Response) => {
       divisions: '/api/v1/divisions',
       strategics: '/api/v1/strategics',
       evaluation: '/api/v1/projects/:id/evaluation',
+      chat: '/api/v1/chat',
       system_update: '/api/v1/system-update'
     }
   });
@@ -74,6 +76,7 @@ app.use('/api/v1/documents', documentRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/setup', setupRouter);
 app.use('/api/v1/notifications', notificationsRouter);
+app.use('/api/v1/chat', chatRouter);
 app.use('/api/v1/system-update', systemUpdateRouter);
 app.use('/api/v1', evaluationRouter);
 
