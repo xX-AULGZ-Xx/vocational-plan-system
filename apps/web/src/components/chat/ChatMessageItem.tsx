@@ -5,6 +5,7 @@ import { ChatMessage, useChat } from '@/lib/chat-context';
 import { useAuth } from '@/lib/auth-context';
 import ProjectCardPreview from './ProjectCardPreview';
 import ChatAvatar from './ChatAvatar';
+import ImageLightboxModal from './ImageLightboxModal';
 import {
   FileText,
   FileSpreadsheet,
@@ -27,6 +28,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
   const { toggleReaction, setReplyingToMessage } = useChat();
   const isMe = user && message.sender_id.toString() === user.id.toString();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string; size?: number } | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // Close emoji picker on outside click
@@ -250,14 +252,31 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                 {message.attachments.map((att) => {
                   if (att.file_type === 'IMAGE') {
                     return (
-                      <div key={att.id} className="rounded-lg overflow-hidden border border-black/10 max-w-sm">
-                        <a href={att.file_url} target="_blank" rel="noopener noreferrer">
+                      <div
+                        key={att.id}
+                        className="rounded-xl overflow-hidden border border-black/10 max-w-sm group/img relative cursor-pointer shadow-2xs"
+                        onClick={() =>
+                          setLightboxImage({
+                            url: att.file_url,
+                            name: att.file_name,
+                            size: att.file_size,
+                          })
+                        }
+                      >
+                        <div className="block overflow-hidden relative">
                           <img
                             src={att.file_url}
                             alt={att.file_name}
-                            className="w-full h-auto max-h-60 object-cover hover:opacity-95 transition"
+                            className="w-full h-auto max-h-64 object-cover group-hover/img:scale-102 transition duration-200"
+                            loading="lazy"
                           />
-                        </a>
+                          {/* Hover Overlay Hint */}
+                          <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/25 flex items-center justify-center transition-all duration-200">
+                            <span className="opacity-0 group-hover/img:opacity-100 bg-black/60 text-white text-[11px] px-2.5 py-1 rounded-full backdrop-blur-xs transition transform translate-y-1 group-hover/img:translate-y-0 shadow-md">
+                              🔍 คลิกเพื่อดูภาพขยาย
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     );
                   }
@@ -322,6 +341,15 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
           {formatMessageTime(message.created_at)}
         </span>
       </div>
+
+      {/* Image Lightbox Modal */}
+      <ImageLightboxModal
+        isOpen={!!lightboxImage}
+        imageUrl={lightboxImage?.url || null}
+        fileName={lightboxImage?.name}
+        fileSize={lightboxImage?.size}
+        onClose={() => setLightboxImage(null)}
+      />
     </div>
   );
 }
