@@ -276,112 +276,204 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
             </button>
           </div>
 
-          {/* Bubble */}
-          <div
-            className={`rounded-2xl px-4 py-2.5 shadow-2xs break-words relative transition-all ${
-              isMe
-                ? 'bg-blue-600 text-white rounded-br-xs'
-                : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs'
-            }`}
-          >
-            {/* Replying To Quote Block */}
-            {message.reply_to && (
-              <div
-                className={`mb-2 px-2.5 py-1.5 rounded-lg text-xs border-l-2 transition ${
-                  isMe
-                    ? 'bg-blue-700/80 border-l-amber-300 text-blue-100'
-                    : 'bg-slate-100 border-l-blue-600 text-slate-700'
-                }`}
-              >
-                <span className={`font-semibold block truncate text-[11px] ${isMe ? 'text-amber-200' : 'text-blue-700'}`}>
-                  {message.reply_to.sender?.full_name || 'ผู้ใช้'}
-                </span>
-                <p className="truncate text-[11px] opacity-90 mt-0.5">
-                  {message.reply_to.content || (message.reply_to.message_type === 'PROJECT_CARD' ? '[การ์ดโครงการ]' : '[ไฟล์แนบ]')}
-                </p>
-              </div>
-            )}
-
-            {/* Project Card Message */}
-            {message.message_type === 'PROJECT_CARD' && message.metadata && (
-              <div className="my-1">
+          {/* Bubble Container */}
+          {message.message_type === 'PROJECT_CARD' && message.metadata ? (
+            /* Project Card Message - Render clean card without blue padding box */
+            <div className="flex flex-col gap-1 max-w-md w-full">
+              {message.reply_to && (
+                <div
+                  className={`px-3 py-1.5 rounded-xl text-xs border-l-2 transition ${
+                    isMe
+                      ? 'bg-blue-600 text-white border-l-amber-300'
+                      : 'bg-slate-100 text-slate-700 border-l-blue-600'
+                  }`}
+                >
+                  <span className="font-semibold block truncate text-[11px]">
+                    {message.reply_to.sender?.full_name || 'ผู้ใช้'}
+                  </span>
+                  <p className="truncate text-[11px] opacity-90 mt-0.5">
+                    {message.reply_to.content || '[การ์ดโครงการ]'}
+                  </p>
+                </div>
+              )}
+              {/* Optional Custom Note if not default prefix */}
+              {message.content &&
+                !message.content.startsWith('แชร์โครงการ:') &&
+                !message.content.startsWith('เปิดห้องปรึกษาโครงการ') && (
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 shadow-2xs break-words relative text-sm ${
+                      isMe
+                        ? 'bg-blue-600 text-white rounded-br-xs self-end'
+                        : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs self-start'
+                    }`}
+                  >
+                    {renderFormattedContent(message.content)}
+                  </div>
+                )}
+              <div className="overflow-hidden rounded-2xl shadow-xs">
                 <ProjectCardPreview data={message.metadata} />
               </div>
-            )}
+            </div>
+          ) : message.attachments &&
+            message.attachments.length > 0 &&
+            message.attachments.every((a) => a.file_type === 'IMAGE') &&
+            (!message.content || !message.content.trim()) ? (
+            /* Pure Images - Render without blue bubble wrapper */
+            <div className="flex flex-col gap-1">
+              {message.reply_to && (
+                <div
+                  className={`px-3 py-1.5 rounded-xl text-xs border-l-2 mb-1 transition ${
+                    isMe
+                      ? 'bg-blue-600 text-white border-l-amber-300'
+                      : 'bg-slate-100 text-slate-700 border-l-blue-600'
+                  }`}
+                >
+                  <span className="font-semibold block truncate text-[11px]">
+                    {message.reply_to.sender?.full_name || 'ผู้ใช้'}
+                  </span>
+                  <p className="truncate text-[11px] opacity-90 mt-0.5">
+                    {message.reply_to.content || '[รูปภาพ]'}
+                  </p>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                {message.attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="rounded-2xl overflow-hidden border border-slate-200/90 max-w-sm group/img relative cursor-pointer shadow-sm hover:shadow-md transition bg-slate-100"
+                    onClick={() =>
+                      setLightboxImage({
+                        url: att.file_url,
+                        name: att.file_name,
+                        size: att.file_size,
+                      })
+                    }
+                  >
+                    <img
+                      src={att.file_url}
+                      alt={att.file_name}
+                      className="w-full h-auto max-h-80 object-cover group-hover/img:scale-102 transition duration-200 block"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/20 flex items-center justify-center transition-all duration-200">
+                      <span className="opacity-0 group-hover/img:opacity-100 bg-black/60 text-white text-[11px] px-2.5 py-1 rounded-full backdrop-blur-xs transition transform translate-y-1 group-hover/img:translate-y-0 shadow-md">
+                        🔍 คลิกเพื่อดูภาพขยาย
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Standard Text & Mixed File Bubble */
+            <div
+              className={`rounded-2xl px-4 py-2.5 shadow-2xs break-words relative transition-all ${
+                isMe
+                  ? 'bg-blue-600 text-white rounded-br-xs'
+                  : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs'
+              }`}
+            >
+              {/* Replying To Quote Block */}
+              {message.reply_to && (
+                <div
+                  className={`mb-2 px-2.5 py-1.5 rounded-lg text-xs border-l-2 transition ${
+                    isMe
+                      ? 'bg-blue-700/80 border-l-amber-300 text-blue-100'
+                      : 'bg-slate-100 border-l-blue-600 text-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`font-semibold block truncate text-[11px] ${
+                      isMe ? 'text-amber-200' : 'text-blue-700'
+                    }`}
+                  >
+                    {message.reply_to.sender?.full_name || 'ผู้ใช้'}
+                  </span>
+                  <p className="truncate text-[11px] opacity-90 mt-0.5">
+                    {message.reply_to.content ||
+                      (message.reply_to.message_type === 'PROJECT_CARD'
+                        ? '[การ์ดโครงการ]'
+                        : '[ไฟล์แนบ]')}
+                  </p>
+                </div>
+              )}
 
-            {/* Text Content */}
-            {message.content && (
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                {renderFormattedContent(message.content)}
-              </p>
-            )}
+              {/* Text Content */}
+              {message.content && (
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                  {renderFormattedContent(message.content)}
+                </p>
+              )}
 
-            {/* Attachments */}
-            {message.attachments && message.attachments.length > 0 && (
-              <div className="space-y-2 mt-2">
-                {message.attachments.map((att) => {
-                  if (att.file_type === 'IMAGE') {
-                    return (
-                      <div
-                        key={att.id}
-                        className="rounded-xl overflow-hidden border border-black/10 max-w-sm group/img relative cursor-pointer shadow-2xs"
-                        onClick={() =>
-                          setLightboxImage({
-                            url: att.file_url,
-                            name: att.file_name,
-                            size: att.file_size,
-                          })
-                        }
-                      >
-                        <div className="block overflow-hidden relative">
-                          <img
-                            src={att.file_url}
-                            alt={att.file_name}
-                            className="w-full h-auto max-h-64 object-cover group-hover/img:scale-102 transition duration-200"
-                            loading="lazy"
-                          />
-                          {/* Hover Overlay Hint */}
-                          <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/25 flex items-center justify-center transition-all duration-200">
-                            <span className="opacity-0 group-hover/img:opacity-100 bg-black/60 text-white text-[11px] px-2.5 py-1 rounded-full backdrop-blur-xs transition transform translate-y-1 group-hover/img:translate-y-0 shadow-md">
-                              🔍 คลิกเพื่อดูภาพขยาย
-                            </span>
+              {/* Attachments */}
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  {message.attachments.map((att) => {
+                    if (att.file_type === 'IMAGE') {
+                      return (
+                        <div
+                          key={att.id}
+                          className="rounded-xl overflow-hidden border border-black/10 max-w-sm group/img relative cursor-pointer shadow-2xs"
+                          onClick={() =>
+                            setLightboxImage({
+                              url: att.file_url,
+                              name: att.file_name,
+                              size: att.file_size,
+                            })
+                          }
+                        >
+                          <div className="block overflow-hidden relative">
+                            <img
+                              src={att.file_url}
+                              alt={att.file_name}
+                              className="w-full h-auto max-h-64 object-cover group-hover/img:scale-102 transition duration-200"
+                              loading="lazy"
+                            />
+                            {/* Hover Overlay Hint */}
+                            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/25 flex items-center justify-center transition-all duration-200">
+                              <span className="opacity-0 group-hover/img:opacity-100 bg-black/60 text-white text-[11px] px-2.5 py-1 rounded-full backdrop-blur-xs transition transform translate-y-1 group-hover/img:translate-y-0 shadow-md">
+                                🔍 คลิกเพื่อดูภาพขยาย
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  }
+                      );
+                    }
 
-                  return (
-                    <a
-                      key={att.id}
-                      href={att.file_url}
-                      download={att.file_name}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border transition ${
-                        isMe
-                          ? 'bg-blue-700/60 border-blue-500 hover:bg-blue-700 text-white'
-                          : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {getAttachmentIcon(att.file_type)}
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold truncate max-w-[200px] sm:max-w-[260px]">
-                            {att.file_name}
-                          </p>
-                          <p className={`text-[10px] ${isMe ? 'text-blue-200' : 'text-slate-400'}`}>
-                            {formatBytes(att.file_size)}
-                          </p>
+                    return (
+                      <a
+                        key={att.id}
+                        href={att.file_url}
+                        download={att.file_name}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border transition ${
+                          isMe
+                            ? 'bg-blue-700/60 border-blue-500 hover:bg-blue-700 text-white'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {getAttachmentIcon(att.file_type)}
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold truncate max-w-[200px] sm:max-w-[260px]">
+                              {att.file_name}
+                            </p>
+                            <p className={`text-[10px] ${isMe ? 'text-blue-200' : 'text-slate-400'}`}>
+                              {formatBytes(att.file_size)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <Download className={`w-4 h-4 shrink-0 ${isMe ? 'text-blue-200' : 'text-slate-500'}`} />
-                    </a>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                        <Download
+                          className={`w-4 h-4 shrink-0 ${isMe ? 'text-blue-200' : 'text-slate-500'}`}
+                        />
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Grouped Reactions Display */}
