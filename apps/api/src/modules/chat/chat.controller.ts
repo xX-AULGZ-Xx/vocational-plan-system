@@ -168,7 +168,7 @@ router.post('/rooms/:roomId/messages', async (req: AuthRequest, res: Response) =
   try {
     const userId = BigInt(req.user!.id);
     const roomId = BigInt(req.params.roomId);
-    const { content, message_type, metadata, attachments } = req.body;
+    const { content, message_type, metadata, attachments, reply_to_id } = req.body;
 
     if (!content?.trim() && (!attachments || attachments.length === 0) && message_type !== 'PROJECT_CARD') {
       return res.status(400).json({ success: false, message: 'กรุณาระบุข้อความหรือไฟล์แนบ' });
@@ -178,6 +178,7 @@ router.post('/rooms/:roomId/messages', async (req: AuthRequest, res: Response) =
       content: content?.trim(),
       message_type,
       metadata,
+      reply_to_id: reply_to_id ? BigInt(reply_to_id) : undefined,
       attachments,
     });
 

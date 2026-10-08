@@ -511,6 +511,7 @@ model ChatMessage {
   id           BigInt           @id @default(autoincrement())
   room_id      BigInt
   sender_id    BigInt
+  reply_to_id  BigInt?
   content      String?          @db.Text
   message_type String           @default("TEXT") @db.VarChar(50)
   metadata     Json?
@@ -520,11 +521,14 @@ model ChatMessage {
 
   room         ChatRoom         @relation(fields: [room_id], references: [id], onDelete: Cascade)
   sender       User             @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+  reply_to     ChatMessage?     @relation("ChatMessageReplies", fields: [reply_to_id], references: [id], onDelete: SetNull)
+  replies      ChatMessage[]    @relation("ChatMessageReplies")
   attachments  ChatAttachment[]
   reactions    ChatMessageReaction[]
 
   @@index([room_id, created_at])
   @@index([sender_id])
+  @@index([reply_to_id])
   @@map("chat_messages")
 }
 

@@ -517,6 +517,20 @@ export class ChatService {
             position: true,
           },
         },
+        reply_to: {
+          select: {
+            id: true,
+            content: true,
+            message_type: true,
+            sender: {
+              select: {
+                id: true,
+                full_name: true,
+                username: true,
+              },
+            },
+          },
+        },
         attachments: true,
         reactions: {
           include: {
@@ -557,6 +571,7 @@ export class ChatService {
       content?: string;
       message_type?: string;
       metadata?: any;
+      reply_to_id?: bigint;
       attachments?: Array<{
         file_name: string;
         file_url: string;
@@ -592,6 +607,7 @@ export class ChatService {
       data: {
         room_id: roomId,
         sender_id: senderId,
+        reply_to_id: data.reply_to_id,
         content: data.content || '',
         message_type: data.message_type || (data.attachments && data.attachments.length > 0 ? 'FILE' : 'TEXT'),
         metadata: data.metadata || {},
@@ -613,6 +629,20 @@ export class ChatService {
             avatar_url: true,
             role: true,
             position: true,
+          },
+        },
+        reply_to: {
+          select: {
+            id: true,
+            content: true,
+            message_type: true,
+            sender: {
+              select: {
+                id: true,
+                full_name: true,
+                username: true,
+              },
+            },
           },
         },
         attachments: true,

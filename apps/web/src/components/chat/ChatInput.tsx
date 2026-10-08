@@ -14,6 +14,7 @@ import {
   FileSpreadsheet,
   File,
   Image as ImageIcon,
+  Reply,
 } from 'lucide-react';
 
 interface ChatInputProps {
@@ -22,7 +23,7 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้อความที่นี่... (กด Enter เพื่อส่ง, Shift+Enter ขึ้นบรรทัดใหม่)' }: ChatInputProps) {
-  const { sendMessage, sendTyping, uploadFile, isSending } = useChat();
+  const { sendMessage, sendTyping, uploadFile, isSending, replyingToMessage, setReplyingToMessage } = useChat();
   const [content, setContent] = useState('');
   const [attachments, setAttachments] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -32,6 +33,13 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus when replying
+  useEffect(() => {
+    if (replyingToMessage && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [replyingToMessage]);
 
   // Common quick emojis for fast messaging
   const quickEmojis = ['👍', '👏', '🙏', '❤️', '😊', '🎉', '📋', '✅', '🔥', '💡', '📌', '👌'];
@@ -151,6 +159,31 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
 
   return (
     <div className="bg-white border-t border-slate-200/80 p-3 sm:p-3.5 transition-all">
+      {/* Replying To Message Banner */}
+      {replyingToMessage && (
+        <div className="mb-2 p-2.5 rounded-xl bg-blue-50/70 border-l-4 border-l-blue-600 border border-blue-200/80 flex items-center justify-between gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div className="flex items-center gap-2 min-w-0">
+            <Reply className="w-4 h-4 text-blue-600 shrink-0" />
+            <div className="min-w-0 text-xs">
+              <span className="font-semibold text-blue-900 block truncate">
+                กำลังตอบกลับ {replyingToMessage.sender?.full_name || 'ผู้ใช้'}
+              </span>
+              <p className="text-slate-600 truncate text-[11px] mt-0.5">
+                {replyingToMessage.content || (replyingToMessage.attachments?.length ? `[ไฟล์แนบ ${replyingToMessage.attachments[0].file_name}]` : '[ข้อความ]')}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReplyingToMessage(null)}
+            className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-blue-100/80 transition"
+            title="ยกเลิกการตอบกลับ"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Attached Project Card Preview before sending */}
       {selectedProject && (
         <div className="mb-2 p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 flex items-center justify-between gap-2">

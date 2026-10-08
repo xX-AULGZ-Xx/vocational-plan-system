@@ -34,10 +34,22 @@ export interface ChatMessageReaction {
   };
 }
 
+export interface ChatMessageReply {
+  id: string;
+  content: string | null;
+  message_type: string;
+  sender: {
+    id: string;
+    full_name: string;
+    username?: string;
+  };
+}
+
 export interface ChatMessage {
   id: string;
   room_id: string;
   sender_id: string;
+  reply_to_id?: string | null;
   content: string | null;
   message_type: 'TEXT' | 'FILE' | 'IMAGE' | 'PROJECT_CARD' | 'SYSTEM' | string;
   metadata?: any;
@@ -45,6 +57,7 @@ export interface ChatMessage {
   created_at: string;
   updated_at?: string;
   sender: ChatSender;
+  reply_to?: ChatMessageReply | null;
   attachments?: ChatAttachment[];
   reactions?: ChatMessageReaction[];
 }
@@ -97,6 +110,8 @@ interface ChatContextType {
   widgetActiveRoomId: string | null;
   typingUsers: { [roomId: string]: { [userId: string]: string } };
   onlineUserIds: Set<string>;
+  replyingToMessage: ChatMessage | null;
+  setReplyingToMessage: (message: ChatMessage | null) => void;
   fetchRooms: () => Promise<void>;
   selectRoom: (roomId: string | null) => Promise<void>;
   openDirectChat: (targetUserId: string) => Promise<string | null>;
@@ -108,6 +123,7 @@ interface ChatContextType {
       roomId?: string;
       message_type?: string;
       metadata?: any;
+      reply_to_id?: string;
       attachments?: Array<{
         file_name: string;
         file_url: string;
@@ -137,6 +153,8 @@ const ChatContext = createContext<ChatContextType>({
   widgetActiveRoomId: null,
   typingUsers: {},
   onlineUserIds: new Set(),
+  replyingToMessage: null,
+  setReplyingToMessage: () => {},
   fetchRooms: async () => {},
   selectRoom: async () => {},
   openDirectChat: async () => null,
@@ -191,6 +209,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [widgetActiveRoomId, setWidgetActiveRoomId] = useState<string | null>(null);
   const [typingUsers, setTypingUsers] = useState<{ [roomId: string]: { [userId: string]: string } }>({});
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  const [replyingToMessage, setReplyingToMessage] = useState<ChatMessage | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const activeRoomRef = useRef<string | null>(null);
@@ -268,6 +287,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
 
       setActiveRoomId(roomId);
+      setReplyingToMessage(null);
 
       if (roomId) {
         if (socketRef.current) {
@@ -424,6 +444,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         roomId?: string;
         message_type?: string;
         metadata?: any;
+        reply_to_id?: string;
         attachments?: Array<{
           file_name: string;
           file_url: string;
@@ -434,6 +455,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     ): Promise<ChatMessage | null> => {
       const targetRoomId = options?.roomId || activeRoomId || widgetActiveRoomId;
       if (!targetRoomId) return null;
+
+      const targetReplyToId = options?.reply_to_id !== undefined ? options.reply_to_id : (replyingToMessage ? replyingToMessage.id : undefined);
 
       try {
         setIsSending(true);
@@ -452,12 +475,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             content,
             message_type: options?.message_type || 'TEXT',
             metadata: options?.metadata,
+            reply_to_id: targetReplyToId,
             attachments: options?.attachments,
           }),
         });
 
         const data = await res.json();
         if (data.success && data.data) {
+          setReplyingToMessage(null);
           return data.data;
         } else {
           throw new Error(data.message || 'ส่งข้อความไม่สำเร็จ');
@@ -469,7 +494,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setIsSending(false);
       }
     },
-    [activeRoomId, widgetActiveRoomId, getAuthHeaders]
+    [activeRoomId, widgetActiveRoomId, getAuthHeaders, replyingToMessage]
   );
 
   // Send typing event
@@ -675,6 +700,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         widgetActiveRoomId,
         typingUsers,
         onlineUserIds,
+        replyingToMessage,
+        setReplyingToMessage,
         fetchRooms,
         selectRoom,
         openDirectChat,

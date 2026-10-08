@@ -12,6 +12,7 @@ import {
   Download,
   Smile,
   Plus,
+  Reply,
 } from 'lucide-react';
 
 interface ChatMessageItemProps {
@@ -23,7 +24,7 @@ const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🎉', 
 
 export default function ChatMessageItem({ message, showSenderName = true }: ChatMessageItemProps) {
   const { user } = useAuth();
-  const { toggleReaction } = useChat();
+  const { toggleReaction, setReplyingToMessage } = useChat();
   const isMe = user && message.sender_id.toString() === user.id.toString();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -140,12 +141,13 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
 
         {/* Bubble & Hover Actions Wrapper */}
         <div className="relative group/bubble">
-          {/* Quick Reaction Action Bar on Hover */}
+          {/* Quick Reaction & Reply Action Bar on Hover */}
           <div
             className={`absolute top-0 -translate-y-1/2 z-10 hidden group-hover/bubble:flex items-center gap-0.5 bg-white/95 backdrop-blur-xs border border-slate-200 shadow-md rounded-full px-1.5 py-0.5 transition-all duration-150 ${
               isMe ? 'right-0' : 'left-0'
             }`}
           >
+            {/* Quick Emojis */}
             {QUICK_EMOJIS.slice(0, 5).map((emoji) => (
               <button
                 key={emoji}
@@ -157,6 +159,8 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                 {emoji}
               </button>
             ))}
+
+            {/* Emoji More Picker */}
             <div className="relative" ref={pickerRef}>
               <button
                 type="button"
@@ -164,7 +168,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                 className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-800 rounded-full hover:bg-slate-100 transition"
                 title="อีโมจิเพิ่มเติม"
               >
-                <Smile className="w-4 h-4" />
+                <Smile className="w-3.5 h-3.5" />
               </button>
 
               {/* Extended Emoji Picker Popup */}
@@ -188,6 +192,16 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                 </div>
               )}
             </div>
+
+            {/* Reply Button */}
+            <button
+              type="button"
+              onClick={() => setReplyingToMessage(message)}
+              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-blue-600 rounded-full hover:bg-blue-50 transition"
+              title="ตอบกลับข้อความนี้"
+            >
+              <Reply className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {/* Bubble */}
@@ -198,6 +212,24 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                 : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs'
             }`}
           >
+            {/* Replying To Quote Block */}
+            {message.reply_to && (
+              <div
+                className={`mb-2 px-2.5 py-1.5 rounded-lg text-xs border-l-2 transition ${
+                  isMe
+                    ? 'bg-blue-700/80 border-l-amber-300 text-blue-100'
+                    : 'bg-slate-100 border-l-blue-600 text-slate-700'
+                }`}
+              >
+                <span className={`font-semibold block truncate text-[11px] ${isMe ? 'text-amber-200' : 'text-blue-700'}`}>
+                  {message.reply_to.sender?.full_name || 'ผู้ใช้'}
+                </span>
+                <p className="truncate text-[11px] opacity-90 mt-0.5">
+                  {message.reply_to.content || (message.reply_to.message_type === 'PROJECT_CARD' ? '[การ์ดโครงการ]' : '[ไฟล์แนบ]')}
+                </p>
+              </div>
+            )}
+
             {/* Project Card Message */}
             {message.message_type === 'PROJECT_CARD' && message.metadata && (
               <div className="my-1">
