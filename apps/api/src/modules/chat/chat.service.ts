@@ -244,7 +244,7 @@ export class ChatService {
   }
 
   /**
-   * Get or create project room and automatically sync project stakeholders
+   * Get or create project room and automatically sync project stakeholders from proposal & dynamic_data
    */
   async getOrCreateProjectRoom(projectId: bigint, currentUserId: bigint) {
     const project = await prisma.project.findUnique({
@@ -259,6 +259,114 @@ export class ChatService {
     if (!project) {
       throw new Error('ไม่พบข้อมูลโครงการ');
     }
+
+    // 1. Fetch all active users to match proposal names and planning officers
+    const allUsers = await prisma.user.findMany({
+      where: { is_active: true },
+      select: {
+        id: true,
+        full_name: true,
+        username: true,
+        role: true,
+        position: true,
+      },
+    });
+
+    const normalizeName = (name: string) =>
+      name
+        ? name
+            .replace(/^(นาย|นางสาว|นาง|น\.ส\.|ดร\.|อ\.|อาจารย์|ผศ\.|รศ\.|ศ\.)\s*/, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+        : '';
+
+    const stakeholderUserIds = new Set<string>();
+
+    // A. Project Leader
+    if (project.leader_id) {
+      stakeholderUserIds.add(project.leader_id.toString());
+    }
+
+    // B. Current User
+    if (currentUserId) {
+      stakeholderUserIds.add(currentUserId.toString());
+    }
+
+    // C. Approvers in project approval pipeline
+    if (project.approvals) {
+      project.approvals.forEach((a) => {
+        if (a.approver_id) stakeholderUserIds.add(a.approver_id.toString());
+      });
+    }
+
+    // D. Scan dynamic_data in project proposal (proposer, committee, responsible persons, endorser, etc.)
+    let dyn: any = project.dynamic_data;
+    if (typeof dyn === 'string') {
+      try {
+        dyn = JSON.parse(dyn);
+      } catch {}
+    }
+
+    const candidateNames = new Set<string>();
+    if (dyn && typeof dyn === 'object') {
+      for (const [k, v] of Object.entries(dyn)) {
+        if (typeof v === 'string' && v.trim()) {
+          const lowerK = k.toLowerCase();
+          if (
+            lowerK.includes('name') ||
+            lowerK.includes('leader') ||
+            lowerK.includes('proposer') ||
+            lowerK.includes('endorser') ||
+            lowerK.includes('approver') ||
+            lowerK.includes('head') ||
+            lowerK.includes('director') ||
+            lowerK.includes('reporter') ||
+            lowerK.includes('teacher') ||
+            lowerK.includes('member') ||
+            lowerK.includes('committee') ||
+            lowerK.includes('coordinator') ||
+            lowerK.includes('consultant')
+          ) {
+            candidateNames.add(v.trim());
+          }
+        } else if (Array.isArray(v)) {
+          // Table loops (e.g. committee, team members)
+          v.forEach((row) => {
+            if (row && typeof row === 'object') {
+              for (const [, rv] of Object.entries(row)) {
+                if (typeof rv === 'string' && rv.trim()) {
+                  candidateNames.add(rv.trim());
+                }
+              }
+            }
+          });
+        }
+      }
+    }
+
+    // Match candidate names from proposal against active users
+    for (const name of candidateNames) {
+      const norm = normalizeName(name);
+      if (!norm || norm.length < 3) continue;
+
+      const matchedUser = allUsers.find((u) => {
+        const uNorm = normalizeName(u.full_name);
+        return (
+          uNorm === norm ||
+          u.full_name.trim() === name.trim() ||
+          (norm.length >= 5 && (uNorm.includes(norm) || norm.includes(uNorm)))
+        );
+      });
+
+      if (matchedUser) {
+        stakeholderUserIds.add(matchedUser.id.toString());
+      }
+    }
+
+    // E. Planning officers & Key Admins
+    allUsers
+      .filter((u) => ['PLANNING_OFFICER', 'ADMIN', 'DIRECTOR', 'DEPUTY_DIRECTOR'].includes(u.role))
+      .forEach((u) => stakeholderUserIds.add(u.id.toString()));
 
     let room = await prisma.chatRoom.findFirst({
       where: {
@@ -295,25 +403,8 @@ export class ChatService {
       },
     });
 
-    // Gather stakeholder user IDs (Project Leader, Approvers, Planning Officers, Director, Current User)
-    const planningUsers = await prisma.user.findMany({
-      where: {
-        role: { in: ['PLANNING_OFFICER', 'ADMIN', 'DIRECTOR', 'DEPUTY_DIRECTOR'] },
-        is_active: true,
-      },
-      select: { id: true },
-    });
-
-    const stakeholderUserIds = new Set<string>();
-    stakeholderUserIds.add(project.leader_id.toString());
-    stakeholderUserIds.add(currentUserId.toString());
-    project.approvals.forEach((a) => {
-      if (a.approver_id) stakeholderUserIds.add(a.approver_id.toString());
-    });
-    planningUsers.forEach((u) => stakeholderUserIds.add(u.id.toString()));
-
     if (!room) {
-      // Create new Project Chat Room
+      // Create new Project Chat Room with all stakeholders from proposal
       room = await prisma.chatRoom.create({
         data: {
           type: 'PROJECT',
@@ -324,7 +415,7 @@ export class ChatService {
           participants: {
             create: Array.from(stakeholderUserIds).map((uid) => ({
               user_id: BigInt(uid),
-              role: uid === project.leader_id.toString() ? 'OWNER' : 'MEMBER',
+              role: uid === project.leader_id?.toString() ? 'OWNER' : 'MEMBER',
             })),
           },
         },
@@ -377,49 +468,54 @@ export class ChatService {
         },
       });
     } else {
-      // Ensure current user is a participant
-      const isParticipant = room.participants.some((p) => p.user_id === currentUserId);
-      if (!isParticipant) {
-        await prisma.chatParticipant.create({
-          data: {
-            room_id: room.id,
-            user_id: currentUserId,
-            role: 'MEMBER',
-          },
+      // Room already exists: Synchronize any new stakeholders from proposal into participants
+      const existingParticipantIds = new Set(room.participants.map((p) => p.user_id.toString()));
+      const missingStakeholderIds = Array.from(stakeholderUserIds).filter(
+        (uid) => !existingParticipantIds.has(uid)
+      );
+
+      if (missingStakeholderIds.length > 0) {
+        await prisma.chatParticipant.createMany({
+          data: missingStakeholderIds.map((uid) => ({
+            room_id: room!.id,
+            user_id: BigInt(uid),
+            role: uid === project.leader_id?.toString() ? 'OWNER' : 'MEMBER',
+          })),
         });
-        // Re-fetch room participants
-        room = (await prisma.chatRoom.findUnique({
-          where: { id: room.id },
-          include: {
-            project: {
-              select: {
-                id: true,
-                project_code: true,
-                title: true,
-                status: true,
-                total_budget: true,
-                fiscal_year: true,
-                department: { select: { id: true, name: true } },
-              },
+      }
+
+      // Re-fetch updated room participants
+      room = (await prisma.chatRoom.findUnique({
+        where: { id: room.id },
+        include: {
+          project: {
+            select: {
+              id: true,
+              project_code: true,
+              title: true,
+              status: true,
+              total_budget: true,
+              fiscal_year: true,
+              department: { select: { id: true, name: true } },
             },
-            participants: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    full_name: true,
-                    username: true,
-                    avatar_url: true,
-                    role: true,
-                    position: true,
-                    department: { select: { id: true, name: true } },
-                  },
+          },
+          participants: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  full_name: true,
+                  username: true,
+                  avatar_url: true,
+                  role: true,
+                  position: true,
+                  department: { select: { id: true, name: true } },
                 },
               },
             },
           },
-        }))!;
-      }
+        },
+      }))!;
     }
 
     return serializeBigInt(room);
