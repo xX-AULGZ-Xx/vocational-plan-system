@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Users, UserPlus, X, Check, Loader2, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useChat } from '@/lib/chat-context';
+import ChatAvatar from './ChatAvatar';
 
 interface UserItem {
   id: string;
@@ -192,16 +193,12 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                     className="flex items-center justify-between p-2.5 rounded-xl hover:bg-blue-50/60 cursor-pointer transition group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="relative w-9 h-9 rounded-full overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center font-bold text-xs text-slate-700">
-                        {u.avatar_url ? (
-                          <img src={u.avatar_url} alt={u.full_name} className="w-full h-full object-cover" />
-                        ) : (
-                          u.full_name.charAt(0)
-                        )}
-                        {u.is_online && (
-                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
-                        )}
-                      </div>
+                      <ChatAvatar
+                        src={u.avatar_url}
+                        name={u.full_name}
+                        size="md"
+                        isOnline={u.is_online}
+                      />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-blue-700">
                           {u.full_name}
@@ -280,13 +277,11 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center font-bold text-xs">
-                        {u.avatar_url ? (
-                          <img src={u.avatar_url} alt={u.full_name} className="w-full h-full object-cover" />
-                        ) : (
-                          u.full_name.charAt(0)
-                        )}
-                      </div>
+                      <ChatAvatar
+                        src={u.avatar_url}
+                        name={u.full_name}
+                        size="sm"
+                      />
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-slate-800 truncate">{u.full_name}</p>
                         <p className="text-[11px] text-slate-400 truncate">{u.position || u.department?.name}</p>

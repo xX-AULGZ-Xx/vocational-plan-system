@@ -4,6 +4,7 @@ import React from 'react';
 import { ChatMessage } from '@/lib/chat-context';
 import { useAuth } from '@/lib/auth-context';
 import ProjectCardPreview from './ProjectCardPreview';
+import ChatAvatar from './ChatAvatar';
 import {
   FileText,
   FileSpreadsheet,
@@ -70,17 +71,12 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
     <div className={`flex gap-2.5 my-2.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} items-end group`}>
       {/* Sender Avatar */}
       {!isMe && (
-        <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-slate-200 border border-slate-300 flex items-center justify-center text-xs font-bold text-slate-600 mb-1">
-          {message.sender?.avatar_url ? (
-            <img
-              src={message.sender.avatar_url}
-              alt={message.sender.full_name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span>{message.sender?.full_name ? message.sender.full_name.charAt(0) : <UserIcon className="w-4 h-4" />}</span>
-          )}
-        </div>
+        <ChatAvatar
+          src={message.sender?.avatar_url}
+          name={message.sender?.full_name}
+          size="sm"
+          className="mb-1"
+        />
       )}
 
       {/* Message Bubble Container */}

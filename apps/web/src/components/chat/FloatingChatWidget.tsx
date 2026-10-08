@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import ChatMessageItem from './ChatMessageItem';
 import ChatInput from './ChatInput';
 import NewChatModal from './NewChatModal';
+import ChatAvatar from './ChatAvatar';
 import {
   MessageSquare,
   MessageCircle,
@@ -265,30 +266,18 @@ export default function FloatingChatWidget() {
                         }`}
                       >
                         {/* Avatar */}
-                        <div className="relative shrink-0">
-                          {r.type === 'PROJECT' ? (
-                            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
-                              <FolderKanban className="w-5 h-5" />
-                            </div>
-                          ) : r.type === 'GROUP' ? (
-                            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
-                              <Users className="w-5 h-5" />
-                            </div>
-                          ) : (
-                            <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
-                              {r.displayAvatar ? (
-                                <img src={r.displayAvatar} alt={r.displayName} className="w-full h-full object-cover" />
-                              ) : (
-                                r.displayName.charAt(0)
-                              )}
-                            </div>
-                          )}
-
-                          {/* Online status indicator for 1:1 */}
-                          {r.type === 'DIRECT' && r.participants.some((p) => p.user?.is_online && p.user_id !== user?.id?.toString()) && (
-                            <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-white" />
-                          )}
-                        </div>
+                        <ChatAvatar
+                          src={r.displayAvatar}
+                          name={r.displayName}
+                          type={r.type}
+                          size="md"
+                          isOnline={
+                            r.type === 'DIRECT' &&
+                            r.participants.some(
+                              (p) => p.user?.is_online && p.user_id !== user?.id?.toString()
+                            )
+                          }
+                        />
 
                         {/* Info & Snippet */}
                         <div className="min-w-0 flex-1">

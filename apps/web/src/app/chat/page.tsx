@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import ChatMessageItem from '@/components/chat/ChatMessageItem';
 import ChatInput from '@/components/chat/ChatInput';
 import NewChatModal from '@/components/chat/NewChatModal';
+import ChatAvatar from '@/components/chat/ChatAvatar';
 import {
   MessageSquare,
   Search,
@@ -215,31 +216,18 @@ function ChatPageContent() {
                   }`}
                 >
                   {/* Room Icon / Avatar */}
-                  <div className="relative shrink-0">
-                    {room.type === 'PROJECT' ? (
-                      <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shadow-2xs">
-                        <FolderKanban className="w-5 h-5" />
-                      </div>
-                    ) : room.type === 'GROUP' ? (
-                      <div className="w-11 h-11 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shadow-2xs">
-                        <Users className="w-5 h-5" />
-                      </div>
-                    ) : (
-                      <div className="w-11 h-11 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600 shadow-2xs">
-                        {room.displayAvatar ? (
-                          <img src={room.displayAvatar} alt={room.displayName} className="w-full h-full object-cover" />
-                        ) : (
-                          room.displayName.charAt(0)
-                        )}
-                      </div>
-                    )}
-
-                    {/* Online indicator */}
-                    {room.type === 'DIRECT' &&
-                      room.participants.some((p) => p.user?.is_online && p.user_id !== user?.id?.toString()) && (
-                        <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 rounded-full ring-2 ring-white" />
-                      )}
-                  </div>
+                  <ChatAvatar
+                    src={room.displayAvatar}
+                    name={room.displayName}
+                    type={room.type}
+                    size="lg"
+                    isOnline={
+                      room.type === 'DIRECT' &&
+                      room.participants.some(
+                        (p) => p.user?.is_online && p.user_id !== user?.id?.toString()
+                      )
+                    }
+                  />
 
                   {/* Room Info */}
                   <div className="min-w-0 flex-1">
@@ -401,16 +389,12 @@ function ChatPageContent() {
                   {activeRoom.participants.map((p) => (
                     <div key={p.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="relative w-8 h-8 rounded-full overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center text-xs font-bold">
-                          {p.user?.avatar_url ? (
-                            <img src={p.user.avatar_url} alt={p.user.full_name} className="w-full h-full object-cover" />
-                          ) : (
-                            p.user?.full_name?.charAt(0) || <UserIcon className="w-4 h-4" />
-                          )}
-                          {p.user?.is_online && (
-                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
-                          )}
-                        </div>
+                        <ChatAvatar
+                          src={p.user?.avatar_url}
+                          name={p.user?.full_name}
+                          size="sm"
+                          isOnline={p.user?.is_online}
+                        />
                         <div className="min-w-0">
                           <p className="text-xs font-semibold text-slate-800 truncate">{p.user?.full_name}</p>
                           <p className="text-[10px] text-slate-400 truncate">{p.user?.position || p.user?.role}</p>
