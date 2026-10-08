@@ -42,18 +42,20 @@ export default function ProjectChatTab({ projectId, project }: ProjectChatTabPro
       setIsInitializing(true);
       openProjectChat(projectId)
         .then((rId) => {
-          if (isMounted && rId) {
-            setRoomId(rId);
+          if (isMounted) {
+            if (rId) setRoomId(rId);
+            setIsInitializing(false);
           }
         })
-        .finally(() => {
+        .catch((err) => {
+          console.error('Error opening project chat:', err);
           if (isMounted) setIsInitializing(false);
         });
     }
     return () => {
       isMounted = false;
     };
-  }, [projectId, openProjectChat]);
+  }, [projectId]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -66,11 +68,39 @@ export default function ProjectChatTab({ projectId, project }: ProjectChatTabPro
   const currentRoomTyping = roomId ? typingUsers[roomId] : null;
   const typingNames = currentRoomTyping ? Object.values(currentRoomTyping) : [];
 
+  const handleRetry = () => {
+    setIsInitializing(true);
+    openProjectChat(projectId)
+      .then((rId) => {
+        if (rId) setRoomId(rId);
+      })
+      .finally(() => {
+        setIsInitializing(false);
+      });
+  };
+
   if (isInitializing) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-xs">
         <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
         <p className="text-sm text-slate-600 font-medium">กำลังเปิดห้องสนทนาและเชื่อมต่อผู้เกี่ยวข้องในโครงการ...</p>
+      </div>
+    );
+  }
+
+  if (!roomId && !activeRoom) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-xs">
+        <MessageSquare className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+        <p className="text-sm text-slate-600 font-medium mb-3">ไม่สามารถเชื่อมต่อห้องสนทนาโครงการได้ในขณะนี้</p>
+        <button
+          type="button"
+          onClick={handleRetry}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition"
+        >
+          <RefreshCw className="w-4 h-4" />
+          ลองใหม่อีกครั้ง
+        </button>
       </div>
     );
   }

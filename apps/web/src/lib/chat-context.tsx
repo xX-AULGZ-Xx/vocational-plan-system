@@ -261,12 +261,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         if (data.success && Array.isArray(data.data)) {
           setMessages(data.data);
           // Mark room unread count locally as 0
-          setRooms((prev) =>
-            prev.map((r) => (r.id === roomId ? { ...r, unread_count: 0 } : r))
-          );
-          setTotalUnreadCount((prev) => {
-            const currentRoom = rooms.find((r) => r.id === roomId);
-            return Math.max(0, prev - (currentRoom?.unread_count || 0));
+          setRooms((prev) => {
+            const currentRoom = prev.find((r) => r.id === roomId);
+            if (currentRoom && currentRoom.unread_count > 0) {
+              setTotalUnreadCount((c) => Math.max(0, c - currentRoom.unread_count));
+            }
+            return prev.map((r) => (r.id === roomId ? { ...r, unread_count: 0 } : r));
           });
         }
       } catch (err) {
@@ -275,15 +275,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setIsLoadingMessages(false);
       }
     },
-    [getAuthHeaders, rooms]
+    [getAuthHeaders]
   );
 
   // Select active room
   const selectRoom = useCallback(
     async (roomId: string | null) => {
       // Leave old room socket if any
-      if (activeRoomId && socketRef.current) {
-        socketRef.current.emit('leave_chat_room', { roomId: activeRoomId });
+      const previousRoomId = activeRoomRef.current;
+      if (previousRoomId && previousRoomId !== roomId && socketRef.current) {
+        socketRef.current.emit('leave_chat_room', { roomId: previousRoomId });
       }
 
       setActiveRoomId(roomId);
@@ -298,7 +299,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setMessages([]);
       }
     },
-    [activeRoomId, fetchMessages]
+    [fetchMessages]
   );
 
   // Initialize socket connection
