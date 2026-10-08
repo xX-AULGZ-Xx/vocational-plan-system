@@ -55,6 +55,13 @@ export class ChatService {
                   },
                 },
                 attachments: true,
+                reactions: {
+                  include: {
+                    user: {
+                      select: { id: true, full_name: true, username: true },
+                    },
+                  },
+                },
               },
             },
           },
@@ -511,6 +518,13 @@ export class ChatService {
           },
         },
         attachments: true,
+        reactions: {
+          include: {
+            user: {
+              select: { id: true, full_name: true, username: true },
+            },
+          },
+        },
       },
       orderBy: { id: 'desc' },
       take: limit,
@@ -602,6 +616,13 @@ export class ChatService {
           },
         },
         attachments: true,
+        reactions: {
+          include: {
+            user: {
+              select: { id: true, full_name: true, username: true },
+            },
+          },
+        },
         room: {
           include: {
             participants: {
@@ -648,6 +669,95 @@ export class ChatService {
     });
 
     return serializedMessage;
+  }
+
+  /**
+   * Toggle reaction on a message (add if not reacted, remove if already reacted)
+   */
+  async toggleReaction(userId: bigint, messageId: bigint, emoji: string) {
+    const message = await prisma.chatMessage.findUnique({
+      where: { id: messageId },
+      include: {
+        room: {
+          include: {
+            participants: {
+              select: { user_id: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!message) {
+      throw new Error('ไม่พบข้อความที่ต้องการ React');
+    }
+
+    const isParticipant = message.room.participants.some((p) => p.user_id === userId);
+    if (!isParticipant) {
+      throw new Error('คุณไม่ได้อยู่ในห้องสนทนานี้');
+    }
+
+    const cleanEmoji = emoji.trim();
+    if (!cleanEmoji) {
+      throw new Error('กรุณาระบุ Emoji ที่ต้องการ React');
+    }
+
+    // Check existing reaction
+    const existing = await prisma.chatMessageReaction.findUnique({
+      where: {
+        message_id_user_id_emoji: {
+          message_id: messageId,
+          user_id: userId,
+          emoji: cleanEmoji,
+        },
+      },
+    });
+
+    if (existing) {
+      // Remove reaction
+      await prisma.chatMessageReaction.delete({
+        where: { id: existing.id },
+      });
+    } else {
+      // Add reaction
+      await prisma.chatMessageReaction.create({
+        data: {
+          message_id: messageId,
+          user_id: userId,
+          emoji: cleanEmoji,
+        },
+      });
+    }
+
+    // Fetch updated reactions for this message
+    const allReactions = await prisma.chatMessageReaction.findMany({
+      where: { message_id: messageId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            full_name: true,
+            username: true,
+          },
+        },
+      },
+      orderBy: { created_at: 'asc' },
+    });
+
+    const serializedReactions = serializeBigInt(allReactions);
+
+    // Broadcast real-time reaction update to room
+    wsManager.sendToChatRoom(message.room_id, 'chat_message_reaction', {
+      message_id: messageId.toString(),
+      room_id: message.room_id.toString(),
+      reactions: serializedReactions,
+    });
+
+    return {
+      success: true,
+      message_id: messageId.toString(),
+      reactions: serializedReactions,
+    };
   }
 
   /**

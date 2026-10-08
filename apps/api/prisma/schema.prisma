@@ -87,6 +87,7 @@ model User {
   chat_rooms_created ChatRoom[]   @relation("ChatRoomCreator")
   chat_participants  ChatParticipant[]
   chat_messages      ChatMessage[]
+  chat_reactions     ChatMessageReaction[]
 
   @@map("users")
 }
@@ -520,6 +521,7 @@ model ChatMessage {
   room         ChatRoom         @relation(fields: [room_id], references: [id], onDelete: Cascade)
   sender       User             @relation(fields: [sender_id], references: [id], onDelete: Cascade)
   attachments  ChatAttachment[]
+  reactions    ChatMessageReaction[]
 
   @@index([room_id, created_at])
   @@index([sender_id])
@@ -540,4 +542,21 @@ model ChatAttachment {
   @@index([message_id])
   @@map("chat_attachments")
 }
+
+model ChatMessageReaction {
+  id         BigInt      @id @default(autoincrement())
+  message_id BigInt
+  user_id    BigInt
+  emoji      String      @db.VarChar(32)
+  created_at DateTime    @default(now())
+
+  message    ChatMessage @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([message_id, user_id, emoji])
+  @@index([message_id])
+  @@index([user_id])
+  @@map("chat_message_reactions")
+}
+
 

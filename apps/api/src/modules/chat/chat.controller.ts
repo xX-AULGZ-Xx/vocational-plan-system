@@ -202,6 +202,25 @@ router.post('/rooms/:roomId/read', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// POST /api/v1/chat/messages/:messageId/reactions - Toggle reaction on a message
+router.post('/messages/:messageId/reactions', async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = BigInt(req.user!.id);
+    const messageId = BigInt(req.params.messageId);
+    const { emoji } = req.body;
+
+    if (!emoji || typeof emoji !== 'string' || !emoji.trim()) {
+      return res.status(400).json({ success: false, message: 'กรุณาระบุ emoji' });
+    }
+
+    const result = await chatService.toggleReaction(userId, messageId, emoji.trim());
+    res.json(result);
+  } catch (error: any) {
+    console.error('Error toggling reaction:', error);
+    res.status(400).json({ success: false, message: error.message || 'ไม่สามารถ React ข้อความได้' });
+  }
+});
+
 // POST /api/v1/chat/upload - Upload attachment
 router.post('/upload', upload.single('file'), async (req: AuthRequest, res: Response) => {
   try {

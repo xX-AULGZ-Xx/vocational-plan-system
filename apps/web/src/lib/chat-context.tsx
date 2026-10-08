@@ -21,6 +21,19 @@ export interface ChatSender {
   position?: string;
 }
 
+export interface ChatMessageReaction {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at?: string;
+  user?: {
+    id: string;
+    full_name: string;
+    username?: string;
+  };
+}
+
 export interface ChatMessage {
   id: string;
   room_id: string;
@@ -33,6 +46,7 @@ export interface ChatMessage {
   updated_at?: string;
   sender: ChatSender;
   attachments?: ChatAttachment[];
+  reactions?: ChatMessageReaction[];
 }
 
 export interface ChatParticipant {
@@ -105,6 +119,7 @@ interface ChatContextType {
   sendTyping: (isTyping: boolean, roomId?: string) => void;
   markAsRead: (roomId: string) => Promise<void>;
   uploadFile: (file: File) => Promise<any>;
+  toggleReaction: (messageId: string, emoji: string) => Promise<void>;
   toggleWidget: (open?: boolean) => void;
   setWidgetActiveRoom: (roomId: string | null) => void;
 }
@@ -131,6 +146,7 @@ const ChatContext = createContext<ChatContextType>({
   sendTyping: () => {},
   markAsRead: async () => {},
   uploadFile: async () => null,
+  toggleReaction: async () => {},
   toggleWidget: () => {},
   setWidgetActiveRoom: () => {},
 });
@@ -365,6 +381,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
+    // Real-time message reactions
+    socket.on('chat_message_reaction', (data: { message_id: string; room_id: string; reactions: ChatMessageReaction[] }) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === data.message_id ? { ...m, reactions: data.reactions } : m
+        )
+      );
+    });
+
     // User online status change
     socket.on('user_status_changed', (data: { userId: string; status: 'ONLINE' | 'OFFLINE' }) => {
       setOnlineUserIds((prev) => {
@@ -592,6 +617,33 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [getAuthHeaders, fetchRooms, selectRoom]
   );
 
+  // Toggle reaction on a message
+  const toggleReaction = useCallback(
+    async (messageId: string, emoji: string) => {
+      try {
+        const res = await fetch(`/api/v1/chat/messages/${messageId}/reactions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({ emoji }),
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === messageId ? { ...m, reactions: data.data.reactions } : m
+            )
+          );
+        }
+      } catch (err) {
+        console.error('Error toggling reaction:', err);
+      }
+    },
+    [getAuthHeaders]
+  );
+
   // Toggle floating widget
   const toggleWidget = useCallback((open?: boolean) => {
     setIsWidgetOpen((prev) => (open !== undefined ? open : !prev));
@@ -632,6 +684,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         sendTyping,
         markAsRead,
         uploadFile,
+        toggleReaction,
         toggleWidget,
         setWidgetActiveRoom,
       }}
