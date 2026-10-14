@@ -43,8 +43,8 @@ function LoginForm() {
           window.location.replace('/setup');
         }
       })
-      .catch(() => {
-        window.location.replace('/setup');
+      .catch((err) => {
+        console.warn('Could not verify setup status:', err);
       });
   }, []);
 
