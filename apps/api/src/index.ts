@@ -21,6 +21,8 @@ import systemUpdateRouter from './modules/system-update/update.controller';
 import registrationRouter from './modules/projects/registration.controller';
 import auditLogRouter from './modules/audit-logs/audit-log.controller';
 import { wsManager } from './modules/notifications/socket.manager';
+import { optionalAuthenticate } from './middlewares/auth';
+import { auditMiddleware } from './middlewares/audit.middleware';
 
 const app = express();
 const server = http.createServer(app);
@@ -33,6 +35,8 @@ wsManager.initialize(server);
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(optionalAuthenticate);
+app.use(auditMiddleware);
 
 // Static files for document downloads and uploads
 const storageDir = path.resolve(process.env.STORAGE_DIR || './storage');

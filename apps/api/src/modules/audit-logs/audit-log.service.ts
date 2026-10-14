@@ -40,10 +40,52 @@ export function getClientIp(req?: Request): string | null {
 }
 
 /**
+ * Recursively sanitize audit payload to remove passwords, tokens, and massive binary strings
+ */
+export function sanitizeAuditData(data: any, depth = 0): any {
+  if (depth > 5 || data == null) return data;
+  if (typeof data !== 'object') {
+    if (typeof data === 'string' && data.startsWith('data:') && data.length > 300) {
+      return `[BASE64_DATA: ${data.length} chars]`;
+    }
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    return data.slice(0, 50).map((item) => sanitizeAuditData(item, depth + 1));
+  }
+
+  const sanitized: Record<string, any> = {};
+  for (const [key, val] of Object.entries(data)) {
+    const lowerKey = key.toLowerCase();
+    if (
+      lowerKey.includes('password') ||
+      lowerKey.includes('secret') ||
+      lowerKey === 'token' ||
+      lowerKey === 'credential' ||
+      lowerKey === 'current_password' ||
+      lowerKey === 'new_password'
+    ) {
+      sanitized[key] = '[PROTECTED]';
+    } else if (typeof val === 'string' && val.startsWith('data:') && val.length > 300) {
+      sanitized[key] = `[BASE64_DATA: ${val.length} chars]`;
+    } else {
+      sanitized[key] = sanitizeAuditData(val, depth + 1);
+    }
+  }
+  return serializeBigInt(sanitized);
+}
+
+/**
  * Log activity asynchronously without blocking main flow
  */
 export async function logActivity(params: LogActivityParams): Promise<void> {
   try {
+    // Flag request to prevent duplicate automatic logging by middleware
+    if (params.req) {
+      (params.req as any).auditLogged = true;
+    }
+
     let resolvedUserId: bigint | null = null;
     const rawUserId = params.userId ?? (params.req as AuthRequest)?.user?.id;
     if (rawUserId) {
@@ -53,18 +95,8 @@ export async function logActivity(params: LogActivityParams): Promise<void> {
     const ipAddress = params.ipAddress ?? getClientIp(params.req);
     const userAgent = params.userAgent ?? (params.req?.headers['user-agent'] as string) ?? null;
 
-    let sanitizedOldData = params.oldData ? serializeBigInt(params.oldData) : undefined;
-    let sanitizedNewData = params.newData ? serializeBigInt(params.newData) : undefined;
-
-    // Do not log sensitive passwords
-    if (sanitizedOldData && typeof sanitizedOldData === 'object') {
-      if ('password' in sanitizedOldData) delete (sanitizedOldData as any).password;
-      if ('password_hash' in sanitizedOldData) delete (sanitizedOldData as any).password_hash;
-    }
-    if (sanitizedNewData && typeof sanitizedNewData === 'object') {
-      if ('password' in sanitizedNewData) delete (sanitizedNewData as any).password;
-      if ('password_hash' in sanitizedNewData) delete (sanitizedNewData as any).password_hash;
-    }
+    const sanitizedOldData = params.oldData ? sanitizeAuditData(params.oldData) : null;
+    const sanitizedNewData = params.newData ? sanitizeAuditData(params.newData) : null;
 
     await prisma.auditLog.create({
       data: {
@@ -76,8 +108,8 @@ export async function logActivity(params: LogActivityParams): Promise<void> {
         description: params.description,
         ip_address: ipAddress,
         user_agent: userAgent,
-        old_data: sanitizedOldData ?? null,
-        new_data: sanitizedNewData ?? null,
+        old_data: sanitizedOldData,
+        new_data: sanitizedNewData,
       },
     });
   } catch (err) {

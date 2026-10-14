@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, AuthRequest } from '../../middlewares/auth';
 import { ApprovalStatus, ProjectStatus, Role, NotificationType } from '@prisma/client';
@@ -129,7 +129,7 @@ async function generateProjectCode(fiscalYear: number, divisionCode: string, dep
 }
 
 // Reusable single approval processor with Prisma Transaction
-async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'REVISE' | 'REJECT', comment: string | undefined, approverId: bigint) {
+async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'REVISE' | 'REJECT', comment: string | undefined, approverId: bigint, req?: Request) {
   const approval = await prisma.projectApproval.findUnique({
     where: { id: approvalId },
     include: {
@@ -394,6 +394,7 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       targetType: 'Project',
       description: `พิจารณาอนุมัติ/เห็นชอบโครงการ "${project.title}" ${stepName} ${assignedProjectCode ? `(ออกรหัส: ${assignedProjectCode})` : ''} ${comment ? `[ข้อความ: ${comment}]` : ''}`,
       newData: { step_order: approval.step_order, status: newProjectStatus, project_code: assignedProjectCode, comment },
+      req,
     });
 
     return {
@@ -449,6 +450,7 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       targetType: 'Project',
       description: `ส่งกลับแก้ไขโครงการ "${project.title}" (ขั้นที่ ${approval.step_order}) โดยระบุ: "${comment || 'ไม่มีระบุ'}"`,
       newData: { step_order: approval.step_order, comment },
+      req,
     });
 
     return { success: true, message: `ส่งคำขอแก้ไขโครงการ "${project.title}" กลับไปยังผู้เสนอเรียบร้อยแล้ว` };
@@ -499,6 +501,7 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       targetType: 'Project',
       description: `ไม่อนุมัติโครงการ "${project.title}" (ขั้นที่ ${approval.step_order}) เนื่องจาก: "${comment || 'ไม่เป็นไปตามเกณฑ์ที่กำหนด'}"`,
       newData: { step_order: approval.step_order, comment },
+      req,
     });
 
     return { success: true, message: `ปฏิเสธโครงการ "${project.title}" เรียบร้อยแล้ว` };
@@ -883,7 +886,7 @@ router.post('/batch-action', authenticate, async (req: AuthRequest, res: Respons
 
     for (const id of approval_ids) {
       try {
-        const result = await executeApprovalAction(BigInt(id), action, comment, approverId);
+        const result = await executeApprovalAction(BigInt(id), action, comment, approverId, req);
         results.push(result.message);
       } catch (err: any) {
         errors.push(`รายการ ID ${id}: ${err.message}`);
@@ -912,7 +915,7 @@ router.post('/:id/action', authenticate, async (req: AuthRequest, res: Response)
     const { action, comment } = req.body; // action: 'APPROVE' | 'REVISE' | 'REJECT'
     const approverId = BigInt(req.user!.id);
 
-    const result = await executeApprovalAction(BigInt(id), action, comment, approverId);
+    const result = await executeApprovalAction(BigInt(id), action, comment, approverId, req);
     return res.json(result);
   } catch (error: any) {
     console.error('Approval action error:', error);
