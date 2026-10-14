@@ -439,7 +439,7 @@ export default function AdminAuditLogsPage() {
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">บันทึกทั้งหมด</p>
             <p className="text-2xl font-extrabold text-slate-800">
-              {stats ? stats.totalLogs.toLocaleString() : '...'}
+              {stats ? (stats.totalLogs ?? 0).toLocaleString() : '...'}
             </p>
             <span className="text-[11px] text-slate-400">รายการทั้งหมดในระบบ</span>
           </div>
@@ -453,7 +453,7 @@ export default function AdminAuditLogsPage() {
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">บันทึกวันนี้</p>
             <p className="text-2xl font-extrabold text-slate-800">
-              {stats ? stats.todayLogs.toLocaleString() : '...'}
+              {stats ? (stats.todayLogs ?? 0).toLocaleString() : '...'}
             </p>
             <span className="text-[11px] text-emerald-600 font-medium">กิจกรรมที่เกิดขึ้นในวันนี้</span>
           </div>
@@ -483,7 +483,7 @@ export default function AdminAuditLogsPage() {
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">ผู้ใช้งานที่มีกิจกรรม</p>
             <p className="text-2xl font-extrabold text-slate-800">
-              {stats ? stats.uniqueUsersCount.toLocaleString() : '...'}
+              {stats ? (stats.uniqueUsersCount ?? 0).toLocaleString() : '...'}
             </p>
             <span className="text-[11px] text-slate-400">บัญชีผู้ใช้ที่มีการบันทึก</span>
           </div>

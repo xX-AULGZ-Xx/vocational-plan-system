@@ -216,7 +216,7 @@ export async function getAuditLogStats() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  const [totalLogs, todayLogs, moduleCounts, recentActions] = await Promise.all([
+  const [totalLogs, todayLogs, moduleCountsGroup, uniqueUsersGroup, recentActions] = await Promise.all([
     prisma.auditLog.count(),
     prisma.auditLog.count({
       where: { created_at: { gte: todayStart } },
@@ -224,6 +224,10 @@ export async function getAuditLogStats() {
     prisma.auditLog.groupBy({
       by: ['module'],
       _count: { _all: true },
+    }),
+    prisma.auditLog.groupBy({
+      by: ['user_id'],
+      where: { user_id: { not: null } },
     }),
     prisma.auditLog.findMany({
       take: 5,
@@ -241,14 +245,16 @@ export async function getAuditLogStats() {
   ]);
 
   const moduleBreakdown: Record<string, number> = {};
-  moduleCounts.forEach((m) => {
+  moduleCountsGroup.forEach((m) => {
     moduleBreakdown[m.module] = m._count._all;
   });
 
   return {
-    totalLogs,
-    todayLogs,
+    totalLogs: totalLogs || 0,
+    todayLogs: todayLogs || 0,
     moduleBreakdown,
+    moduleCounts: moduleBreakdown,
+    uniqueUsersCount: uniqueUsersGroup?.length || 0,
     recentActions: serializeBigInt(recentActions),
   };
 }
