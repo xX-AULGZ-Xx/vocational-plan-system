@@ -133,6 +133,7 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   LOGIN_FAILED: { label: 'เข้าสู่ระบบไม่สำเร็จ', color: 'text-rose-600 bg-rose-50 border-rose-200' },
   LOGOUT: { label: 'ออกจากระบบ', color: 'text-slate-600 bg-slate-50 border-slate-200' },
   PROFILE_UPDATE: { label: 'แก้ไขโปรไฟล์', color: 'text-sky-600 bg-sky-50 border-sky-200' },
+  PASSWORD_CHANGE: { label: 'เปลี่ยนรหัสผ่าน', color: 'text-violet-600 bg-violet-50 border-violet-200' },
   PROJECT_CREATE: { label: 'สร้างโครงการใหม่', color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
   PROJECT_UPDATE: { label: 'แก้ไขโครงการ', color: 'text-cyan-600 bg-cyan-50 border-cyan-200' },
   PROJECT_DELETE: { label: 'ลบโครงการ', color: 'text-rose-600 bg-rose-50 border-rose-200' },
@@ -546,11 +547,13 @@ export default function AdminAuditLogsPage() {
               className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary font-medium text-slate-700"
             >
               <option value="ALL">ทุกการกระทำ (All Actions)</option>
-              <optgroup label="การเข้าสู่ระบบ">
+              <optgroup label="การเข้าสู่ระบบ & โปรไฟล์">
                 <option value="LOGIN_PASSWORD">LOGIN_PASSWORD - เข้าสู่ระบบรหัสผ่าน</option>
                 <option value="LOGIN_GOOGLE">LOGIN_GOOGLE - เข้าสู่ระบบ Google</option>
                 <option value="LOGIN_FAILED">LOGIN_FAILED - เข้าสู่ระบบล้มเหลว</option>
                 <option value="LOGOUT">LOGOUT - ออกจากระบบ</option>
+                <option value="PROFILE_UPDATE">PROFILE_UPDATE - แก้ไขโปรไฟล์</option>
+                <option value="PASSWORD_CHANGE">PASSWORD_CHANGE - เปลี่ยนรหัสผ่าน</option>
               </optgroup>
               <optgroup label="โครงการ & อนุมัติ">
                 <option value="PROJECT_CREATE">PROJECT_CREATE - สร้างโครงการ</option>

@@ -664,6 +664,35 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 
+    // Record activity in Audit Log
+    logActivity({
+      userId,
+      action: 'PROFILE_UPDATE',
+      module: 'AUTH',
+      targetId: userId.toString(),
+      targetType: 'User',
+      description: `ผู้ใช้ ${updatedUser.full_name} (@${updatedUser.username}) อัปเดตข้อมูลโปรไฟล์ส่วนตัว`,
+      oldData: {
+        full_name: existingUser.full_name,
+        position: existingUser.position,
+        department_id: existingUser.department_id,
+        email: existingUser.email,
+        role: existingUser.role,
+        avatar_url: existingUser.avatar_url,
+        signature_img: existingUser.signature_img ? '[มีรูปลายเซ็นเดิม]' : null,
+      },
+      newData: {
+        full_name: updatedUser.full_name,
+        position: updatedUser.position,
+        department_id: updatedUser.department_id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        avatar_url: updatedUser.avatar_url,
+        signature_img: updatedUser.signature_img ? '[มีรูปลายเซ็นใหม่]' : null,
+      },
+      req,
+    });
+
     return res.json({
       success: true,
       message: 'บันทึกข้อมูลโปรไฟล์เรียบร้อยแล้ว',
@@ -727,6 +756,17 @@ router.put('/password', authenticate, async (req: AuthRequest, res: Response) =>
     await prisma.user.update({
       where: { id: userId },
       data: { password_hash },
+    });
+
+    // Record activity in Audit Log
+    logActivity({
+      userId,
+      action: 'PASSWORD_CHANGE',
+      module: 'AUTH',
+      targetId: userId.toString(),
+      targetType: 'User',
+      description: `ผู้ใช้ ${user.full_name} (@${user.username}) เปลี่ยนรหัสผ่านส่วนตัวสำเร็จ`,
+      req,
     });
 
     return res.json({ success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว' });
