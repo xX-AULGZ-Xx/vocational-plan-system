@@ -141,7 +141,7 @@ function ChatPageContent() {
           </div>
           <button
             onClick={() => setShowNewChatModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-semibold shadow-xs transition"
           >
             <Plus className="w-4 h-4" />
             <span>สร้างแชท</span>
@@ -157,7 +157,7 @@ function ChatPageContent() {
               placeholder="ค้นหาข้อความ, บุคลากร, โครงการ..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="w-full pl-9 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary"
             />
           </div>
         </div>
@@ -175,7 +175,7 @@ function ChatPageContent() {
               onClick={() => setFilterTab(tab.key as any)}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition ${
                 filterTab === tab.key
-                  ? 'bg-white text-blue-700 font-semibold shadow-2xs border border-slate-200'
+                  ? 'bg-white text-theme-primary font-semibold shadow-2xs border border-slate-200'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
               }`}
             >
@@ -196,7 +196,7 @@ function ChatPageContent() {
               <p className="text-sm font-medium">ไม่พบการสนทนา</p>
               <button
                 onClick={() => setShowNewChatModal(true)}
-                className="mt-3 text-xs text-blue-600 hover:underline font-semibold"
+                className="mt-3 text-xs text-theme-primary hover:underline font-semibold"
               >
                 + เริ่มต้นการสนทนาใหม่
               </button>
@@ -212,9 +212,9 @@ function ChatPageContent() {
                   onClick={() => handleSelectRoom(room.id)}
                   className={`flex items-center gap-3 p-3.5 cursor-pointer transition ${
                     isSelected
-                      ? 'bg-blue-50/80 border-r-4 border-blue-600'
+                      ? 'bg-theme-primary-light border-r-4 border-theme-primary'
                       : isUnread
-                      ? 'bg-slate-50/80 hover:bg-blue-50/30'
+                      ? 'bg-slate-50/80 hover:bg-theme-primary-light/40'
                       : 'hover:bg-slate-50'
                   }`}
                 >
@@ -267,7 +267,7 @@ function ChatPageContent() {
                       </p>
                       <div className="flex items-center gap-1 shrink-0">
                         {isUnread && (
-                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-bold text-white">
+                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-theme-primary px-1.5 text-xs font-bold text-white">
                             {room.unread_count}
                           </span>
                         )}
@@ -316,7 +316,7 @@ function ChatPageContent() {
                     {activeRoom.displayName}
                   </h3>
                   {activeRoom.type === 'PROJECT' && (
-                    <span className="text-[10px] bg-blue-100 text-blue-800 font-semibold px-2 py-0.5 rounded-full shrink-0">
+                    <span className="text-[10px] bg-theme-primary-light text-theme-primary font-semibold px-2 py-0.5 rounded-full shrink-0">
                       ห้องโครงการ
                     </span>
                   )}
@@ -331,7 +331,7 @@ function ChatPageContent() {
               {activeRoom.project_id && (
                 <Link
                   href={`/projects/${activeRoom.project_id}`}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl transition"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-theme-primary hover:text-theme-primary-hover bg-theme-primary-light hover:bg-theme-primary-light/80 px-3 py-1.5 rounded-xl transition"
                 >
                   <FolderKanban className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">เปิดดูโครงการ</span>
@@ -350,7 +350,7 @@ function ChatPageContent() {
               <button
                 onClick={() => setShowInfoSidebar(!showInfoSidebar)}
                 className={`p-2 rounded-xl transition ${
-                  showInfoSidebar ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-100'
+                  showInfoSidebar ? 'bg-theme-primary-light text-theme-primary' : 'text-slate-500 hover:bg-slate-100'
                 }`}
                 title="ข้อมูลห้องและสมาชิก"
               >
@@ -394,7 +394,7 @@ function ChatPageContent() {
                 {/* Typing Indicator */}
                 {typingNames.length > 0 && (
                   <div className="flex items-center gap-2 text-xs text-slate-500 italic py-1 px-3 bg-white/70 rounded-full w-fit animate-pulse border border-slate-200/50">
-                    <span className="w-2 h-2 rounded-full bg-blue-600" />
+                    <span className="w-2 h-2 rounded-full bg-theme-primary" />
                     <span>{typingNames.join(', ')} กำลังพิมพ์...</span>
                   </div>
                 )}
@@ -454,7 +454,7 @@ function ChatPageContent() {
         /* Empty state when no room is selected */
         <div className="hidden lg:flex flex-1 items-center justify-center bg-slate-50/50 p-8 text-center">
           <div className="max-w-md">
-            <div className="w-16 h-16 rounded-3xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <div className="w-16 h-16 rounded-3xl bg-theme-primary-light text-theme-primary flex items-center justify-center mx-auto mb-4 shadow-sm">
               <MessageSquare className="w-8 h-8" />
             </div>
             <h3 className="text-lg font-bold text-slate-900 mb-2">เลือกห้องสนทนาเพื่อเริ่มพูดคุย</h3>
@@ -464,7 +464,7 @@ function ChatPageContent() {
             <div className="flex items-center justify-center gap-3">
               <button
                 onClick={() => setShowNewChatModal(true)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-xs transition"
+                className="px-4 py-2 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-semibold rounded-xl shadow-xs transition"
               >
                 + เริ่มการสนทนาใหม่
               </button>
@@ -503,7 +503,7 @@ export default function ChatPage() {
       fallback={
         <div className="h-[calc(100vh-6.5rem)] flex items-center justify-center bg-white rounded-2xl border border-slate-200">
           <div className="text-center text-slate-400 text-sm">
-            <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <div className="w-8 h-8 border-3 border-theme-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
             <p>กำลังโหลดระบบสนทนา...</p>
           </div>
         </div>

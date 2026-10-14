@@ -363,7 +363,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
         >
           <div className="px-2.5 py-1.5 flex items-center justify-between text-[11px] font-semibold text-slate-500">
             <span className="flex items-center gap-1.5">
-              <AtSign className="w-3.5 h-3.5 text-blue-600" />
+              <AtSign className="w-3.5 h-3.5 text-theme-primary" />
               แท็กสมาชิกในห้อง
             </span>
             <span className="text-[10px] font-normal text-slate-400">↑↓ เลือก, Enter ยืนยัน</span>
@@ -381,7 +381,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
                   }}
                   onMouseEnter={() => setMentionSelectedIndex(idx)}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition ${
-                    isSelected ? 'bg-blue-50 text-blue-900 ring-1 ring-blue-200' : 'hover:bg-slate-50 text-slate-700'
+                    isSelected ? 'bg-theme-primary-light text-theme-primary ring-1 ring-theme-primary/30' : 'hover:bg-slate-50 text-slate-700'
                   }`}
                 >
                   {candidate.isAll ? (
@@ -420,11 +420,11 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
 
       {/* Replying To Message Banner */}
       {replyingToMessage && (
-        <div className="mb-2 p-2.5 rounded-xl bg-blue-50/70 border-l-4 border-l-blue-600 border border-blue-200/80 flex items-center justify-between gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div className="mb-2 p-2.5 rounded-xl bg-theme-primary-light border-l-4 border-l-theme-primary border border-theme-primary/20 flex items-center justify-between gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="flex items-center gap-2 min-w-0">
-            <Reply className="w-4 h-4 text-blue-600 shrink-0" />
+            <Reply className="w-4 h-4 text-theme-primary shrink-0" />
             <div className="min-w-0 text-xs">
-              <span className="font-semibold text-blue-900 block truncate">
+              <span className="font-semibold text-slate-900 block truncate">
                 กำลังตอบกลับ {replyingToMessage.sender?.full_name || 'ผู้ใช้'}
               </span>
               <p className="text-slate-600 truncate text-[11px] mt-0.5">
@@ -435,7 +435,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
           <button
             type="button"
             onClick={() => setReplyingToMessage(null)}
-            className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-blue-100/80 transition"
+            className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-theme-primary/10 transition"
             title="ยกเลิกการตอบกลับ"
           >
             <X className="w-4 h-4" />
@@ -445,21 +445,21 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
 
       {/* Attached Project Card Preview before sending */}
       {selectedProject && (
-        <div className="mb-2 p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 flex items-center justify-between gap-2">
+        <div className="mb-2 p-2.5 rounded-xl bg-theme-primary-light border border-theme-primary/20 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <FolderKanban className="w-4 h-4 text-blue-600 shrink-0" />
+            <FolderKanban className="w-4 h-4 text-theme-primary shrink-0" />
             <div className="min-w-0 text-xs">
-              <span className="font-semibold text-blue-900 block truncate">
+              <span className="font-semibold text-slate-900 block truncate">
                 แนบโครงการ: {selectedProject.title}
               </span>
-              <span className="text-blue-600 text-[11px]">
+              <span className="text-theme-primary text-[11px]">
                 {selectedProject.project_code || 'โครงการ'} • งบฯ {Number(selectedProject.total_budget || 0).toLocaleString()} บาท
               </span>
             </div>
           </div>
           <button
             onClick={() => setSelectedProject(null)}
-            className="p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-blue-100 transition"
+            className="p-1 text-slate-400 hover:text-slate-600 rounded-md hover:bg-theme-primary/10 transition"
           >
             <X className="w-4 h-4" />
           </button>
@@ -524,9 +524,9 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
             title="แนบไฟล์ (เอกสาร, รูปภาพ, PDF)"
-            className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition disabled:opacity-50"
+            className="p-2 rounded-xl text-slate-500 hover:text-theme-primary hover:bg-theme-primary-light transition disabled:opacity-50"
           >
-            {isUploading ? <Loader2 className="w-5 h-5 animate-spin text-blue-600" /> : <Paperclip className="w-5 h-5" />}
+            {isUploading ? <Loader2 className="w-5 h-5 animate-spin text-theme-primary" /> : <Paperclip className="w-5 h-5" />}
           </button>
 
           {/* Mention Tag Button */}
@@ -534,7 +534,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
             type="button"
             onClick={handleMentionButtonClick}
             title="แท็กสมาชิก (@)"
-            className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition"
+            className="p-2 rounded-xl text-slate-500 hover:text-theme-primary hover:bg-theme-primary-light transition"
           >
             <AtSign className="w-5 h-5" />
           </button>
@@ -544,7 +544,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
             type="button"
             onClick={() => setShowProjectModal(true)}
             title="แชร์ข้อมูลโครงการ"
-            className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition hidden sm:flex"
+            className="p-2 rounded-xl text-slate-500 hover:text-theme-primary hover:bg-theme-primary-light transition hidden sm:flex"
           >
             <FolderKanban className="w-5 h-5" />
           </button>
@@ -561,7 +561,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
         </div>
 
         {/* Text Input Area */}
-        <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:bg-white transition-all">
+        <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2 focus-within:border-theme-primary focus-within:ring-2 focus-within:ring-theme-primary/20 focus-within:bg-white transition-all">
           <textarea
             ref={textareaRef}
             rows={1}
@@ -578,7 +578,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
           type="button"
           onClick={handleSend}
           disabled={(!content.trim() && attachments.length === 0 && !selectedProject) || isSending}
-          className="p-2.5 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-600 shadow-md shadow-blue-500/20 transition-all shrink-0 flex items-center justify-center pb-2.5"
+          className="p-2.5 rounded-2xl bg-theme-primary text-white hover:bg-theme-primary-hover disabled:opacity-40 disabled:hover:bg-theme-primary shadow-md shadow-theme-primary transition-all shrink-0 flex items-center justify-center pb-2.5"
         >
           {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
         </button>

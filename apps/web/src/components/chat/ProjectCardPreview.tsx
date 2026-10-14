@@ -44,14 +44,14 @@ export default function ProjectCardPreview({ data }: { data: ProjectCardData }) 
     : '0.00';
 
   return (
-    <div className="bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-xs max-w-md w-full transition hover:border-blue-300 hover:shadow-md">
+    <div className="bg-gradient-to-br from-white to-slate-50 border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-xs max-w-md w-full transition hover:border-theme-primary/30 hover:shadow-md">
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-theme-primary-light text-theme-primary flex items-center justify-center shrink-0">
             <FolderKanban className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider block truncate">
+            <span className="text-xs font-semibold text-theme-primary uppercase tracking-wider block truncate">
               {data.project_code || 'โครงการ'}
             </span>
             <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full border ${statusBadge.bg}`}>
@@ -62,7 +62,7 @@ export default function ProjectCardPreview({ data }: { data: ProjectCardData }) 
         {projectId && (
           <Link
             href={`/projects/${projectId}`}
-            className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition shrink-0"
+            className="inline-flex items-center gap-1 text-xs font-medium text-theme-primary hover:text-theme-primary-hover bg-theme-primary-light hover:bg-theme-primary-light/80 px-2.5 py-1 rounded-lg transition shrink-0"
           >
             <span>เปิดดู</span>
             <ArrowUpRight className="w-3.5 h-3.5" />

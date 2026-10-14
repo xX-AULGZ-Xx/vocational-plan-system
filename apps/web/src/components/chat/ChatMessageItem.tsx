@@ -169,8 +169,8 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                 key={idx}
                 className={`inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded-md text-xs font-medium transition ${
                   isMe
-                    ? 'bg-blue-700 text-blue-100 border border-blue-500/80'
-                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+                    ? 'bg-white/20 text-white border border-white/30'
+                    : 'bg-theme-primary-light text-theme-primary border border-theme-primary-light'
                 }`}
               >
                 {part}
@@ -269,7 +269,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
             <button
               type="button"
               onClick={() => setReplyingToMessage(message)}
-              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-blue-600 rounded-full hover:bg-blue-50 transition"
+              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-theme-primary rounded-full hover:bg-theme-primary-light transition"
               title="ตอบกลับข้อความนี้"
             >
               <Reply className="w-3.5 h-3.5" />
@@ -284,8 +284,8 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                 <div
                   className={`px-3 py-1.5 rounded-xl text-xs border-l-2 transition ${
                     isMe
-                      ? 'bg-blue-600 text-white border-l-amber-300'
-                      : 'bg-slate-100 text-slate-700 border-l-blue-600'
+                      ? 'bg-theme-primary text-white border-l-amber-300'
+                      : 'bg-slate-100 text-slate-700 border-l-theme-primary'
                   }`}
                 >
                   <span className="font-semibold block truncate text-[11px]">
@@ -303,7 +303,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                   <div
                     className={`rounded-2xl px-4 py-2.5 shadow-2xs break-words relative text-sm ${
                       isMe
-                        ? 'bg-blue-600 text-white rounded-br-xs self-end'
+                        ? 'bg-theme-primary text-white rounded-br-xs self-end'
                         : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs self-start'
                     }`}
                   >
@@ -324,8 +324,8 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                 <div
                   className={`px-3 py-1.5 rounded-xl text-xs border-l-2 mb-1 transition ${
                     isMe
-                      ? 'bg-blue-600 text-white border-l-amber-300'
-                      : 'bg-slate-100 text-slate-700 border-l-blue-600'
+                      ? 'bg-theme-primary text-white border-l-amber-300'
+                      : 'bg-slate-100 text-slate-700 border-l-theme-primary'
                   }`}
                 >
                   <span className="font-semibold block truncate text-[11px]">
@@ -369,7 +369,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
             <div
               className={`rounded-2xl px-4 py-2.5 shadow-2xs break-words relative transition-all ${
                 isMe
-                  ? 'bg-blue-600 text-white rounded-br-xs'
+                  ? 'bg-theme-primary text-white rounded-br-xs'
                   : 'bg-white text-slate-800 border border-slate-200/80 rounded-bl-xs'
               }`}
             >
@@ -378,13 +378,13 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                 <div
                   className={`mb-2 px-2.5 py-1.5 rounded-lg text-xs border-l-2 transition ${
                     isMe
-                      ? 'bg-blue-700/80 border-l-amber-300 text-blue-100'
-                      : 'bg-slate-100 border-l-blue-600 text-slate-700'
+                      ? 'bg-white/15 border-l-amber-300 text-white/90'
+                      : 'bg-slate-100 border-l-theme-primary text-slate-700'
                   }`}
                 >
                   <span
                     className={`font-semibold block truncate text-[11px] ${
-                      isMe ? 'text-amber-200' : 'text-blue-700'
+                      isMe ? 'text-amber-200' : 'text-theme-primary'
                     }`}
                   >
                     {message.reply_to.sender?.full_name || 'ผู้ใช้'}
@@ -449,7 +449,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                         rel="noopener noreferrer"
                         className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border transition ${
                           isMe
-                            ? 'bg-blue-700/60 border-blue-500 hover:bg-blue-700 text-white'
+                            ? 'bg-white/15 border-white/25 hover:bg-white/20 text-white'
                             : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
                         }`}
                       >
@@ -459,13 +459,13 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                             <p className="text-xs font-semibold truncate max-w-[200px] sm:max-w-[260px]">
                               {att.file_name}
                             </p>
-                            <p className={`text-[10px] ${isMe ? 'text-blue-200' : 'text-slate-400'}`}>
+                            <p className={`text-[10px] ${isMe ? 'text-white/80' : 'text-slate-400'}`}>
                               {formatBytes(att.file_size)}
                             </p>
                           </div>
                         </div>
                         <Download
-                          className={`w-4 h-4 shrink-0 ${isMe ? 'text-blue-200' : 'text-slate-500'}`}
+                          className={`w-4 h-4 shrink-0 ${isMe ? 'text-white/80' : 'text-slate-500'}`}
                         />
                       </a>
                     );
@@ -487,7 +487,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                 title={`${group.userNames.join(', ')}`}
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition border shadow-2xs ${
                   group.hasReacted
-                    ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium hover:bg-blue-100'
+                    ? 'bg-theme-primary-light border-theme-primary/30 text-theme-primary font-medium hover:bg-theme-primary-light/80'
                     : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
                 }`}
               >

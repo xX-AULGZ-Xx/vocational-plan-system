@@ -79,7 +79,7 @@ export default function ChatAvatar({
   if (type === 'PROJECT') {
     return (
       <div className={`relative shrink-0 ${className}`}>
-        <div className={`${sizeClasses} rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shadow-2xs font-bold`}>
+        <div className={`${sizeClasses} rounded-xl bg-theme-primary-light text-theme-primary flex items-center justify-center shadow-2xs font-bold`}>
           <FolderKanban className={iconSizes} />
         </div>
       </div>

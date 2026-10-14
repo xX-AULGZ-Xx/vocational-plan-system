@@ -82,7 +82,7 @@ export default function ProjectChatTab({ projectId, project }: ProjectChatTabPro
   if (isInitializing) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-xs">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
+        <Loader2 className="w-8 h-8 text-theme-primary animate-spin mx-auto mb-3" />
         <p className="text-sm text-slate-600 font-medium">กำลังเปิดห้องสนทนาและเชื่อมต่อผู้เกี่ยวข้องในโครงการ...</p>
       </div>
     );
@@ -96,7 +96,7 @@ export default function ProjectChatTab({ projectId, project }: ProjectChatTabPro
         <button
           type="button"
           onClick={handleRetry}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-theme-primary text-white text-xs font-semibold rounded-xl hover:bg-theme-primary-hover transition"
         >
           <RefreshCw className="w-4 h-4" />
           ลองใหม่อีกครั้ง
@@ -108,28 +108,28 @@ export default function ProjectChatTab({ projectId, project }: ProjectChatTabPro
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col h-[680px]">
       {/* Top Banner / Stakeholder Info */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 shrink-0 flex items-center justify-between">
+      <div className="bg-theme-gradient text-white p-4 shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center shrink-0">
-            <MessageSquare className="w-5 h-5 text-blue-300" />
+            <MessageSquare className="w-5 h-5 text-white" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-sm sm:text-base text-white truncate">
                 ห้องปรึกษาและติดตามงาน: {project?.title}
               </h3>
-              <span className="text-[10px] bg-blue-500/30 text-blue-200 border border-blue-400/30 px-2 py-0.5 rounded-full shrink-0">
+              <span className="text-[10px] bg-white/20 text-white border border-white/30 px-2 py-0.5 rounded-full shrink-0">
                 เรียลไทม์
               </span>
             </div>
-            <p className="text-xs text-blue-200/80 truncate">
+            <p className="text-xs text-white/80 truncate">
               สมาชิก: ผู้เสนอโครงการ, คณะกรรมการพิจารณา 4 ฝ่าย, เจ้าหน้าที่งานแผนงาน
             </p>
           </div>
         </div>
 
         {activeRoom?.participants && (
-          <div className="hidden md:flex items-center gap-1 shrink-0 text-xs text-blue-200 bg-white/10 px-3 py-1.5 rounded-xl">
+          <div className="hidden md:flex items-center gap-1 shrink-0 text-xs text-white/90 bg-white/10 px-3 py-1.5 rounded-xl">
             <Users className="w-4 h-4" />
             <span>{activeRoom.participants.length} ผู้เข้าร่วม</span>
           </div>
@@ -157,7 +157,7 @@ export default function ProjectChatTab({ projectId, project }: ProjectChatTabPro
         {/* Typing indicator */}
         {typingNames.length > 0 && (
           <div className="flex items-center gap-2 text-xs text-slate-500 italic py-1 px-3 bg-white/80 rounded-full w-fit animate-pulse border border-slate-200/60">
-            <span className="w-2 h-2 rounded-full bg-blue-600" />
+            <span className="w-2 h-2 rounded-full bg-theme-primary" />
             <span>{typingNames.join(', ')} กำลังพิมพ์...</span>
           </div>
         )}

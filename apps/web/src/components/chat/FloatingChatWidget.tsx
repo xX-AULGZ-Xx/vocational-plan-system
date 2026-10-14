@@ -91,7 +91,7 @@ export default function FloatingChatWidget() {
         <div className="fixed bottom-5 right-5 z-40">
           <button
             onClick={() => toggleWidget(true)}
-            className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none ring-4 ring-blue-500/20"
+            className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-theme-primary hover:bg-theme-primary-hover text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none ring-4 ring-theme-primary/20"
             title="เปิดกล่องข้อความและการสนทนา"
           >
             <MessageSquare className="w-6 h-6 transition-transform group-hover:rotate-6" />
@@ -110,20 +110,20 @@ export default function FloatingChatWidget() {
       {isWidgetOpen && (
         <div className="fixed bottom-4 right-4 z-40 w-[92vw] sm:w-[380px] h-[540px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
           {/* Top Header */}
-          <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between shadow-xs shrink-0">
+          <div className="bg-theme-gradient text-white px-4 py-3 flex items-center justify-between shadow-xs shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               {widgetActiveRoomId ? (
                 <button
                   onClick={() => {
                     setWidgetActiveRoom(null);
                   }}
-                  className="p-1 -ml-1 text-slate-300 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                  className="p-1 -ml-1 text-white/80 hover:text-white rounded-lg hover:bg-white/10 transition"
                   title="กลับไปยังรายการห้อง"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
               ) : (
-                <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
                   <MessageCircle className="w-4 h-4" />
                 </div>
               )}
@@ -132,7 +132,7 @@ export default function FloatingChatWidget() {
                 <h4 className="text-sm font-semibold text-white truncate max-w-[200px]">
                   {widgetActiveRoomId ? activeRoom?.displayName || 'ห้องสนทนา' : 'ข้อความและการสนทนา'}
                 </h4>
-                <p className="text-[11px] text-slate-400 truncate">
+                <p className="text-[11px] text-white/70 truncate">
                   {widgetActiveRoomId
                     ? activeRoom?.subtitle || 'สนทนาแบบเรียลไทม์'
                     : `${rooms.length} ห้องสนทนา`}
@@ -140,12 +140,12 @@ export default function FloatingChatWidget() {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 text-slate-300">
+            <div className="flex items-center gap-1 text-white/80">
               {widgetActiveRoomId && activeRoom && (
                 <button
                   type="button"
                   onClick={() => setRoomToDelete(activeRoom)}
-                  className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition"
+                  className="p-1.5 text-white/70 hover:text-rose-300 hover:bg-white/10 rounded-lg transition"
                   title="ลบห้องสนทนา"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -154,14 +154,14 @@ export default function FloatingChatWidget() {
               <Link
                 href={widgetActiveRoomId ? `/chat?roomId=${widgetActiveRoomId}` : '/chat'}
                 onClick={() => toggleWidget(false)}
-                className="p-1.5 hover:text-white hover:bg-slate-800 rounded-lg transition"
+                className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition"
                 title="ขยายเป็นหน้าเต็ม"
               >
                 <Maximize2 className="w-4 h-4" />
               </Link>
               <button
                 onClick={() => toggleWidget(false)}
-                className="p-1.5 hover:text-white hover:bg-slate-800 rounded-lg transition"
+                className="p-1.5 hover:text-white hover:bg-white/10 rounded-lg transition"
                 title="ย่อหน้าต่าง"
               >
                 <X className="w-4 h-4" />
@@ -191,7 +191,7 @@ export default function FloatingChatWidget() {
                 {/* Typing Indicator */}
                 {typingNames.length > 0 && (
                   <div className="flex items-center gap-1.5 text-xs text-slate-500 italic py-1 px-2 animate-pulse">
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="w-2 h-2 rounded-full bg-theme-primary" />
                     <span>{typingNames.join(', ')} กำลังพิมพ์...</span>
                   </div>
                 )}
@@ -213,12 +213,12 @@ export default function FloatingChatWidget() {
                     placeholder="ค้นหาการสนทนา..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary"
                   />
                 </div>
                 <button
                   onClick={() => setShowNewChatModal(true)}
-                  className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs transition shrink-0"
+                  className="p-1.5 bg-theme-primary hover:bg-theme-primary-hover text-white rounded-xl shadow-xs transition shrink-0"
                   title="เริ่มแชทใหม่"
                 >
                   <Plus className="w-4 h-4" />
@@ -238,7 +238,7 @@ export default function FloatingChatWidget() {
                     onClick={() => setActiveTab(t.key as any)}
                     className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition ${
                       activeTab === t.key
-                        ? 'bg-blue-50 text-blue-700 font-semibold'
+                        ? 'bg-theme-primary-light text-theme-primary font-semibold'
                         : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
                     }`}
                   >
@@ -259,7 +259,7 @@ export default function FloatingChatWidget() {
                     <p className="text-xs font-medium">ไม่พบการสนทนา</p>
                     <button
                       onClick={() => setShowNewChatModal(true)}
-                      className="mt-3 text-xs text-blue-600 hover:underline font-semibold"
+                      className="mt-3 text-xs text-theme-primary hover:underline font-semibold"
                     >
                       + เริ่มต้นการสนทนาใหม่
                     </button>
@@ -274,8 +274,8 @@ export default function FloatingChatWidget() {
                           setWidgetActiveRoom(r.id);
                           markAsRead(r.id);
                         }}
-                        className={`group/room flex items-center gap-3 p-3 hover:bg-blue-50/50 cursor-pointer transition ${
-                          isUnread ? 'bg-blue-50/30' : ''
+                        className={`group/room flex items-center gap-3 p-3 hover:bg-theme-primary-light/50 cursor-pointer transition ${
+                          isUnread ? 'bg-theme-primary-light/30' : ''
                         }`}
                       >
                         {/* Avatar */}
@@ -316,7 +316,7 @@ export default function FloatingChatWidget() {
                             </p>
                             <div className="flex items-center gap-1 shrink-0">
                               {isUnread && (
-                                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white">
+                                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-theme-primary px-1 text-[10px] font-bold text-white">
                                   {r.unread_count}
                                 </span>
                               )}

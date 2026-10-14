@@ -62,7 +62,7 @@ export default function ShareProjectModal({ isOpen, onClose, onSelectProject }: 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-theme-primary-light text-theme-primary flex items-center justify-center">
               <FolderKanban className="w-4 h-4" />
             </div>
             <div>
@@ -87,7 +87,7 @@ export default function ShareProjectModal({ isOpen, onClose, onSelectProject }: 
               placeholder="ค้นหาชื่อโครงการ หรือรหัสโครงการ..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary"
               autoFocus
             />
           </div>
@@ -113,11 +113,11 @@ export default function ShareProjectModal({ isOpen, onClose, onSelectProject }: 
                   onSelectProject(p);
                   onClose();
                 }}
-                className="group p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer transition flex items-center justify-between gap-3"
+                className="group p-3 rounded-xl border border-slate-200 hover:border-theme-primary/40 hover:bg-theme-primary-light/50 cursor-pointer transition flex items-center justify-between gap-3"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs font-semibold text-blue-600">
+                    <span className="text-xs font-semibold text-theme-primary">
                       {p.project_code || 'โครงการ'}
                     </span>
                     {p.department && (
@@ -126,14 +126,14 @@ export default function ShareProjectModal({ isOpen, onClose, onSelectProject }: 
                       </span>
                     )}
                   </div>
-                  <h5 className="text-sm font-medium text-slate-800 line-clamp-1 group-hover:text-blue-700">
+                  <h5 className="text-sm font-medium text-slate-800 line-clamp-1 group-hover:text-theme-primary">
                     {p.title}
                   </h5>
                   <p className="text-xs text-slate-500 mt-1">
                     งบประมาณ: <strong>{Number(p.total_budget || 0).toLocaleString()}</strong> บาท • ปีงบฯ {p.fiscal_year}
                   </p>
                 </div>
-                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white hover:bg-blue-700 transition shrink-0 opacity-90 group-hover:opacity-100">
+                <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-theme-primary text-white hover:bg-theme-primary-hover transition shrink-0 opacity-90 group-hover:opacity-100">
                   เลือก
                 </button>
               </div>

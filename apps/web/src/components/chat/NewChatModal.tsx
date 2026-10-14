@@ -134,7 +134,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
             onClick={() => setTab('direct')}
             className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition ${
               tab === 'direct'
-                ? 'bg-white text-blue-600 shadow-xs'
+                ? 'bg-white text-theme-primary shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
@@ -146,7 +146,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
             onClick={() => setTab('group')}
             className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition ${
               tab === 'group'
-                ? 'bg-white text-blue-600 shadow-xs'
+                ? 'bg-white text-theme-primary shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
@@ -167,7 +167,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                   placeholder="ค้นหาชื่อครู บุคลากร หรือแผนก..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary"
                   autoFocus
                 />
               </div>
@@ -190,7 +190,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                   <div
                     key={u.id}
                     onClick={() => !isSubmitting && handleStartDirectChat(u.id)}
-                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-blue-50/60 cursor-pointer transition group"
+                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-theme-primary-light/60 cursor-pointer transition group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <ChatAvatar
@@ -200,7 +200,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                         isOnline={u.is_online}
                       />
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-blue-700">
+                        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-theme-primary">
                           {u.full_name}
                         </p>
                         <p className="text-xs text-slate-400 truncate">
@@ -208,7 +208,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                         </p>
                       </div>
                     </div>
-                    <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition">
+                    <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-theme-primary-light text-theme-primary group-hover:bg-theme-primary group-hover:text-white transition">
                       ส่งข้อความ
                     </button>
                   </div>
@@ -228,7 +228,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                   placeholder="เช่น ทีมงานจัดซื้อ, คณะทำงานอบรม..."
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary"
                   required
                 />
               </div>
@@ -241,7 +241,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                   placeholder="คำอธิบายสั้นๆ เกี่ยวกับกลุ่ม..."
                   value={groupDescription}
                   onChange={(e) => setGroupDescription(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary"
                 />
               </div>
             </div>
@@ -259,7 +259,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                   placeholder="ค้นหาสมาชิก..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary"
                 />
               </div>
             </div>
@@ -273,7 +273,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                     key={u.id}
                     onClick={() => toggleUserSelection(u.id)}
                     className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition ${
-                      isSelected ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-50'
+                      isSelected ? 'bg-theme-primary-light border border-theme-primary/30' : 'hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -289,7 +289,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                     </div>
                     <div
                       className={`w-5 h-5 rounded-md flex items-center justify-center border transition ${
-                        isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300'
+                        isSelected ? 'bg-theme-primary border-theme-primary text-white' : 'border-slate-300'
                       }`}
                     >
                       {isSelected && <Check className="w-3.5 h-3.5" />}
@@ -311,7 +311,7 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
               <button
                 type="submit"
                 disabled={!groupName.trim() || selectedUserIds.length === 0 || isSubmitting}
-                className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl shadow-xs transition flex items-center gap-1.5"
+                className="px-4 py-2 text-xs font-semibold text-white bg-theme-primary hover:bg-theme-primary-hover disabled:opacity-50 rounded-xl shadow-xs transition flex items-center gap-1.5"
               >
                 {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Users className="w-3.5 h-3.5" />}
                 <span>สร้างกลุ่ม ({selectedUserIds.length})</span>
