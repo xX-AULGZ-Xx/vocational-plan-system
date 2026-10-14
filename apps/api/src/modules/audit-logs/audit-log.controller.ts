@@ -34,15 +34,15 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
  */
 router.get('/export', async (req: AuthRequest, res: Response) => {
   try {
-    const { module, action, userId, search, startDate, endDate } = req.query;
+    const { module, action, userId, user_id, search, startDate, start_date, endDate, end_date } = req.query;
 
     const logs = await getLogsForExport({
       module: module as string,
       action: action as string,
-      userId: userId as string,
+      userId: (userId || user_id) as string,
       search: search as string,
-      startDate: startDate as string,
-      endDate: endDate as string,
+      startDate: (startDate || start_date) as string,
+      endDate: (endDate || end_date) as string,
     });
 
     // Generate CSV string with UTF-8 BOM for Thai support in MS Excel
@@ -117,22 +117,26 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
  */
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const { page, limit, module, action, userId, search, startDate, endDate } = req.query;
+    const { page, limit, module, action, userId, user_id, search, startDate, start_date, endDate, end_date } = req.query;
 
     const result = await getAuditLogs({
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
       module: module as string,
       action: action as string,
-      userId: userId as string,
+      userId: (userId || user_id) as string,
       search: search as string,
-      startDate: startDate as string,
-      endDate: endDate as string,
+      startDate: (startDate || start_date) as string,
+      endDate: (endDate || end_date) as string,
     });
 
     return res.json({
       success: true,
-      data: result.data,
+      data: {
+        logs: result.data,
+        pagination: result.pagination,
+      },
+      logs: result.data,
       pagination: result.pagination,
     });
   } catch (error: any) {

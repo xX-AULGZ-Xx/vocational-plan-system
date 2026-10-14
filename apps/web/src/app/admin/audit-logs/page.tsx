@@ -260,10 +260,15 @@ export default function AdminAuditLogsPage() {
         });
         const data = await res.json();
 
-        if (data.success && data.data) {
-          setLogs(data.data.logs || []);
-          if (data.data.pagination) {
-            setPagination(data.data.pagination);
+        if (data.success) {
+          const logList = Array.isArray(data.data)
+            ? data.data
+            : (data.data?.logs || data.logs || []);
+          const paginationMeta = data.pagination || data.data?.pagination;
+
+          setLogs(logList);
+          if (paginationMeta) {
+            setPagination(paginationMeta);
           }
         } else {
           showAlert.error('เกิดข้อผิดพลาด', data.message || 'ไม่สามารถดึงข้อมูลประวัติการใช้งานได้');

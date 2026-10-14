@@ -113,13 +113,21 @@ export async function getAuditLogs(params: GetAuditLogsParams) {
     where.created_at = {};
     if (params.startDate) {
       const start = new Date(params.startDate);
-      start.setHours(0, 0, 0, 0);
-      where.created_at.gte = start;
+      if (!isNaN(start.getTime())) {
+        if (params.startDate.length <= 10) {
+          start.setHours(0, 0, 0, 0);
+        }
+        where.created_at.gte = start;
+      }
     }
     if (params.endDate) {
       const end = new Date(params.endDate);
-      end.setHours(23, 59, 59, 999);
-      where.created_at.lte = end;
+      if (!isNaN(end.getTime())) {
+        if (params.endDate.length <= 10) {
+          end.setHours(23, 59, 59, 999);
+        }
+        where.created_at.lte = end;
+      }
     }
   }
 
