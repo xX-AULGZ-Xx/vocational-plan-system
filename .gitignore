@@ -21,6 +21,10 @@ apps/api/storage/uploads/*
 !apps/api/storage/uploads/.gitkeep
 apps/api/storage/certificates/*
 !apps/api/storage/certificates/.gitkeep
+apps/api/storage/chat_uploads/*
+!apps/api/storage/chat_uploads/.gitkeep
+apps/api/storage/documents/*
+!apps/api/storage/documents/.gitkeep
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
 

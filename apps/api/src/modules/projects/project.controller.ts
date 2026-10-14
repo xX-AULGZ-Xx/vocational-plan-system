@@ -10,6 +10,7 @@ import { scanDocxTemplate } from '../../lib/docx-scanner';
 import { notificationService } from '../notifications/notification.service';
 import { sseManager } from '../notifications/sse.manager';
 import { convertDocxToPdf } from '../../lib/pdf-converter';
+import { logActivity } from '../audit-logs/audit-log.service';
 
 const router = Router();
 
@@ -666,6 +667,17 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       });
     } catch (e) {}
 
+    logActivity({
+      userId: req.user?.id,
+      action: status === 'submitted' ? 'PROJECT_SUBMIT' : 'PROJECT_CREATE',
+      module: 'PROJECT',
+      targetId: project.id,
+      targetType: 'Project',
+      description: `สร้างโครงการใหม่ "${project.title}" (${project.project_code || 'ไม่มีรหัส'}, งบประมาณ: ${Number(project.total_budget).toLocaleString()} บาท, สถานะ: ${project.status})`,
+      newData: project,
+      req,
+    });
+
     return res.status(201).json({
       success: true,
       message: 'สร้างโครงการเรียบร้อยแล้ว',
@@ -907,6 +919,18 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       });
     } catch (e) {}
 
+    logActivity({
+      userId: req.user?.id,
+      action: 'PROJECT_UPDATE',
+      module: 'PROJECT',
+      targetId: updatedProject.id,
+      targetType: 'Project',
+      description: `แก้ไขข้อมูลโครงการ "${updatedProject.title}" (${updatedProject.project_code || 'ไม่มีรหัส'})`,
+      oldData: existingProject,
+      newData: updatedProject,
+      req,
+    });
+
     return res.json({
       success: true,
       message: 'บันทึกการแก้ไขเรียบร้อยแล้ว',
@@ -1031,6 +1055,17 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         timestamp: new Date().toISOString(),
       });
     } catch (e) {}
+
+    logActivity({
+      userId: req.user?.id,
+      action: 'PROJECT_DELETE',
+      module: 'PROJECT',
+      targetId: projectId,
+      targetType: 'Project',
+      description: `ลบโครงการ "${project.title}" (${project.project_code || 'ไม่มีรหัส'})`,
+      oldData: project,
+      req,
+    });
 
     return res.json({
       success: true,
@@ -1188,6 +1223,19 @@ router.post('/:id/submit', authenticate, async (req: AuthRequest, res: Response)
     } catch (e) {}
 
     const stepLabel = targetStepOrder === 4 ? 'ผู้อำนวยการ' : targetStepOrder === 3 ? 'งานแผนงาน' : targetStepOrder === 2 ? 'รองผู้อำนวยการ' : 'หัวหน้าแผนก';
+
+    logActivity({
+      userId: req.user?.id,
+      action: 'PROJECT_SUBMIT',
+      module: 'PROJECT',
+      targetId: projectId,
+      targetType: 'Project',
+      description: revisionStep
+        ? `ส่งโครงการ "${project.title}" ที่แก้ไขแล้วกลับไปยัง "${stepLabel}"`
+        : `ส่งเสนอโครงการ "${project.title}" เข้าสู่สายการอนุมัติขั้นที่ 1 (${stepLabel})`,
+      req,
+    });
+
     return res.json({
       success: true,
       message: revisionStep

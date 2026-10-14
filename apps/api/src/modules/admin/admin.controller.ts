@@ -10,6 +10,7 @@ import { sseManager } from '../notifications/sse.manager';
 import { extractFontsFromDocx } from '../../lib/font-extractor';
 import { extractTagsFromDocx } from '../../lib/docx-extractor';
 import { sanitizeDocxTemplate } from '../../lib/docx-generator';
+import { logActivity } from '../audit-logs/audit-log.service';
 
 const router = Router();
 
@@ -1488,6 +1489,16 @@ router.put('/settings', async (req: AuthRequest, res: Response) => {
       });
     } catch (e) {}
 
+    logActivity({
+      userId: req.user?.id,
+      action: 'SETTINGS_UPDATE',
+      module: 'SYSTEM',
+      targetType: 'SystemSetting',
+      description: `ผู้ดูแลระบบแก้ไขการตั้งค่าระบบ (${Object.keys(payload).length} รายการ: ${Object.keys(payload).slice(0, 5).join(', ')}${Object.keys(payload).length > 5 ? '...' : ''})`,
+      newData: payload,
+      req,
+    });
+
     return res.json({ success: true, message: 'บันทึกการตั้งค่าระบบเรียบร้อยแล้ว' });
   } catch (error: any) {
     console.error('Update settings error:', error);
@@ -1752,6 +1763,17 @@ router.post('/users', async (req: AuthRequest, res: Response) => {
       }
     }
 
+    logActivity({
+      userId: req.user?.id,
+      action: 'USER_CREATE',
+      module: 'USER',
+      targetId: newUser.id,
+      targetType: 'User',
+      description: `สร้างบัญชีผู้ใช้ใหม่ "${newUser.full_name}" (@${newUser.username}, บทบาท: ${newUser.role})`,
+      newData: newUser,
+      req,
+    });
+
     return res.status(201).json({
       success: true,
       message: `สร้างบัญชีผู้ใช้ "${newUser.full_name}" สำเร็จ`,
@@ -1907,6 +1929,17 @@ router.put('/users/:id', async (req: AuthRequest, res: Response) => {
       }
     }
 
+    logActivity({
+      userId: req.user?.id,
+      action: 'USER_UPDATE',
+      module: 'USER',
+      targetId: updated.id,
+      targetType: 'User',
+      description: `แก้ไขข้อมูลผู้ใช้ "${updated.full_name}" (@${updated.username}, บทบาท: ${updated.role})`,
+      newData: updated,
+      req,
+    });
+
     return res.json({
       success: true,
       message: `อัปเดตข้อมูลผู้ใช้ "${updated.full_name}" เรียบร้อยแล้ว`,
@@ -1928,6 +1961,17 @@ router.put('/users/:id/toggle', async (req: AuthRequest, res: Response) => {
     const updated = await (prisma as any).user.update({
       where: { id: userId },
       data: { is_active: Boolean(is_active) },
+    });
+
+    logActivity({
+      userId: req.user?.id,
+      action: 'USER_TOGGLE_STATUS',
+      module: 'USER',
+      targetId: updated.id,
+      targetType: 'User',
+      description: `${updated.is_active ? 'เปิดใช้งาน' : 'ระงับการใช้งาน'} บัญชี "${updated.full_name}" (@${updated.username})`,
+      newData: { is_active: updated.is_active },
+      req,
     });
 
     return res.json({
@@ -1956,6 +2000,16 @@ router.put('/users/:id/reset-password', async (req: AuthRequest, res: Response) 
     const updated = await (prisma as any).user.update({
       where: { id: userId },
       data: { password_hash },
+    });
+
+    logActivity({
+      userId: req.user?.id,
+      action: 'USER_RESET_PASSWORD',
+      module: 'USER',
+      targetId: updated.id,
+      targetType: 'User',
+      description: `รีเซ็ตรหัสผ่านของผู้ใช้ "${updated.full_name}" (@${updated.username})`,
+      req,
     });
 
     return res.json({
@@ -1991,6 +2045,17 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้ที่ต้องการลบ' });
     }
+
+    logActivity({
+      userId: req.user?.id,
+      action: 'USER_DELETE',
+      module: 'USER',
+      targetId: userId,
+      targetType: 'User',
+      description: `ลบ/ระงับบัญชีผู้ใช้ "${user.full_name}" (@${user.username})`,
+      oldData: user,
+      req,
+    });
 
     if (user._count.projects > 0 || user._count.approvals > 0) {
       // Soft-deactivate if linked to existing projects or approvals

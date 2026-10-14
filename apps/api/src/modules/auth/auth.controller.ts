@@ -6,6 +6,7 @@ import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, AuthRequest } from '../../middlewares/auth';
 import { Role, NotificationType } from '@prisma/client';
 import { notificationService } from '../notifications/notification.service';
+import { logActivity } from '../audit-logs/audit-log.service';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-me';
@@ -216,6 +217,16 @@ router.post('/google', async (req: Request, res: Response) => {
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 
+    logActivity({
+      userId: user.id,
+      action: 'LOGIN_GOOGLE',
+      module: 'AUTH',
+      targetId: user.id,
+      targetType: 'User',
+      description: `ผู้ใช้ ${user.full_name} (@${user.username}) เข้าสู่ระบบด้วย Google สำเร็จ`,
+      req,
+    });
+
     return res.json({
       success: true,
       message: `เข้าสู่ระบบด้วย Google สำเร็จ (${user.full_name})`,
@@ -258,11 +269,28 @@ router.post('/login', async (req: Request, res: Response) => {
     });
 
     if (!user || !user.is_active) {
+      logActivity({
+        action: 'LOGIN_FAILED',
+        module: 'AUTH',
+        targetId: username,
+        targetType: 'User',
+        description: `พยายามเข้าสู่ระบบไม่สำเร็จ: ไม่พบบัญชีหรือบัญชีถูกระงับ (username: ${username})`,
+        req,
+      });
       return res.status(401).json({ success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
     }
 
     const isMatch = user.password_hash ? await bcrypt.compare(password, user.password_hash) : false;
     if (!isMatch) {
+      logActivity({
+        userId: user.id,
+        action: 'LOGIN_FAILED',
+        module: 'AUTH',
+        targetId: user.id,
+        targetType: 'User',
+        description: `พยายามเข้าสู่ระบบไม่สำเร็จ: รหัสผ่านไม่ถูกต้องสำหรับ ${user.full_name} (@${username})`,
+        req,
+      });
       return res.status(401).json({ success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
     }
 
@@ -300,6 +328,16 @@ router.post('/login', async (req: Request, res: Response) => {
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+
+    logActivity({
+      userId: user.id,
+      action: 'LOGIN_PASSWORD',
+      module: 'AUTH',
+      targetId: user.id,
+      targetType: 'User',
+      description: `ผู้ใช้ ${user.full_name} (@${user.username}) เข้าสู่ระบบด้วยรหัสผ่านสำเร็จ`,
+      req,
+    });
 
     return res.json({
       success: true,

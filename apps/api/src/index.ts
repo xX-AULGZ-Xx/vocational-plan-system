@@ -19,6 +19,7 @@ import notificationsRouter from './modules/notifications/notifications.controlle
 import setupRouter from './modules/setup/setup.controller';
 import systemUpdateRouter from './modules/system-update/update.controller';
 import registrationRouter from './modules/projects/registration.controller';
+import auditLogRouter from './modules/audit-logs/audit-log.controller';
 import { wsManager } from './modules/notifications/socket.manager';
 
 const app = express();
@@ -71,6 +72,7 @@ app.use('/api/v1/budgets', budgetRouter);
 app.use('/api/v1/divisions', divisionRouter);
 app.use('/api/v1/strategics', strategicRouter);
 app.use('/api/v1/documents', documentRouter);
+app.use('/api/v1/admin/audit-logs', auditLogRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/setup', setupRouter);
 app.use('/api/v1/notifications', notificationsRouter);

@@ -4,6 +4,7 @@ import { authenticate, AuthRequest } from '../../middlewares/auth';
 import { ApprovalStatus, ProjectStatus, Role, NotificationType } from '@prisma/client';
 import { notificationService } from '../notifications/notification.service';
 import { sseManager } from '../notifications/sse.manager';
+import { logActivity } from '../audit-logs/audit-log.service';
 
 const router = Router();
 
@@ -368,6 +369,17 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       });
     } catch (e) {}
 
+    const stepName = approval.step_order === 1 ? 'ขั้นที่ 1 (หัวหน้าแผนก)' : approval.step_order === 2 ? 'ขั้นที่ 2 (รอง ผอ.)' : approval.step_order === 3 ? 'ขั้นที่ 3 (งานแผนงาน)' : 'ขั้นที่ 4 (ผู้อำนวยการ)';
+    logActivity({
+      userId: approverId,
+      action: approval.step_order === 4 ? 'PROJECT_FINAL_APPROVE' : 'PROJECT_APPROVE',
+      module: 'PROJECT',
+      targetId: project.id,
+      targetType: 'Project',
+      description: `พิจารณาอนุมัติ/เห็นชอบโครงการ "${project.title}" ${stepName} ${assignedProjectCode ? `(ออกรหัส: ${assignedProjectCode})` : ''} ${comment ? `[ข้อความ: ${comment}]` : ''}`,
+      newData: { step_order: approval.step_order, status: newProjectStatus, project_code: assignedProjectCode, comment },
+    });
+
     return {
       success: true,
       message: approval.step_order === 3
@@ -413,6 +425,16 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
       });
     } catch (e) {}
 
+    logActivity({
+      userId: approverId,
+      action: 'PROJECT_REVISION_REQUEST',
+      module: 'PROJECT',
+      targetId: project.id,
+      targetType: 'Project',
+      description: `ส่งกลับแก้ไขโครงการ "${project.title}" (ขั้นที่ ${approval.step_order}) โดยระบุ: "${comment || 'ไม่มีระบุ'}"`,
+      newData: { step_order: approval.step_order, comment },
+    });
+
     return { success: true, message: `ส่งคำขอแก้ไขโครงการ "${project.title}" กลับไปยังผู้เสนอเรียบร้อยแล้ว` };
 
   } else if (action === 'REJECT') {
@@ -452,6 +474,16 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
         timestamp: new Date().toISOString(),
       });
     } catch (e) {}
+
+    logActivity({
+      userId: approverId,
+      action: 'PROJECT_REJECT',
+      module: 'PROJECT',
+      targetId: project.id,
+      targetType: 'Project',
+      description: `ไม่อนุมัติโครงการ "${project.title}" (ขั้นที่ ${approval.step_order}) เนื่องจาก: "${comment || 'ไม่เป็นไปตามเกณฑ์ที่กำหนด'}"`,
+      newData: { step_order: approval.step_order, comment },
+    });
 
     return { success: true, message: `ปฏิเสธโครงการ "${project.title}" เรียบร้อยแล้ว` };
   } else {

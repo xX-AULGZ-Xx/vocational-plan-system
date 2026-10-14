@@ -21,6 +21,7 @@ import {
   Settings,
   ArrowUpCircle,
   X,
+  History,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -170,6 +171,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
     { name: 'จัดการผู้ใช้งาน', href: '/admin/users', icon: Users, roles: ['ADMIN'] },
     { name: 'จัดการฝ่ายและแผนกวิชา/งาน', href: '/admin/departments', icon: Building2, roles: ['ADMIN'] },
     { name: 'จัดการเทมเพลตเอกสาร', href: '/admin/templates', icon: FileText, roles: ['ADMIN', 'PLANNING_OFFICER'] },
+    { name: 'บันทึกประวัติการใช้งาน (Audit Logs)', href: '/admin/audit-logs', icon: History, roles: ['ADMIN'] },
     { name: 'ตั้งค่าระบบ', href: '/admin/settings', icon: Settings, roles: ['ADMIN'] },
     { name: 'อัปเดตและสำรองระบบ', href: '/admin/system-update', icon: ArrowUpCircle, roles: ['ADMIN'] },
   ];
