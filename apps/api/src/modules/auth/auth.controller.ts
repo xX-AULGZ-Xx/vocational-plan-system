@@ -44,7 +44,7 @@ async function notifyAdminsOnFirstLogin(user: any) {
         message,
         type: NotificationType.SYSTEM_ANNOUNCEMENT,
         linkUrl: '/admin/users',
-        sendEmailNotification: false,
+        sendEmailNotification: true,
       });
     }
   } catch (err: any) {

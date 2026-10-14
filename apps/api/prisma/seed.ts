@@ -94,6 +94,7 @@ async function main() {
       position: 'ครูประจำแผนกวิชาเทคโนโลยีสารสนเทศ',
       role: Role.TEACHER,
       department_id: deptTech.id,
+      email: 'teacher1@cric.ac.th',
     },
     {
       username: 'head_tech',
@@ -102,6 +103,7 @@ async function main() {
       position: 'หัวหน้าแผนกวิชาเทคโนโลยีสารสนเทศ',
       role: Role.HEAD_DEPT,
       department_id: deptTech.id,
+      email: 'head_tech@cric.ac.th',
     },
     {
       username: 'deputy_acad',
@@ -110,6 +112,7 @@ async function main() {
       position: 'รองผู้อำนวยการฝ่ายวิชาการ',
       role: Role.DEPUTY_DIRECTOR,
       department_id: deptTech.id,
+      email: 'deputy_acad@cric.ac.th',
     },
     {
       username: 'deputy_res',
@@ -118,6 +121,7 @@ async function main() {
       position: 'รองผู้อำนวยการฝ่ายบริหารทรัพยากร',
       role: Role.DEPUTY_DIRECTOR,
       department_id: deptFin.id,
+      email: 'deputy_res@cric.ac.th',
     },
     {
       username: 'deputy_dev',
@@ -126,6 +130,7 @@ async function main() {
       position: 'รองผู้อำนวยการฝ่ายพัฒนากิจการนักเรียนนักศึกษา',
       role: Role.DEPUTY_DIRECTOR,
       department_id: deptActivity.id,
+      email: 'deputy_dev@cric.ac.th',
     },
     {
       username: 'deputy_strat',
@@ -134,6 +139,7 @@ async function main() {
       position: 'รองผู้อำนวยการฝ่ายแผนงานและความร่วมมือ',
       role: Role.DEPUTY_DIRECTOR,
       department_id: deptPlan.id,
+      email: 'deputy_strat@cric.ac.th',
     },
     {
       username: 'planning_officer',
@@ -142,6 +148,7 @@ async function main() {
       position: 'เจ้าหน้าที่งานวางแผนและงบประมาณ',
       role: Role.PLANNING_OFFICER,
       department_id: deptPlan.id,
+      email: 'planning_officer@cric.ac.th',
     },
     {
       username: 'director',
@@ -150,6 +157,7 @@ async function main() {
       position: 'ผู้อำนวยการวิทยาลัยอาชีวศึกษาเชียงราย',
       role: Role.DIRECTOR,
       department_id: null,
+      email: 'director@cric.ac.th',
     },
     {
       username: 'admin',
@@ -158,6 +166,7 @@ async function main() {
       position: 'System Administrator',
       role: Role.ADMIN,
       department_id: null,
+      email: 'admin@cric.ac.th',
     },
   ];
 

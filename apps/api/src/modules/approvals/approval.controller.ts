@@ -354,6 +354,22 @@ async function executeApprovalAction(approvalId: bigint, action: 'APPROVE' | 'RE
         type: NotificationType.PROJECT_FINAL_APPROVED,
         linkUrl: `/projects/${project.id}`,
       }).catch(err => console.error('Notification error:', err));
+
+      // Also notify planning officers about the final approval
+      prisma.user.findMany({
+        where: { role: Role.PLANNING_OFFICER, is_active: true },
+        select: { id: true },
+      }).then(planners => {
+        planners.forEach(planner => {
+          notificationService.createNotification({
+            userId: planner.id,
+            title: `โครงการ "${project.title}" ได้รับอนุมัติขั้นสุดท้ายแล้ว`,
+            message: `ผู้อำนวยการลงนามอนุมัติโครงการ "${project.title}" เรียบร้อยแล้ว`,
+            type: NotificationType.PROJECT_FINAL_APPROVED,
+            linkUrl: `/projects/${project.id}`,
+          }).catch(() => {});
+        });
+      }).catch(() => {});
     }
 
     // Broadcast Realtime Data Update to all connected clients

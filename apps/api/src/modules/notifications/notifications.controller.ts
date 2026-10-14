@@ -220,7 +220,7 @@ router.post('/test', authenticate, async (req: AuthRequest, res: Response) => {
           message: notiMessage,
           type: notiType,
           linkUrl: notiLink,
-          sendEmailNotification: sendEmail === true,
+          sendEmailNotification: sendEmail !== false,
         })
       )
     );

@@ -64,10 +64,23 @@ export class NotificationService {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { id: true, email: true, full_name: true },
+        select: { id: true, email: true, username: true, full_name: true },
       });
 
-      if (!user || !user.email) {
+      if (!user) {
+        return;
+      }
+
+      // 1. Resolve recipient email:
+      // Priority 1: User's registered email
+      // Priority 2: Fallback to username with institutional domain (<username>@cric.ac.th)
+      let recipientEmail = user.email?.trim();
+      if (!recipientEmail && user.username) {
+        recipientEmail = `${user.username}@cric.ac.th`;
+      }
+
+      if (!recipientEmail) {
+        console.warn(`[NotificationService] Cannot send email. User ID ${userId} has no email or username.`);
         return;
       }
 
@@ -106,12 +119,18 @@ export class NotificationService {
         accentColor,
       });
 
-      await sendEmail({
-        to: user.email,
+      const result = await sendEmail({
+        to: recipientEmail,
         subject: `[${collegeName}] ${params.title}`,
         html: emailHtml,
         text: `${params.title}\n\n${params.message}\n\nเข้าสู่ระบบ: ${fullActionUrl}`,
       });
+
+      if (result.success) {
+        console.log(`[NotificationService] Email notification successfully sent to ${recipientEmail} for: "${params.title}"`);
+      } else {
+        console.warn(`[NotificationService] Email dispatch skipped/failed for ${recipientEmail}: ${result.error}`);
+      }
     } catch (err: any) {
       console.error('[NotificationService] Email background dispatch error:', err.message);
     }
