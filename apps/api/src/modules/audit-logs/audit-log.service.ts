@@ -82,7 +82,7 @@ export async function logActivity(params: LogActivityParams): Promise<void> {
     });
   } catch (err) {
     // Non-blocking error catch
-    console.error('⚠️ [AuditLog] Failed to record audit log:', err);
+    console.error('[AuditLog] Failed to record audit log:', err);
   }
 }
 

@@ -39,6 +39,7 @@ import {
   Lock,
   Layers,
   ArrowUpDown,
+  Activity,
 } from 'lucide-react';
 
 interface AuditLogUser {
@@ -514,30 +515,32 @@ export default function AdminAuditLogsPage() {
           </div>
 
           {/* Module Filter */}
-          <div className="md:col-span-3">
+          <div className="md:col-span-3 relative">
+            <Layers className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <select
               value={selectedModule}
               onChange={(e) => setSelectedModule(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary font-medium text-slate-700"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary font-medium text-slate-700"
             >
-              <option value="ALL">📦 ทุกโมดูล (All Modules)</option>
-              <option value="AUTH">🔑 เข้าสู่ระบบ / ยืนยันตัวตน (AUTH)</option>
-              <option value="PROJECT">📁 จัดการโครงการ (PROJECT)</option>
-              <option value="APPROVAL">✅ การอนุมัติ / เสนอ (APPROVAL)</option>
-              <option value="USER">👥 จัดการผู้ใช้ (USER)</option>
-              <option value="ADMIN">⚙️ ผู้ดูแลระบบ (ADMIN)</option>
-              <option value="SYSTEM">🖥️ ระบบส่วนกลาง (SYSTEM)</option>
+              <option value="ALL">ทุกโมดูล (All Modules)</option>
+              <option value="AUTH">เข้าสู่ระบบ / ยืนยันตัวตน (AUTH)</option>
+              <option value="PROJECT">จัดการโครงการ (PROJECT)</option>
+              <option value="APPROVAL">การอนุมัติ / เสนอ (APPROVAL)</option>
+              <option value="USER">จัดการผู้ใช้ (USER)</option>
+              <option value="ADMIN">ผู้ดูแลระบบ (ADMIN)</option>
+              <option value="SYSTEM">ระบบส่วนกลาง (SYSTEM)</option>
             </select>
           </div>
 
           {/* Action Filter */}
-          <div className="md:col-span-4">
+          <div className="md:col-span-4 relative">
+            <Activity className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <select
               value={selectedAction}
               onChange={(e) => setSelectedAction(e.target.value)}
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary font-medium text-slate-700"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-theme-primary/20 focus:border-theme-primary font-medium text-slate-700"
             >
-              <option value="ALL">⚡ ทุกการกระทำ (All Actions)</option>
+              <option value="ALL">ทุกการกระทำ (All Actions)</option>
               <optgroup label="การเข้าสู่ระบบ">
                 <option value="LOGIN_PASSWORD">LOGIN_PASSWORD - เข้าสู่ระบบรหัสผ่าน</option>
                 <option value="LOGIN_GOOGLE">LOGIN_GOOGLE - เข้าสู่ระบบ Google</option>
