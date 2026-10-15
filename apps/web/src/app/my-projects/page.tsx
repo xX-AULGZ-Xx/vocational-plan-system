@@ -29,6 +29,8 @@ import {
   AlertCircle,
   Edit3,
   X,
+  ChevronDown,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 export default function MyProjectsPage() {
@@ -42,6 +44,7 @@ export default function MyProjectsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [yearFilter, setYearFilter] = useState('ALL');
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
 
   // Modal State for Scanned Document Upload
   const [selectedProjectForDocs, setSelectedProjectForDocs] = useState<any | null>(null);
@@ -276,12 +279,127 @@ export default function MyProjectsPage() {
     }
   };
 
-  const handleExportReport = () => {
-    // Exclude draft projects from export
-    const exportProjects = filteredProjects.filter((p) => p.status !== 'draft');
+  const escapeCsv = (str: any) => {
+    if (str === null || str === undefined) return '""';
+    const s = String(str).replace(/"/g, '""');
+    return `"${s}"`;
+  };
+
+  const handleExportStrategicReport = () => {
+    setExportDropdownOpen(false);
+    const exportProjects = filteredProjects;
 
     if (exportProjects.length === 0) {
-      showAlert.warning('ไม่มีข้อมูลโครงการที่ยื่นเสนอสำหรับส่งออก (ไม่รวมแบบร่าง)');
+      showAlert.warning('ไม่มีข้อมูลโครงการสำหรับส่งออกตามตัวกรองปัจจุบัน');
+      return;
+    }
+
+    const headers = [
+      'ลำดับ',
+      'รหัสโครงการ',
+      'ชื่อโครงการ',
+      'ปีงบประมาณ',
+      'ฝ่ายบริหาร',
+      'แผนกวิชา/งาน',
+      'ผู้รับผิดชอบโครงการ',
+      'งบประมาณรวม (บาท)',
+      'โครงการตาม พ.ร.บ. งบประมาณ',
+      'โครงการตามภาระงานปกติ',
+      'โครงการตามนโยบาย สอศ.',
+      'โครงการพิเศษ',
+      'มาตรฐานที่ 1',
+      'มาตรฐานที่ 2',
+      'มาตรฐานที่ 3',
+      'E-MVS',
+      'ITA',
+      'OVEC-SmartPlan',
+      'แผนพัฒนา',
+    ];
+
+    const rows = exportProjects.map((p, idx) => {
+      let dyn: Record<string, any> = {};
+      if (p.dynamic_data) {
+        if (typeof p.dynamic_data === 'string') {
+          try { dyn = JSON.parse(p.dynamic_data); } catch {}
+        } else if (typeof p.dynamic_data === 'object') {
+          dyn = p.dynamic_data;
+        }
+      }
+
+      const natureStr = `${dyn.project_nature || ''} ${(p as any).nature || ''} ${dyn.nature || ''}`;
+      const isActBudget = !!(dyn.is_act_budget_chk || dyn.is_act_budget || natureStr.includes('พ.ร.บ.') || natureStr.includes('พรบ'));
+      const isRoutine = !!(dyn.is_routine_job_chk || dyn.is_routine_job || natureStr.includes('ภาระงาน') || natureStr.includes('งานประจำ') || natureStr.includes('งานพื้นฐาน'));
+      const isOvec = !!(dyn.is_ovec_policy_chk || dyn.is_ovec_policy || natureStr.includes('สอศ'));
+      const isSpecial = !!(dyn.is_special_no_budget_chk || dyn.is_special_no_budget || natureStr.includes('พิเศษ'));
+
+      const chkObj = dyn.alignment_policy_chk_list || {};
+      const activeChkKeys = new Set<string>();
+      if (chkObj && typeof chkObj === 'object') {
+        if (Array.isArray(chkObj)) {
+          chkObj.forEach((k: any) => typeof k === 'string' && activeChkKeys.add(k));
+        } else {
+          Object.entries(chkObj).forEach(([k, v]) => {
+            if (v === true || v === 'true' || v === 1) activeChkKeys.add(k);
+          });
+        }
+      }
+
+      const alignmentText = (Array.isArray(p.alignments) ? p.alignments : [])
+        .map((a: any) => `${a.indicator?.code || ''} ${a.indicator?.description || ''}`)
+        .join(' ');
+      const combinedText = `${alignmentText} ${dyn.qa_standard || ''} ${dyn.standards || ''} ${dyn.strategic_alignment || ''}`;
+
+      const isStd1 = activeChkKeys.has('chk_1787541772072') || activeChkKeys.has('chk_1787541772473') || activeChkKeys.has('chk_1787543529191') || activeChkKeys.has('chk_1787543544788') || activeChkKeys.has('chk_1787543666699') || /มาตรฐานที่\s*[1๑]/i.test(combinedText) || /ประเด็นการประเมิน\s*1\./i.test(combinedText);
+      const isStd2 = activeChkKeys.has('chk_1787543614217') || activeChkKeys.has('chk_1787543629779') || activeChkKeys.has('chk_1787543637163') || activeChkKeys.has('chk_1787543637614') || activeChkKeys.has('chk_1787543639992') || activeChkKeys.has('chk_1787543689408') || /มาตรฐานที่\s*[2๒]/i.test(combinedText) || /ประเด็นการประเมิน\s*2\./i.test(combinedText);
+      const isStd3 = activeChkKeys.has('chk_1787543693769') || activeChkKeys.has('chk_1787543707232') || activeChkKeys.has('chk_1787543707572') || activeChkKeys.has('chk_1787543707231') || /มาตรฐานที่\s*[3๓]/i.test(combinedText) || /ประเด็นการประเมิน\s*3\./i.test(combinedText);
+      const isEmvs = activeChkKeys.has('chk_1787543742514') || /E-MVS|EMVS/i.test(combinedText);
+      const isIta = activeChkKeys.has('chk_1787543743016') || /\bITA\b/i.test(combinedText);
+      const isSmartPlan = activeChkKeys.has('chk_1787543743539') || /SmartPlan|OVEC-SmartPlan/i.test(combinedText);
+      const isSchoolPlan = activeChkKeys.has('chk_1787543743969') || /แผนพัฒนาการจัดการศึกษา|แผนพัฒนาสถานศึกษา|แผนพัฒนา/i.test(combinedText);
+
+      return [
+        idx + 1,
+        escapeCsv(p.project_code || 'รอออกรหัส'),
+        escapeCsv(p.title || p.name_th || ''),
+        escapeCsv(p.fiscal_year || ''),
+        escapeCsv(p.department?.division?.name || ''),
+        escapeCsv(p.department?.name || ''),
+        escapeCsv(p.leader?.full_name || ''),
+        escapeCsv(Number(p.total_budget || 0)),
+        escapeCsv(isActBudget ? '/' : ''),
+        escapeCsv(isRoutine ? '/' : ''),
+        escapeCsv(isOvec ? '/' : ''),
+        escapeCsv(isSpecial ? '/' : ''),
+        escapeCsv(isStd1 ? '/' : ''),
+        escapeCsv(isStd2 ? '/' : ''),
+        escapeCsv(isStd3 ? '/' : ''),
+        escapeCsv(isEmvs ? '/' : ''),
+        escapeCsv(isIta ? '/' : ''),
+        escapeCsv(isSmartPlan ? '/' : ''),
+        escapeCsv(isSchoolPlan ? '/' : ''),
+      ].join(',');
+    });
+
+    const csvContent = '\uFEFF' + [headers.map(escapeCsv).join(','), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `รายงานสรุปโครงการ_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showAlert.success('ส่งออกไฟล์สรุปโครงการตามมาตรฐาน/ยุทธศาสตร์เรียบร้อยแล้ว');
+  };
+
+  const handleExportStatusReport = () => {
+    setExportDropdownOpen(false);
+    const exportProjects = filteredProjects;
+
+    if (exportProjects.length === 0) {
+      showAlert.warning('ไม่มีข้อมูลโครงการสำหรับส่งออกตามตัวกรองปัจจุบัน');
       return;
     }
 
@@ -314,12 +432,6 @@ export default function MyProjectsPage() {
         return 'อนุมัติแล้ว';
       }
       return '-';
-    };
-
-    const escapeCsv = (str: any) => {
-      if (str === null || str === undefined) return '""';
-      const s = String(str).replace(/"/g, '""');
-      return `"${s}"`;
     };
 
     const rows = exportProjects.map((p, idx) => {
@@ -517,18 +629,55 @@ export default function MyProjectsPage() {
             </div>
           )}
 
-          {/* Export Report Button for Admin, Planning Officer & Head Dept */}
-          {(isAdminOrPlanning || isHeadDept) && (
+          {/* Export Report Dropdown */}
+          <div className="relative">
             <button
               type="button"
-              onClick={handleExportReport}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-theme shadow-sm font-bold text-xs sm:text-sm transition active:scale-95"
-              title={isHeadDept ? "ส่งออกสรุปโครงการในแผนก/งานเป็นไฟล์ Excel / CSV" : "ส่งออกสรุปโครงการทั้งหมดเป็นไฟล์ Excel / CSV"}
+              onClick={() => setExportDropdownOpen((prev) => !prev)}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-theme shadow-sm font-bold text-xs sm:text-sm transition active:scale-95 cursor-pointer"
+              title="ส่งออกรายงานสรุปโครงการเป็นไฟล์ Excel / CSV"
             >
               <Download className="w-4 h-4" />
               <span>ส่งออกสรุปไฟล์ (CSV)</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${exportDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
-          )}
+
+            {exportDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setExportDropdownOpen(false)}
+                />
+                <div className="absolute right-0 mt-1.5 w-72 bg-white rounded-theme shadow-xl border border-slate-200 py-1.5 z-50 text-xs">
+                  <div className="px-3 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+                    เลือกรูปแบบรายงาน CSV
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleExportStrategicReport}
+                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 flex items-start gap-2.5 transition cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-semibold text-slate-900">สรุปโครงการตามมาตรฐาน/ยุทธศาสตร์</div>
+                      <div className="text-[11px] text-slate-500">รูปแบบใหม่ 19 คอลัมน์ (พ.ร.บ., ภาระงาน, มาตรฐาน 1-3, E-MVS, ITA)</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportStatusReport}
+                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 flex items-start gap-2.5 transition border-t border-slate-100 cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-semibold text-slate-900">สรุปสถานะการอนุมัติโครงการ</div>
+                      <div className="text-[11px] text-slate-500">รูปแบบเดิม 14 คอลัมน์ (ติดตามขั้นตอนการพิจารณา 4 ระดับ)</div>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
           <Link
             href="/projects/new"
