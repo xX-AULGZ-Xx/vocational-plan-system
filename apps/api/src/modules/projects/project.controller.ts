@@ -259,6 +259,11 @@ router.get('/', optionalAuthenticate, async (req: AuthRequest, res: Response) =>
         },
         budget_items: true,
         timelines: true,
+        alignments: {
+          include: {
+            indicator: true,
+          },
+        },
         approvals: {
           include: {
             approver: {
@@ -351,6 +356,256 @@ router.get('/execution/tracking', authenticate, async (req: AuthRequest, res: Re
   } catch (error: any) {
     console.error('Execution tracking list error:', error);
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูลการติดตามโครงการ', error: error.message });
+  }
+});
+
+// GET /api/v1/projects/export-csv
+router.get('/export-csv', optionalAuthenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { fiscal_year, format = 'strategic', division_code, department_id, search, status } = req.query;
+
+    const where: any = {};
+    const andConditions: any[] = [];
+
+    if (fiscal_year) {
+      where.fiscal_year = parseInt(fiscal_year as string);
+    }
+    if (status) {
+      where.status = status as ProjectStatus;
+    }
+    if (department_id) {
+      where.department_id = parseInt(department_id as string);
+    }
+    if (division_code) {
+      where.department = {
+        division: {
+          code: (division_code as string).toUpperCase(),
+        },
+      };
+    }
+    if (search) {
+      const q = String(search).trim();
+      andConditions.push({
+        OR: [
+          { title: { contains: q } },
+          { project_code: { contains: q } },
+          { leader: { full_name: { contains: q } } },
+          { department: { name: { contains: q } } },
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
+
+    const projects = await prisma.project.findMany({
+      where,
+      include: {
+        department: {
+          include: {
+            division: true,
+          },
+        },
+        leader: {
+          select: {
+            id: true,
+            full_name: true,
+            position: true,
+          },
+        },
+        alignments: {
+          include: {
+            indicator: true,
+          },
+        },
+        approvals: {
+          include: {
+            approver: {
+              select: {
+                id: true,
+                full_name: true,
+                role: true,
+                position: true,
+              },
+            },
+          },
+          orderBy: { step_order: 'asc' },
+        },
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    const escapeCsv = (str: any) => {
+      if (str === null || str === undefined) return '""';
+      const s = String(str).replace(/"/g, '""');
+      return `"${s}"`;
+    };
+
+    let csvContent = '';
+    const dateStr = new Date().toISOString().split('T')[0];
+    const fy = fiscal_year || new Date().getFullYear() + 543;
+
+    if (format === 'status') {
+      // 14 columns status tracking format
+      const headers = [
+        'ลำดับ',
+        'รหัสโครงการ',
+        'ชื่อโครงการ',
+        'ปีงบประมาณ',
+        'ฝ่ายบริหาร',
+        'แผนกวิชา/งาน',
+        'ผู้รับผิดชอบโครงการ',
+        'งบประมาณรวม (บาท)',
+        'สถานะการอนุมัติ',
+        'ขั้นตอนที่ 1 (หน.แผนก/งาน)',
+        'ขั้นตอนที่ 2 (รอง ผอ. ประจำฝ่าย)',
+        'ขั้นตอนที่ 3 (งานแผนงานฯ)',
+        'ขั้นตอนที่ 4 (ผอ.วิทยาลัย)',
+        'วันที่เสนอ',
+      ];
+
+      const rows = projects.map((p, idx) => {
+        const pStatus = String(p.status);
+        let statusLabel = pStatus;
+        if (pStatus === 'approved' || pStatus === 'in_progress' || pStatus === 'completed') statusLabel = 'อนุมัติแล้ว (ครบ 4 ขั้นตอน)';
+        else if (pStatus === 'rejected') statusLabel = 'ไม่อนุมัติ';
+        else if (pStatus === 'revision_requested') statusLabel = 'ขอให้แก้ไข';
+        else if (pStatus === 'submitted') statusLabel = 'รอหัวหน้าแผนกพิจารณา';
+        else if (pStatus === 'dept_approved') statusLabel = 'รอรอง ผอ. พิจารณา';
+        else if (pStatus === 'deputy_approved') statusLabel = 'รองานแผนออกรหัส';
+        else if (pStatus === 'planning_approved') statusLabel = 'รอ ผอ. อนุมัติ';
+
+        const formatAppStep = (stepOrder: number) => {
+          const app = p.approvals?.find((a: any) => a.step_order === stepOrder);
+          if (app) {
+            if (app.status === 'APPROVED') return `อนุมัติแล้ว (${app.approver?.full_name || ''})`;
+            if (app.status === 'REJECTED') return `ไม่อนุมัติ (${app.comment || ''})`;
+            if (app.status === 'REVISION_REQUESTED') return `ขอแก้ไข (${app.comment || ''})`;
+            if (app.status === 'PENDING') return 'รอพิจารณา';
+          }
+          if (p.status === 'approved' || p.status === 'in_progress' || p.status === 'completed') return 'อนุมัติแล้ว';
+          return '-';
+        };
+
+        return [
+          idx + 1,
+          escapeCsv(p.project_code || 'รอออกรหัส'),
+          escapeCsv(p.title),
+          escapeCsv(p.fiscal_year),
+          escapeCsv(p.department?.division?.name || ''),
+          escapeCsv(p.department?.name || ''),
+          escapeCsv(p.leader?.full_name || ''),
+          escapeCsv(Number(p.total_budget || 0)),
+          escapeCsv(statusLabel),
+          escapeCsv(formatAppStep(1)),
+          escapeCsv(formatAppStep(2)),
+          escapeCsv(formatAppStep(3)),
+          escapeCsv(formatAppStep(4)),
+          escapeCsv(p.created_at ? new Date(p.created_at).toLocaleDateString('th-TH') : '-'),
+        ].join(',');
+      });
+
+      csvContent = '\uFEFF' + [headers.map(escapeCsv).join(','), ...rows].join('\r\n');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="project_status_${fy}_${dateStr}.csv"; filename*=UTF-8''${encodeURIComponent(`รายงานสถานะโครงการ_${fy}_${dateStr}.csv`)}`);
+      return res.send(csvContent);
+    }
+
+    // 19 columns strategic / standard format
+    const headers = [
+      'ลำดับ',
+      'รหัสโครงการ',
+      'ชื่อโครงการ',
+      'ปีงบประมาณ',
+      'ฝ่ายบริหาร',
+      'แผนกวิชา/งาน',
+      'ผู้รับผิดชอบโครงการ',
+      'งบประมาณรวม (บาท)',
+      'โครงการตาม พ.ร.บ. งบประมาณ',
+      'โครงการตามภาระงานปกติ',
+      'โครงการตามนโยบาย สอศ.',
+      'โครงการพิเศษ',
+      'มาตรฐานที่ 1',
+      'มาตรฐานที่ 2',
+      'มาตรฐานที่ 3',
+      'E-MVS',
+      'ITA',
+      'OVEC-SmartPlan',
+      'แผนพัฒนา',
+    ];
+
+    const rows = projects.map((p, idx) => {
+      let dyn: Record<string, any> = {};
+      if (p.dynamic_data) {
+        if (typeof p.dynamic_data === 'string') {
+          try { dyn = JSON.parse(p.dynamic_data); } catch {}
+        } else if (typeof p.dynamic_data === 'object') {
+          dyn = p.dynamic_data;
+        }
+      }
+
+      const natureStr = `${dyn.project_nature || ''} ${(p as any).nature || ''} ${dyn.nature || ''}`;
+      const isActBudget = !!(dyn.is_act_budget_chk || dyn.is_act_budget || natureStr.includes('พ.ร.บ.') || natureStr.includes('พรบ'));
+      const isRoutine = !!(dyn.is_routine_job_chk || dyn.is_routine_job || natureStr.includes('ภาระงาน') || natureStr.includes('งานประจำ') || natureStr.includes('งานพื้นฐาน'));
+      const isOvec = !!(dyn.is_ovec_policy_chk || dyn.is_ovec_policy || natureStr.includes('สอศ'));
+      const isSpecial = !!(dyn.is_special_no_budget_chk || dyn.is_special_no_budget || natureStr.includes('พิเศษ'));
+
+      const chkObj = dyn.alignment_policy_chk_list || {};
+      const activeChkKeys = new Set<string>();
+      if (chkObj && typeof chkObj === 'object') {
+        if (Array.isArray(chkObj)) {
+          chkObj.forEach((k: any) => typeof k === 'string' && activeChkKeys.add(k));
+        } else {
+          Object.entries(chkObj).forEach(([k, v]) => {
+            if (v === true || v === 'true' || v === 1) activeChkKeys.add(k);
+          });
+        }
+      }
+
+      const alignmentText = (Array.isArray(p.alignments) ? p.alignments : [])
+        .map((a: any) => `${a.indicator?.code || ''} ${a.indicator?.description || ''}`)
+        .join(' ');
+      const combinedText = `${alignmentText} ${dyn.qa_standard || ''} ${dyn.standards || ''} ${dyn.strategic_alignment || ''}`;
+
+      const isStd1 = activeChkKeys.has('chk_1787541772072') || activeChkKeys.has('chk_1787541772473') || activeChkKeys.has('chk_1787543529191') || activeChkKeys.has('chk_1787543544788') || activeChkKeys.has('chk_1787543666699') || /มาตรฐานที่\s*[1๑]/i.test(combinedText) || /ประเด็นการประเมิน\s*1\./i.test(combinedText);
+      const isStd2 = activeChkKeys.has('chk_1787543614217') || activeChkKeys.has('chk_1787543629779') || activeChkKeys.has('chk_1787543637163') || activeChkKeys.has('chk_1787543637614') || activeChkKeys.has('chk_1787543639992') || activeChkKeys.has('chk_1787543689408') || /มาตรฐานที่\s*[2๒]/i.test(combinedText) || /ประเด็นการประเมิน\s*2\./i.test(combinedText);
+      const isStd3 = activeChkKeys.has('chk_1787543693769') || activeChkKeys.has('chk_1787543707232') || activeChkKeys.has('chk_1787543707572') || activeChkKeys.has('chk_1787543707231') || /มาตรฐานที่\s*[3๓]/i.test(combinedText) || /ประเด็นการประเมิน\s*3\./i.test(combinedText);
+      const isEmvs = activeChkKeys.has('chk_1787543742514') || /E-MVS|EMVS/i.test(combinedText);
+      const isIta = activeChkKeys.has('chk_1787543743016') || /\bITA\b/i.test(combinedText);
+      const isSmartPlan = activeChkKeys.has('chk_1787543743539') || /SmartPlan|OVEC-SmartPlan/i.test(combinedText);
+      const isSchoolPlan = activeChkKeys.has('chk_1787543743969') || /แผนพัฒนาการจัดการศึกษา|แผนพัฒนาสถานศึกษา|แผนพัฒนา/i.test(combinedText);
+
+      return [
+        idx + 1,
+        escapeCsv(p.project_code || 'รอออกรหัส'),
+        escapeCsv(p.title),
+        escapeCsv(p.fiscal_year),
+        escapeCsv(p.department?.division?.name || ''),
+        escapeCsv(p.department?.name || ''),
+        escapeCsv(p.leader?.full_name || ''),
+        escapeCsv(Number(p.total_budget || 0)),
+        escapeCsv(isActBudget ? '/' : ''),
+        escapeCsv(isRoutine ? '/' : ''),
+        escapeCsv(isOvec ? '/' : ''),
+        escapeCsv(isSpecial ? '/' : ''),
+        escapeCsv(isStd1 ? '/' : ''),
+        escapeCsv(isStd2 ? '/' : ''),
+        escapeCsv(isStd3 ? '/' : ''),
+        escapeCsv(isEmvs ? '/' : ''),
+        escapeCsv(isIta ? '/' : ''),
+        escapeCsv(isSmartPlan ? '/' : ''),
+        escapeCsv(isSchoolPlan ? '/' : ''),
+      ].join(',');
+    });
+
+    csvContent = '\uFEFF' + [headers.map(escapeCsv).join(','), ...rows].join('\r\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="project_summary_${fy}_${dateStr}.csv"; filename*=UTF-8''${encodeURIComponent(`รายงานสรุปโครงการ_${fy}_${dateStr}.csv`)}`);
+    return res.send(csvContent);
+  } catch (error: any) {
+    console.error('Export CSV error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการส่งออกไฟล์ CSV', error: error.message });
   }
 });
 
