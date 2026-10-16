@@ -47,9 +47,9 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
 
       const fetchApprovalsPromise = (user && isApprover)
         ? Promise.all([
-            fetch('/api/v1/approvals/inbox', { headers }),
-            fetch('/api/v1/projects/execution/tracking', { headers }),
-          ])
+          fetch('/api/v1/approvals/inbox', { headers }),
+          fetch('/api/v1/projects/execution/tracking', { headers }),
+        ])
         : Promise.resolve([null, null]);
 
       const fetchProjectsPromise = fetch('/api/v1/projects', { headers });
@@ -88,7 +88,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
           if (p.dynamic_data) {
             try {
               dyn = typeof p.dynamic_data === 'string' ? JSON.parse(p.dynamic_data) : p.dynamic_data;
-            } catch {}
+            } catch { }
           }
           if (Array.isArray(dyn?.execution_dates)) {
             dyn.execution_dates.forEach((ed: any) => {
@@ -248,8 +248,8 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
   const filteredDeputyDivisions = role === 'DEPUTY_DIRECTOR' ? allDivisionNav.filter((d) => isUserDivision(d, user)) : [];
   const divisionNav = showDivisions
     ? (role === 'DEPUTY_DIRECTOR'
-        ? (filteredDeputyDivisions.length > 0 ? filteredDeputyDivisions : allDivisionNav)
-        : allDivisionNav)
+      ? (filteredDeputyDivisions.length > 0 ? filteredDeputyDivisions : allDivisionNav)
+      : allDivisionNav)
     : [];
 
   const divisionHeading = role === 'DEPUTY_DIRECTOR' ? 'ฝ่ายบริหารที่กำกับดูแล' : 'แยกตาม 4 ฝ่ายบริหาร';
@@ -350,14 +350,14 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                     {item.href === '/approvals' && isApprover && (
                       <span
                         className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${active
-                            ? pendingApprovalCount > 0
-                              ? 'bg-amber-400 text-amber-950 font-black shadow-xs'
-                              : 'bg-white/20 text-white'
-                            : pendingApprovalCount > 0
-                              ? 'bg-amber-500 text-white font-black shadow-xs animate-pulse'
-                              : isLightSidebar
-                                ? 'bg-slate-100 text-slate-600'
-                                : 'bg-slate-800 text-slate-400'
+                          ? pendingApprovalCount > 0
+                            ? 'bg-amber-400 text-amber-950 font-black shadow-xs'
+                            : 'bg-white/20 text-white'
+                          : pendingApprovalCount > 0
+                            ? 'bg-amber-500 text-white font-black shadow-xs animate-pulse'
+                            : isLightSidebar
+                              ? 'bg-slate-100 text-slate-600'
+                              : 'bg-slate-800 text-slate-400'
                           }`}
                       >
                         {pendingApprovalCount}
@@ -368,10 +368,10 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                     {item.href === '/schedule' && scheduleActivityCount > 0 && (
                       <span
                         className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${active
-                            ? 'bg-white/20 text-white'
-                            : isLightSidebar
-                              ? 'bg-slate-100 text-slate-600'
-                              : 'bg-slate-800 text-slate-400'
+                          ? 'bg-white/20 text-white'
+                          : isLightSidebar
+                            ? 'bg-slate-100 text-slate-600'
+                            : 'bg-slate-800 text-slate-400'
                           }`}
                       >
                         {scheduleActivityCount}
@@ -382,8 +382,8 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                     {item.href === '/notifications' && unreadCount > 0 && (
                       <span
                         className={`px-2 py-0.5 text-[11px] font-bold rounded-full shrink-0 transition-all ${active
-                            ? 'bg-rose-500 text-white font-black shadow-xs'
-                            : 'bg-rose-500 text-white font-black shadow-xs'
+                          ? 'bg-rose-500 text-white font-black shadow-xs'
+                          : 'bg-rose-500 text-white font-black shadow-xs'
                           }`}
                       >
                         {unreadCount > 99 ? '99+' : unreadCount}
@@ -468,15 +468,15 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
         </div>
 
         <div className={`p-3 rounded-theme border text-xs mt-6 transition-colors ${isLightSidebar
-            ? 'bg-slate-50 border-slate-200 text-slate-600'
-            : 'bg-slate-800/80 border-slate-700/80 text-slate-300'
+          ? 'bg-slate-50 border-slate-200 text-slate-600'
+          : 'bg-slate-800/80 border-slate-700/80 text-slate-300'
           }`}>
           <div className={`font-semibold mb-1 flex items-center justify-between ${isLightSidebar ? 'text-slate-900' : 'text-slate-100'}`}>
             <span>ข้อมูลผู้พัฒนา</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${isLightSidebar
-                ? 'bg-slate-200 text-slate-800'
-                : 'bg-slate-700 text-slate-200'
-              }`}>v1.0</span>
+              ? 'bg-slate-200 text-slate-800'
+              : 'bg-slate-700 text-slate-200'
+              }`}>v1.1</span>
           </div>
           <p className="text-[11px] leading-relaxed">
             {developerInfo || 'พัฒนาระบบโดย งานส่งเสริมการวิจัย นวัตกรรม และสิ่งประดิษฐ์ ร่วมกับ งานศูนย์ข้อมูลสารสนเทศ'}
