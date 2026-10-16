@@ -107,6 +107,90 @@ export async function renderDocxToHtml(templateId: number | null, formData: any)
 
   const bahtText = formatThaiBaht(totalBudget);
 
+  // Budget breakdown calculations
+  const isOther = (b: any) =>
+    (b.category_name && b.category_name.includes('อื่น')) ||
+    Number(b.category_id) === 4 ||
+    (!b.category_name && (b.description && b.description.includes('อื่น')));
+  const isRem = (b: any) =>
+    (b.category_name && b.category_name.includes('ตอบแทน')) ||
+    Number(b.category_id) === 1 ||
+    (!b.category_name && (b.description && (b.description.includes('ตอบแทน') || b.description.includes('วิทยากร') || b.description.includes('กรรมการ'))));
+  const isSvc = (b: any) =>
+    (b.category_name && b.category_name.includes('ใช้สอย')) ||
+    Number(b.category_id) === 2 ||
+    (!b.category_name && (b.description && (b.description.includes('ใช้สอย') || b.description.includes('อาหาร') || b.description.includes('ที่พัก') || b.description.includes('สถานที่') || b.description.includes('จ้าง'))));
+  const isMat = (b: any) =>
+    (b.category_name && b.category_name.includes('วัสดุ')) ||
+    Number(b.category_id) === 3 ||
+    (!b.category_name && !b.category_id && !isRem(b) && !isSvc(b) && !isOther(b));
+
+  let matBudget = 0;
+  let svcBudget = 0;
+  let remBudget = 0;
+  let otherBudget = 0;
+
+  budgetItems.forEach((b: any) => {
+    const amt = (Number(b.quantity) || 0) * (Number(b.unit_price) || 0);
+    if (isOther(b)) otherBudget += amt;
+    else if (isRem(b)) remBudget += amt;
+    else if (isSvc(b)) svcBudget += amt;
+    else if (isMat(b)) matBudget += amt;
+    else otherBudget += amt;
+  });
+
+  const matText = matBudget > 0 ? matBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
+  const svcText = svcBudget > 0 ? svcBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
+  const remText = remBudget > 0 ? remBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
+  const otherText = otherBudget > 0 ? otherBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
+  const totalText = totalBudget > 0 ? totalBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
+
+  const bt = (formData.budget_type || '').toString().trim();
+  const isGov = bt.includes('งบประมาณ') && !bt.includes('รายได้');
+  const isIncome = bt.includes('รายได้');
+  const isSub = bt.includes('อุดหนุน');
+
+  const budgetMatrix: Record<string, string> = {
+    mat_total: matText,
+    svc_total: svcText,
+    rem_total: remText,
+    other_total: otherText,
+    budget_total: totalText,
+    mat_gov: '-',
+    mat_income: '-',
+    mat_sub: '-',
+    mat_other: '-',
+    svc_gov: '-',
+    svc_income: '-',
+    svc_sub: '-',
+    svc_other: '-',
+    rem_gov: '-',
+    rem_income: '-',
+    rem_sub: '-',
+    rem_other: '-',
+    other_gov: '-',
+    other_income: '-',
+    other_sub: '-',
+    other_other: '-',
+    total_gov: '-',
+    total_income: '-',
+    total_sub: '-',
+    total_other: '-',
+  };
+
+  let target = 'other';
+  if (isGov) target = 'gov';
+  else if (isIncome) target = 'income';
+  else if (isSub) target = 'sub';
+
+  if (bt) {
+    budgetMatrix['mat_' + target] = matText;
+    budgetMatrix['svc_' + target] = svcText;
+    budgetMatrix['rem_' + target] = remText;
+    budgetMatrix['other_' + target] = otherText;
+    budgetMatrix['total_' + target] = totalText;
+  }
+
   const formatThaiDate = (dateStr: string) => {
     if (!dateStr) return '-';
     try {
@@ -198,6 +282,7 @@ export async function renderDocxToHtml(templateId: number | null, formData: any)
     // Budget
     total_budget_text: totalBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }),
     total_budget_bahttext: bahtText,
+    ...budgetMatrix,
 
     // Loops
     objectives: Array.isArray(formData.objectives)

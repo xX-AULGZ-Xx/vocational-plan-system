@@ -1241,6 +1241,7 @@ export default function ProjectDetailPage() {
                       { key: 'compensation', label: 'ค่าตอบแทน' },
                       { key: 'operating', label: 'ค่าใช้สอย' },
                       { key: 'material', label: 'ค่าวัสดุ' },
+                      { key: 'other', label: 'อื่น ๆ' },
                     ];
 
                     // Group items by category and source
@@ -1250,14 +1251,16 @@ export default function ProjectDetailPage() {
                       compensation: { gov: 0, revenue: 0, subsidy: 0, other: 0, note: '' },
                       operating: { gov: 0, revenue: 0, subsidy: 0, other: 0, note: '' },
                       material: { gov: 0, revenue: 0, subsidy: 0, other: 0, note: '' },
+                      other: { gov: 0, revenue: 0, subsidy: 0, other: 0, note: '' },
                     };
 
                     budgetItems.forEach((b: any) => {
                       const catName = (b.category?.name || b.description || '').toLowerCase();
-                      let rowKey = 'operating';
-                      if (catName.includes('ตอบแทน')) rowKey = 'compensation';
-                      else if (catName.includes('วัสดุ')) rowKey = 'material';
-                      else if (catName.includes('ใช้สอย')) rowKey = 'operating';
+                      let rowKey = 'other';
+                      if (catName.includes('ตอบแทน') || Number(b.category_id) === 1) rowKey = 'compensation';
+                      else if (catName.includes('วัสดุ') || Number(b.category_id) === 3) rowKey = 'material';
+                      else if (catName.includes('ใช้สอย') || Number(b.category_id) === 2) rowKey = 'operating';
+                      else if (catName.includes('อื่น') || Number(b.category_id) === 4) rowKey = 'other';
 
                       const amount = Number(b.total_amount) || (Number(b.quantity || 0) * Number(b.unit_price || 0));
                       const sourceType = b.category?.source_type || '';
@@ -1275,10 +1278,10 @@ export default function ProjectDetailPage() {
                     });
 
                     // Totals
-                    const totalGov = matrix.compensation.gov + matrix.operating.gov + matrix.material.gov;
-                    const totalRev = matrix.compensation.revenue + matrix.operating.revenue + matrix.material.revenue;
-                    const totalSub = matrix.compensation.subsidy + matrix.operating.subsidy + matrix.material.subsidy;
-                    const totalOth = matrix.compensation.other + matrix.operating.other + matrix.material.other;
+                    const totalGov = matrix.compensation.gov + matrix.operating.gov + matrix.material.gov + matrix.other.gov;
+                    const totalRev = matrix.compensation.revenue + matrix.operating.revenue + matrix.material.revenue + matrix.other.revenue;
+                    const totalSub = matrix.compensation.subsidy + matrix.operating.subsidy + matrix.material.subsidy + matrix.other.subsidy;
+                    const totalOth = matrix.compensation.other + matrix.operating.other + matrix.material.other + matrix.other.other;
 
                     return (
                       <>

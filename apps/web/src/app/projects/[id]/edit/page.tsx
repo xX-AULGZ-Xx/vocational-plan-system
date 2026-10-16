@@ -1712,6 +1712,7 @@ const fetchProposalTemplate = async () => {
                         <option value={1}>ค่าตอบแทน</option>
                         <option value={2}>ค่าใช้สอย</option>
                         <option value={3}>ค่าวัสดุ</option>
+                        <option value={4}>อื่น ๆ</option>
                       </select>
                     </td>
                     <td className="px-2.5 py-2">

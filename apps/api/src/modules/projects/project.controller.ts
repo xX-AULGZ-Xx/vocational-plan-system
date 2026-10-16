@@ -2150,6 +2150,8 @@ async function generateProjectSummaryDocx(id: string | bigint, options?: { templ
       no: idx + 1,
       description: b.description,
       category: b.category?.name || '',
+      category_name: b.category?.name || '',
+      category_id: b.category_id,
       quantity: Number(b.quantity),
       unit: b.unit,
       unit_price: Number(b.unit_price).toLocaleString('th-TH', { minimumFractionDigits: 2 }),

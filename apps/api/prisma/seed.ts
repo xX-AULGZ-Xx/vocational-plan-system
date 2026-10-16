@@ -225,6 +225,9 @@ async function main() {
   const catMaterials = await prisma.budgetCategory.create({
     data: { name: 'ค่าวัสดุ (เอกสาร / อุปกรณ์อบรม / วัสดุฝึก)', source_type: SourceType.SUBSIDY },
   });
+  const catOther = await prisma.budgetCategory.create({
+    data: { name: 'อื่น ๆ', source_type: SourceType.SUBSIDY },
+  });
 
   console.log('✔ Budget Categories created');
 

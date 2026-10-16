@@ -562,9 +562,10 @@ export default function A4DocumentPreview({
             </thead>
             <tbody>
               {(() => {
-                const isMat = (b: any) => (b.category_name && b.category_name.includes('วัสดุ')) || Number(b.category_id) === 3 || (!b.category_name && !b.category_id && !(b.description || '').includes('ใช้สอย') && !(b.description || '').includes('ตอบแทน'));
-                const isSvc = (b: any) => (b.category_name && b.category_name.includes('ใช้สอย')) || Number(b.category_id) === 2 || (!b.category_name && (b.description && (b.description.includes('ใช้สอย') || b.description.includes('อาหาร') || b.description.includes('ที่พัก') || b.description.includes('สถานที่') || b.description.includes('จ้าง'))));
+                const isOther = (b: any) => (b.category_name && b.category_name.includes('อื่น')) || Number(b.category_id) === 4 || (!b.category_name && (b.description && b.description.includes('อื่น')));
                 const isRem = (b: any) => (b.category_name && b.category_name.includes('ตอบแทน')) || Number(b.category_id) === 1 || (!b.category_name && (b.description && (b.description.includes('ตอบแทน') || b.description.includes('วิทยากร') || b.description.includes('กรรมการ'))));
+                const isSvc = (b: any) => (b.category_name && b.category_name.includes('ใช้สอย')) || Number(b.category_id) === 2 || (!b.category_name && (b.description && (b.description.includes('ใช้สอย') || b.description.includes('อาหาร') || b.description.includes('ที่พัก') || b.description.includes('สถานที่') || b.description.includes('จ้าง'))));
+                const isMat = (b: any) => (b.category_name && b.category_name.includes('วัสดุ')) || Number(b.category_id) === 3 || (!b.category_name && !b.category_id && !isRem(b) && !isSvc(b) && !isOther(b));
 
                 const matBudget = (data.budget_items || [])
                   .filter(isMat)
@@ -575,11 +576,15 @@ export default function A4DocumentPreview({
                 const remBudget = (data.budget_items || [])
                   .filter(isRem)
                   .reduce((acc, b) => acc + (Number(b.quantity) || 0) * (Number(b.unit_price) || 0), 0);
+                const otherBudget = (data.budget_items || [])
+                  .filter(isOther)
+                  .reduce((acc, b) => acc + (Number(b.quantity) || 0) * (Number(b.unit_price) || 0), 0);
 
                 const hasItems = (data.budget_items || []).length > 0;
                 const matDisplay = hasItems ? (matBudget > 0 ? matBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-') : totalBudgetText;
                 const svcDisplay = hasItems && svcBudget > 0 ? svcBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
                 const remDisplay = hasItems && remBudget > 0 ? remBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
+                const otherDisplay = hasItems && otherBudget > 0 ? otherBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
 
                 return (
                   <>
@@ -600,6 +605,13 @@ export default function A4DocumentPreview({
                     <tr>
                       <td className="border border-black p-1.5 text-left pl-3 font-semibold">ค่าตอบแทน</td>
                       <td className="border border-black p-1.5 text-right pr-2">{remDisplay}</td>
+                      <td className="border border-black p-1.5">-</td>
+                      <td className="border border-black p-1.5">-</td>
+                      <td className="border border-black p-1.5">-</td>
+                    </tr>
+                    <tr>
+                      <td className="border border-black p-1.5 text-left pl-3 font-semibold">อื่น ๆ</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{otherDisplay}</td>
                       <td className="border border-black p-1.5">-</td>
                       <td className="border border-black p-1.5">-</td>
                       <td className="border border-black p-1.5">-</td>

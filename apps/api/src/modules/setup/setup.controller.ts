@@ -746,6 +746,7 @@ router.post('/install', async (req: Request, res: Response) => {
         { name: 'ค่าตอบแทน (วิทยากร / คณะกรรมการ)', source_type: SourceType.SUBSIDY },
         { name: 'ค่าใช้สอย (ค่าอาหารว่าง / ค่าสถานที่ / ค่าจ้างเหมา)', source_type: SourceType.SUBSIDY },
         { name: 'ค่าวัสดุ (เอกสาร / อุปกรณ์อบรม / วัสดุฝึก)', source_type: SourceType.SUBSIDY },
+        { name: 'อื่น ๆ', source_type: SourceType.SUBSIDY },
       ];
       for (const cat of defaultCats) {
         const exists = await dbClient.budgetCategory.findFirst({ where: { name: cat.name } });

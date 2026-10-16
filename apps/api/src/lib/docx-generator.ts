@@ -392,30 +392,48 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
 
   // Auto-calculate budget totals if budget_items exists
   if (Array.isArray(formData.budget_items)) {
-    const isMat = (b: any) => (b.category_name && b.category_name.includes('วัสดุ')) || Number(b.category_id) === 3 || (!b.category_name && !b.category_id && !(b.description || '').includes('ใช้สอย') && !(b.description || '').includes('ตอบแทน'));
-    const isSvc = (b: any) => (b.category_name && b.category_name.includes('ใช้สอย')) || Number(b.category_id) === 2 || (!b.category_name && (b.description && (b.description.includes('ใช้สอย') || b.description.includes('อาหาร') || b.description.includes('ที่พัก') || b.description.includes('สถานที่') || b.description.includes('จ้าง'))));
-    const isRem = (b: any) => (b.category_name && b.category_name.includes('ตอบแทน')) || Number(b.category_id) === 1 || (!b.category_name && (b.description && (b.description.includes('ตอบแทน') || b.description.includes('วิทยากร') || b.description.includes('กรรมการ'))));
+    const isOther = (b: any) =>
+      (b.category_name && b.category_name.includes('อื่น')) ||
+      Number(b.category_id) === 4 ||
+      (!b.category_name && (b.description && b.description.includes('อื่น')));
+    const isRem = (b: any) =>
+      (b.category_name && b.category_name.includes('ตอบแทน')) ||
+      Number(b.category_id) === 1 ||
+      (!b.category_name && (b.description && (b.description.includes('ตอบแทน') || b.description.includes('วิทยากร') || b.description.includes('กรรมการ'))));
+    const isSvc = (b: any) =>
+      (b.category_name && b.category_name.includes('ใช้สอย')) ||
+      Number(b.category_id) === 2 ||
+      (!b.category_name && (b.description && (b.description.includes('ใช้สอย') || b.description.includes('อาหาร') || b.description.includes('ที่พัก') || b.description.includes('สถานที่') || b.description.includes('จ้าง'))));
+    const isMat = (b: any) =>
+      (b.category_name && b.category_name.includes('วัสดุ')) ||
+      Number(b.category_id) === 3 ||
+      (!b.category_name && !b.category_id && !isRem(b) && !isSvc(b) && !isOther(b));
 
     let matBudget = 0;
     let svcBudget = 0;
     let remBudget = 0;
+    let otherBudget = 0;
 
     formData.budget_items.forEach(b => {
       const amt = (Number(b.quantity) || 0) * (Number(b.unit_price) || 0);
-      if (isMat(b)) matBudget += amt;
-      else if (isSvc(b)) svcBudget += amt;
+      if (isOther(b)) otherBudget += amt;
       else if (isRem(b)) remBudget += amt;
+      else if (isSvc(b)) svcBudget += amt;
+      else if (isMat(b)) matBudget += amt;
+      else otherBudget += amt;
     });
 
     const matText = matBudget > 0 ? matBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
     const svcText = svcBudget > 0 ? svcBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
     const remText = remBudget > 0 ? remBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
-    const total = matBudget + svcBudget + remBudget;
+    const otherText = otherBudget > 0 ? otherBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
+    const total = matBudget + svcBudget + remBudget + otherBudget;
     const totalText = total > 0 ? total.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
 
     formData.mat_total = matText;
     formData.svc_total = svcText;
     formData.rem_total = remText;
+    formData.other_total = otherText;
     formData.budget_total = totalText;
 
     const bt = (formData.budget_type || '').toString().trim();
@@ -428,6 +446,7 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
       formData['mat_' + t] = '-';
       formData['svc_' + t] = '-';
       formData['rem_' + t] = '-';
+      formData['other_' + t] = '-';
       formData['total_' + t] = '-';
     });
 
@@ -440,6 +459,7 @@ export async function renderDynamicDocx(templatePath: string, formData: Record<s
       formData['mat_' + target] = matText;
       formData['svc_' + target] = svcText;
       formData['rem_' + target] = remText;
+      formData['other_' + target] = otherText;
       formData['total_' + target] = totalText;
     }
   }
