@@ -1254,6 +1254,12 @@ export default function ProjectDetailPage() {
                       other: { gov: 0, revenue: 0, subsidy: 0, other: 0, note: '' },
                     };
 
+                    const bt = (parsedDynamicData?.budget_type || (project as any).dynamic_data?.budget_type || '').toString().trim();
+                    const isGov = bt.includes('งบประมาณ') && !bt.includes('รายได้');
+                    const isIncome = bt.includes('รายได้');
+                    const isSub = bt.includes('อุดหนุน');
+                    const isOtherType = bt.includes('อื่นๆ') || bt.includes('อื่น');
+
                     budgetItems.forEach((b: any) => {
                       const catName = (b.category?.name || b.description || '').toLowerCase();
                       let rowKey = 'other';
@@ -1263,17 +1269,25 @@ export default function ProjectDetailPage() {
                       else if (catName.includes('อื่น') || Number(b.category_id) === 4) rowKey = 'other';
 
                       const amount = Number(b.total_amount) || (Number(b.quantity || 0) * Number(b.unit_price || 0));
-                      const sourceType = b.category?.source_type || '';
 
-                      if (sourceType === 'GOVERNMENT' || catName.includes('งบประมาณ')) {
-                        matrix[rowKey].gov += amount;
-                      } else if (sourceType === 'REVENUE' || catName.includes('รายได้')) {
+                      if (isIncome) {
                         matrix[rowKey].revenue += amount;
-                      } else if (sourceType === 'SUBSIDY' || catName.includes('อุดหนุน')) {
+                      } else if (isSub) {
                         matrix[rowKey].subsidy += amount;
-                      } else {
-                        // Fallback based on project dynamic form data if applicable, or default
+                      } else if (isOtherType) {
+                        matrix[rowKey].other += amount;
+                      } else if (isGov) {
                         matrix[rowKey].gov += amount;
+                      } else {
+                        // Fallback if budget_type is not specified
+                        const sourceType = b.category?.source_type || '';
+                        if (sourceType === 'REVENUE' || catName.includes('รายได้')) {
+                          matrix[rowKey].revenue += amount;
+                        } else if (sourceType === 'SUBSIDY' || catName.includes('อุดหนุน')) {
+                          matrix[rowKey].subsidy += amount;
+                        } else {
+                          matrix[rowKey].gov += amount;
+                        }
                       }
                     });
 

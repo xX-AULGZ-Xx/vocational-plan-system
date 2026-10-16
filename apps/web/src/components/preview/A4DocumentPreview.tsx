@@ -74,6 +74,7 @@ export interface ProjectFormData {
     comments?: string;
   }>;
   project_code?: string;
+  budget_type?: string;
   mappings?: Record<string, string>;
   custom_fields?: Record<string, string>;
 }
@@ -553,11 +554,12 @@ export default function A4DocumentPreview({
           <table className="w-full text-[13pt] border-collapse border border-black text-center">
             <thead>
               <tr className="bg-slate-100/70 font-bold">
-                <th className="border border-black p-1.5 w-[38%] text-center">หมวดรายจ่าย/ประเภทรายจ่าย</th>
-                <th className="border border-black p-1.5 w-[16%]">งบประมาณ</th>
-                <th className="border border-black p-1.5 w-[16%]">เงินรายได้สถานศึกษา</th>
-                <th className="border border-black p-1.5 w-[20%]">งบเงินอุดหนุน<br/><span className="text-[11pt] font-normal">(ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน)</span></th>
-                <th className="border border-black p-1.5 w-[10%]">หมายเหตุ</th>
+                <th className="border border-black p-1.5 w-[30%] text-center">หมวดรายจ่าย/ประเภทรายจ่าย</th>
+                <th className="border border-black p-1.5 w-[14%]">งบประมาณ</th>
+                <th className="border border-black p-1.5 w-[15%]">เงินรายได้สถานศึกษา</th>
+                <th className="border border-black p-1.5 w-[19%]">งบเงินอุดหนุน<br/><span className="text-[11pt] font-normal">(ค่ากิจกรรมพัฒนาคุณภาพผู้เรียน)</span></th>
+                <th className="border border-black p-1.5 w-[14%]">งบอื่นๆ ........</th>
+                <th className="border border-black p-1.5 w-[8%]">หมายเหตุ</th>
               </tr>
             </thead>
             <tbody>
@@ -586,42 +588,59 @@ export default function A4DocumentPreview({
                 const remDisplay = hasItems && remBudget > 0 ? remBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
                 const otherDisplay = hasItems && otherBudget > 0 ? otherBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-';
 
+                const bt = (data.budget_type || (data as any).dynamic_data?.budget_type || '').toString().trim();
+                const isGov = bt.includes('งบประมาณ') && !bt.includes('รายได้');
+                const isIncome = bt.includes('รายได้');
+                const isSub = bt.includes('อุดหนุน');
+                const isOtherType = bt.includes('อื่นๆ') || bt.includes('อื่น');
+
+                let targetCol: 'gov' | 'income' | 'sub' | 'other' = 'gov';
+                if (isIncome) targetCol = 'income';
+                else if (isSub) targetCol = 'sub';
+                else if (isOtherType) targetCol = 'other';
+                else if (isGov) targetCol = 'gov';
+
                 return (
                   <>
                     <tr>
-                      <td className="border border-black p-1.5 text-left pl-3 font-semibold">ค่าวัสดุ</td>
-                      <td className="border border-black p-1.5 text-right pr-2">{matDisplay}</td>
-                      <td className="border border-black p-1.5">-</td>
-                      <td className="border border-black p-1.5">-</td>
-                      <td className="border border-black p-1.5">-</td>
+                      <td className="border border-black p-1.5 text-left pl-3 font-semibold">ค่าตอบแทน</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'gov' ? remDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'income' ? remDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'sub' ? remDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'other' ? remDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-center">-</td>
                     </tr>
                     <tr>
                       <td className="border border-black p-1.5 text-left pl-3 font-semibold">ค่าใช้สอย</td>
-                      <td className="border border-black p-1.5 text-right pr-2">{svcDisplay}</td>
-                      <td className="border border-black p-1.5">-</td>
-                      <td className="border border-black p-1.5">-</td>
-                      <td className="border border-black p-1.5">-</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'gov' ? svcDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'income' ? svcDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'sub' ? svcDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'other' ? svcDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-center">-</td>
                     </tr>
                     <tr>
-                      <td className="border border-black p-1.5 text-left pl-3 font-semibold">ค่าตอบแทน</td>
-                      <td className="border border-black p-1.5 text-right pr-2">{remDisplay}</td>
-                      <td className="border border-black p-1.5">-</td>
-                      <td className="border border-black p-1.5">-</td>
-                      <td className="border border-black p-1.5">-</td>
+                      <td className="border border-black p-1.5 text-left pl-3 font-semibold">ค่าวัสดุ</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'gov' ? matDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'income' ? matDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'sub' ? matDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'other' ? matDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-center">-</td>
                     </tr>
                     <tr>
                       <td className="border border-black p-1.5 text-left pl-3 font-semibold">อื่น ๆ</td>
-                      <td className="border border-black p-1.5 text-right pr-2">{otherDisplay}</td>
-                      <td className="border border-black p-1.5">-</td>
-                      <td className="border border-black p-1.5">-</td>
-                      <td className="border border-black p-1.5">-</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'gov' ? otherDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'income' ? otherDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'sub' ? otherDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'other' ? otherDisplay : '-'}</td>
+                      <td className="border border-black p-1.5 text-center">-</td>
                     </tr>
                     <tr className="font-bold bg-slate-50/80">
                       <td className="border border-black p-1.5 text-center">รวมทั้งสิ้น</td>
-                      <td className="border border-black p-1.5 text-right pr-2">{totalBudgetText}</td>
-                      <td className="border border-black p-1.5">-</td>
-                      <td className="border border-black p-1.5">-</td>
-                      <td className="border border-black p-1.5">บาท</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'gov' ? totalBudgetText : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'income' ? totalBudgetText : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'sub' ? totalBudgetText : '-'}</td>
+                      <td className="border border-black p-1.5 text-right pr-2">{targetCol === 'other' ? totalBudgetText : '-'}</td>
+                      <td className="border border-black p-1.5 text-center">บาท</td>
                     </tr>
                   </>
                 );
