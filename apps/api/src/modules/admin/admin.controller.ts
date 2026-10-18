@@ -7,6 +7,7 @@ import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, authorize, AuthRequest } from '../../middlewares/auth';
 import { Role } from '@prisma/client';
 import { sseManager } from '../notifications/sse.manager';
+import { wsManager } from '../notifications/socket.manager';
 import { extractFontsFromDocx } from '../../lib/font-extractor';
 import { extractTagsFromDocx } from '../../lib/docx-extractor';
 import { sanitizeDocxTemplate } from '../../lib/docx-generator';
@@ -1614,6 +1615,7 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
           division_code: assignedInfo.division_code,
           departments: assignedInfo.departments,
           divisions: assignedInfo.divisions,
+          is_online: wsManager.isUserOnline(u.id),
           projects_count: u._count?.projects || 0,
           approvals_count: u._count?.approvals || 0,
         };

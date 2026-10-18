@@ -6,6 +6,7 @@ import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, AuthRequest } from '../../middlewares/auth';
 import { Role, NotificationType } from '@prisma/client';
 import { notificationService } from '../notifications/notification.service';
+import { wsManager } from '../notifications/socket.manager';
 import { logActivity } from '../audit-logs/audit-log.service';
 
 const router = Router();
@@ -916,7 +917,10 @@ router.get('/users/:id/profile', authenticate, async (req: AuthRequest, res: Res
     return res.json({
       success: true,
       data: serializeBigInt({
-        user: targetUser,
+        user: {
+          ...targetUser,
+          is_online: wsManager.isUserOnline(targetUser.id),
+        },
         is_self: isSelf,
         stats,
         projects,

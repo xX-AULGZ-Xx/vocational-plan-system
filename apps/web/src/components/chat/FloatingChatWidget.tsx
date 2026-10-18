@@ -43,6 +43,7 @@ export default function FloatingChatWidget() {
     toggleWidget,
     setWidgetActiveRoom,
     markAsRead,
+    onlineUserIds,
   } = useChat();
 
   const [activeTab, setActiveTab] = useState<'ALL' | 'PROJECT' | 'DIRECT' | 'GROUP'>('ALL');
@@ -129,9 +130,23 @@ export default function FloatingChatWidget() {
               )}
 
               <div className="min-w-0">
-                <h4 className="text-sm font-semibold text-white truncate max-w-[200px]">
-                  {widgetActiveRoomId ? activeRoom?.displayName || 'ห้องสนทนา' : 'ข้อความและการสนทนา'}
-                </h4>
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-sm font-semibold text-white truncate max-w-[170px]">
+                    {widgetActiveRoomId ? activeRoom?.displayName || 'ห้องสนทนา' : 'ข้อความและการสนทนา'}
+                  </h4>
+                  {widgetActiveRoomId && activeRoom?.type === 'DIRECT' && (() => {
+                    const otherP = activeRoom.participants.find((p) => p.user_id !== user?.id?.toString());
+                    const isOnline = otherP ? (onlineUserIds.has(otherP.user_id) || Boolean(otherP.user?.is_online)) : false;
+                    return (
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          isOnline ? 'bg-emerald-400 ring-2 ring-white/30' : 'bg-white/40'
+                        }`}
+                        title={isOnline ? 'ออนไลน์' : 'ออฟไลน์'}
+                      />
+                    );
+                  })()}
+                </div>
                 <p className="text-[11px] text-white/70 truncate">
                   {widgetActiveRoomId
                     ? activeRoom?.subtitle || 'สนทนาแบบเรียลไทม์'
@@ -287,7 +302,7 @@ export default function FloatingChatWidget() {
                           isOnline={
                             r.type === 'DIRECT' &&
                             r.participants.some(
-                              (p) => p.user?.is_online && p.user_id !== user?.id?.toString()
+                              (p) => (onlineUserIds.has(p.user_id) || Boolean(p.user?.is_online)) && p.user_id !== user?.id?.toString()
                             )
                           }
                         />

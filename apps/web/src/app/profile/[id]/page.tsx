@@ -39,7 +39,7 @@ export default function UserProfileDetailPage() {
   const router = useRouter();
   const { user: currentUser, token } = useAuth();
   const { collegeName } = useSettings();
-  const { openDirectChat } = useChat();
+  const { openDirectChat, onlineUserIds } = useChat();
 
   const userId = params?.id as string;
 
@@ -275,6 +275,7 @@ export default function UserProfileDetailPage() {
   }
 
   const roleInfo = getRoleBadge(targetUser.role);
+  const isTargetUserOnline = isSelf || (targetUser ? onlineUserIds.has(targetUser.id.toString()) || Boolean(targetUser.is_online) : false);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20">
@@ -306,6 +307,18 @@ export default function UserProfileDetailPage() {
               >
                 {targetUser.full_name?.charAt(0) || 'U'}
               </div>
+
+              {/* Online Status Indicator on Avatar */}
+              <span
+                className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full ring-2 ring-white flex items-center justify-center shadow-md ${
+                  isTargetUserOnline ? 'bg-emerald-500' : 'bg-slate-400'
+                }`}
+                title={isTargetUserOnline ? 'ออนไลน์ขณะนี้' : 'ออฟไลน์'}
+              >
+                {isTargetUserOnline && (
+                  <span className="w-2 h-2 rounded-full bg-white animate-ping opacity-75" />
+                )}
+              </span>
             </div>
 
             <div className="space-y-1.5">
@@ -316,6 +329,20 @@ export default function UserProfileDetailPage() {
                 <span className="px-3 py-0.5 rounded-full text-[11px] font-bold bg-white/20 text-white border border-white/20 backdrop-blur-sm">
                   {roleInfo.label}
                 </span>
+
+                {/* Online Status Badge */}
+                {isTargetUserOnline ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-400/25 text-emerald-200 border border-emerald-300/40 backdrop-blur-sm shadow-xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>ออนไลน์</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-white/70 border border-white/15 backdrop-blur-sm">
+                    <span className="w-2 h-2 rounded-full bg-slate-300" />
+                    <span>ออฟไลน์</span>
+                  </span>
+                )}
+
                 {isSelf && (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400 text-emerald-950 shadow-xs">
                     บัญชีของคุณ

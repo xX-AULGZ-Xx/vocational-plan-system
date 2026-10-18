@@ -43,6 +43,7 @@ function ChatPageContent() {
     openProjectChat,
     typingUsers,
     markAsRead,
+    onlineUserIds,
   } = useChat();
 
   const [filterTab, setFilterTab] = useState<'ALL' | 'PROJECT' | 'DIRECT' | 'GROUP'>('ALL');
@@ -227,7 +228,7 @@ function ChatPageContent() {
                     isOnline={
                       room.type === 'DIRECT' &&
                       room.participants.some(
-                        (p) => p.user?.is_online && p.user_id !== user?.id?.toString()
+                        (p) => (onlineUserIds.has(p.user_id) || Boolean(p.user?.is_online)) && p.user_id !== user?.id?.toString()
                       )
                     }
                   />
@@ -326,6 +327,21 @@ function ChatPageContent() {
                       {activeRoom.displayName}
                     </h3>
                   )}
+                  {activeRoom.type === 'DIRECT' && (() => {
+                    const otherP = activeRoom.participants.find((p) => p.user_id !== user?.id?.toString());
+                    const isOnline = otherP ? (onlineUserIds.has(otherP.user_id) || Boolean(otherP.user?.is_online)) : false;
+                    return isOnline ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        ออนไลน์
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                        ออฟไลน์
+                      </span>
+                    );
+                  })()}
                   {activeRoom.type === 'PROJECT' && (
                     <span className="text-[10px] bg-theme-primary-light text-theme-primary font-semibold px-2 py-0.5 rounded-full shrink-0">
                       ห้องโครงการ
@@ -444,12 +460,17 @@ function ChatPageContent() {
                             src={p.user?.avatar_url}
                             name={p.user?.full_name}
                             size="sm"
-                            isOnline={p.user?.is_online}
+                            isOnline={onlineUserIds.has(p.user_id) || Boolean(p.user?.is_online)}
                           />
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-slate-800 group-hover:text-theme-primary group-hover:underline transition-colors truncate">
-                              {p.user?.full_name}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-xs font-semibold text-slate-800 group-hover:text-theme-primary group-hover:underline transition-colors truncate">
+                                {p.user?.full_name}
+                              </p>
+                              {(onlineUserIds.has(p.user_id) || Boolean(p.user?.is_online)) && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="ออนไลน์ขณะนี้" />
+                              )}
+                            </div>
                             <p className="text-[10px] text-slate-400 truncate">{p.user?.position || p.user?.role}</p>
                           </div>
                         </Link>

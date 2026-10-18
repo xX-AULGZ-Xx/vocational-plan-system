@@ -19,6 +19,7 @@ export interface ChatSender {
   avatar_url?: string | null;
   role?: string;
   position?: string;
+  is_online?: boolean;
 }
 
 export interface ChatMessageReaction {
@@ -426,6 +427,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return curr;
       });
       setWidgetActiveRoomId((curr) => (curr === deletedId ? null : curr));
+    });
+
+    // Initial online users list from server
+    socket.on('online_users', (data: { userIds: string[] }) => {
+      if (Array.isArray(data?.userIds)) {
+        setOnlineUserIds(new Set(data.userIds.map(String)));
+      }
     });
 
     // User online status change

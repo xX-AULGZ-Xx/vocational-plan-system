@@ -78,6 +78,10 @@ class WebSocketManager {
         timestamp: new Date().toISOString(),
       });
 
+      socket.emit('online_users', {
+        userIds: this.getOnlineUserIds(),
+      });
+
       socket.on('ping', () => {
         socket.emit('pong', { timestamp: new Date().toISOString() });
       });

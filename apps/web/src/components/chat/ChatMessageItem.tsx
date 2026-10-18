@@ -26,7 +26,7 @@ const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🎉', 
 
 export default function ChatMessageItem({ message, showSenderName = true }: ChatMessageItemProps) {
   const { user } = useAuth();
-  const { toggleReaction, setReplyingToMessage, activeRoom } = useChat();
+  const { toggleReaction, setReplyingToMessage, activeRoom, onlineUserIds } = useChat();
   const isMe = user && message.sender_id.toString() === user.id.toString();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string; size?: number } | null>(null);
@@ -197,6 +197,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
             src={message.sender?.avatar_url}
             name={message.sender?.full_name}
             size="sm"
+            isOnline={onlineUserIds.has(message.sender_id.toString()) || Boolean(message.sender?.is_online)}
           />
         </Link>
       )}

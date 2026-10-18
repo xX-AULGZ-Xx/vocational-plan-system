@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { useChat } from '@/lib/chat-context';
 import AccessDenied from '@/components/common/AccessDenied';
 import { showAlert } from '@/lib/sweetalert';
 import ModalPortal from '@/components/ui/ModalPortal';
@@ -62,6 +63,7 @@ interface UserItem {
   position: string | null;
   role: string;
   is_active: boolean;
+  is_online?: boolean;
   created_at: string;
   department_id: number | null;
   department_ids?: number[];
@@ -114,6 +116,7 @@ const ROLE_CONFIG: Record<string, { label: string; bg: string; text: string; bor
 
 export default function AdminUsersPage() {
   const { user: currentUser, token } = useAuth();
+  const { onlineUserIds } = useChat();
 
   // Protect route
   if (currentUser && currentUser.role !== 'ADMIN') {
@@ -848,12 +851,14 @@ export default function AdminUsersPage() {
                       border: 'border-slate-200',
                     };
 
+                    const isUserOnline = u.username === currentUser?.username ? true : (onlineUserIds.has(u.id.toString()) || Boolean(u.is_online));
+
                     return (
                       <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
                         {/* Name & Username */}
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
-                            <Link href={`/profile/${u.id}`} className="shrink-0 hover:opacity-80 transition-opacity">
+                            <Link href={`/profile/${u.id}`} className="relative shrink-0 hover:opacity-85 transition-opacity">
                               {u.avatar_url ? (
                                 <img
                                   src={u.avatar_url}
@@ -877,6 +882,12 @@ export default function AdminUsersPage() {
                                   {u.full_name ? u.full_name.charAt(0) : 'U'}
                                 </div>
                               )}
+                              <span
+                                className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-white ${
+                                  isUserOnline ? 'bg-emerald-500' : 'bg-slate-300'
+                                }`}
+                                title={isUserOnline ? 'ออนไลน์ขณะนี้' : 'ออฟไลน์'}
+                              />
                             </Link>
                             <div>
                               <div className="font-bold text-slate-900 flex items-center gap-1.5">
@@ -886,6 +897,15 @@ export default function AdminUsersPage() {
                                 >
                                   {u.full_name}
                                 </Link>
+                                {isUserOnline && (
+                                  <span
+                                    title="ออนไลน์ขณะนี้"
+                                    className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-semibold flex items-center gap-1"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    ออนไลน์
+                                  </span>
+                                )}
                                 {u.username === currentUser?.username && (
                                   <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-normal">
                                     คุณ
@@ -994,11 +1014,13 @@ export default function AdminUsersPage() {
                   border: 'border-slate-200',
                 };
 
+                const isUserOnline = u.username === currentUser?.username ? true : (onlineUserIds.has(u.id.toString()) || Boolean(u.is_online));
+
                 return (
                   <div key={u.id} className="p-4 space-y-3 hover:bg-slate-50 transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <Link href={`/profile/${u.id}`} className="shrink-0 hover:opacity-80 transition-opacity">
+                        <Link href={`/profile/${u.id}`} className="relative shrink-0 hover:opacity-85 transition-opacity">
                           {u.avatar_url ? (
                             <img
                               src={u.avatar_url}
@@ -1022,6 +1044,12 @@ export default function AdminUsersPage() {
                               {u.full_name ? u.full_name.charAt(0) : 'U'}
                             </div>
                           )}
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-white ${
+                              isUserOnline ? 'bg-emerald-500' : 'bg-slate-300'
+                            }`}
+                            title={isUserOnline ? 'ออนไลน์ขณะนี้' : 'ออฟไลน์'}
+                          />
                         </Link>
                         <div>
                           <div className="font-bold text-slate-900 text-sm flex items-center gap-1">
@@ -1031,6 +1059,15 @@ export default function AdminUsersPage() {
                             >
                               {u.full_name}
                             </Link>
+                            {isUserOnline && (
+                              <span
+                                title="ออนไลน์ขณะนี้"
+                                className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1 py-0.2 rounded font-semibold flex items-center gap-0.5"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                ออนไลน์
+                              </span>
+                            )}
                             {u.google_id && (
                               <span className="text-[9px] bg-red-50 text-red-600 border border-red-200 px-1 py-0.2 rounded font-bold">
                                 G
