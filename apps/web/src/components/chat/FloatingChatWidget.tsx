@@ -116,7 +116,7 @@ export default function FloatingChatWidget() {
 
       {/* Floating Chat Popup Window */}
       {isWidgetOpen && (
-        <div className="fixed bottom-4 right-4 z-40 w-[92vw] sm:w-[380px] h-[540px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
+        <div className="fixed inset-0 sm:inset-auto sm:bottom-4 sm:right-4 z-50 sm:z-40 w-full sm:w-[390px] h-[100dvh] sm:h-[560px] sm:max-h-[85vh] bg-white rounded-none sm:rounded-2xl shadow-2xl border-0 sm:border border-slate-200/90 flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
           {/* Top Header */}
           <div className="bg-theme-gradient text-white px-4 py-3 flex items-center justify-between shadow-xs shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">

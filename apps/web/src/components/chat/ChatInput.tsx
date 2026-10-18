@@ -19,6 +19,7 @@ import {
   Reply,
   AtSign,
   Users,
+  Plus,
 } from 'lucide-react';
 
 interface ChatInputProps {
@@ -46,6 +47,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showMobileTools, setShowMobileTools] = useState(false);
 
   // Mention State
   const [showMentionMenu, setShowMentionMenu] = useState(false);
@@ -354,7 +356,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
   };
 
   return (
-    <div className="relative bg-white border-t border-slate-200/80 p-3 sm:p-3.5 transition-all">
+    <div className="relative bg-white border-t border-slate-200/80 p-2 sm:p-3.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] transition-all">
       {/* Mention Autocomplete Dropdown Popup */}
       {showMentionMenu && filteredCandidates.length > 0 && (
         <div
@@ -504,8 +506,69 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
         </div>
       )}
 
+      {/* Mobile Expandable Tools Bar */}
+      {showMobileTools && (
+        <div className="mb-2 p-2 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-around gap-1 sm:hidden animate-in fade-in slide-in-from-bottom-2 duration-150 shadow-xs">
+          <button
+            type="button"
+            onClick={() => {
+              fileInputRef.current?.click();
+              setShowMobileTools(false);
+            }}
+            className="flex flex-col items-center gap-1 p-2 rounded-xl text-slate-600 hover:text-theme-primary active:bg-white transition"
+          >
+            <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-2xs">
+              <Paperclip className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-medium">แนบไฟล์</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowProjectModal(true);
+              setShowMobileTools(false);
+            }}
+            className="flex flex-col items-center gap-1 p-2 rounded-xl text-slate-600 hover:text-theme-primary active:bg-white transition"
+          >
+            <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-2xs">
+              <FolderKanban className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-medium">แชร์โครงการ</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              handleMentionButtonClick();
+              setShowMobileTools(false);
+            }}
+            className="flex flex-col items-center gap-1 p-2 rounded-xl text-slate-600 hover:text-theme-primary active:bg-white transition"
+          >
+            <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center shadow-2xs">
+              <AtSign className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-medium">แท็ก (@)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowEmojiPicker((v) => !v);
+              setShowMobileTools(false);
+            }}
+            className="flex flex-col items-center gap-1 p-2 rounded-xl text-slate-600 hover:text-amber-600 active:bg-white transition"
+          >
+            <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shadow-2xs">
+              <Smile className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-medium">อีโมจิ</span>
+          </button>
+        </div>
+      )}
+
       {/* Main Input Row */}
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-1.5 sm:gap-2">
         {/* Hidden File Input */}
         <input
           type="file"
@@ -516,8 +579,20 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
           accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
         />
 
-        {/* Action Tools Left */}
-        <div className="flex items-center gap-0.5 sm:gap-1 pb-1 text-slate-500 shrink-0">
+        {/* Mobile Tools Toggle Button (+) */}
+        <button
+          type="button"
+          onClick={() => setShowMobileTools((v) => !v)}
+          className={`sm:hidden p-2.5 rounded-xl transition shrink-0 ${
+            showMobileTools ? 'bg-theme-primary text-white rotate-45' : 'text-slate-500 hover:bg-slate-100 active:bg-slate-200'
+          }`}
+          title="เครื่องมือเพิ่มเติม"
+        >
+          <Plus className="w-5 h-5 transition-transform" />
+        </button>
+
+        {/* Action Tools Left (Desktop + Direct shortcuts) */}
+        <div className="hidden sm:flex items-center gap-0.5 sm:gap-1 pb-1 text-slate-500 shrink-0">
           {/* File Upload Button */}
           <button
             type="button"
@@ -544,7 +619,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
             type="button"
             onClick={() => setShowProjectModal(true)}
             title="แชร์ข้อมูลโครงการ"
-            className="p-2 rounded-xl text-slate-500 hover:text-theme-primary hover:bg-theme-primary-light transition hidden sm:flex"
+            className="p-2 rounded-xl text-slate-500 hover:text-theme-primary hover:bg-theme-primary-light transition"
           >
             <FolderKanban className="w-5 h-5" />
           </button>

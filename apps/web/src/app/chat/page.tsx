@@ -26,6 +26,7 @@ import {
   Sparkles,
   Paperclip,
   Trash2,
+  X,
 } from 'lucide-react';
 
 function ChatPageContent() {
@@ -134,7 +135,7 @@ function ChatPageContent() {
   const typingNames = currentRoomTyping ? Object.values(currentRoomTyping) : [];
 
   return (
-    <div className="h-[calc(100vh-6.5rem)] flex bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-w-0">
+    <div className="-m-3 sm:m-0 h-[calc(100dvh-4.25rem)] sm:h-[calc(100vh-6.5rem)] flex bg-white rounded-none sm:rounded-2xl border-0 sm:border border-slate-200 shadow-sm overflow-hidden min-w-0">
       {/* Left Sidebar: Conversations list */}
       <div
         className={`w-full lg:w-80 xl:w-96 flex flex-col border-r border-slate-200 shrink-0 ${
@@ -450,59 +451,76 @@ function ChatPageContent() {
               <ChatInput roomId={activeRoomId} />
             </div>
 
-            {/* Room Info / Participants Sidebar */}
+            {/* Room Info / Participants Sidebar (Responsive: Slide-over Drawer on Mobile, Sidebar on Desktop) */}
             {showInfoSidebar && (
-              <div className="w-72 border-l border-slate-200 bg-white p-4 overflow-y-auto shrink-0 hidden md:block animate-in slide-in-from-right duration-150 flex flex-col justify-between">
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm mb-3">สมาชิกในห้อง ({activeRoom.participants.length})</h4>
-                  <div className="space-y-2">
-                    {activeRoom.participants.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
-                        <Link
-                          href={`/profile/${p.user_id}`}
-                          className="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition group"
-                          title="ดูโปรไฟล์"
-                        >
-                          <ChatAvatar
-                            src={p.user?.avatar_url}
-                            name={p.user?.full_name}
-                            size="sm"
-                            isOnline={onlineUserIds.has(p.user_id) || Boolean(p.user?.is_online)}
-                          />
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-xs font-semibold text-slate-800 group-hover:text-theme-primary group-hover:underline transition-colors truncate">
-                                {p.user?.full_name}
-                              </p>
-                              {(onlineUserIds.has(p.user_id) || Boolean(p.user?.is_online)) && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="ออนไลน์ขณะนี้" />
-                              )}
+              <>
+                {/* Mobile Backdrop */}
+                <div
+                  className="fixed inset-0 bg-slate-900/40 z-40 md:hidden backdrop-blur-2xs transition-opacity"
+                  onClick={() => setShowInfoSidebar(false)}
+                />
+                <div className="fixed inset-y-0 right-0 z-50 w-80 max-w-[85vw] bg-white p-4 overflow-y-auto flex flex-col justify-between shadow-2xl md:shadow-none md:static md:z-auto md:w-72 md:border-l md:border-slate-200 animate-in slide-in-from-right duration-200">
+                  <div>
+                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                      <h4 className="font-bold text-slate-900 text-sm">สมาชิกในห้อง ({activeRoom.participants.length})</h4>
+                      <button
+                        type="button"
+                        onClick={() => setShowInfoSidebar(false)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition md:hidden"
+                        title="ปิดแถบข้อมูล"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {activeRoom.participants.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-50">
+                          <Link
+                            href={`/profile/${p.user_id}`}
+                            className="flex items-center gap-2.5 min-w-0 hover:opacity-85 transition group"
+                            title="ดูโปรไฟล์"
+                          >
+                            <ChatAvatar
+                              src={p.user?.avatar_url}
+                              name={p.user?.full_name}
+                              size="sm"
+                              isOnline={onlineUserIds.has(p.user_id) || Boolean(p.user?.is_online)}
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-semibold text-slate-800 group-hover:text-theme-primary group-hover:underline transition-colors truncate">
+                                  {p.user?.full_name}
+                                </p>
+                                {(onlineUserIds.has(p.user_id) || Boolean(p.user?.is_online)) && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="ออนไลน์ขณะนี้" />
+                                )}
+                              </div>
+                              <p className="text-[10px] text-slate-400 truncate">{p.user?.position || p.user?.role}</p>
                             </div>
-                            <p className="text-[10px] text-slate-400 truncate">{p.user?.position || p.user?.role}</p>
-                          </div>
-                        </Link>
-                        {p.role === 'OWNER' && (
-                          <span className="text-[10px] bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full shrink-0">
-                            เจ้าของ
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                          </Link>
+                          {p.role === 'OWNER' && (
+                            <span className="text-[10px] bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full shrink-0">
+                              เจ้าของ
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Danger Zone: Delete Room Button */}
+                  <div className="pt-4 mt-6 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setRoomToDelete(activeRoom)}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl border border-rose-200/80 transition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>ลบห้องสนทนานี้</span>
+                    </button>
                   </div>
                 </div>
-
-                {/* Danger Zone: Delete Room Button */}
-                <div className="pt-4 mt-6 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setRoomToDelete(activeRoom)}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl border border-rose-200/80 transition"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>ลบห้องสนทนานี้</span>
-                  </button>
-                </div>
-              </div>
+              </>
             )}
           </div>
         </div>

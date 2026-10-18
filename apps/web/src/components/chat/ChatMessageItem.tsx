@@ -15,6 +15,11 @@ import {
   Smile,
   Plus,
   Reply,
+  Copy,
+  Check,
+  MoreHorizontal,
+  User,
+  X,
 } from 'lucide-react';
 
 interface ChatMessageItemProps {
@@ -30,7 +35,53 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
   const isMe = user && message.sender_id.toString() === user.id.toString();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; name: string; size?: number } | null>(null);
+  const [showMobileActionMenu, setShowMobileActionMenu] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const touchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchMovedRef = useRef(false);
+
+  // Long-press detection for touch devices
+  const handleTouchStart = () => {
+    touchMovedRef.current = false;
+    touchTimerRef.current = setTimeout(() => {
+      if (!touchMovedRef.current) {
+        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+          try {
+            navigator.vibrate(40);
+          } catch (e) {}
+        }
+        setShowMobileActionMenu(true);
+      }
+    }, 450);
+  };
+
+  const handleTouchMove = () => {
+    touchMovedRef.current = true;
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+  };
+
+  const handleCopyText = async () => {
+    if (!message.content) return;
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+      setShowMobileActionMenu(false);
+    } catch (e) {
+      console.warn('Failed to copy text:', e);
+    }
+  };
 
   // Close emoji picker on outside click
   useEffect(() => {
@@ -203,7 +254,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
       )}
 
       {/* Message Bubble Container */}
-      <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-[75%]`}>
+      <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[88%] sm:max-w-[75%]`}>
         {/* Sender Name & Role (when not me) */}
         {!isMe && showSenderName && (
           <div className="flex items-center gap-1.5 mb-1 px-1">
@@ -223,7 +274,23 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
         )}
 
         {/* Bubble & Hover Actions Wrapper */}
-        <div className="relative group/bubble">
+        <div
+          className="relative group/bubble select-text"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Mobile Tap Trigger: subtle 3-dots icon on mobile */}
+          <button
+            type="button"
+            onClick={() => setShowMobileActionMenu(true)}
+            className={`sm:hidden absolute top-1 ${
+              isMe ? '-left-6 text-slate-400' : '-right-6 text-slate-400'
+            } p-1 rounded-full opacity-60 hover:opacity-100 transition`}
+            title="ตัวเลือกข้อความ"
+          >
+            <MoreHorizontal className="w-3.5 h-3.5" />
+          </button>
           {/* Quick Reaction & Reply Action Bar on Hover */}
           <div
             className={`absolute top-0 -translate-y-1/2 z-10 hidden group-hover/bubble:flex items-center gap-0.5 bg-white/95 backdrop-blur-xs border border-slate-200 shadow-md rounded-full px-1.5 py-0.5 transition-all duration-150 ${
@@ -523,6 +590,105 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
         fileSize={lightboxImage?.size}
         onClose={() => setLightboxImage(null)}
       />
+
+      {/* Mobile Long-press Action Sheet (Bottom Sheet for Mobile Touch Screens) */}
+      {showMobileActionMenu && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:hidden animate-in fade-in duration-150">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-2xs transition-opacity"
+            onClick={() => setShowMobileActionMenu(false)}
+          />
+
+          {/* Action Sheet Panel */}
+          <div className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl shadow-2xl p-4 pb-6 space-y-4 animate-in slide-in-from-bottom duration-200">
+            {/* Grab Handle */}
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto" />
+
+            {/* Message Snippet Preview */}
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3 flex items-start gap-3">
+              <ChatAvatar
+                src={message.sender?.avatar_url}
+                name={message.sender?.full_name}
+                size="sm"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-800 truncate">{message.sender?.full_name || 'ผู้ใช้'}</p>
+                <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">
+                  {message.content || (message.attachments?.length ? '📎 ไฟล์แนบ' : 'ข้อความ')}
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Emoji Reaction Bar */}
+            <div>
+              <p className="text-[11px] font-semibold text-slate-400 mb-2">แสดงความรู้สึก (Reactions)</p>
+              <div className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar py-1">
+                {QUICK_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => {
+                      handleEmojiClick(emoji);
+                      setShowMobileActionMenu(false);
+                    }}
+                    className="w-10 h-10 flex items-center justify-center text-2xl rounded-2xl bg-slate-100/70 hover:bg-theme-primary-light hover:scale-125 transition active:scale-95 shrink-0"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Buttons Grid */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setReplyingToMessage(message);
+                  setShowMobileActionMenu(false);
+                }}
+                className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-theme-primary text-white text-xs font-bold hover:bg-theme-primary-hover active:scale-98 transition shadow-sm"
+              >
+                <Reply className="w-4 h-4" />
+                <span>ตอบกลับ (Reply)</span>
+              </button>
+
+              {message.content ? (
+                <button
+                  type="button"
+                  onClick={handleCopyText}
+                  className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 active:scale-98 transition"
+                >
+                  {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-500" />}
+                  <span>{isCopied ? 'คัดลอกแล้ว' : 'คัดลอกข้อความ'}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowMobileActionMenu(false)}
+                  className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 active:scale-98 transition"
+                >
+                  <X className="w-4 h-4 text-slate-500" />
+                  <span>ปิด</span>
+                </button>
+              )}
+            </div>
+
+            {/* Profile link for other sender */}
+            {!isMe && (
+              <Link
+                href={`/profile/${message.sender_id}`}
+                onClick={() => setShowMobileActionMenu(false)}
+                className="flex items-center justify-center gap-2 py-2.5 text-xs text-slate-500 hover:text-theme-primary font-medium transition"
+              >
+                <User className="w-4 h-4" />
+                <span>ดูโปรไฟล์ {message.sender?.full_name}</span>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
