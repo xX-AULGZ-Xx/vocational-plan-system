@@ -20,6 +20,7 @@ import setupRouter from './modules/setup/setup.controller';
 import systemUpdateRouter from './modules/system-update/update.controller';
 import registrationRouter from './modules/projects/registration.controller';
 import auditLogRouter from './modules/audit-logs/audit-log.controller';
+import chatRouter from './modules/chat/chat.controller';
 import { wsManager } from './modules/notifications/socket.manager';
 import { optionalAuthenticate } from './middlewares/auth';
 import { auditMiddleware } from './middlewares/audit.middleware';
@@ -57,6 +58,7 @@ app.get('/', (req: Request, res: Response) => {
       divisions: '/api/v1/divisions',
       strategics: '/api/v1/strategics',
       evaluation: '/api/v1/projects/:id/evaluation',
+      chat: '/api/v1/chat',
       system_update: '/api/v1/system-update'
     }
   });
@@ -80,6 +82,7 @@ app.use('/api/v1/admin/audit-logs', auditLogRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/setup', setupRouter);
 app.use('/api/v1/notifications', notificationsRouter);
+app.use('/api/v1/chat', chatRouter);
 app.use('/api/v1/system-update', systemUpdateRouter);
 app.use('/api/v1', evaluationRouter);
 

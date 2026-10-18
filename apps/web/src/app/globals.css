@@ -113,6 +113,24 @@ input, button, select, textarea, optgroup {
   background-color: color-mix(in srgb, var(--color-primary, #1e3a8a) 12%, transparent) !important;
 }
 
+.border-theme-primary-light {
+  border-color: color-mix(in srgb, var(--color-primary, #1e3a8a) 25%, transparent) !important;
+}
+
+.shadow-theme-primary {
+  box-shadow: 0 4px 14px 0 color-mix(in srgb, var(--color-primary, #1e3a8a) 28%, transparent) !important;
+}
+
+.focus-theme-primary:focus {
+  border-color: var(--color-primary) !important;
+  --tw-ring-color: color-mix(in srgb, var(--color-primary, #1e3a8a) 20%, transparent) !important;
+}
+
+.focus-within-theme-primary:focus-within {
+  border-color: var(--color-primary) !important;
+  --tw-ring-color: color-mix(in srgb, var(--color-primary, #1e3a8a) 20%, transparent) !important;
+}
+
 .bg-theme-accent {
   background-color: var(--color-accent) !important;
 }

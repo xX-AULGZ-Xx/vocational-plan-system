@@ -25,6 +25,7 @@ apps/api/storage/chat_uploads/*
 !apps/api/storage/chat_uploads/.gitkeep
 apps/api/storage/documents/*
 !apps/api/storage/documents/.gitkeep
+*.tsbuildinfo
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
 

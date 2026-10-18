@@ -5,9 +5,12 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
+import { useChat } from '@/lib/chat-context';
 import {
   User as UserIcon,
   Mail,
+  MessageSquare,
+  Loader2,
   Building,
   Briefcase,
   Shield,
@@ -36,6 +39,7 @@ export default function UserProfileDetailPage() {
   const router = useRouter();
   const { user: currentUser, token } = useAuth();
   const { collegeName } = useSettings();
+  const { openDirectChat } = useChat();
 
   const userId = params?.id as string;
 
@@ -48,6 +52,25 @@ export default function UserProfileDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [isStartingChat, setIsStartingChat] = useState(false);
+
+  const handleStartChat = async () => {
+    if (!targetUser) return;
+    setIsStartingChat(true);
+    try {
+      const roomId = await openDirectChat(targetUser.id.toString());
+      if (roomId) {
+        router.push(`/chat?roomId=${roomId}`);
+      } else {
+        router.push(`/chat?userId=${targetUser.id}`);
+      }
+    } catch (err) {
+      console.error('Error starting direct chat:', err);
+      router.push(`/chat?userId=${targetUser.id}`);
+    } finally {
+      setIsStartingChat(false);
+    }
+  };
 
   useEffect(() => {
     if (userId && token) {
@@ -356,15 +379,33 @@ export default function UserProfileDetailPage() {
                   <span>เสนอโครงการใหม่</span>
                 </Link>
               </>
-            ) : targetUser.email ? (
-              <a
-                href={`mailto:${targetUser.email}`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-900 bg-white hover:bg-slate-100 active:scale-95 rounded-theme transition shadow-md"
-              >
-                <Mail className="w-4 h-4 text-theme-primary" />
-                <span>ติดต่อทางอีเมล</span>
-              </a>
-            ) : null}
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleStartChat}
+                  disabled={isStartingChat}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-theme-accent hover:brightness-110 active:scale-95 rounded-theme transition shadow-md disabled:opacity-60 cursor-pointer"
+                  title="ส่งข้อความสนทนาแบบเรียลไทม์"
+                >
+                  {isStartingChat ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <MessageSquare className="w-4 h-4" />
+                  )}
+                  <span>ส่งข้อความ / แชท</span>
+                </button>
+                {targetUser?.email && (
+                  <a
+                    href={`mailto:${targetUser.email}`}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-900 bg-white hover:bg-slate-100 active:scale-95 rounded-theme transition shadow-md"
+                  >
+                    <Mail className="w-4 h-4 text-theme-primary" />
+                    <span>อีเมล</span>
+                  </a>
+                )}
+              </>
+            )}
 
             <button
               type="button"

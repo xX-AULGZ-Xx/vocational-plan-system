@@ -82,12 +82,61 @@ class WebSocketManager {
         socket.emit('pong', { timestamp: new Date().toISOString() });
       });
 
+      // Chat room events
+      socket.on('join_chat_room', (data: { roomId: string | number }) => {
+        if (data?.roomId) {
+          const roomKey = `chat_room:${data.roomId}`;
+          socket.join(roomKey);
+          console.log(`[WebSocket] user ${userId} joined room ${roomKey}`);
+        }
+      });
+
+      socket.on('leave_chat_room', (data: { roomId: string | number }) => {
+        if (data?.roomId) {
+          const roomKey = `chat_room:${data.roomId}`;
+          socket.leave(roomKey);
+          console.log(`[WebSocket] user ${userId} left room ${roomKey}`);
+        }
+      });
+
+      socket.on('typing_start', (data: { roomId: string | number; userName?: string }) => {
+        if (data?.roomId) {
+          socket.to(`chat_room:${data.roomId}`).emit('user_typing_start', {
+            roomId: data.roomId.toString(),
+            userId,
+            userName: data.userName || 'Someone',
+          });
+        }
+      });
+
+      socket.on('typing_stop', (data: { roomId: string | number }) => {
+        if (data?.roomId) {
+          socket.to(`chat_room:${data.roomId}`).emit('user_typing_stop', {
+            roomId: data.roomId.toString(),
+            userId,
+          });
+        }
+      });
+
+      // Broadcast online status
+      this.broadcast('user_status_changed', {
+        userId,
+        status: 'ONLINE',
+        timestamp: new Date().toISOString(),
+      });
+
       socket.on('disconnect', (reason) => {
         const sockets = this.userSockets.get(userId);
         if (sockets) {
           sockets.delete(socket.id);
           if (sockets.size === 0) {
             this.userSockets.delete(userId);
+            // Broadcast offline status
+            this.broadcast('user_status_changed', {
+              userId,
+              status: 'OFFLINE',
+              timestamp: new Date().toISOString(),
+            });
           }
         }
         console.log(`[WebSocket] Disconnected: user=${userId}, reason=${reason}`);
@@ -110,10 +159,24 @@ class WebSocketManager {
     }
   }
 
+  public sendToChatRoom(roomId: string | number | bigint, eventName: string, data: any) {
+    if (this.io) {
+      this.io.to(`chat_room:${roomId.toString()}`).emit(eventName, data);
+    }
+  }
+
   public broadcast(eventName: string, data: any) {
     if (this.io) {
       this.io.emit(eventName, data);
     }
+  }
+
+  public isUserOnline(userId: string | number | bigint): boolean {
+    return this.userSockets.has(userId.toString());
+  }
+
+  public getOnlineUserIds(): string[] {
+    return Array.from(this.userSockets.keys());
   }
 
   public getOnlineUserCount(): number {
@@ -122,3 +185,4 @@ class WebSocketManager {
 }
 
 export const wsManager = new WebSocketManager();
+
