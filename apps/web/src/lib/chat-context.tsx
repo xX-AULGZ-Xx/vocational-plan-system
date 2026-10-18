@@ -172,6 +172,17 @@ const ChatContext = createContext<ChatContextType>({
   setWidgetActiveRoom: () => {},
 });
 
+export const getSocketUrl = (): string => {
+  if (typeof window === 'undefined') return 'http://localhost:5050';
+  if (process.env.NEXT_PUBLIC_SOCKET_URL) return process.env.NEXT_PUBLIC_SOCKET_URL;
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  // If running in development frontend (e.g. port 3000-3009), connect directly to backend port 5050
+  if (window.location.port && /^300\d$/.test(window.location.port)) {
+    return `${window.location.protocol}//${window.location.hostname}:5050`;
+  }
+  return window.location.origin;
+};
+
 // Sound notification synthesizer using Web Audio API
 const playNotificationSound = () => {
   try {
@@ -319,22 +330,28 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const currentToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('vps_token') || localStorage.getItem('token') || localStorage.getItem('access_token')) : null);
     if (!currentToken) return;
 
-    const socket = io({
+    const socket = io(getSocketUrl(), {
       path: '/socket.io',
       auth: { token: currentToken },
       query: { token: currentToken },
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      console.log('⚡ [ChatSocket] Connected to backend gateway, socketId:', socket.id);
       // Re-join active room if any
       if (activeRoomRef.current) {
         socket.emit('join_chat_room', { roomId: activeRoomRef.current });
       }
+    });
+
+    socket.on('connect_error', (err) => {
+      console.warn('⚠️ [ChatSocket] Connection error:', err.message);
     });
 
     // Real-time message receiver
@@ -437,13 +454,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     });
 
     // User online status change
-    socket.on('user_status_changed', (data: { userId: string; status: 'ONLINE' | 'OFFLINE' }) => {
+    socket.on('user_status_changed', (data: { userId: string | number; status: 'ONLINE' | 'OFFLINE' }) => {
+      if (!data?.userId) return;
+      const targetId = String(data.userId);
       setOnlineUserIds((prev) => {
         const next = new Set(prev);
         if (data.status === 'ONLINE') {
-          next.add(data.userId);
+          next.add(targetId);
         } else {
-          next.delete(data.userId);
+          next.delete(targetId);
         }
         return next;
       });

@@ -851,7 +851,7 @@ export default function AdminUsersPage() {
                       border: 'border-slate-200',
                     };
 
-                    const isUserOnline = u.username === currentUser?.username ? true : (onlineUserIds.has(u.id.toString()) || Boolean(u.is_online));
+                    const isUserOnline = (currentUser && u.id.toString() === currentUser.id.toString()) || onlineUserIds.has(u.id.toString()) || Boolean(u.is_online);
 
                     return (
                       <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
@@ -1014,7 +1014,7 @@ export default function AdminUsersPage() {
                   border: 'border-slate-200',
                 };
 
-                const isUserOnline = u.username === currentUser?.username ? true : (onlineUserIds.has(u.id.toString()) || Boolean(u.is_online));
+                const isUserOnline = (currentUser && u.id.toString() === currentUser.id.toString()) || onlineUserIds.has(u.id.toString()) || Boolean(u.is_online);
 
                 return (
                   <div key={u.id} className="p-4 space-y-3 hover:bg-slate-50 transition-colors">

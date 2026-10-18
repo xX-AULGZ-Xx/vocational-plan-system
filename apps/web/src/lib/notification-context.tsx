@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './auth-context';
+import { getSocketUrl } from './chat-context';
 import NotificationToastContainer from '@/components/notifications/NotificationToastContainer';
 
 export interface NotificationItem {
@@ -346,7 +347,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     };
 
     // 1. Primary Real-time Transport: Socket.IO (HTTP Polling -> WebSocket Upgrade)
-    const socket = io({
+    const socket = io(getSocketUrl(), {
       path: '/socket.io',
       auth: { token },
       query: { token },
