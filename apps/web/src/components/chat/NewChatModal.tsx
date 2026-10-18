@@ -25,7 +25,7 @@ interface NewChatModalProps {
 
 export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChatModalProps) {
   const { token, user: currentUser } = useAuth();
-  const { openDirectChat, createGroupChat } = useChat();
+  const { openDirectChat, createGroupChat, onlineUserIds } = useChat();
   const [tab, setTab] = useState<'direct' | 'group'>('direct');
   const [query, setQuery] = useState('');
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -186,33 +186,50 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                   <p className="text-sm">ไม่พบบุคลากรที่ค้นหา</p>
                 </div>
               ) : (
-                users.map((u) => (
-                  <div
-                    key={u.id}
-                    onClick={() => !isSubmitting && handleStartDirectChat(u.id)}
-                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-theme-primary-light/60 cursor-pointer transition group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <ChatAvatar
-                        src={u.avatar_url}
-                        name={u.full_name}
-                        size="md"
-                        isOnline={u.is_online}
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-theme-primary">
-                          {u.full_name}
-                        </p>
-                        <p className="text-xs text-slate-400 truncate">
-                          {u.position || u.department?.name || u.role}
-                        </p>
+                users.map((u) => {
+                  const isOnline = onlineUserIds.has(u.id.toString()) || Boolean(u.is_online);
+
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => !isSubmitting && handleStartDirectChat(u.id)}
+                      className="flex items-center justify-between p-2.5 rounded-xl hover:bg-theme-primary-light/60 cursor-pointer transition group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <ChatAvatar
+                          src={u.avatar_url}
+                          name={u.full_name}
+                          size="md"
+                          isOnline={isOnline}
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-theme-primary">
+                              {u.full_name}
+                            </p>
+                            {isOnline ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full shrink-0">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                ออนไลน์
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-400 bg-slate-50 border border-slate-200/80 px-1.5 py-0.2 rounded-full shrink-0">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                ออฟไลน์
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400 truncate">
+                            {u.position || u.department?.name || u.role}
+                          </p>
+                        </div>
                       </div>
+                      <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-theme-primary-light text-theme-primary group-hover:bg-theme-primary group-hover:text-white transition shrink-0">
+                        ส่งข้อความ
+                      </button>
                     </div>
-                    <button className="px-3 py-1.5 rounded-lg text-xs font-medium bg-theme-primary-light text-theme-primary group-hover:bg-theme-primary group-hover:text-white transition">
-                      ส่งข้อความ
-                    </button>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -268,6 +285,8 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
             <div className="overflow-y-auto p-3 space-y-1 flex-1 max-h-48">
               {users.map((u) => {
                 const isSelected = selectedUserIds.includes(u.id);
+                const isOnline = onlineUserIds.has(u.id.toString()) || Boolean(u.is_online);
+
                 return (
                   <div
                     key={u.id}
@@ -281,9 +300,15 @@ export default function NewChatModal({ isOpen, onClose, onRoomCreated }: NewChat
                         src={u.avatar_url}
                         name={u.full_name}
                         size="sm"
+                        isOnline={isOnline}
                       />
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-slate-800 truncate">{u.full_name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-semibold text-slate-800 truncate">{u.full_name}</p>
+                          {isOnline && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="ออนไลน์ขณะนี้" />
+                          )}
+                        </div>
                         <p className="text-[11px] text-slate-400 truncate">{u.position || u.department?.name}</p>
                       </div>
                     </div>
