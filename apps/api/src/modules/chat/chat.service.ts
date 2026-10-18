@@ -965,6 +965,10 @@ export class ChatService {
       readAt: now.toISOString(),
     });
 
+    wsManager.sendToUser(userId, 'chat_room_read', {
+      roomId: roomId.toString(),
+    });
+
     return { success: true, read_at: now };
   }
 

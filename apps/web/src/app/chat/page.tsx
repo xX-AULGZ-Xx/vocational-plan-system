@@ -82,6 +82,13 @@ function ChatPageContent() {
     }
   }, [messages]);
 
+  // Mark room as read when activeRoomId is selected
+  useEffect(() => {
+    if (activeRoomId) {
+      markAsRead(activeRoomId);
+    }
+  }, [activeRoomId, markAsRead]);
+
   // Filter rooms
   const filteredRooms = useMemo(() => {
     return rooms.filter((r) => {

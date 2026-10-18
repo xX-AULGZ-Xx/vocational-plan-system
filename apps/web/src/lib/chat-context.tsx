@@ -243,6 +243,33 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return headers;
   }, [token]);
 
+  // Mark room as read
+  const markAsRead = useCallback(
+    async (roomId: string) => {
+      if (!roomId) return;
+      const targetId = roomId.toString();
+
+      // 1. Optimistic local update: reset this room's unread count to 0 and recalculate totalUnreadCount
+      setRooms((prev) => {
+        const next = prev.map((r) => (r.id.toString() === targetId ? { ...r, unread_count: 0 } : r));
+        const sumUnread = next.reduce((acc: number, r: ChatRoom) => acc + (r.unread_count || 0), 0);
+        setTotalUnreadCount(sumUnread);
+        return next;
+      });
+
+      // 2. Notify backend to update last_read_at in database
+      try {
+        await fetch(`/api/v1/chat/rooms/${targetId}/read`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
+      } catch (err) {
+        console.error('Error marking room as read:', err);
+      }
+    },
+    [getAuthHeaders]
+  );
+
   // Fetch all chat rooms
   const fetchRooms = useCallback(async () => {
     if (!user) return;
@@ -253,8 +280,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
-        setRooms(data.data);
-        const sumUnread = data.data.reduce((acc: number, r: ChatRoom) => acc + (r.unread_count || 0), 0);
+        const currentActive = activeRoomRef.current;
+        const normalized = data.data.map((r: ChatRoom) => {
+          if (currentActive && r.id.toString() === currentActive.toString()) {
+            return { ...r, unread_count: 0 };
+          }
+          return r;
+        });
+        setRooms(normalized);
+        const sumUnread = normalized.reduce((acc: number, r: ChatRoom) => acc + (r.unread_count || 0), 0);
         setTotalUnreadCount(sumUnread);
       }
     } catch (err) {
@@ -275,13 +309,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
           setMessages(data.data);
-          // Mark room unread count locally as 0
+          // Mark room unread count locally as 0 and recalculate total unread count
           setRooms((prev) => {
-            const currentRoom = prev.find((r) => r.id === roomId);
-            if (currentRoom && currentRoom.unread_count > 0) {
-              setTotalUnreadCount((c) => Math.max(0, c - currentRoom.unread_count));
-            }
-            return prev.map((r) => (r.id === roomId ? { ...r, unread_count: 0 } : r));
+            const next = prev.map((r) => (r.id.toString() === roomId.toString() ? { ...r, unread_count: 0 } : r));
+            const sumUnread = next.reduce((acc: number, r: ChatRoom) => acc + (r.unread_count || 0), 0);
+            setTotalUnreadCount(sumUnread);
+            return next;
           });
         }
       } catch (err) {
@@ -310,11 +343,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           socketRef.current.emit('join_chat_room', { roomId });
         }
         await fetchMessages(roomId);
+        await markAsRead(roomId);
       } else {
         setMessages([]);
       }
     },
-    [fetchMessages]
+    [fetchMessages, markAsRead]
   );
 
   // Initialize socket connection
@@ -365,31 +399,33 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           if (prev.some((m) => m.id === msg.id)) return prev;
           return [...prev, msg];
         });
+        // Immediately mark as read on backend if user is viewing this room
+        markAsRead(msg.room_id.toString());
       }
 
-      // Update room list latest message
-      setRooms((prev) =>
-        prev.map((r) => {
-          if (r.id === msg.room_id.toString()) {
+      // Update room list latest message and unread count
+      setRooms((prev) => {
+        const next = prev.map((r) => {
+          if (r.id.toString() === msg.room_id.toString()) {
             const isSenderMe = user && msg.sender_id.toString() === user.id.toString();
             const shouldIncrementUnread = !isForActiveRoom && !isSenderMe;
             return {
               ...r,
               last_message: msg,
-              unread_count: shouldIncrementUnread ? (r.unread_count || 0) + 1 : r.unread_count,
+              unread_count: isForActiveRoom ? 0 : shouldIncrementUnread ? (r.unread_count || 0) + 1 : (r.unread_count || 0),
               updated_at: msg.created_at || new Date().toISOString(),
             };
           }
           return r;
-        })
-      );
+        });
+        const sumUnread = next.reduce((acc: number, r: ChatRoom) => acc + (r.unread_count || 0), 0);
+        setTotalUnreadCount(sumUnread);
+        return next;
+      });
 
-      // Play sound and notification if not sender
+      // Play sound if not sender
       if (user && msg.sender_id.toString() !== user.id.toString()) {
         playNotificationSound();
-        if (!isForActiveRoom) {
-          setTotalUnreadCount((c) => c + 1);
-        }
       }
     });
 
@@ -468,11 +504,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
+    // Room marked as read on another device/tab
+    socket.on('chat_room_read', (data: { roomId: string }) => {
+      if (!data?.roomId) return;
+      setRooms((prev) => {
+        const next = prev.map((r) => (r.id.toString() === data.roomId.toString() ? { ...r, unread_count: 0 } : r));
+        const sumUnread = next.reduce((acc: number, r: ChatRoom) => acc + (r.unread_count || 0), 0);
+        setTotalUnreadCount(sumUnread);
+        return next;
+      });
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [user, token, fetchRooms]);
+  }, [user, token, fetchRooms, markAsRead]);
 
   // Initial rooms fetch
   useEffect(() => {
@@ -567,23 +614,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [activeRoomId, widgetActiveRoomId, user]
   );
 
-  // Mark room as read
-  const markAsRead = useCallback(
-    async (roomId: string) => {
-      try {
-        await fetch(`/api/v1/chat/rooms/${roomId}/read`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-        });
-        setRooms((prev) =>
-          prev.map((r) => (r.id === roomId ? { ...r, unread_count: 0 } : r))
-        );
-      } catch (err) {
-        console.error('Error marking as read:', err);
-      }
-    },
-    [getAuthHeaders]
-  );
 
   // Upload file attachment
   const uploadFile = useCallback(
@@ -767,8 +797,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         socketRef.current.emit('join_chat_room', { roomId });
       }
       fetchMessages(roomId);
+      markAsRead(roomId);
     }
-  }, [fetchMessages]);
+  }, [fetchMessages, markAsRead]);
 
   return (
     <ChatContext.Provider

@@ -59,6 +59,13 @@ export default function FloatingChatWidget() {
     }
   }, [messages, widgetActiveRoomId]);
 
+  // Mark room as read when opened in widget
+  useEffect(() => {
+    if (isWidgetOpen && widgetActiveRoomId) {
+      markAsRead(widgetActiveRoomId);
+    }
+  }, [isWidgetOpen, widgetActiveRoomId, markAsRead]);
+
   // Don't show floating widget on full /chat page or auth/setup pages
   const isFullChatPage = pathname === '/chat';
   const isAuthOrSetup = pathname === '/login' || pathname === '/setup' || pathname?.startsWith('/surveys');
