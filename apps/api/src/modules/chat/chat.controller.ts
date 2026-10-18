@@ -15,16 +15,30 @@ if (!fs.existsSync(CHAT_UPLOADS_DIR)) {
   fs.mkdirSync(CHAT_UPLOADS_DIR, { recursive: true });
 }
 
+function fixThaiEncoding(str?: string | null): string {
+  if (!str) return '';
+  try {
+    const decoded = Buffer.from(str, 'latin1').toString('utf8');
+    if (/[\u0E00-\u0E7F]/.test(decoded)) {
+      return decoded;
+    }
+    return str;
+  } catch {
+    return str;
+  }
+}
+
 // Multer storage for chat attachments
 const chatFileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, CHAT_UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    const fixedOriginalName = fixThaiEncoding(file.originalname);
+    const ext = path.extname(fixedOriginalName);
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     // Sanitize base name
-    const sanitizedBase = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_\-\u0E00-\u0E7F]/g, '_');
+    const sanitizedBase = path.basename(fixedOriginalName, ext).replace(/[^a-zA-Z0-9_\-\u0E00-\u0E7F]/g, '_');
     cb(null, `${sanitizedBase}_${uniqueSuffix}${ext}`);
   },
 });
@@ -174,12 +188,17 @@ router.post('/rooms/:roomId/messages', async (req: AuthRequest, res: Response) =
       return res.status(400).json({ success: false, message: 'กรุณาระบุข้อความหรือไฟล์แนบ' });
     }
 
+    const sanitizedAttachments = attachments?.map((att: any) => ({
+      ...att,
+      file_name: fixThaiEncoding(att.file_name),
+    }));
+
     const message = await chatService.sendMessage(userId, roomId, {
       content: content?.trim(),
       message_type,
       metadata,
       reply_to_id: reply_to_id ? BigInt(reply_to_id) : undefined,
-      attachments,
+      attachments: sanitizedAttachments,
     });
 
     res.json({ success: true, data: message });
@@ -244,21 +263,22 @@ router.post('/upload', upload.single('file'), async (req: AuthRequest, res: Resp
       return res.status(400).json({ success: false, message: 'กรุณาเลือกไฟล์ที่ต้องการอัปโหลด' });
     }
 
+    const originalName = fixThaiEncoding(req.file.originalname);
     const fileUrl = `/storage/chat_uploads/${req.file.filename}`;
     const fileType = req.file.mimetype.startsWith('image/')
       ? 'IMAGE'
       : req.file.mimetype.includes('pdf')
       ? 'PDF'
-      : req.file.mimetype.includes('word') || req.file.originalname.endsWith('.docx') || req.file.originalname.endsWith('.doc')
+      : req.file.mimetype.includes('word') || originalName.endsWith('.docx') || originalName.endsWith('.doc')
       ? 'DOCX'
-      : req.file.mimetype.includes('sheet') || req.file.originalname.endsWith('.xlsx') || req.file.originalname.endsWith('.xls')
+      : req.file.mimetype.includes('sheet') || originalName.endsWith('.xlsx') || originalName.endsWith('.xls')
       ? 'EXCEL'
       : 'OTHER';
 
     res.json({
       success: true,
       data: {
-        file_name: req.file.originalname,
+        file_name: originalName,
         file_url: fileUrl,
         file_type: fileType,
         file_size: req.file.size,

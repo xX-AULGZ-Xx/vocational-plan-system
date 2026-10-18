@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useChat } from '@/lib/chat-context';
+import { useChat, fixThaiEncoding } from '@/lib/chat-context';
 import { useAuth } from '@/lib/auth-context';
 import ShareProjectModal from './ShareProjectModal';
 import ChatAvatar from './ChatAvatar';
@@ -240,7 +240,13 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
         const file = files[i];
         const uploaded = await uploadFile(file);
         if (uploaded) {
-          setAttachments((prev) => [...prev, uploaded]);
+          setAttachments((prev) => [
+            ...prev,
+            {
+              ...uploaded,
+              file_name: fixThaiEncoding(uploaded.file_name) || file.name,
+            },
+          ]);
         }
       }
     } catch (err) {
@@ -430,7 +436,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
                 กำลังตอบกลับ {replyingToMessage.sender?.full_name || 'ผู้ใช้'}
               </span>
               <p className="text-slate-600 truncate text-[11px] mt-0.5">
-                {replyingToMessage.content || (replyingToMessage.attachments?.length ? `[ไฟล์แนบ ${replyingToMessage.attachments[0].file_name}]` : '[ข้อความ]')}
+                {replyingToMessage.content || (replyingToMessage.attachments?.length ? `[ไฟล์แนบ ${fixThaiEncoding(replyingToMessage.attachments[0].file_name)}]` : '[ข้อความ]')}
               </p>
             </div>
           </div>
@@ -477,7 +483,7 @@ export default function ChatInput({ roomId, placeholder = 'พิมพ์ข้
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-700 max-w-xs"
             >
               {getAttachmentIcon(att.file_type)}
-              <span className="truncate max-w-[150px] font-medium">{att.file_name}</span>
+              <span className="truncate max-w-[150px] font-medium">{fixThaiEncoding(att.file_name)}</span>
               <button
                 type="button"
                 onClick={() => removeAttachment(idx)}

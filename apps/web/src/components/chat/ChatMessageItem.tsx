@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { ChatMessage, useChat } from '@/lib/chat-context';
+import { ChatMessage, useChat, fixThaiEncoding } from '@/lib/chat-context';
 import { useAuth } from '@/lib/auth-context';
 import ProjectCardPreview from './ProjectCardPreview';
 import ChatAvatar from './ChatAvatar';
@@ -422,14 +422,14 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                     onClick={() =>
                       setLightboxImage({
                         url: att.file_url,
-                        name: att.file_name,
+                        name: fixThaiEncoding(att.file_name),
                         size: att.file_size,
                       })
                     }
                   >
                     <img
                       src={att.file_url}
-                      alt={att.file_name}
+                      alt={fixThaiEncoding(att.file_name)}
                       className="w-full h-auto max-h-80 object-cover group-hover/img:scale-102 transition duration-200 block"
                       loading="lazy"
                     />
@@ -471,6 +471,8 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                     {message.reply_to.content ||
                       (message.reply_to.message_type === 'PROJECT_CARD'
                         ? '[การ์ดโครงการ]'
+                        : message.reply_to.attachments?.length
+                        ? `[ไฟล์แนบ ${fixThaiEncoding(message.reply_to.attachments[0].file_name)}]`
                         : '[ไฟล์แนบ]')}
                   </p>
                 </div>
@@ -487,6 +489,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
               {message.attachments && message.attachments.length > 0 && (
                 <div className="space-y-2 mt-2">
                   {message.attachments.map((att) => {
+                    const cleanFileName = fixThaiEncoding(att.file_name);
                     if (att.file_type === 'IMAGE') {
                       return (
                         <div
@@ -495,7 +498,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                           onClick={() =>
                             setLightboxImage({
                               url: att.file_url,
-                              name: att.file_name,
+                              name: cleanFileName,
                               size: att.file_size,
                             })
                           }
@@ -503,7 +506,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                           <div className="block overflow-hidden relative">
                             <img
                               src={att.file_url}
-                              alt={att.file_name}
+                              alt={cleanFileName}
                               className="w-full h-auto max-h-64 object-cover group-hover/img:scale-102 transition duration-200"
                               loading="lazy"
                             />
@@ -522,7 +525,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                       <a
                         key={att.id}
                         href={att.file_url}
-                        download={att.file_name}
+                        download={cleanFileName}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border transition ${
@@ -535,7 +538,7 @@ export default function ChatMessageItem({ message, showSenderName = true }: Chat
                           {getAttachmentIcon(att.file_type)}
                           <div className="min-w-0">
                             <p className="text-xs font-semibold truncate max-w-[200px] sm:max-w-[260px]">
-                              {att.file_name}
+                              {cleanFileName}
                             </p>
                             <p className={`text-[10px] ${isMe ? 'text-white/80' : 'text-slate-400'}`}>
                               {formatBytes(att.file_size)}

@@ -2,6 +2,19 @@ import { prisma, serializeBigInt } from '../../lib/prisma';
 import { wsManager } from '../notifications/socket.manager';
 import { ChatRoomType } from '@prisma/client';
 
+function fixThaiEncoding(str?: string | null): string {
+  if (!str) return '';
+  try {
+    const decoded = Buffer.from(str, 'latin1').toString('utf8');
+    if (/[\u0E00-\u0E7F]/.test(decoded)) {
+      return decoded;
+    }
+    return str;
+  } catch {
+    return str;
+  }
+}
+
 export class ChatService {
   private projectRoomLocks = new Map<string, Promise<any>>();
 
@@ -683,6 +696,7 @@ export class ChatService {
                 username: true,
               },
             },
+            attachments: true,
           },
         },
         attachments: true,
@@ -767,7 +781,7 @@ export class ChatService {
         metadata: data.metadata || {},
         attachments: data.attachments && data.attachments.length > 0 ? {
           create: data.attachments.map((att) => ({
-            file_name: att.file_name,
+            file_name: fixThaiEncoding(att.file_name),
             file_url: att.file_url,
             file_type: att.file_type,
             file_size: att.file_size,
@@ -797,6 +811,7 @@ export class ChatService {
                 username: true,
               },
             },
+            attachments: true,
           },
         },
         attachments: true,

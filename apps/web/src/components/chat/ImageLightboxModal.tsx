@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { fixThaiEncoding } from '@/lib/chat-context';
 import {
   X,
   ZoomIn,
@@ -27,6 +28,7 @@ export default function ImageLightboxModal({
   fileSize,
   onClose,
 }: ImageLightboxModalProps) {
+  const cleanFileName = fixThaiEncoding(fileName) || 'รูปภาพ';
   const [scale, setScale] = useState<number>(1);
   const [rotation, setRotation] = useState<number>(0);
   const [mounted, setMounted] = useState<boolean>(false);
@@ -116,7 +118,7 @@ export default function ImageLightboxModal({
         <div className="flex items-center gap-3 min-w-0 pr-4">
           <div className="min-w-0">
             <h3 className="text-sm sm:text-base font-medium truncate drop-shadow-sm">
-              {fileName}
+              {cleanFileName}
             </h3>
             {fileSize ? (
               <p className="text-xs text-white/60">{formatBytes(fileSize)}</p>
@@ -140,7 +142,7 @@ export default function ImageLightboxModal({
           {/* Download button */}
           <a
             href={imageUrl}
-            download={fileName}
+            download={cleanFileName}
             className="p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition"
             title="ดาวน์โหลดรูปภาพ"
           >
@@ -166,7 +168,7 @@ export default function ImageLightboxModal({
       >
         <img
           src={imageUrl}
-          alt={fileName}
+          alt={cleanFileName}
           onClick={(e) => e.stopPropagation()}
           style={{
             transform: `scale(${scale}) rotate(${rotation}deg)`,

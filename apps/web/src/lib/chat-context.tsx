@@ -4,6 +4,26 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './auth-context';
 
+/**
+ * Fix mojibake / corrupted encoding where UTF-8 Thai text was decoded as Latin-1 (ISO-8859-1).
+ * E.g. "à¸£à¸°à¸šà¸š" -> "ระบบ"
+ */
+export function fixThaiEncoding(str?: string | null): string {
+  if (!str) return '';
+  if (/[à-ÿ]/.test(str)) {
+    try {
+      const bytes = new Uint8Array(str.split('').map((c) => c.charCodeAt(0) & 0xff));
+      const decoded = new TextDecoder('utf-8').decode(bytes);
+      if (/[\u0E00-\u0E7F]/.test(decoded)) {
+        return decoded;
+      }
+    } catch {
+      // return original string on failure
+    }
+  }
+  return str;
+}
+
 export interface ChatAttachment {
   id: string;
   file_name: string;
@@ -44,6 +64,7 @@ export interface ChatMessageReply {
     full_name: string;
     username?: string;
   };
+  attachments?: ChatAttachment[];
 }
 
 export interface ChatMessage {
@@ -629,7 +650,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       const data = await res.json();
       if (data.success && data.data) {
-        return data.data;
+        return {
+          ...data.data,
+          file_name: fixThaiEncoding(data.data.file_name) || file.name,
+        };
       } else {
         throw new Error(data.message || 'อัปโหลดไฟล์ไม่สำเร็จ');
       }
