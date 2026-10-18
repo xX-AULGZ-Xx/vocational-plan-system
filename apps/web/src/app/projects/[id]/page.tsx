@@ -465,7 +465,18 @@ export default function ProjectDetailPage() {
 
                 return (
                   <>
-                    สังกัด: {deptName} {targetDivName ? `(${targetDivName})` : ''} • ผู้เสนอ: {dynamicLeaderName || project.leader?.full_name}
+                    สังกัด: {deptName} {targetDivName ? `(${targetDivName})` : ''} • ผู้เสนอ:{' '}
+                    {project.leader?.id ? (
+                      <Link
+                        href={`/profile/${project.leader.id}`}
+                        className="text-theme-primary font-bold hover:underline inline-flex items-center gap-1"
+                        title="ดูโปรไฟล์ผู้เสนอโครงการ"
+                      >
+                        <span>{dynamicLeaderName || project.leader.full_name}</span>
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-slate-700">{dynamicLeaderName || project.leader?.full_name}</span>
+                    )}
                   </>
                 );
               })()}
@@ -953,7 +964,20 @@ export default function ProjectDetailPage() {
                 <div className="text-xs font-bold">{item.title}</div>
                 <div className="text-[11px] mt-1">
                   {stepApproval?.approver?.full_name ? (
-                    <span className="font-medium text-slate-700">โดย: {stepApproval.approver.full_name}</span>
+                    <span className="font-medium text-slate-700">
+                      โดย:{' '}
+                      {stepApproval.approver.id ? (
+                        <Link
+                          href={`/profile/${stepApproval.approver.id}`}
+                          className="text-theme-primary font-bold hover:underline"
+                          title="ดูโปรไฟล์ผู้อนุมัติ"
+                        >
+                          {stepApproval.approver.full_name}
+                        </Link>
+                      ) : (
+                        stepApproval.approver.full_name
+                      )}
+                    </span>
                   ) : isPending ? (
                     <span className="text-blue-700 font-semibold">รอการพิจารณา</span>
                   ) : (

@@ -809,7 +809,20 @@ export default function MyProjectsPage() {
                     <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-500">
                       <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5 text-slate-400"/> {p.department?.name || '-'} ({p.department?.division?.name || 'ฝ่าย'})</span>
                       {p.leader && (
-                        <span className="flex items-center gap-1"><span className="text-slate-400">ผู้รับผิดชอบ:</span> <span className="font-medium text-slate-700">{p.leader.full_name}</span></span>
+                        <span className="flex items-center gap-1">
+                          <span className="text-slate-400">ผู้รับผิดชอบ:</span>{' '}
+                          {p.leader.id ? (
+                            <Link
+                              href={`/profile/${p.leader.id}`}
+                              className="font-medium text-slate-700 hover:text-theme-primary hover:underline"
+                              title="ดูโปรไฟล์ผู้รับผิดชอบ"
+                            >
+                              {p.leader.full_name}
+                            </Link>
+                          ) : (
+                            <span className="font-medium text-slate-700">{p.leader.full_name}</span>
+                          )}
+                        </span>
                       )}
                       <span className="flex items-center gap-1 font-bold text-slate-800"><DollarSign className="w-3.5 h-3.5 text-slate-400"/> {Number(p.total_budget || 0).toLocaleString()} บาท</span>
                       <span className="text-slate-400">• ปีงบประมาณ {p.fiscal_year}</span>

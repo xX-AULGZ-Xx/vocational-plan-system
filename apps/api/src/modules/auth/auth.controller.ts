@@ -800,6 +800,134 @@ router.get('/users', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// GET /api/v1/auth/users/:id/profile (Fetch public/internal profile of another user or self)
+router.get('/users/:id/profile', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const rawId = req.params.id;
+    if (!rawId || isNaN(Number(rawId))) {
+      return res.status(400).json({ success: false, message: 'รหัสผู้ใช้งานไม่ถูกต้อง' });
+    }
+
+    const targetUserId = BigInt(rawId);
+    const viewerId = req.user?.id ? BigInt(req.user.id) : null;
+    const viewerRole = req.user?.role;
+    const viewerDeptId = req.user?.department_id;
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        full_name: true,
+        position: true,
+        role: true,
+        avatar_url: true,
+        is_active: true,
+        created_at: true,
+        department_id: true,
+        department: {
+          include: {
+            division: true,
+          },
+        },
+      },
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลผู้ใช้งานนี้ในระบบ' });
+    }
+
+    // Determine if viewer can see draft/private projects
+    const isSelf = viewerId !== null && viewerId === targetUserId;
+    const isAdmin = viewerRole === 'ADMIN';
+    const isHeadOfDept = viewerRole === 'HEAD_DEPT' && viewerDeptId === targetUser.department_id;
+    const canViewDrafts = isSelf || isAdmin || isHeadOfDept;
+
+    const projectWhere: any = {
+      leader_id: targetUserId,
+    };
+
+    if (!canViewDrafts) {
+      projectWhere.status = {
+        notIn: ['draft', 'rejected'],
+      };
+    }
+
+    const projects = await prisma.project.findMany({
+      where: projectWhere,
+      include: {
+        department: {
+          include: {
+            division: true,
+          },
+        },
+        leader: {
+          select: {
+            id: true,
+            full_name: true,
+            position: true,
+            role: true,
+            avatar_url: true,
+          },
+        },
+        approvals: {
+          include: {
+            approver: {
+              select: {
+                id: true,
+                full_name: true,
+                role: true,
+                position: true,
+              },
+            },
+          },
+          orderBy: { step_order: 'asc' },
+        },
+      },
+      orderBy: { id: 'desc' },
+    });
+
+    // Compute stats
+    const totalProjects = projects.length;
+    const approvedProjects = projects.filter(p => p.status === 'approved').length;
+    const inProgressProjects = projects.filter(p => p.status === 'in_progress').length;
+    const completedProjects = projects.filter(p => p.status === 'completed').length;
+    const pendingProjects = projects.filter(p => ['submitted', 'endorsed'].includes(p.status)).length;
+    const rejectedProjects = projects.filter(p => p.status === 'rejected').length;
+    const draftProjects = projects.filter(p => p.status === 'draft').length;
+    const totalBudget = projects.reduce((sum, p) => sum + Number(p.total_budget || 0), 0);
+    const approvedBudget = projects
+      .filter(p => ['approved', 'in_progress', 'completed'].includes(p.status))
+      .reduce((sum, p) => sum + Number(p.total_budget || 0), 0);
+
+    const stats = {
+      total_projects: totalProjects,
+      approved_projects: approvedProjects,
+      in_progress_projects: inProgressProjects,
+      completed_projects: completedProjects,
+      pending_projects: pendingProjects,
+      rejected_projects: rejectedProjects,
+      draft_projects: draftProjects,
+      total_budget: totalBudget,
+      approved_budget: approvedBudget,
+    };
+
+    return res.json({
+      success: true,
+      data: serializeBigInt({
+        user: targetUser,
+        is_self: isSelf,
+        stats,
+        projects,
+      }),
+    });
+  } catch (error: any) {
+    console.error('Error fetching user profile:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์', error: error.message });
+  }
+});
+
 // GET /api/v1/auth/demo-accounts (List representative accounts for quick role switching)
 router.get('/demo-accounts', async (req: Request, res: Response) => {
   try {

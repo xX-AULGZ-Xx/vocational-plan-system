@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import AccessDenied from '@/components/common/AccessDenied';
 import ModalPortal from '@/components/ui/ModalPortal';
@@ -699,7 +700,11 @@ export default function AdminAuditLogsPage() {
                       <td className="py-3.5 px-4">
                         {log.user ? (
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                            <Link
+                              href={`/profile/${log.user.id || log.user_id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden hover:opacity-80 transition-opacity"
+                            >
                               {log.user.avatar_url ? (
                                 <img
                                   src={log.user.avatar_url}
@@ -709,9 +714,15 @@ export default function AdminAuditLogsPage() {
                               ) : (
                                 log.user.full_name?.charAt(0) || 'U'
                               )}
-                            </div>
+                            </Link>
                             <div className="min-w-0">
-                              <p className="font-bold text-slate-800 truncate">{log.user.full_name}</p>
+                              <Link
+                                href={`/profile/${log.user.id || log.user_id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="font-bold text-slate-800 truncate hover:text-theme-primary transition-colors hover:underline block"
+                              >
+                                {log.user.full_name}
+                              </Link>
                               <div className="flex items-center gap-1 text-[11px] text-slate-400">
                                 <span className="truncate">{log.user.email || log.user.username}</span>
                                 {roleMeta && (
@@ -918,15 +929,23 @@ export default function AdminAuditLogsPage() {
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">ผู้ดำเนินการ</p>
                     {selectedLog.user ? (
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                        <Link
+                          href={`/profile/${selectedLog.user.id || selectedLog.user_id}`}
+                          className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden hover:opacity-80 transition-opacity"
+                        >
                           {selectedLog.user.avatar_url ? (
                             <img src={selectedLog.user.avatar_url} alt="" className="w-full h-full object-cover" />
                           ) : (
                             selectedLog.user.full_name?.charAt(0) || 'U'
                           )}
-                        </div>
+                        </Link>
                         <div>
-                          <p className="font-bold text-slate-800">{selectedLog.user.full_name}</p>
+                          <Link
+                            href={`/profile/${selectedLog.user.id || selectedLog.user_id}`}
+                            className="font-bold text-slate-800 hover:text-theme-primary transition-colors hover:underline block"
+                          >
+                            {selectedLog.user.full_name}
+                          </Link>
                           <p className="text-[11px] text-slate-500">
                             {selectedLog.user.email || selectedLog.user.username} ({selectedLog.user.role})
                           </p>

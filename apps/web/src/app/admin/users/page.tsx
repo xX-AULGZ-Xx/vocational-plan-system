@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import AccessDenied from '@/components/common/AccessDenied';
 import { showAlert } from '@/lib/sweetalert';
@@ -852,32 +853,39 @@ export default function AdminUsersPage() {
                         {/* Name & Username */}
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
-                            {u.avatar_url ? (
-                              <img
-                                src={u.avatar_url}
-                                alt={u.full_name}
-                                referrerPolicy="no-referrer"
-                                crossOrigin="anonymous"
-                                className="w-9 h-9 rounded-full object-cover border border-slate-200 flex-shrink-0"
-                                onError={(e) => {
-                                  (e.target as HTMLElement).style.display = 'none';
-                                  const parent = (e.target as HTMLElement).parentElement;
-                                  if (parent && !parent.querySelector('.table-avatar-fallback')) {
-                                    const fallback = document.createElement('div');
-                                    fallback.className = 'table-avatar-fallback w-9 h-9 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-xs flex-shrink-0';
-                                    fallback.innerText = u.full_name ? u.full_name.charAt(0) : 'U';
-                                    parent.prepend(fallback);
-                                  }
-                                }}
-                              />
-                            ) : (
-                              <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                                {u.full_name ? u.full_name.charAt(0) : 'U'}
-                              </div>
-                            )}
+                            <Link href={`/profile/${u.id}`} className="shrink-0 hover:opacity-80 transition-opacity">
+                              {u.avatar_url ? (
+                                <img
+                                  src={u.avatar_url}
+                                  alt={u.full_name}
+                                  referrerPolicy="no-referrer"
+                                  crossOrigin="anonymous"
+                                  className="w-9 h-9 rounded-full object-cover border border-slate-200 flex-shrink-0"
+                                  onError={(e) => {
+                                    (e.target as HTMLElement).style.display = 'none';
+                                    const parent = (e.target as HTMLElement).parentElement;
+                                    if (parent && !parent.querySelector('.table-avatar-fallback')) {
+                                      const fallback = document.createElement('div');
+                                      fallback.className = 'table-avatar-fallback w-9 h-9 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-xs flex-shrink-0';
+                                      fallback.innerText = u.full_name ? u.full_name.charAt(0) : 'U';
+                                      parent.prepend(fallback);
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                                  {u.full_name ? u.full_name.charAt(0) : 'U'}
+                                </div>
+                              )}
+                            </Link>
                             <div>
                               <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                                <span>{u.full_name}</span>
+                                <Link
+                                  href={`/profile/${u.id}`}
+                                  className="hover:text-theme-primary transition-colors hover:underline"
+                                >
+                                  {u.full_name}
+                                </Link>
                                 {u.username === currentUser?.username && (
                                   <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-normal">
                                     คุณ
@@ -940,6 +948,13 @@ export default function AdminUsersPage() {
 
                         {/* Action Buttons */}
                         <td className="px-5 py-3.5 text-right space-x-1 whitespace-nowrap">
+                          <Link
+                            href={`/profile/${u.id}`}
+                            className="inline-flex p-1.5 text-slate-500 hover:text-theme-primary hover:bg-slate-100 rounded-lg transition-colors"
+                            title="ดูโปรไฟล์"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
                           <button
                             onClick={() => handleOpenResetPassword(u)}
                             className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
@@ -983,32 +998,39 @@ export default function AdminUsersPage() {
                   <div key={u.id} className="p-4 space-y-3 hover:bg-slate-50 transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        {u.avatar_url ? (
-                          <img
-                            src={u.avatar_url}
-                            alt={u.full_name}
-                            referrerPolicy="no-referrer"
-                            crossOrigin="anonymous"
-                            className="w-10 h-10 rounded-full object-cover border border-slate-200 flex-shrink-0"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none';
-                              const parent = (e.target as HTMLElement).parentElement;
-                              if (parent && !parent.querySelector('.mobile-avatar-fallback')) {
-                                const fallback = document.createElement('div');
-                                fallback.className = 'mobile-avatar-fallback w-10 h-10 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-sm flex-shrink-0';
-                                fallback.innerText = u.full_name ? u.full_name.charAt(0) : 'U';
-                                parent.prepend(fallback);
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                            {u.full_name ? u.full_name.charAt(0) : 'U'}
-                          </div>
-                        )}
+                        <Link href={`/profile/${u.id}`} className="shrink-0 hover:opacity-80 transition-opacity">
+                          {u.avatar_url ? (
+                            <img
+                              src={u.avatar_url}
+                              alt={u.full_name}
+                              referrerPolicy="no-referrer"
+                              crossOrigin="anonymous"
+                              className="w-10 h-10 rounded-full object-cover border border-slate-200 flex-shrink-0"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                                const parent = (e.target as HTMLElement).parentElement;
+                                if (parent && !parent.querySelector('.mobile-avatar-fallback')) {
+                                  const fallback = document.createElement('div');
+                                  fallback.className = 'mobile-avatar-fallback w-10 h-10 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-sm flex-shrink-0';
+                                  fallback.innerText = u.full_name ? u.full_name.charAt(0) : 'U';
+                                  parent.prepend(fallback);
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-900 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                              {u.full_name ? u.full_name.charAt(0) : 'U'}
+                            </div>
+                          )}
+                        </Link>
                         <div>
                           <div className="font-bold text-slate-900 text-sm flex items-center gap-1">
-                            <span>{u.full_name}</span>
+                            <Link
+                              href={`/profile/${u.id}`}
+                              className="hover:text-theme-primary transition-colors hover:underline"
+                            >
+                              {u.full_name}
+                            </Link>
                             {u.google_id && (
                               <span className="text-[9px] bg-red-50 text-red-600 border border-red-200 px-1 py-0.2 rounded font-bold">
                                 G
@@ -1058,6 +1080,13 @@ export default function AdminUsersPage() {
                       </span>
 
                       <div className="flex items-center gap-1">
+                        <Link
+                          href={`/profile/${u.id}`}
+                          className="p-2 text-slate-500 hover:text-theme-primary hover:bg-slate-100 rounded-lg transition"
+                          title="ดูโปรไฟล์"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Link>
                         <button
                           onClick={() => handleOpenResetPassword(u)}
                           className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition"

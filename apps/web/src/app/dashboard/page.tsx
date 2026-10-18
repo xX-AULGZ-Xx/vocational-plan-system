@@ -757,7 +757,19 @@ export default function DashboardPage() {
                   </div>
                   {p.leader?.full_name && (
                     <div className="text-[11px] text-slate-600 pl-5 pt-0.5">
-                      ผู้รับผิดชอบ: <span className="font-semibold text-slate-800">{p.leader.full_name}</span>
+                      ผู้รับผิดชอบ:{' '}
+                      {p.leader.id ? (
+                        <Link
+                          href={`/profile/${p.leader.id}`}
+                          className="font-semibold text-slate-800 hover:text-theme-primary hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                          title="ดูโปรไฟล์ผู้รับผิดชอบ"
+                        >
+                          {p.leader.full_name}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold text-slate-800">{p.leader.full_name}</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -818,7 +830,19 @@ export default function DashboardPage() {
                       <div>{p.department?.division?.name}</div>
                       <div className="text-[11px] text-slate-400">{p.department?.name}</div>
                     </td>
-                    <td className="p-3 text-slate-700">{p.leader?.full_name}</td>
+                    <td className="p-3 text-slate-700">
+                      {p.leader?.id ? (
+                        <Link
+                          href={`/profile/${p.leader.id}`}
+                          className="hover:text-theme-primary hover:underline font-medium"
+                          title="ดูโปรไฟล์ผู้รับผิดชอบ"
+                        >
+                          {p.leader.full_name}
+                        </Link>
+                      ) : (
+                        p.leader?.full_name || '-'
+                      )}
+                    </td>
                     <td className="p-3 text-right font-bold text-slate-900">
                       {Number(p.total_budget).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                     </td>
