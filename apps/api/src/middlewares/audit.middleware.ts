@@ -2,11 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { logActivity } from '../modules/audit-logs/audit-log.service';
 import { AuthRequest } from './auth';
 
-// Paths that should not be auto-audited (e.g. streams, status probes, or internal tools)
+// Paths that should not be auto-audited (e.g. chat messages/reads, notifications, streams, status probes, or internal tools)
 const EXCLUDED_PATHS = [
-  '/api/v1/notifications/stream',
+  '/api/v1/chat',
+  '/api/v1/notifications',
   '/api/v1/setup/status',
   '/api/v1/setup/health',
+  '/health',
 ];
 
 /**

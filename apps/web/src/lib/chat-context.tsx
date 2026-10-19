@@ -249,6 +249,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const socketRef = useRef<Socket | null>(null);
   const activeRoomRef = useRef<string | null>(null);
   const openProjectChatRequestsRef = useRef<Map<string, Promise<string | null>>>(new Map());
+  const lastMarkedReadRef = useRef<{ [roomId: string]: number }>({});
   activeRoomRef.current = activeRoomId || widgetActiveRoomId;
 
   // Calculate active room
@@ -278,7 +279,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
 
-      // 2. Notify backend to update last_read_at in database
+      // 2. Throttle backend call: avoid spamming backend if called repeatedly within 1.5s for the same room
+      const now = Date.now();
+      const lastCall = lastMarkedReadRef.current[targetId] || 0;
+      if (now - lastCall < 1500) {
+        return;
+      }
+      lastMarkedReadRef.current[targetId] = now;
+
+      // 3. Notify backend to update last_read_at in database
       try {
         await fetch(`/api/v1/chat/rooms/${targetId}/read`, {
           method: 'POST',
