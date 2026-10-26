@@ -762,17 +762,25 @@ function extractFiscalYearFromDynamicData(dynamicData: any, fallbackYear?: numbe
 
 async function getBudgetCategoryResolver(dbClient: any) {
   let allCats = await dbClient.budgetCategory.findMany();
-  if (!allCats || allCats.length === 0) {
-    const defaultCats = [
-      { name: 'ค่าตอบแทน (วิทยากร / คณะกรรมการ)', source_type: 'SUBSIDY' as const },
-      { name: 'ค่าใช้สอย (ค่าอาหารกลางวันและเครื่องดื่ม / ค่าสถานที่ / ค่าจ้างเหมา)', source_type: 'SUBSIDY' as const },
-      { name: 'ค่าวัสดุ (เอกสาร / อุปกรณ์อบรม / วัสดุฝึก)', source_type: 'SUBSIDY' as const },
-      { name: 'อื่น ๆ', source_type: 'SUBSIDY' as const },
-    ];
-    for (const c of defaultCats) {
-      await dbClient.budgetCategory.create({ data: c });
+  
+  // Ensure all 4 standard categories exist in DB (especially 'อื่น ๆ')
+  const standardDefs = [
+    { key: 'วัสดุ', name: 'ค่าวัสดุ (เอกสาร / อุปกรณ์อบรม / วัสดุฝึก)' },
+    { key: 'ใช้สอย', name: 'ค่าใช้สอย (ค่าอาหารกลางวันและเครื่องดื่ม / ค่าสถานที่ / ค่าจ้างเหมา)' },
+    { key: 'ตอบแทน', name: 'ค่าตอบแทน (วิทยากร / คณะกรรมการ)' },
+    { key: 'อื่น', name: 'อื่น ๆ' },
+  ];
+  for (const def of standardDefs) {
+    if (!allCats.some((c: any) => c.name.includes(def.key))) {
+      try {
+        const created = await dbClient.budgetCategory.create({
+          data: { name: def.name, source_type: 'SUBSIDY' as const },
+        });
+        allCats.push(created);
+      } catch (e) {
+        allCats = await dbClient.budgetCategory.findMany();
+      }
     }
-    allCats = await dbClient.budgetCategory.findMany();
   }
 
   const validIds = new Set(allCats.map((c: any) => c.id));
@@ -798,7 +806,7 @@ async function getBudgetCategoryResolver(dbClient: any) {
     if (desc.includes('อื่น')) return findId('อื่น');
     if (desc.includes('วัสดุ') || desc.includes('เอกสาร') || desc.includes('กระดาษ') || desc.includes('อุปกรณ์')) return findId('วัสดุ');
 
-    return allCats[0]?.id || 1;
+    return findId('อื่น') || allCats[0]?.id || 1;
   };
 }
 
@@ -860,12 +868,16 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       finalFiscalYear = 2568;
     }
 
+    const resolveCatId = await getBudgetCategoryResolver(prisma);
+
     // Calculate total budget
-    const totalBudget = budget_items.reduce((sum: number, item: any) => {
-      const q = parseFloat(item.quantity) || 0;
-      const p = parseFloat(item.unit_price) || 0;
-      return sum + q * p;
-    }, 0);
+    const totalBudget = Array.isArray(budget_items) && budget_items.length > 0
+      ? budget_items.reduce((sum: number, item: any) => {
+          const q = parseFloat(item.quantity) || 0;
+          const p = parseFloat(item.unit_price) || 0;
+          return sum + q * p;
+        }, 0)
+      : (req.body.total_budget !== undefined ? (Number(req.body.total_budget) || 0) : 0);
 
     const project = await prisma.project.create({
       data: {
@@ -882,32 +894,45 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         status: status === 'submitted' ? ProjectStatus.submitted : ProjectStatus.draft,
         total_budget: totalBudget,
         alignments: {
-          create: alignments.map((indicatorId: number) => ({
-            indicator_id: indicatorId,
-          })),
+          create: (alignments || [])
+            .map((id: any) => parseInt(String(id)))
+            .filter((id: number) => !isNaN(id) && id > 0)
+            .map((indicatorId: number) => ({
+              indicator_id: indicatorId,
+            })),
         },
         timelines: {
-          create: timelines.map((t: any) => ({
-            activity_name: t.activity_name,
-            start_date: new Date(t.start_date),
-            end_date: new Date(t.end_date),
-            location: t.location || '',
-            is_milestone: Boolean(t.is_milestone),
-          })),
+          create: (timelines || [])
+            .filter((t: any) => t && t.activity_name)
+            .map((t: any) => {
+              const sDate = t.start_date ? new Date(t.start_date) : new Date();
+              const eDate = t.end_date ? new Date(t.end_date) : sDate;
+              const validSDate = !isNaN(sDate.getTime()) ? sDate : new Date();
+              const validEDate = !isNaN(eDate.getTime()) ? eDate : validSDate;
+              return {
+                activity_name: String(t.activity_name || ''),
+                start_date: validSDate,
+                end_date: validEDate,
+                location: String(t.location || ''),
+                is_milestone: Boolean(t.is_milestone),
+              };
+            }),
         },
         budget_items: {
-          create: budget_items.map((b: any) => {
-            const q = parseFloat(b.quantity) || 0;
-            const p = parseFloat(b.unit_price) || 0;
-            return {
-              category_id: parseInt(b.category_id),
-              description: b.description,
-              quantity: q,
-              unit: b.unit,
-              unit_price: p,
-              total_amount: q * p,
-            };
-          }),
+          create: (budget_items || [])
+            .filter((b: any) => b && (b.description || b.total_amount || b.unit_price || b.quantity))
+            .map((b: any) => {
+              const q = parseFloat(b.quantity) || 0;
+              const p = parseFloat(b.unit_price) || 0;
+              return {
+                category_id: resolveCatId(b.category_id, b.description),
+                description: String(b.description || '-'),
+                quantity: q,
+                unit: String(b.unit || 'ชิ้น'),
+                unit_price: p,
+                total_amount: Math.round(q * p * 100) / 100,
+              };
+            }),
         },
       },
     });

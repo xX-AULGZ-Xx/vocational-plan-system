@@ -22,9 +22,30 @@ router.get('/', async (req: Request, res: Response) => {
 // GET /api/v1/budget-categories
 router.get('/budget-categories', async (req: Request, res: Response) => {
   try {
-    const categories = await prisma.budgetCategory.findMany();
-    // Standard order: ๑. ค่าวัสดุ, ๒. ค่าใช้สอย, ๓. ค่าตอบแทน
-    const order = ['วัสดุ', 'ใช้สอย', 'ตอบแทน'];
+    let categories = await prisma.budgetCategory.findMany();
+    
+    // Ensure all 4 standard categories exist (especially 'อื่น ๆ')
+    const standardDefs = [
+      { key: 'วัสดุ', name: 'ค่าวัสดุ (เอกสาร / อุปกรณ์อบรม / วัสดุฝึก)' },
+      { key: 'ใช้สอย', name: 'ค่าใช้สอย (ค่าอาหารกลางวันและเครื่องดื่ม / ค่าสถานที่ / ค่าจ้างเหมา)' },
+      { key: 'ตอบแทน', name: 'ค่าตอบแทน (วิทยากร / คณะกรรมการ)' },
+      { key: 'อื่น', name: 'อื่น ๆ' },
+    ];
+    for (const def of standardDefs) {
+      if (!categories.some((c) => c.name.includes(def.key))) {
+        try {
+          const created = await prisma.budgetCategory.create({
+            data: { name: def.name, source_type: 'SUBSIDY' },
+          });
+          categories.push(created);
+        } catch (e) {
+          categories = await prisma.budgetCategory.findMany();
+        }
+      }
+    }
+
+    // Standard order: ๑. ค่าวัสดุ, ๒. ค่าใช้สอย, ๓. ค่าตอบแทน, ๔. อื่น ๆ
+    const order = ['วัสดุ', 'ใช้สอย', 'ตอบแทน', 'อื่น'];
     categories.sort((a, b) => {
       const idxA = order.findIndex((o) => a.name.includes(o));
       const idxB = order.findIndex((o) => b.name.includes(o));
