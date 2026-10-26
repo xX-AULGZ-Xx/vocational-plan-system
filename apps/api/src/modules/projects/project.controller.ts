@@ -760,6 +760,48 @@ function extractFiscalYearFromDynamicData(dynamicData: any, fallbackYear?: numbe
   return fallbackYear || 2568;
 }
 
+async function getBudgetCategoryResolver(dbClient: any) {
+  let allCats = await dbClient.budgetCategory.findMany();
+  if (!allCats || allCats.length === 0) {
+    const defaultCats = [
+      { name: 'ค่าตอบแทน (วิทยากร / คณะกรรมการ)', source_type: 'SUBSIDY' as const },
+      { name: 'ค่าใช้สอย (ค่าอาหารกลางวันและเครื่องดื่ม / ค่าสถานที่ / ค่าจ้างเหมา)', source_type: 'SUBSIDY' as const },
+      { name: 'ค่าวัสดุ (เอกสาร / อุปกรณ์อบรม / วัสดุฝึก)', source_type: 'SUBSIDY' as const },
+      { name: 'อื่น ๆ', source_type: 'SUBSIDY' as const },
+    ];
+    for (const c of defaultCats) {
+      await dbClient.budgetCategory.create({ data: c });
+    }
+    allCats = await dbClient.budgetCategory.findMany();
+  }
+
+  const validIds = new Set(allCats.map((c: any) => c.id));
+  const findId = (keyword: string) => {
+    const found = allCats.find((c: any) => c.name.includes(keyword));
+    return found ? found.id : allCats[0]?.id;
+  };
+
+  return (rawCatId: any, itemDescription?: string): number => {
+    const catId = parseInt(String(rawCatId));
+    if (validIds.has(catId)) {
+      return catId;
+    }
+    // Hardcoded 1..4 mapping to real DB categories
+    if (catId === 1) return findId('ตอบแทน');
+    if (catId === 2) return findId('ใช้สอย');
+    if (catId === 3) return findId('วัสดุ');
+    if (catId === 4) return findId('อื่น');
+
+    const desc = String(itemDescription || '');
+    if (desc.includes('วิทยากร') || desc.includes('ตอบแทน')) return findId('ตอบแทน');
+    if (desc.includes('อาหาร') || desc.includes('เครื่องดื่ม') || desc.includes('สถานที่') || desc.includes('จ้างเหมา') || desc.includes('ใช้สอย')) return findId('ใช้สอย');
+    if (desc.includes('อื่น')) return findId('อื่น');
+    if (desc.includes('วัสดุ') || desc.includes('เอกสาร') || desc.includes('กระดาษ') || desc.includes('อุปกรณ์')) return findId('วัสดุ');
+
+    return allCats[0]?.id || 1;
+  };
+}
+
 // POST /api/v1/projects (Create project)
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -1026,6 +1068,8 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Wrap in transaction to prevent partial updates
     const updatedProject = await prisma.$transaction(async (tx) => {
+      const resolveCatId = await getBudgetCategoryResolver(tx);
+
       // Only delete and recreate relations if they were explicitly provided in request
       if (hasAlignments) {
         await tx.projectAlignment.deleteMany({ where: { project_id: projectId } });
@@ -1126,9 +1170,8 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
                     .map((b: any) => {
                       const q = parseFloat(b.quantity) || 0;
                       const p = parseFloat(b.unit_price) || 0;
-                      const catId = parseInt(String(b.category_id));
                       return {
-                        category_id: !isNaN(catId) && catId > 0 ? catId : 3,
+                        category_id: resolveCatId(b.category_id, b.description),
                         description: String(b.description || '-'),
                         quantity: q,
                         unit: String(b.unit || 'ชิ้น'),

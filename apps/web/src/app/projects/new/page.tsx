@@ -65,6 +65,7 @@ export default function NewProjectPage() {
 
   const [dynamicData, setDynamicData] = useState<Record<string, any>>({});
   const [budgetItems, setBudgetItems] = useState<any[]>([]);
+  const [dbCategories, setDbCategories] = useState<{ id: number; name: string }[]>([]);
 
   const addBudgetItem = () => {
     setBudgetItems(prev => {
@@ -155,6 +156,7 @@ export default function NewProjectPage() {
   };
 
   useEffect(() => {
+    fetchBudgetCategories();
     fetchDivisions();
   }, [token, user]);
 
@@ -165,6 +167,20 @@ export default function NewProjectPage() {
       fetchProposalTemplate();
     }
   }, [token, user, directorName, deputyResName, planningHeadName, divisionsData]);
+
+  const fetchBudgetCategories = async () => {
+    try {
+      const res = await fetch('/api/v1/strategics/budget-categories', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        setDbCategories(data.data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch budget categories:', e);
+    }
+  };
 
   const fetchDivisions = async () => {
     try {
