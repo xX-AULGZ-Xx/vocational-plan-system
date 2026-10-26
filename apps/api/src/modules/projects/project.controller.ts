@@ -1014,13 +1014,15 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     const hasTimelines = Array.isArray(timelines);
     const hasAlignments = Array.isArray(alignments);
 
-    const totalBudget = hasBudgetItems
+    const totalBudget = hasBudgetItems && budget_items.length > 0
       ? budget_items.reduce((sum: number, item: any) => {
           const q = parseFloat(item.quantity) || 0;
           const p = parseFloat(item.unit_price) || 0;
           return sum + q * p;
         }, 0)
-      : existingProject.total_budget;
+      : (req.body.total_budget !== undefined
+          ? (Number(req.body.total_budget) || 0)
+          : existingProject.total_budget);
 
     // Wrap in transaction to prevent partial updates
     const updatedProject = await prisma.$transaction(async (tx) => {
@@ -1035,16 +1037,46 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         await tx.projectBudgetItem.deleteMany({ where: { project_id: projectId } });
       }
 
+      // Prepare leader connection if changed
+      const leaderConnect = finalLeaderId
+        ? { leader: { connect: { id: finalLeaderId } } }
+        : {};
+
+      // Prepare department connection if provided
+      let deptConnect = {};
+      if (department_id !== undefined) {
+        const parsedDeptId = parseInt(String(department_id));
+        if (!isNaN(parsedDeptId) && parsedDeptId > 0) {
+          deptConnect = { department: { connect: { id: parsedDeptId } } };
+        }
+      }
+
+      // Parse fiscal year safely
+      let parsedFiscalYear = existingProject.fiscal_year;
+      if (dynamic_data !== undefined) {
+        parsedFiscalYear = extractFiscalYearFromDynamicData(
+          dynamic_data,
+          fiscal_year !== undefined && !isNaN(parseInt(String(fiscal_year)))
+            ? parseInt(String(fiscal_year))
+            : existingProject.fiscal_year
+        );
+      } else if (fiscal_year !== undefined && !isNaN(parseInt(String(fiscal_year)))) {
+        parsedFiscalYear = parseInt(String(fiscal_year));
+      }
+
+      // Parse template_id safely
+      const parsedTemplateId = template_id !== undefined
+        ? (template_id && !isNaN(parseInt(String(template_id))) ? parseInt(String(template_id)) : null)
+        : existingProject.template_id;
+
       return await tx.project.update({
         where: { id: projectId },
         data: {
           title: title !== undefined ? title : existingProject.title,
-          leader_id: finalLeaderId !== undefined ? finalLeaderId : existingProject.leader_id,
-          fiscal_year: dynamic_data !== undefined
-            ? extractFiscalYearFromDynamicData(dynamic_data, fiscal_year !== undefined ? parseInt(fiscal_year) : existingProject.fiscal_year)
-            : (fiscal_year !== undefined ? parseInt(fiscal_year) : existingProject.fiscal_year),
-          department_id: department_id !== undefined ? parseInt(department_id) : existingProject.department_id,
-          template_id: template_id !== undefined ? (template_id ? parseInt(template_id) : null) : existingProject.template_id,
+          fiscal_year: parsedFiscalYear,
+          template_id: parsedTemplateId,
+          ...leaderConnect,
+          ...deptConnect,
           background: background !== undefined ? background : existingProject.background,
           objectives: objectives !== undefined ? objectives : existingProject.objectives,
           target_groups: target_groups !== undefined ? target_groups : existingProject.target_groups,
@@ -1056,40 +1088,54 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
           ...(hasAlignments
             ? {
                 alignments: {
-                  create: alignments.map((indicatorId: number) => ({
-                    indicator_id: indicatorId,
-                  })),
+                  create: alignments
+                    .map((id: any) => parseInt(String(id)))
+                    .filter((id: number) => !isNaN(id) && id > 0)
+                    .map((indicatorId: number) => ({
+                      indicator_id: indicatorId,
+                    })),
                 },
               }
             : {}),
           ...(hasTimelines
             ? {
                 timelines: {
-                  create: timelines.map((t: any) => ({
-                    activity_name: t.activity_name,
-                    start_date: new Date(t.start_date),
-                    end_date: new Date(t.end_date),
-                    location: t.location || '',
-                    is_milestone: Boolean(t.is_milestone),
-                  })),
+                  create: timelines
+                    .filter((t: any) => t && t.activity_name)
+                    .map((t: any) => {
+                      const sDate = t.start_date ? new Date(t.start_date) : new Date();
+                      const eDate = t.end_date ? new Date(t.end_date) : sDate;
+                      const validSDate = !isNaN(sDate.getTime()) ? sDate : new Date();
+                      const validEDate = !isNaN(eDate.getTime()) ? eDate : validSDate;
+                      return {
+                        activity_name: String(t.activity_name || ''),
+                        start_date: validSDate,
+                        end_date: validEDate,
+                        location: String(t.location || ''),
+                        is_milestone: Boolean(t.is_milestone),
+                      };
+                    }),
                 },
               }
             : {}),
           ...(hasBudgetItems
             ? {
                 budget_items: {
-                  create: budget_items.map((b: any) => {
-                    const q = parseFloat(b.quantity) || 0;
-                    const p = parseFloat(b.unit_price) || 0;
-                    return {
-                      category_id: parseInt(b.category_id),
-                      description: b.description,
-                      quantity: q,
-                      unit: b.unit,
-                      unit_price: p,
-                      total_amount: q * p,
-                    };
-                  }),
+                  create: budget_items
+                    .filter((b: any) => b && (b.description || b.total_amount || b.unit_price || b.quantity))
+                    .map((b: any) => {
+                      const q = parseFloat(b.quantity) || 0;
+                      const p = parseFloat(b.unit_price) || 0;
+                      const catId = parseInt(String(b.category_id));
+                      return {
+                        category_id: !isNaN(catId) && catId > 0 ? catId : 3,
+                        description: String(b.description || '-'),
+                        quantity: q,
+                        unit: String(b.unit || 'ชิ้น'),
+                        unit_price: p,
+                        total_amount: Math.round(q * p * 100) / 100,
+                      };
+                    }),
                 },
               }
             : {}),

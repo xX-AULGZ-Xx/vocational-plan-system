@@ -517,10 +517,14 @@ const fetchProposalTemplate = async () => {
           router.push('/my-projects');
         }, 1500);
       } else {
-        setErrorMsg(data.message);
+        const errorDetail = data.error ? `${data.message} (${data.error})` : data.message;
+        setErrorMsg(errorDetail);
+        showAlert.error('บันทึกไม่สำเร็จ', errorDetail);
       }
     } catch (e: any) {
-      setErrorMsg(e.message || 'เกิดข้อผิดพลาด');
+      const errMsg = e.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
+      setErrorMsg(errMsg);
+      showAlert.error('เกิดข้อผิดพลาด', errMsg);
     } finally {
       setIsSubmitting(false);
     }
