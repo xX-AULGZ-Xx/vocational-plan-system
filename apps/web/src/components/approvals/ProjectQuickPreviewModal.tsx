@@ -249,6 +249,13 @@ export default function ProjectQuickPreviewModal({
   const totalCheckedChecklistCount = alignmentChecklistSections.reduce((sum: number, sec: any) => sum + (sec.checkedCount || 0), 0);
   const totalAlignmentsCount = dbAlignments.length + totalCheckedChecklistCount;
 
+  // Derive active approval step if not explicitly provided
+  const activeApprovalStep = useMemo(() => {
+    if (approvalStep) return approvalStep;
+    const pending = (project.approvals || []).find((a: any) => a.status === 'PENDING');
+    return pending?.step_order;
+  }, [approvalStep, project.approvals]);
+
   return (
     <ModalPortal>
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[70] flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
@@ -260,10 +267,10 @@ export default function ProjectQuickPreviewModal({
           <div className="bg-gradient-to-r from-slate-950 via-blue-950 to-indigo-950 text-white p-4 sm:p-5 flex flex-col sm:flex-row items-start justify-between gap-3 shrink-0 border-b border-white/10">
             <div className="space-y-2 flex-1 min-w-0 w-full sm:w-auto">
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                {approvalStep ? (
+                {activeApprovalStep ? (
                   <span className="px-2.5 py-0.5 rounded-full bg-blue-500/30 text-blue-200 border border-blue-400/40 text-[11px] font-bold flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                    <span>รอการพิจารณาขั้นที่ {approvalStep}</span>
+                    <span>รอการพิจารณาขั้นที่ {activeApprovalStep}</span>
                   </span>
                 ) : (
                   <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
@@ -1013,27 +1020,25 @@ export default function ProjectQuickPreviewModal({
           {/* ======================================================== */}
           {/* MODAL ACTION FOOTER */}
           {/* ======================================================== */}
-          <div className="bg-white p-3.5 sm:p-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0">
+          <div className={`bg-white p-3.5 sm:p-4 border-t border-slate-200 flex ${
+            onActionClick && !readOnly 
+              ? 'flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3' 
+              : 'items-center justify-start'
+          } shrink-0`}>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition text-center"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition text-center"
               >
                 ปิดหน้าต่าง
               </button>
-              <Link
-                href={`/projects/${project.id}`}
-                target="_blank"
-                className="px-3 py-2 rounded-xl text-xs font-semibold text-blue-900 bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>เปิดดูฉบับเต็ม</span>
-              </Link>
             </div>
 
-            {onActionClick && !readOnly ? (
+            {onActionClick && !readOnly && (
               <div className="grid grid-cols-2 sm:flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
                 <button
+                  type="button"
                   onClick={() => onActionClick('REVISE')}
                   className="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white shadow-xs transition flex items-center justify-center gap-1.5"
                 >
@@ -1042,6 +1047,7 @@ export default function ProjectQuickPreviewModal({
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => onActionClick('REJECT')}
                   className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-xs transition flex items-center justify-center gap-1.5"
                 >
@@ -1050,22 +1056,13 @@ export default function ProjectQuickPreviewModal({
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => onActionClick('APPROVE')}
                   className="col-span-2 sm:col-auto px-5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition flex items-center justify-center gap-1.5"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>อนุมัติ / เห็นชอบโครงการ</span>
                 </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link
-                  href={`/projects/${project.id}`}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-900 hover:bg-blue-800 text-white transition flex items-center gap-1.5"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>ไปที่หน้าโครงการ</span>
-                </Link>
               </div>
             )}
           </div>

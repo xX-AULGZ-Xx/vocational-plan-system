@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import ProjectQuickPreviewModal from '@/components/approvals/ProjectQuickPreviewModal';
 import { useAuth } from '@/lib/auth-context';
 import { useSettings } from '@/lib/settings-context';
 import { useNotifications } from '@/lib/notification-context';
@@ -45,6 +46,9 @@ export default function DashboardPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [selectedDivision, setSelectedDivision] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Quick Preview Modal state
+  const [previewProject, setPreviewProject] = useState<any | null>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -738,12 +742,13 @@ export default function DashboardPage() {
 
                 {/* Project Title */}
                 <div>
-                  <Link
-                    href={`/projects/${p.id}`}
-                    className="font-bold text-sm text-slate-900 hover:text-theme-primary line-clamp-2 leading-snug transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => setPreviewProject(p)}
+                    className="text-left font-bold text-sm text-slate-900 hover:text-theme-primary line-clamp-2 leading-snug transition-colors cursor-pointer"
                   >
                     {p.title}
-                  </Link>
+                  </button>
                 </div>
 
                 {/* Division & Department */}
@@ -783,13 +788,14 @@ export default function DashboardPage() {
                     </span>
                   </div>
 
-                  <Link
-                    href={`/projects/${p.id}`}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs transition"
+                  <button
+                    type="button"
+                    onClick={() => setPreviewProject(p)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-theme-primary hover:bg-theme-primary-hover text-white text-xs font-bold rounded-theme shadow-xs transition cursor-pointer"
                   >
                     <Eye className="w-3.5 h-3.5" />
-                    <span>ดูเอกสาร</span>
-                  </Link>
+                    <span>ดูสรุป</span>
+                  </button>
                 </div>
               </div>
             ))
@@ -822,9 +828,13 @@ export default function DashboardPage() {
                       {p.project_code || <span className="text-slate-400 font-normal">ยังไม่ออกรหัส</span>}
                     </td>
                     <td className="p-3 font-medium text-slate-900 max-w-xs">
-                      <Link href={`/projects/${p.id}`} className="hover:text-theme-primary hover:underline transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewProject(p)}
+                        className="text-left hover:text-theme-primary hover:underline transition-colors font-medium cursor-pointer"
+                      >
                         {p.title}
-                      </Link>
+                      </button>
                     </td>
                     <td className="p-3 text-slate-600">
                       <div>{p.department?.division?.name}</div>
@@ -849,13 +859,14 @@ export default function DashboardPage() {
                     <td className="p-3 text-center">{getStatusBadge(p)}</td>
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <Link
-                          href={`/projects/${p.id}`}
-                          className="p-1.5 text-slate-600 hover:text-theme-primary hover:bg-theme-primary-light rounded-theme transition-colors"
-                          title="ดูรายละเอียด / เอกสาร"
+                        <button
+                          type="button"
+                          onClick={() => setPreviewProject(p)}
+                          className="p-1.5 text-slate-600 hover:text-theme-primary hover:bg-theme-primary-light rounded-theme transition-colors cursor-pointer"
+                          title="ดูสรุปโครงการ"
                         >
                           <Eye className="w-4 h-4" />
-                        </Link>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -975,6 +986,15 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Project Quick Preview Modal */}
+      {previewProject && (
+        <ProjectQuickPreviewModal
+          project={previewProject}
+          readOnly={true}
+          onClose={() => setPreviewProject(null)}
+        />
+      )}
     </div>
   );
 }
