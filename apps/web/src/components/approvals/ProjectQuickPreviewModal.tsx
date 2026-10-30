@@ -333,17 +333,9 @@ export default function ProjectQuickPreviewModal({
               </div>
             </div>
 
-            <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-white/10">
-              <Link
-                href={`/projects/${project.id}`}
-                target="_blank"
-                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition flex items-center gap-1.5"
-                title="เปิดดูรายละเอียดโครงการในแท็บใหม่"
-              >
-                <span>เปิดหน้าเต็ม</span>
-                <ExternalLink className="w-3.5 h-3.5 text-blue-300" />
-              </Link>
+            <div className="flex items-center justify-end shrink-0">
               <button
+                type="button"
                 onClick={onClose}
                 className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-white/10 transition"
                 title="ปิดหน้าต่าง"
