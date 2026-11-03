@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 export default function SsoSessionGuard() {
   const pathname = usePathname();
+  const wasCentralActiveRef = React.useRef<boolean>(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -50,19 +51,22 @@ export default function SsoSessionGuard() {
       const token = localStorage.getItem('vps_token');
       const hasCricCookie = document.cookie.split(';').some((c) => c.trim().startsWith('cric_logged_in=true'));
       const ssoSessionToken = getCookie('cric_sso_session');
+      const authMode = localStorage.getItem('vps_auth_mode');
+
+      if (hasCricCookie || (ssoSessionToken && isTokenValid(ssoSessionToken))) {
+        wasCentralActiveRef.current = true;
+      }
 
       if (isCricDomain) {
-        // CASE 1: Plan system is logged in with SSO, but Central Session (cric_logged_in) was terminated
-        if (token && !hasCricCookie && ssoSessionToken === null) {
-          const isLocalAdmin = localStorage.getItem('vps_auth_mode') === 'local';
-          if (!isLocalAdmin) {
-            console.warn('[SSO Guard] Central session has been logged out from Portal. Logging out Plan system...');
-            localStorage.removeItem('vps_token');
-            localStorage.removeItem('vps_user');
-            localStorage.removeItem('vps_auth_mode');
-            window.location.href = window.location.origin + '/login?expired=1';
-            return;
-          }
+        // CASE 1: Plan system is logged in with SSO, and Central Session was previously active but now terminated
+        if (token && authMode === 'sso' && wasCentralActiveRef.current && !hasCricCookie && ssoSessionToken === null) {
+          console.warn('[SSO Guard] Central session was terminated from Portal/sibling app. Logging out Plan system...');
+          wasCentralActiveRef.current = false;
+          localStorage.removeItem('vps_token');
+          localStorage.removeItem('vps_user');
+          localStorage.removeItem('vps_auth_mode');
+          window.location.href = window.location.origin + '/login?expired=1';
+          return;
         }
 
         // CASE 2: Plan system is NOT logged in, but user has an active Central SSO Session from Portal

@@ -38,6 +38,14 @@ function CallbackContent() {
           throw new Error(data.message || 'การยืนยันตัวตนกับ Central SSO ล้มเหลว');
         }
         localStorage.setItem('vps_auth_mode', 'sso');
+        if (typeof document !== 'undefined') {
+          const isCric = window.location.hostname.includes('cric.ac.th');
+          const domainStr = isCric ? '; Domain=.cric.ac.th' : '';
+          document.cookie = `cric_logged_in=true; Path=/${domainStr}; Max-Age=604800; SameSite=Lax`;
+          if (data.ssoToken) {
+            document.cookie = `cric_sso_session=${encodeURIComponent(data.ssoToken)}; Path=/${domainStr}; Max-Age=604800; SameSite=Lax`;
+          }
+        }
         login(data.token, data.user);
         router.replace('/dashboard');
       })

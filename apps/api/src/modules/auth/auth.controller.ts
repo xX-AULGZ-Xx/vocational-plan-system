@@ -441,10 +441,30 @@ router.post('/keycloak', async (req: Request, res: Response) => {
       req,
     });
 
+    const host = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
+    const isCricDomain = host.includes('cric.ac.th');
+    if (isCricDomain) {
+      res.cookie('cric_logged_in', 'true', {
+        domain: '.cric.ac.th',
+        path: '/',
+        maxAge: 7 * 24 * 3600 * 1000,
+        sameSite: 'lax',
+      });
+      if (tokenData.id_token) {
+        res.cookie('cric_sso_session', tokenData.id_token, {
+          domain: '.cric.ac.th',
+          path: '/',
+          maxAge: 7 * 24 * 3600 * 1000,
+          sameSite: 'lax',
+        });
+      }
+    }
+
     return res.json({
       success: true,
       message: `เข้าสู่ระบบด้วย CRIC Central SSO สำเร็จ (${user.full_name})`,
       token,
+      ssoToken: tokenData.id_token || tokenData.access_token,
       user: serializeBigInt({
         id: user.id,
         username: user.username,
