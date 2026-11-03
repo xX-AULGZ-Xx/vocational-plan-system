@@ -32,6 +32,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [logoutNotice, setLogoutNotice] = useState<'logout' | 'expired' | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -40,6 +41,13 @@ function LoginForm() {
       if (params.get('logout') === '1') {
         localStorage.removeItem('vps_token');
         localStorage.removeItem('vps_user');
+        localStorage.removeItem('vps_auth_mode');
+        setLogoutNotice('logout');
+      } else if (params.get('expired') === '1') {
+        localStorage.removeItem('vps_token');
+        localStorage.removeItem('vps_user');
+        localStorage.removeItem('vps_auth_mode');
+        setLogoutNotice('expired');
       }
     }
     // Check if system needs setup
@@ -93,6 +101,7 @@ function LoginForm() {
         throw new Error(data.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
       }
 
+      localStorage.setItem('vps_auth_mode', 'local');
       login(data.token, data.user);
       showAlert.success(`ยินดีต้อนรับ ${data.user?.full_name || 'เข้าสู่ระบบ'}`);
       router.push('/dashboard');
@@ -129,6 +138,7 @@ function LoginForm() {
         throw new Error(data.message || 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ');
       }
 
+      localStorage.setItem('vps_auth_mode', 'google');
       login(data.token, data.user);
       showAlert.success(`ยินดีต้อนรับ ${data.user?.full_name || 'เข้าสู่ระบบ'}`);
       router.push('/dashboard');
@@ -256,6 +266,26 @@ function LoginForm() {
               หรือเข้าสู่ระบบด้วยตัวเลือกอื่น
             </span>
           </div>
+
+          {logoutNotice === 'logout' && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-start gap-2.5 shadow-sm">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-emerald-900">ออกจากระบบเรียบร้อยแล้ว</p>
+                <p className="text-[11px] text-emerald-700 mt-0.5">เซสชันการใช้งานของคุณสิ้นสุดลงแล้ว ข้อมูลปลอดภัย</p>
+              </div>
+            </div>
+          )}
+
+          {logoutNotice === 'expired' && (
+            <div className="p-3.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex items-start gap-2.5 shadow-sm">
+              <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-900">เซสชันการเข้าสู่ระบบร่วมหมดอายุ</p>
+                <p className="text-[11px] text-amber-700 mt-0.5">คุณได้ออกจากระบบจาก CRIC Central Portal หรือระบบอื่นแล้ว กรุณาเข้าสู่ระบบใหม่</p>
+              </div>
+            </div>
+          )}
 
           {errorMsg && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-theme text-xs flex items-start gap-2">

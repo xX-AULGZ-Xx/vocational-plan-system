@@ -37,6 +37,7 @@ function CallbackContent() {
         if (!res.ok || !data.success) {
           throw new Error(data.message || 'การยืนยันตัวตนกับ Central SSO ล้มเหลว');
         }
+        localStorage.setItem('vps_auth_mode', 'sso');
         login(data.token, data.user);
         router.replace('/dashboard');
       })

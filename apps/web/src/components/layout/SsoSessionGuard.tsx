@@ -59,7 +59,8 @@ export default function SsoSessionGuard() {
             console.warn('[SSO Guard] Central session has been logged out from Portal. Logging out Plan system...');
             localStorage.removeItem('vps_token');
             localStorage.removeItem('vps_user');
-            window.location.href = window.location.origin + '/login?logout=1';
+            localStorage.removeItem('vps_auth_mode');
+            window.location.href = window.location.origin + '/login?expired=1';
             return;
           }
         }
@@ -79,6 +80,7 @@ export default function SsoSessionGuard() {
               if (data.success && data.data?.token) {
                 localStorage.setItem('vps_token', data.data.token);
                 localStorage.setItem('vps_user', JSON.stringify(data.data.user));
+                localStorage.setItem('vps_auth_mode', 'sso');
                 window.dispatchEvent(new CustomEvent('user-updated', { detail: data.data.user }));
                 if (pathname === '/login') {
                   window.location.href = '/dashboard';
@@ -101,10 +103,14 @@ export default function SsoSessionGuard() {
         channel.onmessage = (event) => {
           if (event.data && event.data.type === 'LOGOUT') {
             console.log('[SSO Guard] Received cross-tab LOGOUT broadcast');
-            localStorage.removeItem('vps_token');
-            localStorage.removeItem('vps_user');
-            if (pathname !== '/login') {
-              window.location.href = '/login?logout=1';
+            const isLocal = localStorage.getItem('vps_auth_mode') === 'local';
+            if (!isLocal) {
+              localStorage.removeItem('vps_token');
+              localStorage.removeItem('vps_user');
+              localStorage.removeItem('vps_auth_mode');
+              if (pathname !== '/login') {
+                window.location.href = '/login?expired=1';
+              }
             }
           }
         };
@@ -114,10 +120,14 @@ export default function SsoSessionGuard() {
     // Storage event listener for cross-tab sync fallback
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'cric_sso_logout_event') {
-        localStorage.removeItem('vps_token');
-        localStorage.removeItem('vps_user');
-        if (pathname !== '/login') {
-          window.location.href = '/login?logout=1';
+        const isLocal = localStorage.getItem('vps_auth_mode') === 'local';
+        if (!isLocal) {
+          localStorage.removeItem('vps_token');
+          localStorage.removeItem('vps_user');
+          localStorage.removeItem('vps_auth_mode');
+          if (pathname !== '/login') {
+            window.location.href = '/login?expired=1';
+          }
         }
       }
     };

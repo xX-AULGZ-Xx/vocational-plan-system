@@ -134,11 +134,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    const isLocalMode = typeof window !== 'undefined' && localStorage.getItem('vps_auth_mode') === 'local';
+
     setToken(null);
     setUser(null);
-    localStorage.removeItem('vps_token');
-    localStorage.removeItem('vps_user');
+    try {
+      localStorage.removeItem('vps_token');
+      localStorage.removeItem('vps_user');
+      localStorage.removeItem('vps_auth_mode');
+    } catch {}
 
+    // Cross-tab broadcast for immediate in-system tabs sync
     try {
       if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
         const channel = new BroadcastChannel('cric_sso_channel');
@@ -148,6 +154,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('cric_sso_logout_event', Date.now().toString());
     } catch {}
 
+    // If local admin or test mode, perform isolated logout without touching Central SSO
+    if (isLocalMode) {
+      window.location.href = '/login?logout=1';
+      return;
+    }
+
+    // Single Sign-Out (SLO): Clear shared root domain (.cric.ac.th) and host cookies
+    try {
+      const expireStr = '=; Path=/; Domain=.cric.ac.th; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      document.cookie = 'cric_logged_in' + expireStr;
+      document.cookie = 'cric_sso_session' + expireStr;
+      document.cookie = 'cric_active_role' + expireStr;
+      document.cookie = 'cric_user_profile' + expireStr;
+
+      const hostExpireStr = '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      document.cookie = 'cric_logged_in' + hostExpireStr;
+      document.cookie = 'cric_sso_session' + hostExpireStr;
+      document.cookie = 'cric_active_role' + hostExpireStr;
+      document.cookie = 'cric_user_profile' + hostExpireStr;
+    } catch {}
+
+    // Invalidate Central SSO Session on Keycloak and redirect back to Plan login
     const postLogoutRedirect = encodeURIComponent(window.location.origin + '/login?logout=1');
     const ssoUrl = process.env.NEXT_PUBLIC_KEYCLOAK_PUBLIC_URL || 'https://sso.cric.ac.th';
     const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'cric-college';
