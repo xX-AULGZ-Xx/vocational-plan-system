@@ -47,6 +47,17 @@ function CallbackContent() {
           }
         }
         login(data.token, data.user);
+
+        // Notify Central Panel and sibling tabs about the new active session
+        try {
+          if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+            const channel = new BroadcastChannel('cric_sso_channel');
+            channel.postMessage({ type: 'LOGIN' });
+            channel.close();
+          }
+          localStorage.setItem('cric_sso_login_event', Date.now().toString());
+        } catch {}
+
         router.replace('/dashboard');
       })
       .catch((err: any) => {
