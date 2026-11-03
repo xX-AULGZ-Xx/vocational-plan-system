@@ -35,6 +35,13 @@ function LoginForm() {
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('logout') === '1') {
+        localStorage.removeItem('vps_token');
+        localStorage.removeItem('vps_user');
+      }
+    }
     // Check if system needs setup
     fetch('/api/v1/setup/status')
       .then((res) => res.json())
@@ -47,6 +54,15 @@ function LoginForm() {
         console.warn('Could not verify setup status:', err);
       });
   }, []);
+
+  const handleKeycloakLogin = () => {
+    const ssoUrl = process.env.NEXT_PUBLIC_KEYCLOAK_PUBLIC_URL || 'https://sso.cric.ac.th';
+    const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'cric-college';
+    const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'cric-plan-app';
+    const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
+    const authUrl = `${ssoUrl}/realms/${realm}/protocol/openid-connect/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20profile%20email`;
+    window.location.href = authUrl;
+  };
 
   const handleLogin = async (u = username, p = password) => {
     if (!u.trim() || !p.trim()) {
@@ -220,7 +236,25 @@ function LoginForm() {
         <div className="md:col-span-5 bg-white p-7 sm:p-8 rounded-2xl shadow-2xl border border-slate-800 space-y-5">
           <div>
             <h3 className="text-lg font-bold text-slate-900">เข้าสู่ระบบ (Sign In)</h3>
-            <p className="text-xs text-slate-500 mt-0.5">เข้าใช้งานด้วยบัญชี Google องค์กร หรือชื่อผู้ใช้ระบบ</p>
+            <p className="text-xs text-slate-500 mt-0.5">เข้าใช้งานด้วยบัญชี CRIC Central SSO หรือชื่อผู้ใช้ระบบ</p>
+          </div>
+
+          {/* CRIC Central SSO Login Button */}
+          <button
+            type="button"
+            onClick={handleKeycloakLogin}
+            className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 flex items-center justify-center gap-2.5 bg-gradient-to-r from-blue-700 via-indigo-700 to-teal-600 hover:from-blue-800 hover:via-indigo-800 hover:to-teal-700 active:scale-[0.99] shadow-blue-900/20"
+          >
+            <Shield className="w-4 h-4 text-white" />
+            <span>เข้าสู่ระบบด้วย CRIC Central SSO</span>
+          </button>
+
+          {/* Divider */}
+          <div className="relative flex items-center justify-center my-2">
+            <div className="border-t border-slate-200 w-full" />
+            <span className="bg-white px-2.5 text-[11px] text-slate-400 uppercase tracking-wider font-semibold whitespace-nowrap">
+              หรือเข้าสู่ระบบด้วยตัวเลือกอื่น
+            </span>
           </div>
 
           {errorMsg && (

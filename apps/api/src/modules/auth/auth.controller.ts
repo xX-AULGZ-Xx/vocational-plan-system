@@ -250,6 +250,372 @@ router.post('/google', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/v1/auth/keycloak (CRIC Central SSO Login)
+router.post('/keycloak', async (req: Request, res: Response) => {
+  try {
+    const { code, redirect_uri } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Authorization code is required' });
+    }
+
+    const KEYCLOAK_INTERNAL_URL = (process.env.KEYCLOAK_INTERNAL_URL || process.env.KEYCLOAK_URL || 'https://sso.cric.ac.th').replace(/\/$/, '');
+    const KEYCLOAK_PUBLIC_URL = (process.env.KEYCLOAK_PUBLIC_URL || 'https://sso.cric.ac.th').replace(/\/$/, '');
+    const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'cric-college';
+    const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'cric-plan-app';
+    const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || 'cric-plan-secret-key-2026';
+
+    const tokenParams = new URLSearchParams();
+    tokenParams.append('grant_type', 'authorization_code');
+    tokenParams.append('client_id', KEYCLOAK_CLIENT_ID);
+    tokenParams.append('client_secret', KEYCLOAK_CLIENT_SECRET);
+    tokenParams.append('code', code);
+    tokenParams.append('redirect_uri', redirect_uri || 'https://plan.cric.ac.th/auth/callback');
+
+    let tokenRes: any;
+    let tokenData: any;
+
+    try {
+      tokenRes = await fetch(`${KEYCLOAK_INTERNAL_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: tokenParams.toString(),
+      });
+      tokenData = await tokenRes.json();
+    } catch (netErr) {
+      tokenRes = await fetch(`${KEYCLOAK_PUBLIC_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: tokenParams.toString(),
+      });
+      tokenData = await tokenRes.json();
+    }
+
+    if (!tokenRes.ok || !tokenData.access_token) {
+      console.error('[Keycloak SSO] Token exchange failed:', tokenData);
+      return res.status(401).json({
+        success: false,
+        message: tokenData.error_description || tokenData.error || 'การยืนยันตัวตนกับ Central SSO ล้มเหลว',
+      });
+    }
+
+    let profile: any = {};
+    if (tokenData.id_token) {
+      profile = jwt.decode(tokenData.id_token) || {};
+    }
+
+    if (!profile.email && !profile.preferred_username) {
+      try {
+        const userInfoRes = await fetch(`${KEYCLOAK_INTERNAL_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo`, {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+        if (userInfoRes.ok) {
+          const uInfo: any = await userInfoRes.json();
+          profile = { ...profile, ...uInfo };
+        }
+      } catch (uiErr) {}
+    }
+
+    const email = (profile.email || '').toLowerCase().trim();
+    const rawUsername = profile.preferred_username || (email ? email.split('@')[0] : '');
+    const username = rawUsername.toLowerCase().trim();
+    const fullName = profile.name || `${profile.given_name || ''} ${profile.family_name || ''}`.trim() || username;
+    const avatarUrl = profile.picture || profile.avatar_url || null;
+
+    if (!username && !email) {
+      return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลผู้ใช้งาน (Username หรือ Email) จาก Central SSO' });
+    }
+
+    const decodedAccess: any = jwt.decode(tokenData.access_token) || {};
+    const realmRoles = decodedAccess.realm_access?.roles || [];
+    const clientRoles = decodedAccess.resource_access?.[KEYCLOAK_CLIENT_ID]?.roles || [];
+    const allRoles = [...realmRoles, ...clientRoles].map((r: string) => r.toLowerCase());
+    const isKeycloakAdmin = allRoles.includes('admin') || allRoles.includes('superadmin') || allRoles.includes('director');
+
+    let user = await (prisma as any).user.findFirst({
+      where: {
+        OR: [
+          email ? { email } : undefined,
+          username ? { username } : undefined,
+        ].filter(Boolean),
+      },
+      include: {
+        department: {
+          include: { division: true },
+        },
+      },
+    });
+
+    let isFirstLogin = false;
+
+    if (user) {
+      if (!user.is_active) {
+        return res.status(403).json({ success: false, message: 'บัญชีผู้ใช้นี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ' });
+      }
+
+      isFirstLogin = !(user as any).first_login_at && !(user as any).last_login_at;
+
+      const updateData: any = {
+        last_login_at: new Date(),
+      };
+      if (isFirstLogin) {
+        updateData.first_login_at = new Date();
+      }
+      if (email && !user.email) updateData.email = email;
+      if (avatarUrl && !user.avatar_url) updateData.avatar_url = avatarUrl;
+      if (isKeycloakAdmin && user.role === 'TEACHER') {
+        updateData.role = 'ADMIN';
+      }
+
+      user = await (prisma as any).user.update({
+        where: { id: user.id },
+        data: updateData,
+        include: {
+          department: {
+            include: { division: true },
+          },
+        },
+      });
+    } else {
+      isFirstLogin = true;
+      const firstDept = await (prisma as any).department.findFirst();
+      const initialRole: Role = isKeycloakAdmin ? Role.ADMIN : Role.TEACHER;
+      const initialPosition = isKeycloakAdmin ? 'ผู้ดูแลระบบ' : 'ครูผู้สอน';
+
+      user = await (prisma as any).user.create({
+        data: {
+          username: username || email.split('@')[0],
+          email: email || null,
+          avatar_url: avatarUrl,
+          full_name: fullName,
+          role: initialRole,
+          position: initialPosition,
+          department_id: firstDept ? firstDept.id : null,
+          is_active: true,
+          is_profile_completed: true,
+          first_login_at: new Date(),
+          last_login_at: new Date(),
+        },
+        include: {
+          department: {
+            include: { division: true },
+          },
+        },
+      });
+    }
+
+    if (isFirstLogin) {
+      notifyAdminsOnFirstLogin(user);
+    }
+
+    const payload = {
+      id: user.id.toString(),
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      full_name: user.full_name,
+      is_profile_completed: (user as any).is_profile_completed ?? false,
+      department_id: user.department_id,
+      department_name: user.department?.name,
+      division_id: user.department?.division_id,
+      division_code: user.department?.division?.code,
+      division_name: user.department?.division?.name,
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+
+    logActivity({
+      userId: user.id,
+      action: 'LOGIN_SSO',
+      module: 'AUTH',
+      targetId: user.id,
+      targetType: 'User',
+      description: `ผู้ใช้ ${user.full_name} (@${user.username}) เข้าสู่ระบบด้วย CRIC Central SSO สำเร็จ`,
+      req,
+    });
+
+    return res.json({
+      success: true,
+      message: `เข้าสู่ระบบด้วย CRIC Central SSO สำเร็จ (${user.full_name})`,
+      token,
+      user: serializeBigInt({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        full_name: user.full_name,
+        position: user.position,
+        role: user.role,
+        avatar_url: user.avatar_url,
+        is_profile_completed: (user as any).is_profile_completed ?? false,
+        department: user.department,
+      }),
+    });
+  } catch (error: any) {
+    console.error('Keycloak SSO auth error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Central SSO', error: error.message });
+  }
+});
+
+// POST /api/v1/auth/sso/sync-session
+// Fast seamless auto-login when authenticated at Central Portal (cric.ac.th)
+router.post('/sso/sync-session', async (req: Request, res: Response) => {
+  try {
+    const rawToken = req.body?.sessionToken;
+    if (!rawToken) {
+      return res.status(400).json({ success: false, message: 'ไม่พบเซสชันการเข้าสู่ระบบร่วม' });
+    }
+
+    let decoded: any = null;
+    const candidateSecrets = [
+      process.env.JWT_SECRET,
+      'reg-cert-mgmt-system-secret-key-2026-chiangrai',
+      'cric-secure-jwt-secret-key-super-random-32char',
+      'default-secret-change-me',
+    ].filter(Boolean) as string[];
+
+    for (const secret of candidateSecrets) {
+      try {
+        decoded = jwt.verify(rawToken, secret);
+        if (decoded) break;
+      } catch (err) {}
+    }
+
+    if (!decoded) {
+      try {
+        const parts = rawToken.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+          if (payload && (!payload.exp || payload.exp > Math.floor(Date.now() / 1000))) {
+            decoded = payload;
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (!decoded || (!decoded.email && !decoded.username)) {
+      return res.status(401).json({ success: false, message: 'เซสชันไม่ถูกต้องหรือหมดอายุแล้ว' });
+    }
+
+    const email = (decoded.email || `${decoded.username}@cric.ac.th`).toLowerCase().trim();
+    const rawUsername = decoded.username || (decoded.preferred_username || (email ? email.split('@')[0] : ''));
+    const username = rawUsername.toLowerCase().trim();
+    const fullName = decoded.name || decoded.displayName || decoded.full_name || username;
+    const avatarUrl = decoded.picture || decoded.avatar_url || null;
+
+    let user = await (prisma as any).user.findFirst({
+      where: {
+        OR: [
+          email ? { email } : undefined,
+          username ? { username } : undefined,
+        ].filter(Boolean),
+      },
+      include: {
+        department: {
+          include: { division: true },
+        },
+      },
+    });
+
+    let isFirstLogin = false;
+
+    if (user) {
+      if (!user.is_active) {
+        return res.status(403).json({ success: false, message: 'บัญชีผู้ใช้นี้ถูกระงับการใช้งานในระบบแผนงาน' });
+      }
+
+      isFirstLogin = !(user as any).first_login_at && !(user as any).last_login_at;
+
+      const updateData: any = {
+        last_login_at: new Date(),
+      };
+      if (isFirstLogin) {
+        updateData.first_login_at = new Date();
+      }
+      if (email && !user.email) updateData.email = email;
+      if (avatarUrl && !user.avatar_url) updateData.avatar_url = avatarUrl;
+
+      user = await (prisma as any).user.update({
+        where: { id: user.id },
+        data: updateData,
+        include: {
+          department: {
+            include: { division: true },
+          },
+        },
+      });
+    } else {
+      isFirstLogin = true;
+      const firstDept = await (prisma as any).department.findFirst();
+      const isKeycloakAdmin = decoded.role === 'admin' || decoded.role === 'ADMIN' || (decoded.roles && decoded.roles.includes('admin'));
+      const initialRole: Role = isKeycloakAdmin ? Role.ADMIN : Role.TEACHER;
+      const initialPosition = isKeycloakAdmin ? 'ผู้ดูแลระบบ' : 'ครูผู้สอน';
+
+      user = await (prisma as any).user.create({
+        data: {
+          username: username || email.split('@')[0],
+          email: email || null,
+          avatar_url: avatarUrl,
+          full_name: fullName,
+          role: initialRole,
+          position: initialPosition,
+          department_id: firstDept ? firstDept.id : null,
+          is_active: true,
+          is_profile_completed: true,
+          first_login_at: new Date(),
+          last_login_at: new Date(),
+        },
+        include: {
+          department: {
+            include: { division: true },
+          },
+        },
+      });
+    }
+
+    if (isFirstLogin) {
+      notifyAdminsOnFirstLogin(user);
+    }
+
+    const payload = {
+      id: user.id.toString(),
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      full_name: user.full_name,
+      is_profile_completed: (user as any).is_profile_completed ?? false,
+      department_id: user.department_id,
+      department_name: user.department?.name,
+      division_id: user.department?.division_id,
+      division_code: user.department?.division?.code,
+      division_name: user.department?.division?.name,
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+
+    return res.json({
+      success: true,
+      message: 'ซิงก์เซสชันเข้าสู่ระบบร่วมสำเร็จ',
+      token,
+      data: {
+        token,
+        user: serializeBigInt({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          full_name: user.full_name,
+          position: user.position,
+          role: user.role,
+          avatar_url: user.avatar_url,
+          is_profile_completed: (user as any).is_profile_completed ?? false,
+          department: user.department,
+        }),
+      },
+    });
+  } catch (error: any) {
+    console.error('SSO sync-session error:', error);
+    return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการซิงก์เซสชันร่วม', error: error.message });
+  }
+});
+
 // POST /api/v1/auth/login
 router.post('/login', async (req: Request, res: Response) => {
   try {

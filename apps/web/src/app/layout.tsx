@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import { Prompt, Sarabun } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { SettingsProvider } from '@/lib/settings-context';
 import { NotificationProvider } from '@/lib/notification-context';
 import { ChatProvider } from '@/lib/chat-context';
 import MainLayout from '@/components/layout/MainLayout';
+import SsoSessionGuard from '@/components/layout/SsoSessionGuard';
 
 const prompt = Prompt({
   weight: ['300', '400', '500', '600', '700'],
@@ -55,6 +57,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased bg-slate-100 text-slate-900 font-sans">
         <AuthProvider>
+          <SsoSessionGuard />
           <SettingsProvider>
             <NotificationProvider>
               <ChatProvider>
@@ -63,6 +66,11 @@ export default function RootLayout({
             </NotificationProvider>
           </SettingsProvider>
         </AuthProvider>
+        {/* CRIC Central Portal 9-Dots App Launcher Widget */}
+        <Script
+          src={process.env.NEXT_PUBLIC_CRIC_LAUNCHER_URL || 'https://panel.cric.ac.th/widget/launcher.js?v=20261103_v3'}
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );

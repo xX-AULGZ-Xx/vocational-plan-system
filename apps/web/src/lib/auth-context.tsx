@@ -138,7 +138,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     localStorage.removeItem('vps_token');
     localStorage.removeItem('vps_user');
-    window.location.href = '/login';
+
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const channel = new BroadcastChannel('cric_sso_channel');
+        channel.postMessage({ type: 'LOGOUT' });
+        channel.close();
+      }
+      localStorage.setItem('cric_sso_logout_event', Date.now().toString());
+    } catch {}
+
+    const postLogoutRedirect = encodeURIComponent(window.location.origin + '/login?logout=1');
+    const ssoUrl = process.env.NEXT_PUBLIC_KEYCLOAK_PUBLIC_URL || 'https://sso.cric.ac.th';
+    const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'cric-college';
+    const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'cric-plan-app';
+    window.location.href = `${ssoUrl}/realms/${realm}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${postLogoutRedirect}`;
   };
 
   return (
