@@ -330,6 +330,7 @@ router.post('/keycloak', async (req: Request, res: Response) => {
     const clientRoles = decodedAccess.resource_access?.[KEYCLOAK_CLIENT_ID]?.roles || [];
     const allRoles = [...realmRoles, ...clientRoles].map((r: string) => r.toLowerCase());
     const isKeycloakAdmin = allRoles.includes('admin') || allRoles.includes('superadmin') || allRoles.includes('director');
+    const isStudent = allRoles.includes('student') || allRoles.includes('cric-student');
 
     let user = await (prisma as any).user.findFirst({
       where: {
@@ -344,6 +345,13 @@ router.post('/keycloak', async (req: Request, res: Response) => {
         },
       },
     });
+
+    if (isStudent && !user) {
+      return res.status(403).json({
+        success: false,
+        message: 'ระบบบริหารจัดการงานแผนงานและโครงการสงวนสิทธิ์เฉพาะครูและบุคลากรเท่านั้น',
+      });
+    }
 
     let isFirstLogin = false;
 
@@ -391,7 +399,7 @@ router.post('/keycloak', async (req: Request, res: Response) => {
           position: initialPosition,
           department_id: firstDept ? firstDept.id : null,
           is_active: true,
-          is_profile_completed: true,
+          is_profile_completed: false,
           first_login_at: new Date(),
           last_login_at: new Date(),
         },
@@ -515,6 +523,14 @@ router.post('/sso/sync-session', async (req: Request, res: Response) => {
       },
     });
 
+    const isStudent = decoded.role === 'student' || (decoded.roles && decoded.roles.includes('student'));
+    if (isStudent && !user) {
+      return res.status(403).json({
+        success: false,
+        message: 'ระบบบริหารจัดการงานแผนงานและโครงการสงวนสิทธิ์เฉพาะครูและบุคลากรเท่านั้น',
+      });
+    }
+
     let isFirstLogin = false;
 
     if (user) {
@@ -559,7 +575,7 @@ router.post('/sso/sync-session', async (req: Request, res: Response) => {
           position: initialPosition,
           department_id: firstDept ? firstDept.id : null,
           is_active: true,
-          is_profile_completed: true,
+          is_profile_completed: false,
           first_login_at: new Date(),
           last_login_at: new Date(),
         },
