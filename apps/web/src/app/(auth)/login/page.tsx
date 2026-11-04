@@ -33,21 +33,41 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [logoutNotice, setLogoutNotice] = useState<'logout' | 'expired' | null>(null);
+  const [isLocalMode, setIsLocalMode] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('logout') === '1') {
+      const isLogout = params.get('logout') === '1';
+      const isExpired = params.get('expired') === '1';
+      const isLocal = params.get('local') === '1';
+
+      if (isLocal) {
+        setIsLocalMode(true);
+      }
+
+      if (isLogout) {
         localStorage.removeItem('vps_token');
         localStorage.removeItem('vps_user');
         localStorage.removeItem('vps_auth_mode');
         setLogoutNotice('logout');
-      } else if (params.get('expired') === '1') {
+      } else if (isExpired) {
         localStorage.removeItem('vps_token');
         localStorage.removeItem('vps_user');
         localStorage.removeItem('vps_auth_mode');
         setLogoutNotice('expired');
+      } else if (!isLocal) {
+        // Auto-redirect to Central SSO Gateway if not on local/logout/expired override
+        const existingToken = localStorage.getItem('vps_token');
+        if (existingToken) {
+          window.location.replace('/dashboard');
+          return;
+        }
+        const portalUrl = process.env.NEXT_PUBLIC_CRIC_PORTAL_URL || 'https://panel.cric.ac.th';
+        const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
+        window.location.replace(`${portalUrl}/login?redirect_uri=${redirectUri}&app=plan`);
+        return;
       }
     }
     // Check if system needs setup
@@ -63,13 +83,10 @@ function LoginForm() {
       });
   }, []);
 
-  const handleKeycloakLogin = () => {
-    const ssoUrl = process.env.NEXT_PUBLIC_KEYCLOAK_PUBLIC_URL || 'https://sso.cric.ac.th';
-    const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'cric-college';
-    const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'cric-plan-app';
+  const handleCentralSsoLogin = () => {
+    const portalUrl = process.env.NEXT_PUBLIC_CRIC_PORTAL_URL || 'https://panel.cric.ac.th';
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
-    const authUrl = `${ssoUrl}/realms/${realm}/protocol/openid-connect/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20profile%20email`;
-    window.location.href = authUrl;
+    window.location.href = `${portalUrl}/login?redirect_uri=${redirectUri}&app=plan`;
   };
 
   const handleLogin = async (u = username, p = password) => {
@@ -252,7 +269,7 @@ function LoginForm() {
           {/* CRIC Central SSO Login Button */}
           <button
             type="button"
-            onClick={handleKeycloakLogin}
+            onClick={handleCentralSsoLogin}
             className="w-full py-3 px-4 rounded-xl font-bold text-sm text-white shadow-md transition-all duration-200 flex items-center justify-center gap-2.5 bg-gradient-to-r from-blue-700 via-indigo-700 to-teal-600 hover:from-blue-800 hover:via-indigo-800 hover:to-teal-700 active:scale-[0.99] shadow-blue-900/20"
           >
             <Shield className="w-4 h-4 text-white" />
@@ -373,6 +390,26 @@ function LoginForm() {
               {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
             </button>
           </form>
+
+          <div className="pt-1 text-center">
+            {isLocalMode ? (
+              <button
+                type="button"
+                onClick={handleCentralSsoLogin}
+                className="text-xs text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1.5 transition"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>เข้าสู่ระบบผ่าน CRIC Central SSO</span>
+              </button>
+            ) : (
+              <a
+                href="/login?local=1"
+                className="text-[11px] text-slate-400 hover:text-slate-600 transition"
+              >
+                เข้าสู่ระบบด้วยบัญชีภายในเครื่อง (Local Login)
+              </a>
+            )}
+          </div>
 
           {mounted && enableTestMode && (
             <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-theme text-[11px] text-amber-900 space-y-1">

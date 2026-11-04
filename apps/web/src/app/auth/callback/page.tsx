@@ -12,6 +12,7 @@ function CallbackContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const ssoToken = searchParams.get('sso_token');
     const code = searchParams.get('code');
     const authError = searchParams.get('error') || searchParams.get('error_description');
 
@@ -20,8 +21,51 @@ function CallbackContent() {
       return;
     }
 
+    if (ssoToken) {
+      // Direct SSO Session Token from Central Login Gateway
+      fetch('/api/v1/auth/sso/sync-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionToken: ssoToken }),
+      })
+        .then(async (res) => {
+          const data = await res.json();
+          const finalToken = data.token || data.data?.token;
+          const finalUser = data.user || data.data?.user;
+
+          if (!res.ok || !data.success || !finalToken) {
+            throw new Error(data.message || 'การยืนยันเซสชันร่วมกับ Central SSO ล้มเหลว');
+          }
+
+          localStorage.setItem('vps_auth_mode', 'sso');
+          if (typeof document !== 'undefined') {
+            const isCric = window.location.hostname.includes('cric.ac.th');
+            const domainStr = isCric ? '; Domain=.cric.ac.th' : '';
+            document.cookie = `cric_logged_in=true; Path=/${domainStr}; Max-Age=604800; SameSite=Lax`;
+            document.cookie = `cric_sso_session=${encodeURIComponent(ssoToken)}; Path=/${domainStr}; Max-Age=604800; SameSite=Lax`;
+          }
+          login(finalToken, finalUser);
+
+          // Notify Central Panel and sibling tabs about the new active session
+          try {
+            if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+              const channel = new BroadcastChannel('cric_sso_channel');
+              channel.postMessage({ type: 'LOGIN' });
+              channel.close();
+            }
+            localStorage.setItem('cric_sso_login_event', Date.now().toString());
+          } catch {}
+
+          router.replace('/dashboard');
+        })
+        .catch((err: any) => {
+          setError(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
+        });
+      return;
+    }
+
     if (!code) {
-      setError('ไม่พบรหัสยืนยันตัวตน (Authorization Code) จาก Central SSO');
+      setError('ไม่พบรหัสยืนยันตัวตน (Authorization Code หรือ SSO Token) จาก Central SSO');
       return;
     }
 
