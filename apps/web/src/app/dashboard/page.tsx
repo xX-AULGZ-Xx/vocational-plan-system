@@ -54,6 +54,24 @@ export default function DashboardPage() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
 
+  // Logout Toast state
+  const [showLogoutToast, setShowLogoutToast] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('logout') === '1') {
+        setShowLogoutToast(true);
+        const newUrl = window.location.pathname;
+        window.history.replaceState(null, '', newUrl);
+        const timer = setTimeout(() => {
+          setShowLogoutToast(false);
+        }, 3500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
   // Sync fiscal year with settings when settings load
   useEffect(() => {
     if (currentFiscalYear) {
@@ -986,6 +1004,14 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Logout Toast Notification */}
+      {showLogoutToast && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 bg-slate-900/95 text-white text-xs sm:text-sm font-semibold rounded-2xl shadow-2xl border border-slate-700/60 backdrop-blur-md animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>ออกจากระบบเรียบร้อยแล้ว</span>
+        </div>
+      )}
 
       {/* Project Quick Preview Modal */}
       {previewProject && (

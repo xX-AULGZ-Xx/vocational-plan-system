@@ -156,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // If local admin or test mode, perform isolated logout without touching Central SSO
     if (isLocalMode) {
-      window.location.href = '/login?logout=1';
+      window.location.href = '/?logout=1';
       return;
     }
 
@@ -175,8 +175,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       document.cookie = 'cric_user_profile' + hostExpireStr;
     } catch {}
 
-    // Invalidate Central SSO Session on Keycloak and redirect back to Plan login
-    const postLogoutRedirect = encodeURIComponent(window.location.origin + '/login?logout=1');
+    // Invalidate Central SSO Session on Keycloak and redirect back to Plan Home (Guest View)
+    const postLogoutRedirect = encodeURIComponent(window.location.origin + '/?logout=1');
     const ssoUrl = process.env.NEXT_PUBLIC_KEYCLOAK_PUBLIC_URL || 'https://sso.cric.ac.th';
     const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || 'cric-college';
     const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || 'cric-plan-app';
