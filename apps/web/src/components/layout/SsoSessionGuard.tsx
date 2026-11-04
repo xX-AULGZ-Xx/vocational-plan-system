@@ -60,12 +60,14 @@ export default function SsoSessionGuard() {
       if (isCricDomain) {
         // CASE 1: Plan system is logged in with SSO, and Central Session was previously active but now terminated
         if (token && authMode === 'sso' && wasCentralActiveRef.current && !hasCricCookie && ssoSessionToken === null) {
-          console.warn('[SSO Guard] Central session was terminated from Portal/sibling app. Logging out Plan system...');
+          console.warn('[SSO Guard] Central session was terminated from Portal/sibling app. Triggering session expired modal...');
           wasCentralActiveRef.current = false;
           localStorage.removeItem('vps_token');
           localStorage.removeItem('vps_user');
           localStorage.removeItem('vps_auth_mode');
-          window.location.href = window.location.origin + '/login?expired=1';
+          if (pathname !== '/login') {
+            window.dispatchEvent(new CustomEvent('cric:session-expired', { detail: { reason: 'central_logout' } }));
+          }
           return;
         }
 
@@ -113,7 +115,7 @@ export default function SsoSessionGuard() {
               localStorage.removeItem('vps_user');
               localStorage.removeItem('vps_auth_mode');
               if (pathname !== '/login') {
-                window.location.href = '/login?expired=1';
+                window.dispatchEvent(new CustomEvent('cric:session-expired', { detail: { reason: 'central_logout' } }));
               }
             }
           }
@@ -130,7 +132,7 @@ export default function SsoSessionGuard() {
           localStorage.removeItem('vps_user');
           localStorage.removeItem('vps_auth_mode');
           if (pathname !== '/login') {
-            window.location.href = '/login?expired=1';
+            window.dispatchEvent(new CustomEvent('cric:session-expired', { detail: { reason: 'central_logout' } }));
           }
         }
       }

@@ -8,6 +8,7 @@ import { NotificationProvider } from '@/lib/notification-context';
 import { ChatProvider } from '@/lib/chat-context';
 import MainLayout from '@/components/layout/MainLayout';
 import SsoSessionGuard from '@/components/layout/SsoSessionGuard';
+import SessionExpiredModal from '@/components/layout/SessionExpiredModal';
 
 const prompt = Prompt({
   weight: ['300', '400', '500', '600', '700'],
@@ -58,6 +59,7 @@ export default function RootLayout({
       <body className="antialiased bg-slate-100 text-slate-900 font-sans">
         <AuthProvider>
           <SsoSessionGuard />
+          <SessionExpiredModal />
           <SettingsProvider>
             <NotificationProvider>
               <ChatProvider>

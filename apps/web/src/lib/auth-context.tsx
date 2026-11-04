@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setToken(null);
             setUser(null);
             if (!window.location.pathname.includes('/login')) {
-              window.location.href = '/login';
+              window.dispatchEvent(new CustomEvent('cric:session-expired', { detail: { reason: 'api_unauthorized' } }));
             }
             return;
           }
