@@ -58,7 +58,22 @@ function CallbackContent() {
 
           router.replace('/dashboard');
         })
-        .catch((err: any) => {
+        .catch(async (err: any) => {
+          const nativeToken = searchParams.get('token');
+          if (nativeToken) {
+            try {
+              const meRes = await fetch('/api/v1/auth/me', {
+                headers: { Authorization: `Bearer ${nativeToken}` },
+              });
+              const meData = await meRes.json();
+              if (meRes.ok && meData.success && meData.user) {
+                localStorage.setItem('vps_auth_mode', 'sso');
+                login(nativeToken, meData.user);
+                router.replace('/dashboard');
+                return;
+              }
+            } catch {}
+          }
           setError(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
         });
       return;
