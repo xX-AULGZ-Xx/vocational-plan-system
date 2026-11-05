@@ -104,6 +104,12 @@ export default function AdminSettingsPage() {
     developer_info: 'พัฒนาระบบโดย งานส่งเสริมการวิจัย นวัตกรรม และสิ่งประดิษฐ์ ร่วมกับ งานศูนย์ข้อมูลสารสนเทศ',
     project_code_template: 'PRJ-{YEAR}-{DIV}-{NUM}',
     project_code_digits: '4',
+    sso_portal_url: 'https://panel.cric.ac.th',
+    sso_keycloak_url: 'https://sso.cric.ac.th',
+    sso_realm: 'cric-college',
+    sso_client_id: 'cric-plan-app',
+    sso_enabled: 'true',
+    sso_slo_enabled: 'true',
   });
 
   const [testEmailRecipient, setTestEmailRecipient] = useState('');
@@ -324,8 +330,8 @@ export default function AdminSettingsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          keycloakUrl: settings.sso_keycloak_url || 'https://auth.cric.ac.th',
-          realm: settings.sso_realm || 'cric',
+          keycloakUrl: settings.sso_keycloak_url || 'https://sso.cric.ac.th',
+          realm: settings.sso_realm || 'cric-college',
           portalUrl: settings.sso_portal_url || 'https://panel.cric.ac.th',
         }),
       });
@@ -3299,9 +3305,9 @@ export default function AdminSettingsPage() {
                     </label>
                     <input
                       type="url"
-                      value={settings.sso_keycloak_url ?? 'https://auth.cric.ac.th'}
+                      value={settings.sso_keycloak_url ?? 'https://sso.cric.ac.th'}
                       onChange={(e) => handleChange('sso_keycloak_url', e.target.value)}
-                      placeholder="https://auth.cric.ac.th"
+                      placeholder="https://sso.cric.ac.th"
                       className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono"
                     />
                     <p className="text-[11px] text-slate-500 mt-1">
@@ -3316,9 +3322,9 @@ export default function AdminSettingsPage() {
                     </label>
                     <input
                       type="text"
-                      value={settings.sso_realm ?? 'cric'}
+                      value={settings.sso_realm ?? 'cric-college'}
                       onChange={(e) => handleChange('sso_realm', e.target.value)}
-                      placeholder="cric"
+                      placeholder="cric-college"
                       className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono"
                     />
                   </div>
@@ -3330,9 +3336,9 @@ export default function AdminSettingsPage() {
                     </label>
                     <input
                       type="text"
-                      value={settings.sso_client_id ?? 'vocational-plan'}
+                      value={settings.sso_client_id ?? 'cric-plan-app'}
                       onChange={(e) => handleChange('sso_client_id', e.target.value)}
-                      placeholder="vocational-plan"
+                      placeholder="cric-plan-app"
                       className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-lg outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 transition bg-slate-50/50 focus:bg-white font-mono"
                     />
                   </div>

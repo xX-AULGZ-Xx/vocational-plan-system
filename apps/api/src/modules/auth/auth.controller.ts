@@ -258,10 +258,23 @@ router.post('/keycloak', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Authorization code is required' });
     }
 
-    const KEYCLOAK_INTERNAL_URL = (process.env.KEYCLOAK_INTERNAL_URL || process.env.KEYCLOAK_URL || 'https://sso.cric.ac.th').replace(/\/$/, '');
-    const KEYCLOAK_PUBLIC_URL = (process.env.KEYCLOAK_PUBLIC_URL || 'https://sso.cric.ac.th').replace(/\/$/, '');
-    const KEYCLOAK_REALM = process.env.KEYCLOAK_REALM || 'cric-college';
-    const KEYCLOAK_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'cric-plan-app';
+    let dbSsoUrl: string | undefined;
+    let dbSsoRealm: string | undefined;
+    let dbSsoClientId: string | undefined;
+    try {
+      const ssoSettings = await (prisma as any).systemSetting.findMany({
+        where: { key: { in: ['sso_keycloak_url', 'sso_realm', 'sso_client_id'] } },
+      });
+      const map = new Map<string, string>(ssoSettings.map((s: any) => [s.key, s.value]));
+      dbSsoUrl = map.get('sso_keycloak_url');
+      dbSsoRealm = map.get('sso_realm');
+      dbSsoClientId = map.get('sso_client_id');
+    } catch (e) {}
+
+    const KEYCLOAK_INTERNAL_URL = (process.env.KEYCLOAK_INTERNAL_URL || process.env.KEYCLOAK_URL || dbSsoUrl || 'https://sso.cric.ac.th').replace(/\/$/, '');
+    const KEYCLOAK_PUBLIC_URL = (dbSsoUrl || process.env.KEYCLOAK_PUBLIC_URL || 'https://sso.cric.ac.th').replace(/\/$/, '');
+    const KEYCLOAK_REALM = dbSsoRealm || process.env.KEYCLOAK_REALM || 'cric-college';
+    const KEYCLOAK_CLIENT_ID = dbSsoClientId || process.env.KEYCLOAK_CLIENT_ID || 'cric-plan-app';
     const KEYCLOAK_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || 'cric-plan-secret-key-2026';
 
     const tokenParams = new URLSearchParams();

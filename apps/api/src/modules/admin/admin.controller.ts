@@ -145,6 +145,12 @@ const DEFAULT_SETTINGS = [
   { key: 'theme_sidebar_style', value: 'dark', description: 'สไตล์แถบเมนูด้านข้าง Sidebar (dark หรือ light)' },
   { key: 'theme_border_radius', value: 'md', description: 'ความโค้งมนของขอบ UI (sm, md, lg, full)' },
   { key: 'app_url', value: process.env.APP_URL || process.env.WEB_APP_URL || 'http://localhost:3005', description: 'URL สำหรับเข้าสู่ระบบผ่านลิงก์ในอีเมลแจ้งเตือน (เช่น https://plan.cric.ac.th)' },
+    { key: 'sso_portal_url', value: process.env.CENTRAL_PORTAL_URL || process.env.NEXT_PUBLIC_CRIC_PORTAL_URL || 'https://panel.cric.ac.th', description: 'CRIC Central Portal Gateway URL' },
+  { key: 'sso_keycloak_url', value: process.env.KEYCLOAK_PUBLIC_URL || process.env.KEYCLOAK_URL || 'https://sso.cric.ac.th', description: 'Keycloak Server Public URL (OIDC)' },
+  { key: 'sso_realm', value: process.env.KEYCLOAK_REALM || 'cric-college', description: 'Keycloak Realm Name' },
+  { key: 'sso_client_id', value: process.env.KEYCLOAK_CLIENT_ID || 'cric-plan-app', description: 'Keycloak OIDC Client ID' },
+  { key: 'sso_enabled', value: 'true', description: 'เปิดใช้งาน Central SSO (true/false)' },
+  { key: 'sso_slo_enabled', value: 'true', description: 'เปิดใช้งาน Single Logout (SLO) (true/false)' },
   { key: 'developer_info', value: 'พัฒนาระบบโดย งานส่งเสริมการวิจัย นวัตกรรม และสิ่งประดิษฐ์ ร่วมกับ งานศูนย์ข้อมูลสารสนเทศ', description: 'ข้อความข้อมูลผู้พัฒนา (แสดงที่แถบเมนูด้านข้าง Sidebar)' },
 ];
 
@@ -2096,9 +2102,19 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
 router.post('/settings/test-sso', async (req: AuthRequest, res: Response) => {
   const startTime = Date.now();
   try {
-    const { keycloakUrl, realm, portalUrl } = req.body;
-    const targetUrl = (keycloakUrl || process.env.KEYCLOAK_URL || 'https://auth.cric.ac.th').replace(/\/+$/, '');
-    const targetRealm = realm || process.env.KEYCLOAK_REALM || 'cric';
+    let { keycloakUrl, realm, portalUrl } = req.body;
+    try {
+      const ssoSettings = await (prisma as any).systemSetting.findMany({
+        where: { key: { in: ['sso_keycloak_url', 'sso_realm', 'sso_portal_url'] } },
+      });
+      const map = new Map(ssoSettings.map((s: any) => [s.key, s.value]));
+      if (!keycloakUrl && map.get('sso_keycloak_url')) keycloakUrl = map.get('sso_keycloak_url');
+      if (!realm && map.get('sso_realm')) realm = map.get('sso_realm');
+      if (!portalUrl && map.get('sso_portal_url')) portalUrl = map.get('sso_portal_url');
+    } catch (e) {}
+
+    const targetUrl = (keycloakUrl || process.env.KEYCLOAK_PUBLIC_URL || process.env.KEYCLOAK_URL || 'https://sso.cric.ac.th').replace(/\/+$/, '');
+    const targetRealm = realm || process.env.KEYCLOAK_REALM || 'cric-college';
     const discoveryUrl = `${targetUrl}/realms/${targetRealm}/.well-known/openid-configuration`;
 
     const controller = new AbortController();
