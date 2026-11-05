@@ -2092,6 +2092,58 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// POST /api/v1/admin/settings/test-sso
+router.post('/settings/test-sso', async (req: AuthRequest, res: Response) => {
+  const startTime = Date.now();
+  try {
+    const { keycloakUrl, realm, portalUrl } = req.body;
+    const targetUrl = (keycloakUrl || process.env.KEYCLOAK_URL || 'https://auth.cric.ac.th').replace(/\/+$/, '');
+    const targetRealm = realm || process.env.KEYCLOAK_REALM || 'cric';
+    const discoveryUrl = `${targetUrl}/realms/${targetRealm}/.well-known/openid-configuration`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+
+    const response = await fetch(discoveryUrl, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    clearTimeout(timeout);
+    const latency = Date.now() - startTime;
+
+    if (!response.ok) {
+      return res.status(200).json({
+        success: false,
+        status: 'error',
+        latency,
+        message: `HTTP ${response.status} ${response.statusText}`,
+        discoveryUrl,
+      });
+    }
+
+    const oidcConfig: any = await response.json();
+    return res.json({
+      success: true,
+      status: 'healthy',
+      latency,
+      issuer: oidcConfig.issuer,
+      authorizationEndpoint: oidcConfig.authorization_endpoint,
+      tokenEndpoint: oidcConfig.token_endpoint,
+      endSessionEndpoint: oidcConfig.end_session_endpoint,
+      discoveryUrl,
+      portalUrl: portalUrl || process.env.CENTRAL_PORTAL_URL || 'https://panel.cric.ac.th',
+    });
+  } catch (err: any) {
+    const latency = Date.now() - startTime;
+    return res.status(200).json({
+      success: false,
+      status: 'offline',
+      latency,
+      message: err.message || 'Cannot reach SSO / Keycloak Discovery Endpoint',
+    });
+  }
+});
+
 // POST /api/v1/admin/settings/test-email
 router.post('/settings/test-email', async (req: AuthRequest, res: Response) => {
   try {
