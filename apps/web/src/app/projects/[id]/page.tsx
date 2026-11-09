@@ -488,14 +488,14 @@ export default function ProjectDetailPage() {
 
           {/* Approval Actions or Print or Project Summary */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Preview Document Button (Download / View DOCX) */}
+            {/* Download Document Button (DOCX) */}
             <button
               onClick={handlePreviewDocx}
               className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-theme bg-theme-primary-light hover:bg-theme-primary hover:text-white text-theme-primary border border-theme-primary/20 shadow-xs transition transform active:scale-95"
-              title="ดาวน์โหลดหรือดูตัวอย่างเอกสารข้อเสนอโครงการ (.docx)"
+              title="ดาวน์โหลดเอกสารข้อเสนอโครงการ (.docx)"
             >
-              <Eye className="w-3.5 h-3.5" />
-              <span>ดูตัวอย่างเอกสาร</span>
+              <Download className="w-3.5 h-3.5" />
+              <span>ดาวน์โหลดเอกสาร Docx</span>
             </button>
 
             {/* Edit Project Button (for Draft / Rejected / Revision) */}
