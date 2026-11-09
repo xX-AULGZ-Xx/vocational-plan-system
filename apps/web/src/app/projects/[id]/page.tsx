@@ -488,18 +488,6 @@ export default function ProjectDetailPage() {
 
           {/* Approval Actions or Print or Project Summary */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Approved Project: One-Page Summary Button */}
-            {project.status === 'approved' && (
-              <button
-                onClick={() => setShowSummaryModal(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-theme bg-gradient-to-r from-theme-primary via-indigo-900 to-theme-primary-hover hover:brightness-110 text-white shadow-sm transition"
-                title="เปิดเอกสารสรุปผลโครงการแผ่นเดียว (One-Page Executive Summary)"
-              >
-                <FileText className="w-4 h-4 text-amber-300" />
-                <span>สรุปผลโครงการ (แผ่นเดียว)</span>
-              </button>
-            )}
-
             {/* Preview Document Button (Download / View DOCX) */}
             <button
               onClick={handlePreviewDocx}
