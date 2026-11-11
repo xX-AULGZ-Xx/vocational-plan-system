@@ -33,6 +33,7 @@ import {
   UserCheck,
   UserX,
   Lock,
+  Download,
 } from 'lucide-react';
 
 interface Division {
@@ -640,6 +641,42 @@ export default function AdminUsersPage() {
     }
   };
 
+  const [exportingPanelJson, setExportingPanelJson] = useState(false);
+
+  const handleExportForPanel = async () => {
+    if (!token) return;
+    setExportingPanelJson(true);
+    try {
+      const res = await fetch('/api/v1/admin/export-users', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || 'ไม่สามารถส่งออกข้อมูลผู้ใช้งานได้');
+      }
+
+      const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `plan-users-export-${dateStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showNotification(
+        'success',
+        `ส่งออกข้อมูลผู้ใช้ (${json.counts?.users || 0} คน) สำหรับระบบ Panel เรียบร้อยแล้ว`
+      );
+    } catch (err: any) {
+      showNotification('error', err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ JSON');
+    } finally {
+      setExportingPanelJson(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20">
       {/* Header */}
@@ -656,7 +693,7 @@ export default function AdminUsersPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={fetchUsers}
             disabled={loading}
@@ -664,6 +701,16 @@ export default function AdminUsersPage() {
             title="รีเฟรชข้อมูล"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-theme-primary' : ''}`} />
+          </button>
+          <button
+            type="button"
+            onClick={handleExportForPanel}
+            disabled={exportingPanelJson}
+            className="flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold rounded-theme bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 shadow-xs transition disabled:opacity-60"
+            title="ส่งออกไฟล์ JSON ผู้ใช้และฝ่าย/แผนกเพื่อนำไปนำเข้าในระบบ CRIC E-Service Panel"
+          >
+            <Download className={`w-4 h-4 text-theme-primary ${exportingPanelJson ? 'animate-bounce' : ''}`} />
+            <span>{exportingPanelJson ? 'กำลังส่งออก...' : 'ส่งออก JSON สำหรับ Panel'}</span>
           </button>
           <button
             onClick={handleOpenCreate}

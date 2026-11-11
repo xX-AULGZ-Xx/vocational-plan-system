@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { prisma, serializeBigInt } from '../../lib/prisma';
 import { authenticate, authorize, AuthRequest } from '../../middlewares/auth';
 import { Role } from '@prisma/client';
@@ -312,6 +313,171 @@ router.get('/fiscal-years', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Get fiscal years error:', error);
     return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงรายการปีงบประมาณ', error: error.message });
+  }
+});
+
+// GET /api/v1/admin/export-users (Dual Auth: X-CRIC-SYNC-KEY or Admin Bearer JWT)
+// Used by CRIC E-Service Panel for live sync & JSON export
+router.get('/export-users', async (req: Request, res: Response) => {
+  try {
+    const syncKeyHeader = req.headers['x-cric-sync-key'];
+    const expectedSyncKey = process.env.PANEL_SYNC_SECRET || 'cric-panel-sync-2026';
+    const hasValidSyncKey = typeof syncKeyHeader === 'string' && syncKeyHeader === expectedSyncKey;
+
+    if (!hasValidSyncKey) {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบหรือระบุ Sync Key ที่ถูกต้อง' });
+      }
+      const token = authHeader.split(' ')[1];
+      const jwtSecret = process.env.JWT_SECRET || 'default-secret-change-me';
+      try {
+        const decoded = jwt.verify(token, jwtSecret) as { role?: string };
+        if (decoded.role !== 'ADMIN') {
+          return res.status(403).json({ success: false, message: 'เฉพาะผู้ดูแลระบบ (ADMIN) เท่านั้นที่สามารถส่งออกข้อมูลผู้ใช้ได้' });
+        }
+      } catch {
+        return res.status(401).json({ success: false, message: 'Token ไม่ถูกต้องหรือหมดอายุ' });
+      }
+    }
+
+    const [divisions, departments, users, orgSettings] = await Promise.all([
+      (prisma as any).division.findMany({ orderBy: { id: 'asc' } }),
+      (prisma as any).department.findMany({
+        include: { division: true },
+        orderBy: { id: 'asc' },
+      }),
+      (prisma as any).user.findMany({
+        include: {
+          department: {
+            include: { division: true },
+          },
+        },
+        orderBy: { id: 'asc' },
+      }),
+      (prisma as any).systemSetting.findMany({
+        where: {
+          OR: [
+            { key: { endsWith: '_department_ids' } },
+            { key: { endsWith: '_division_ids' } },
+            { key: { startsWith: 'head_name_dept_' } },
+          ],
+        },
+      }),
+    ]);
+
+    const userDeptIdsMap = new Map<string, number[]>();
+    const userDivIdsMap = new Map<string, number[]>();
+    const deptHeadNamesMap = new Map<number, string>();
+
+    for (const s of orgSettings) {
+      const key = String(s.key || '');
+      if (key.startsWith('user_') && key.endsWith('_department_ids')) {
+        const uid = key.replace(/^user_/, '').replace(/_department_ids$/, '');
+        try {
+          const parsed = JSON.parse(s.value || '[]');
+          if (Array.isArray(parsed)) {
+            userDeptIdsMap.set(uid, parsed.map((n: any) => Number(n)).filter((n: number) => !isNaN(n)));
+          }
+        } catch {}
+      } else if (key.startsWith('user_') && key.endsWith('_division_ids')) {
+        const uid = key.replace(/^user_/, '').replace(/_division_ids$/, '');
+        try {
+          const parsed = JSON.parse(s.value || '[]');
+          if (Array.isArray(parsed)) {
+            userDivIdsMap.set(uid, parsed.map((n: any) => Number(n)).filter((n: number) => !isNaN(n)));
+          }
+        } catch {}
+      } else if (key.startsWith('head_name_dept_')) {
+        const deptId = Number(key.replace(/^head_name_dept_/, ''));
+        if (!isNaN(deptId) && s.value) {
+          deptHeadNamesMap.set(deptId, String(s.value).trim());
+        }
+      }
+    }
+
+    const exportedUsers = users.map((u: any) => {
+      const uid = String(u.id);
+      const rawDeptIds = userDeptIdsMap.get(uid) || [];
+      const deptIds =
+        rawDeptIds.length > 0
+          ? Array.from(new Set(rawDeptIds))
+          : u.department_id
+            ? [Number(u.department_id)]
+            : [];
+
+      const rawDivIds = userDivIdsMap.get(uid) || [];
+      const divIds =
+        rawDivIds.length > 0
+          ? Array.from(new Set(rawDivIds))
+          : u.department?.division?.id
+            ? [Number(u.department.division.id)]
+            : [];
+
+      const headDeptIds: number[] = [];
+      const cleanName = String(u.full_name || '').trim();
+      for (const [dId, headName] of deptHeadNamesMap.entries()) {
+        if (cleanName && headName === cleanName) {
+          headDeptIds.push(dId);
+        }
+      }
+
+      const derivedPersonnelType =
+        u.personnel_type || (u.role === 'TEACHER' || u.role === 'HEAD_DEPT' ? 'TEACHER' : 'STAFF');
+
+      return {
+        id: uid,
+        username: u.username,
+        email: u.email || null,
+        password_hash: u.password_hash,
+        full_name: u.full_name,
+        position: u.position || null,
+        role: u.role,
+        personnel_type: derivedPersonnelType,
+        department_id: u.department_id ? Number(u.department_id) : null,
+        division_id: u.department?.division?.id ? Number(u.department.division.id) : null,
+        department_name: u.department?.name || null,
+        division_name: u.department?.division?.name || null,
+        division_code: u.department?.division?.code || null,
+        department_ids: deptIds,
+        division_ids: divIds,
+        head_dept_ids: headDeptIds,
+        is_active: Boolean(u.is_active),
+        avatar_url: u.avatar_url || null,
+        google_id: u.google_id || null,
+      };
+    });
+
+    return res.json(
+      serializeBigInt({
+        success: true,
+        source: 'vocational-plan-system',
+        exportedAt: new Date().toISOString(),
+        counts: {
+          divisions: divisions.length,
+          departments: departments.length,
+          users: exportedUsers.length,
+        },
+        data: {
+          divisions,
+          departments: departments.map((d: any) => ({
+            id: Number(d.id),
+            name: d.name,
+            division_id: Number(d.division_id),
+            division_code: d.division?.code || null,
+            division_name: d.division?.name || null,
+          })),
+          users: exportedUsers,
+        },
+      })
+    );
+  } catch (error: any) {
+    console.error('Export users for Panel error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการส่งออกข้อมูลผู้ใช้งาน',
+      error: error.message,
+    });
   }
 });
 
